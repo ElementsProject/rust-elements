@@ -29,13 +29,13 @@ use confidential;
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct AssetIssuance {
     /// Zero for a new asset issuance; otherwise a blinding factor for the input
-    asset_blinding_nonce: [u8; 32],
+    pub asset_blinding_nonce: [u8; 32],
     /// Freeform entropy field
-    asset_entropy: [u8; 32],
+    pub asset_entropy: [u8; 32],
     /// Amount of asset to issue
-    amount: confidential::Value,
+    pub amount: confidential::Value,
     /// Amount of inflation keys to issue
-    inflation_keys: confidential::Value,
+    pub inflation_keys: confidential::Value,
 }
 serde_struct_impl!(AssetIssuance, asset_blinding_nonce, asset_entropy, amount, inflation_keys);
 impl_consensus_encoding!(AssetIssuance, asset_blinding_nonce, asset_entropy, amount, inflation_keys);
@@ -123,13 +123,13 @@ impl fmt::Display for OutPoint {
 #[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
 pub struct TxInWitness {
     /// Amount rangeproof
-    amount_rangeproof: Vec<u8>,
+    pub amount_rangeproof: Vec<u8>,
     /// Rangeproof for inflation keys
-    inflation_keys_rangeproof: Vec<u8>,
+    pub inflation_keys_rangeproof: Vec<u8>,
     /// Traditional script witness
-    script_witness: Vec<Vec<u8>>,
+    pub script_witness: Vec<Vec<u8>>,
     /// Pegin witness, basically the same thing
-    pegin_witness: Vec<Vec<u8>>,
+    pub pegin_witness: Vec<Vec<u8>>,
 }
 serde_struct_impl!(TxInWitness, amount_rangeproof, inflation_keys_rangeproof, script_witness, pegin_witness);
 impl_consensus_encoding!(TxInWitness, amount_rangeproof, inflation_keys_rangeproof, script_witness, pegin_witness);
@@ -221,9 +221,9 @@ impl TxIn {
 #[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
 pub struct TxOutWitness {
     /// Surjection proof showing that the asset commitment is legitimate
-    surjection_proof: Vec<u8>,
+    pub surjection_proof: Vec<u8>,
     /// Rangeproof showing that the value commitment is legitimate
-    rangeproof: Vec<u8>,
+    pub rangeproof: Vec<u8>,
 }
 serde_struct_impl!(TxOutWitness, surjection_proof, rangeproof);
 impl_consensus_encoding!(TxOutWitness, surjection_proof, rangeproof);

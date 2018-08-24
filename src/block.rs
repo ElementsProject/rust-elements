@@ -25,9 +25,9 @@ use Transaction;
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Proof {
     /// Block "public key"
-    challenge: Script,
+    pub challenge: Script,
     /// Satisfying witness to the above challenge, or nothing
-    solution: Script,
+    pub solution: Script,
 }
 serde_struct_impl!(Proof, challenge, solution);
 impl_consensus_encoding!(Proof, challenge, solution);
@@ -36,17 +36,17 @@ impl_consensus_encoding!(Proof, challenge, solution);
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct BlockHeader {
     /// Version - should be 0x20000000 except when versionbits signalling
-    version: u32,
+    pub version: u32,
     /// Previous blockhash
-    prev_block: Sha256dHash,
+    pub prev_block: Sha256dHash,
     /// Transaction Merkle root
-    merkle_root: Sha256dHash,
+    pub merkle_root: Sha256dHash,
     /// Block timestamp
-    time: u32,
+    pub time: u32,
     /// Block height
-    height: u32,
+    pub height: u32,
     /// Block height
-    proof: Proof,
+    pub proof: Proof,
 
 }
 serde_struct_impl!(BlockHeader, version, prev_block, merkle_root, time, height, proof);
