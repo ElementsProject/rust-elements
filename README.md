@@ -1,4 +1,4 @@
-[![Status](https://travis-ci.org/rust-bitcoin/rust-bitcoin.png?branch=master)](https://travis-ci.org/rust-bitcoin/rust-bitcoin)
+[![Status](https://travis-ci.org/ElementsProject/rust-elements.png?branch=master)](https://travis-ci.org/ElementsProject/rust-elements)
 
 # Rust Elements Library
 
