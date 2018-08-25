@@ -6,6 +6,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bitcoin"
 version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "bitcoin-bech32 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "byteorder 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -43,7 +44,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "elements"
 version = "0.1.1"
 dependencies = [
- "bitcoin 0.14.0",
+ "bitcoin 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "secp256k1 0.11.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.74 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -165,6 +166,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 
 [metadata]
 "checksum bech32 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ad20b907fd16610c3960c7fe9dae13dd243343409bab80299774c9a8b5d7bed8"
+"checksum bitcoin 0.14.0 (registry+https://github.com/rust-lang/crates.io-index)" = "16e8dd6e5a96b72130f5dfc1507fccad0ae275f9d617b6cbb107ef86a85077a8"
 "checksum bitcoin-bech32 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "ab22a4c40d68ebb8cb3a820273e46ec3ed959556214967e88d33d8665f07016e"
 "checksum bitflags 1.0.4 (registry+https://github.com/rust-lang/crates.io-index)" = "228047a76f468627ca71776ecdebd732a3423081fcf5125585bcd7c49886ce12"
 "checksum byteorder 1.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "8389c509ec62b9fe8eca58c502a0acaf017737355615243496cde4994f8fa4f9"
