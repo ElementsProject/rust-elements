@@ -18,7 +18,6 @@ elements = { path = "..", features = ["fuzztarget", "serde-feature"] }
 
 [dependencies.bitcoin]
 version = "0.14"
-path = "../../../rust-bitcoin/rust-bitcoin/"
 
 # Prevent this from interfering with workspaces
 [workspace]
