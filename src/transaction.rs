@@ -511,6 +511,7 @@ impl<D: SimpleDecoder> ConsensusDecodable<D> for Transaction {
 #[cfg(test)]
 mod tests {
     use bitcoin::network::serialize::BitcoinHash;
+    use bitcoin::util::hash::Sha256dHash;
 
     use Transaction;
     use confidential;
@@ -785,7 +786,79 @@ mod tests {
         assert_eq!(tx.output.len(), 2);
         assert_eq!(tx.output[0].is_null_data(), true);
         assert_eq!(tx.output[1].is_null_data(), true);
+    }
 
+    #[test]
+    fn pegin() {
+        // Pegin tx from Liquid integration tests
+        let tx: Transaction = hex_deserialize!(
+            "0200000001013fe9fcf1d5eae66a152efa45ad32baa5eed3cf11ab5e04edde65\
+             0313b58ed8c90000004000ffffffff0201f80bb0038f482243202f0b2dcf88d9\
+             b4e7f930a48a3fcdc003af76b1f9d60e63010000000005f5c88c001976a914d7\
+             cc0ea6d5e53af78c7802101519cc100692668e88ac01f80bb0038f482243202f\
+             0b2dcf88d9b4e7f930a48a3fcdc003af76b1f9d60e6301000000000000187400\
+             0000000000000002473044022048cf10f12a31cb0ec36ba3a6f79fad7e0dea3f\
+             1aa790a5aed02f8e8455c8cb1502201a2624089ce70c893dfd07a156ba91223e\
+             dd5680cbd93d3336285ceefcb3dc1401210205914becd15ac5d2f72ad0aa42e8\
+             4349c825a544d8c16e78ecc21534ef561fd4060800e1f5050000000020f80bb0\
+             038f482243202f0b2dcf88d9b4e7f930a48a3fcdc003af76b1f9d60e63200622\
+             6e46111a0b59caaf126043eb5bbf28c34f3a5e332a1fc7b2b73cf188910f1600\
+             141ab7f5995cf0dfcb90cbb02b63397e5326eae6febe020000000113244fa59f\
+             cb407124038ff9121ed546f6dc217571cb366a50d3193f2c80298c0000000049\
+             483045022100d1e212715d2dcbc1c66d76f43d9f326f54ff339b565c68f046ed\
+             74040730433b02201d9ccbad57566100a06b4be47a4c777cbd7c99e0a08e17f7\
+             bf10458117426cd801feffffff0200e1f5050000000017a914774b87be1ef871\
+             d82a01edbb89a70bf4bb59310387a88c8b44000000001976a914b14b73956239\
+             21dbbce438f4fc1fc8f1a495affa88acf4010000b700000020a060086af92ac3\
+             4dbbc8bd89bbbe03ef7e0016930f7fdc806ff15d163b5fda5e32105949c74822\
+             2d3e1c5b6e0a4d47f8de45b25d63f145c4056682a7b15cc3da56a2815bffff7f\
+             20000000000300000003946c969d81a3b0ca473ab54c11fa665234d6ce1ad09e\
+             87a1dbc56eb6de4002b83fe9fcf1d5eae66a152efa45ad32baa5eed3cf11ab5e\
+             04edde650313b58ed8c9fccdc0d07eaf48f928fecfc07707b95769704d25f855\
+             529711ed6450cc9b3c95010b00000000"
+        );
+
+        assert_eq!(
+            tx.txid().to_string(),
+            "d1402017060761d77ee516f388134660d31ce9a72e546676303ac2fc3400656f"
+        );
+        assert_eq!(tx.input.len(), 1);
+        assert_eq!(tx.input[0].is_coinbase(), false);
+        assert_eq!(tx.input[0].is_pegin(), true);
+        assert_eq!(tx.input[0].witness.pegin_witness.len(), 6);
+    }
+
+    #[test]
+    fn pegout() {
+        let tx: Transaction = hex_deserialize!(
+            "020000000001f6d59ba2e098a2a2eaecf06b02aa0773773449caf62bd4e9f17c\
+             db9b0d679954000000006b483045022100c74ee0dd8f3f6c909635f7a2bb8dd2\
+             052e3547f94a520cdba2aa12668059dae302204306e11033f18f65560a52a860\
+             b098e7df0fa7d35350d16f1c5a86e2da2ae37e012102b672f428ad984563c0de\
+             c80b3912fcad871338545df1538fe26c390826fbb4b2000000000101f80bb003\
+             8f482243202f0b2dcf88d9b4e7f930a48a3fcdc003af76b1f9d60e6301000000\
+             0005f5c92c00a06a2006226e46111a0b59caaf126043eb5bbf28c34f3a5e332a\
+             1fc7b2b73cf188910f1976a914bedb324be05d1a1254afeb3e7ef40fea0368bc\
+             1e88ac2102e25e582ac1adc69f168aa7dbf0a97341421e10b22c659927de24fd\
+             ac6e9f1fae4101a48fe52775701556a4a2dbf3d95c0c13845bbf87271e745b1c\
+             454f8ebcb5cd4792a4139f419f192ca6e389531d46fa5857f2c109dfe4003ad8\
+             b2ce504b488bed00000000"
+        );
+
+        assert_eq!(
+            tx.txid().to_string(),
+            "aeb921c251c466d36f58677e0ade3b7229c525bc2859f683f33c4428d1b5d83f"
+        );
+        assert_eq!(tx.input.len(), 1);
+        assert_eq!(tx.output.len(), 1);
+        assert_eq!(tx.output[0].is_null_data(), true);
+
+        let expected_asset_id = Sha256dHash::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
+        if let confidential::Asset::Explicit(asset_id) = tx.output[0].asset {
+            assert_eq!(expected_asset_id, asset_id);
+        } else {
+            panic!("Bad asset tag {}", tx.output[0].asset);
+        }
     }
 }
 

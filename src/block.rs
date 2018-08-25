@@ -93,7 +93,7 @@ mod tests {
     use Block;
 
     #[test]
-    fn transaction() {
+    fn block() {
         // Simple block with only coinbase output
         let block: Block = hex_deserialize!(
             "00000020a66e4a4baff69735267346d12e59e8a0da848b593813554deb16a6f3\
@@ -325,6 +325,36 @@ mod tests {
         assert_eq!(block.header.version, 0x20000000);
         assert_eq!(block.header.height, 1);
         assert_eq!(block.tx.len(), 3);
+
+        // 2-of-3 signed block from Liquid integration tests
+        let block: Block = hex_deserialize!(
+            "0000002069de100c1bae40e1cf8819bd18282e4ca370f62123c8ea2c60836984\
+             ba052270ee0cb6e5458591ac157ad414a111db4d34cedffc22e096291f7b4b3c\
+             8de3f69f8d53815b03000000695221031c25c60ef342990d9bf75425c1dc2392\
+             b5e206268d9d35044b731735db230c38210319c5a32a8ae698aaf1246784f542\
+             31d8d20f81b91c31353214538b827d718c8d210399d55e0a7fb30281da074dfb\
+             bb2654cacc2d03289ba79feae702ad6dbb542aab53ae9000463044022029bbe1\
+             79c2f0d8e6d1576869cea19ef439d0e52373f7efab77cd6ccb551b29f6022042\
+             baa3c17fccfb265ee878059b6cb85d40b976a30495c6ca14b7ffe6d1d8757247\
+             3045022100da88bb6fa1ecf3060ad7c8347eaa1a7ef8c9ae27a8b0136cff9099\
+             94ca409f9e022068ddf3090bde1e04deda04f762eb35858d7dfc17e156bfc1c8\
+             131ca07a349dda01020000000101000000000000000000000000000000000000\
+             0000000000000000000000000000ffffffff03530101ffffffff02018dc25a05\
+             5e773e7e91d4678053ebc702cce47f07b29f3ebd7c4b34cd30fb240201000000\
+             000000000000016a018dc25a055e773e7e91d4678053ebc702cce47f07b29f3e\
+             bd7c4b34cd30fb240201000000000000000000266a24aa21a9ed94f15ed3a621\
+             65e4a0b99699cc28b48e19cb5bc1b1f47155db62d63f1e047d45000000000000\
+             0120000000000000000000000000000000000000000000000000000000000000\
+             00000000000000"
+        );
+
+        assert_eq!(
+            block.bitcoin_hash().to_string(),
+            "bcc6eb2ab6c97b9b4590825b9136f100b22e090c0469818572b8b93926a79f28"
+        );
+        assert_eq!(block.header.version, 0x20000000);
+        assert_eq!(block.header.proof.challenge.len(), 1 + 3 * 34 + 2);
+        assert_eq!(block.header.proof.solution.len(), 144);
     }
 }
 
