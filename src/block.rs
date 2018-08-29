@@ -38,7 +38,7 @@ pub struct BlockHeader {
     /// Version - should be 0x20000000 except when versionbits signalling
     pub version: u32,
     /// Previous blockhash
-    pub prev_block: Sha256dHash,
+    pub prev_blockhash: Sha256dHash,
     /// Transaction Merkle root
     pub merkle_root: Sha256dHash,
     /// Block timestamp
@@ -49,8 +49,8 @@ pub struct BlockHeader {
     pub proof: Proof,
 
 }
-serde_struct_impl!(BlockHeader, version, prev_block, merkle_root, time, height, proof);
-impl_consensus_encoding!(BlockHeader, version, prev_block, merkle_root, time, height, proof);
+serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, height, proof);
+impl_consensus_encoding!(BlockHeader, version, prev_blockhash, merkle_root, time, height, proof);
 
 impl BitcoinHash for BlockHeader {
     fn bitcoin_hash(&self) -> Sha256dHash {
@@ -60,7 +60,7 @@ impl BitcoinHash for BlockHeader {
         // Everything except proof.solution goes into the hash
         let mut enc = Sha256dEncoder::new();
         self.version.consensus_encode(&mut enc).unwrap();
-        self.prev_block.consensus_encode(&mut enc).unwrap();
+        self.prev_blockhash.consensus_encode(&mut enc).unwrap();
         self.merkle_root.consensus_encode(&mut enc).unwrap();
         self.time.consensus_encode(&mut enc).unwrap();
         self.height.consensus_encode(&mut enc).unwrap();
@@ -75,10 +75,10 @@ pub struct Block {
     /// Header of the block
     pub header: BlockHeader,
     /// Complete list of transaction in the block
-    pub tx: Vec<Transaction>,
+    pub txdata: Vec<Transaction>,
 }
-serde_struct_impl!(Block, header, tx);
-impl_consensus_encoding!(Block, header, tx);
+serde_struct_impl!(Block, header, txdata);
+impl_consensus_encoding!(Block, header, txdata);
 
 impl BitcoinHash for Block {
     fn bitcoin_hash(&self) -> Sha256dHash {
@@ -114,7 +114,7 @@ mod tests {
         );
         assert_eq!(block.header.version, 0x20000000);
         assert_eq!(block.header.height, 2);
-        assert_eq!(block.tx.len(), 1);
+        assert_eq!(block.txdata.len(), 1);
 
         // Block with 3 transactions ... the rangeproofs are very large :)
         let block: Block = hex_deserialize!(
@@ -324,7 +324,7 @@ mod tests {
         );
         assert_eq!(block.header.version, 0x20000000);
         assert_eq!(block.header.height, 1);
-        assert_eq!(block.tx.len(), 3);
+        assert_eq!(block.txdata.len(), 3);
 
         // 2-of-3 signed block from Liquid integration tests
         let block: Block = hex_deserialize!(
