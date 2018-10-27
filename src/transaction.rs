@@ -47,12 +47,8 @@ pub struct OutPoint {
     pub txid: Sha256dHash,
     /// The index of the referenced output in its transaction's vout
     pub vout: u32,
-    /// Flag indicating that this outpoint refers to something on the main chain
-    pub is_pegin: bool,
-    /// Flag indicating that this outpoint has an asset issuance attached
-    pub has_issuance: bool,
 }
-serde_struct_impl!(OutPoint, txid, vout, is_pegin, has_issuance);
+serde_struct_impl!(OutPoint, txid, vout);
 
 impl Default for OutPoint {
     /// Coinbase outpoint
@@ -60,61 +56,31 @@ impl Default for OutPoint {
         OutPoint {
             txid: Sha256dHash::default(),
             vout: 0xffffffff,
-            is_pegin: false,
-            has_issuance: false,
         }
     }
 }
 
 impl<S: SimpleEncoder> ConsensusEncodable<S> for OutPoint {
     fn consensus_encode(&self, s: &mut S) -> Result<(), serialize::Error> {
-        let mut vout = self.vout;
-        if self.is_pegin {
-            vout |= 1 << 30;
-        }
-        if self.has_issuance {
-            vout |= 1 << 31;
-        }
         self.txid.consensus_encode(s)?;
-        vout.consensus_encode(s)
+        self.vout.consensus_encode(s)
     }
 }
 
 impl<D: SimpleDecoder> ConsensusDecodable<D> for OutPoint {
     fn consensus_decode(d: &mut D) -> Result<OutPoint, serialize::Error> {
         let txid = Sha256dHash::consensus_decode(d)?;
-        let mut vout = u32::consensus_decode(d)?;
-        let is_pegin;
-        let has_issuance;
-
-        // Pegin/issuance flags are encoded into the high bits of `vout`, *except*
-        // if vout is all 1's; this indicates a coinbase transaction
-        if vout == 0xffffffff {
-            is_pegin = false;
-            has_issuance = false;
-        } else {
-            is_pegin = vout & (1 << 30) != 0;
-            has_issuance = vout & (1 << 31) != 0;
-            vout &= !(3 << 30);
-        }
-
+        let vout = u32::consensus_decode(d)?;
         Ok(OutPoint {
             txid: txid,
             vout: vout,
-            is_pegin: is_pegin,
-            has_issuance: has_issuance,
         })
     }
 }
 
 impl fmt::Display for OutPoint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match (self.is_pegin, self.has_issuance) {
-            (false, false) => f.write_str("[  ]")?,
-            (false, true)  => f.write_str("[ I]")?,
-            (true,  false) => f.write_str("[P ]")?,
-            (true,  true)  => f.write_str("[PI]")?,
-        }
+        f.write_str("[elements]")?;
         write!(f, "{}:{}", self.txid, self.vout)
     }
 }
@@ -149,6 +115,10 @@ impl TxInWitness {
 pub struct TxIn {
     /// The reference to the previous output that is being used an an input
     pub previous_output: OutPoint,
+    /// Flag indicating that `previous_outpoint` refers to something on the main chain
+    pub is_pegin: bool,
+    /// Flag indicating that `previous_outpoint` has an asset issuance attached
+    pub has_issuance: bool,
     /// The script which pushes values on the stack which will cause
     /// the referenced output's script to accept
     pub script_sig: Script,
@@ -164,11 +134,19 @@ pub struct TxIn {
     /// part of the txin.
     pub witness: TxInWitness,
 }
-serde_struct_impl!(TxIn, previous_output, script_sig, sequence, asset_issuance, witness);
+serde_struct_impl!(TxIn, previous_output, is_pegin, has_issuance, script_sig, sequence, asset_issuance, witness);
 
 impl<S: SimpleEncoder> ConsensusEncodable<S> for TxIn {
     fn consensus_encode(&self, s: &mut S) -> Result<(), serialize::Error> {
-        self.previous_output.consensus_encode(s)?;
+        let mut vout = self.previous_output.vout;
+        if self.is_pegin {
+            vout |= 1 << 30;
+        }
+        if self.has_issuance {
+            vout |= 1 << 31;
+        }
+        self.previous_output.txid.consensus_encode(s)?;
+        vout.consensus_encode(s)?;
         self.script_sig.consensus_encode(s)?;
         self.sequence.consensus_encode(s)?;
         if self.has_issuance() {
@@ -180,17 +158,31 @@ impl<S: SimpleEncoder> ConsensusEncodable<S> for TxIn {
 
 impl<D: SimpleDecoder> ConsensusDecodable<D> for TxIn {
     fn consensus_decode(d: &mut D) -> Result<TxIn, serialize::Error> {
-        let outp = OutPoint::consensus_decode(d)?;
+        let mut outp = OutPoint::consensus_decode(d)?;
         let script_sig = Script::consensus_decode(d)?;
         let sequence = u32::consensus_decode(d)?;
         let issuance;
-        if outp.has_issuance {
+        let is_pegin;
+        let has_issuance;
+        // Pegin/issuance flags are encoded into the high bits of `vout`, *except*
+        // if vout is all 1's; this indicates a coinbase transaction
+        if outp.vout == 0xffffffff {
+            is_pegin = false;
+            has_issuance = false;
+        } else {
+            is_pegin = outp.vout & (1 << 30) != 0;
+            has_issuance = outp.vout & (1 << 31) != 0;
+            outp.vout &= !((1 << 30) | (1 << 31));
+        }
+        if has_issuance {
             issuance = AssetIssuance::consensus_decode(d)?;
         } else {
             issuance = AssetIssuance::default();
         }
         Ok(TxIn {
             previous_output: outp,
+            is_pegin: is_pegin,
+            has_issuance: has_issuance,
             script_sig: script_sig,
             sequence: sequence,
             asset_issuance: issuance,
@@ -208,12 +200,12 @@ impl TxIn {
 
     /// Whether the input is a pegin
     pub fn is_pegin(&self) -> bool {
-        self.previous_output.is_pegin
+        self.is_pegin
     }
 
     /// Helper to determine whether an input has an asset issuance attached
     pub fn has_issuance(&self) -> bool {
-        self.previous_output.has_issuance
+        self.has_issuance
     }
 }
 
