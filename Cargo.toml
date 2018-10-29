@@ -1,6 +1,6 @@
 [package]
 name = "elements"
-version = "0.1.2"
+version = "0.2.0"
 authors = ["Andrew Poelstra <apoelstra@blockstream.com>"]
 description = "Library with support for de/serialization, parsing and executing on data structures and network messages related to Elements"
 license = "CC0-1.0"
