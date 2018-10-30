@@ -364,9 +364,14 @@ impl TxOut {
         }
     }
 
+    /// Whether this output is a pegout
+    pub fn is_pegout(&self) -> bool {
+        self.pegout_data().is_some()
+    }
+
     /// Whether this output is a pegout; if so, returns the destination genesis block,
     /// the destination script pubkey, and any additional data
-    pub fn is_pegout(&self) -> Option<PegoutData> {
+    pub fn pegout_data(&self) -> Option<PegoutData> {
         // Must be NULLDATA
         if !self.is_null_data() {
             return None;
@@ -398,7 +403,7 @@ impl TxOut {
         let script_pubkey = if let Some(Instruction::PushBytes(data)) = iter.next() {
             Script::from(data.to_owned())
         } else {
-            return None;
+            unreachable!()
         };
 
         // Return everything
@@ -905,13 +910,17 @@ mod tests {
         );
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.input[0].is_coinbase(), true);
+        assert_eq!(!tx.input[0].is_pegin(), true);
+        assert_eq!(tx.input[0].pegin_data(), None);
         assert_eq!(tx.is_coinbase(), true);
 
         assert_eq!(tx.output.len(), 2);
         assert_eq!(tx.output[0].is_null_data(), true);
         assert_eq!(tx.output[1].is_null_data(), true);
-        assert_eq!(tx.output[0].is_pegout(), None);
-        assert_eq!(tx.output[1].is_pegout(), None);
+        assert_eq!(tx.output[0].is_pegout(), false);
+        assert_eq!(tx.output[1].is_pegout(), false);
+        assert_eq!(tx.output[0].pegout_data(), None);
+        assert_eq!(tx.output[1].pegout_data(), None);
     }
 
     #[test]
@@ -1031,8 +1040,10 @@ mod tests {
         assert_eq!(tx.output.len(), 2);
         assert!(!tx.output[0].is_null_data());
         assert!(!tx.output[1].is_null_data());
-        assert_eq!(tx.output[0].is_pegout(), None);
-        assert_eq!(tx.output[1].is_pegout(), None);
+        assert_eq!(tx.output[0].is_pegout(), false);
+        assert_eq!(tx.output[1].is_pegout(), false);
+        assert_eq!(tx.output[0].pegout_data(), None);
+        assert_eq!(tx.output[1].pegout_data(), None);
     }
 
     #[test]
@@ -1059,8 +1070,9 @@ mod tests {
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 1);
         assert_eq!(tx.output[0].is_null_data(), true);
+        assert_eq!(tx.output[0].is_pegout(), true);
         assert_eq!(
-            tx.output[0].is_pegout(),
+            tx.output[0].pegout_data(),
             Some(super::PegoutData {
                 asset: tx.output[0].asset,
                 value: 99993900,
