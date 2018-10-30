@@ -232,6 +232,8 @@ impl TxOutWitness {
 pub struct PegoutData<'txo> {
     /// Amount to peg out
     pub value: u64,
+    /// Asset of pegout
+    pub asset: confidential::Asset,
     /// Genesis hash of the target blockchain
     pub genesis_hash: Sha256dHash,
     /// Scriptpubkey to create on the target blockchain
@@ -340,6 +342,7 @@ impl TxOut {
             .collect();
 
         Some(PegoutData {
+            asset: self.asset,
             value: value,
             genesis_hash: genesis_hash,
             script_pubkey: script_pubkey,
@@ -918,6 +921,7 @@ mod tests {
         assert_eq!(
             tx.output[0].is_pegout(),
             Some(super::PegoutData {
+                asset: tx.output[0].asset,
                 value: 99993900,
                 genesis_hash: Sha256dHash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
