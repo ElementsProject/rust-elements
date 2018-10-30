@@ -17,6 +17,7 @@
 
 use std::fmt;
 
+use bitcoin;
 use bitcoin::network::encodable::{ConsensusEncodable, ConsensusDecodable, VarInt};
 use bitcoin::network::serialize::{self, BitcoinHash, SimpleEncoder, SimpleDecoder};
 use bitcoin::blockdata::opcodes;
@@ -110,6 +111,34 @@ impl TxInWitness {
     }
 }
 
+
+/// Parsed data from a transaction input's pegin witness
+#[derive(Copy, Clone, Default, PartialEq, Eq, Debug, Hash)]
+pub struct PeginData<'tx> {
+    /// Reference to the pegin output on the mainchain
+    pub outpoint: bitcoin::OutPoint,
+    /// The value, in satoshis, of the pegin
+    pub value: u64,
+    /// Asset type being pegged in
+    pub asset: confidential::Asset,
+    /// Hash of genesis block of originating blockchain
+    pub genesis_hash: Sha256dHash,
+    /// The claim script that we should hash to tweak our address. Unparsed
+    /// to avoid unnecessary allocation and copying. Typical use is simply
+    /// to feed it raw into a hash function.
+    pub claim_script: &'tx [u8],
+    /// Mainchain transaction; not parsed to save time/memory since the
+    /// parsed transaction is typically not useful without auxillary
+    /// data (e.g. knowing how to compute pegin addresses for the
+    /// sidechain).
+    pub tx: &'tx [u8],
+    /// Merkle proof of transaction inclusion; also not parsed
+    pub merkle_proof: &'tx [u8],
+    /// The Bitcoin block that the pegin output appears in; scraped
+    /// from the transaction inclusion proof
+    pub referenced_block: Sha256dHash,
+}
+
 /// A transaction input, which defines old coins to be consumed
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct TxIn {
@@ -201,6 +230,42 @@ impl TxIn {
     /// Whether the input is a pegin
     pub fn is_pegin(&self) -> bool {
         self.is_pegin
+    }
+
+    /// Extracts witness data from a pegin. Will return `None` if any data
+    /// cannot be parsed. The combination of `is_pegin()` returning `true`
+    /// and `pegin_data()` returning `None` indicates an invalid transaction.
+    pub fn pegin_data(&self) -> Option<PeginData> {
+        if !self.is_pegin {
+            return None
+        }
+
+        if self.witness.pegin_witness.len() != 6 {
+            return None
+        }
+
+        macro_rules! opt_try(
+            ($res:expr) => { match $res { Ok(x) => x, Err(_) => return None } }
+        );
+
+        Some(PeginData {
+            // "Cast" of an elements::OutPoint to a bitcoin::OutPoint
+            outpoint: bitcoin::OutPoint {
+                txid: self.previous_output.txid,
+                vout: self.previous_output.vout,
+            },
+            value: opt_try!(serialize::deserialize(&self.witness.pegin_witness[0])),
+            asset: confidential::Asset::Explicit(
+                opt_try!(serialize::deserialize(&self.witness.pegin_witness[1])),
+            ),
+            genesis_hash: opt_try!(serialize::deserialize(&self.witness.pegin_witness[2])),
+            claim_script: &self.witness.pegin_witness[3],
+            tx: &self.witness.pegin_witness[4],
+            merkle_proof: &self.witness.pegin_witness[5],
+            referenced_block: Sha256dHash::from_data(
+                &self.witness.pegin_witness[5][0..80],
+            ),
+        })
     }
 
     /// Helper to determine whether an input has an asset issuance attached
@@ -568,6 +633,7 @@ impl<D: SimpleDecoder> ConsensusDecodable<D> for Transaction {
 
 #[cfg(test)]
 mod tests {
+    use bitcoin;
     use bitcoin::network::serialize::BitcoinHash;
     use bitcoin::util::hash::Sha256dHash;
 
@@ -886,6 +952,81 @@ mod tests {
         assert_eq!(tx.input[0].is_coinbase(), false);
         assert_eq!(tx.input[0].is_pegin(), true);
         assert_eq!(tx.input[0].witness.pegin_witness.len(), 6);
+        assert_eq!(
+            tx.input[0].pegin_data(),
+            Some(super::PeginData {
+                outpoint: bitcoin::OutPoint {
+                    txid: Sha256dHash::from_hex(
+                        "c9d88eb5130365deed045eab11cfd3eea5ba32ad45fa2e156ae6ead5f1fce93f",
+                    ).unwrap(),
+                    vout: 0,
+                },
+                value: 100000000,
+                asset: tx.output[0].asset,
+                genesis_hash: Sha256dHash::from_hex(
+                    "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
+                ).unwrap(),
+                claim_script: &[
+                    0x00, 0x14, 0x1a, 0xb7, 0xf5, 0x99, 0x5c, 0xf0,
+                    0xdf, 0xcb, 0x90, 0xcb, 0xb0, 0x2b, 0x63, 0x39,
+                    0x7e, 0x53, 0x26, 0xea, 0xe6, 0xfe,
+                ],
+                tx: &[
+                    0x02, 0x00, 0x00, 0x00, 0x01, 0x13, 0x24, 0x4f,
+                    0xa5, 0x9f, 0xcb, 0x40, 0x71, 0x24, 0x03, 0x8f,
+                    0xf9, 0x12, 0x1e, 0xd5, 0x46, 0xf6, 0xdc, 0x21,
+                    0x75, 0x71, 0xcb, 0x36, 0x6a, 0x50, 0xd3, 0x19,
+                    0x3f, 0x2c, 0x80, 0x29, 0x8c, 0x00, 0x00, 0x00,
+                    0x00, 0x49, 0x48, 0x30, 0x45, 0x02, 0x21, 0x00,
+                    0xd1, 0xe2, 0x12, 0x71, 0x5d, 0x2d, 0xcb, 0xc1,
+                    0xc6, 0x6d, 0x76, 0xf4, 0x3d, 0x9f, 0x32, 0x6f,
+                    0x54, 0xff, 0x33, 0x9b, 0x56, 0x5c, 0x68, 0xf0,
+                    0x46, 0xed, 0x74, 0x04, 0x07, 0x30, 0x43, 0x3b,
+                    0x02, 0x20, 0x1d, 0x9c, 0xcb, 0xad, 0x57, 0x56,
+                    0x61, 0x00, 0xa0, 0x6b, 0x4b, 0xe4, 0x7a, 0x4c,
+                    0x77, 0x7c, 0xbd, 0x7c, 0x99, 0xe0, 0xa0, 0x8e,
+                    0x17, 0xf7, 0xbf, 0x10, 0x45, 0x81, 0x17, 0x42,
+                    0x6c, 0xd8, 0x01, 0xfe, 0xff, 0xff, 0xff, 0x02,
+                    0x00, 0xe1, 0xf5, 0x05, 0x00, 0x00, 0x00, 0x00,
+                    0x17, 0xa9, 0x14, 0x77, 0x4b, 0x87, 0xbe, 0x1e,
+                    0xf8, 0x71, 0xd8, 0x2a, 0x01, 0xed, 0xbb, 0x89,
+                    0xa7, 0x0b, 0xf4, 0xbb, 0x59, 0x31, 0x03, 0x87,
+                    0xa8, 0x8c, 0x8b, 0x44, 0x00, 0x00, 0x00, 0x00,
+                    0x19, 0x76, 0xa9, 0x14, 0xb1, 0x4b, 0x73, 0x95,
+                    0x62, 0x39, 0x21, 0xdb, 0xbc, 0xe4, 0x38, 0xf4,
+                    0xfc, 0x1f, 0xc8, 0xf1, 0xa4, 0x95, 0xaf, 0xfa,
+                    0x88, 0xac, 0xf4, 0x01, 0x00, 0x00,
+                ],
+                merkle_proof: &[
+                    0x00, 0x00, 0x00, 0x20, 0xa0, 0x60, 0x08, 0x6a,
+                    0xf9, 0x2a, 0xc3, 0x4d, 0xbb, 0xc8, 0xbd, 0x89,
+                    0xbb, 0xbe, 0x03, 0xef, 0x7e, 0x00, 0x16, 0x93,
+                    0x0f, 0x7f, 0xdc, 0x80, 0x6f, 0xf1, 0x5d, 0x16,
+                    0x3b, 0x5f, 0xda, 0x5e, 0x32, 0x10, 0x59, 0x49,
+                    0xc7, 0x48, 0x22, 0x2d, 0x3e, 0x1c, 0x5b, 0x6e,
+                    0x0a, 0x4d, 0x47, 0xf8, 0xde, 0x45, 0xb2, 0x5d,
+                    0x63, 0xf1, 0x45, 0xc4, 0x05, 0x66, 0x82, 0xa7,
+                    0xb1, 0x5c, 0xc3, 0xda, 0x56, 0xa2, 0x81, 0x5b,
+                    0xff, 0xff, 0x7f, 0x20, 0x00, 0x00, 0x00, 0x00,
+                    0x03, 0x00, 0x00, 0x00, 0x03, 0x94, 0x6c, 0x96,
+                    0x9d, 0x81, 0xa3, 0xb0, 0xca, 0x47, 0x3a, 0xb5,
+                    0x4c, 0x11, 0xfa, 0x66, 0x52, 0x34, 0xd6, 0xce,
+                    0x1a, 0xd0, 0x9e, 0x87, 0xa1, 0xdb, 0xc5, 0x6e,
+                    0xb6, 0xde, 0x40, 0x02, 0xb8, 0x3f, 0xe9, 0xfc,
+                    0xf1, 0xd5, 0xea, 0xe6, 0x6a, 0x15, 0x2e, 0xfa,
+                    0x45, 0xad, 0x32, 0xba, 0xa5, 0xee, 0xd3, 0xcf,
+                    0x11, 0xab, 0x5e, 0x04, 0xed, 0xde, 0x65, 0x03,
+                    0x13, 0xb5, 0x8e, 0xd8, 0xc9, 0xfc, 0xcd, 0xc0,
+                    0xd0, 0x7e, 0xaf, 0x48, 0xf9, 0x28, 0xfe, 0xcf,
+                    0xc0, 0x77, 0x07, 0xb9, 0x57, 0x69, 0x70, 0x4d,
+                    0x25, 0xf8, 0x55, 0x52, 0x97, 0x11, 0xed, 0x64,
+                    0x50, 0xcc, 0x9b, 0x3c, 0x95, 0x01, 0x0b,
+                ],
+                referenced_block: Sha256dHash::from_hex(
+                    "297852caf43464d8f13a3847bd602184c21474cd06760dbf9fc5e87bade234f1"
+                ).unwrap(),
+            })
+        );
 
         assert_eq!(tx.output.len(), 2);
         assert!(!tx.output[0].is_null_data());

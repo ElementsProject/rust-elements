@@ -34,6 +34,6 @@ pub mod confidential;
 mod transaction;
 
 // export everything at the top level so it can be used as `elements::Transaction` etc.
-pub use transaction::{OutPoint, PegoutData, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction};
+pub use transaction::{OutPoint, PeginData, PegoutData, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction};
 pub use block::{BlockHeader, Block, Proof};
 
