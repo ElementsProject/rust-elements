@@ -227,6 +227,19 @@ impl TxOutWitness {
     }
 }
 
+/// Information about a pegout
+#[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
+pub struct PegoutData<'txo> {
+    /// Amount to peg out
+    pub value: u64,
+    /// Genesis hash of the target blockchain
+    pub genesis_hash: Sha256dHash,
+    /// Scriptpubkey to create on the target blockchain
+    pub script_pubkey: Script,
+    /// Remaining pegout data used by some forks of Elements
+    pub extra_data: Vec<&'txo [u8]>,
+}
+
 /// Transaction output
 #[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
 pub struct TxOut {
@@ -282,6 +295,56 @@ impl TxOut {
         } else {
             false
         }
+    }
+
+    /// Whether this output is a pegout; if so, returns the destination genesis block,
+    /// the destination script pubkey, and any additional data
+    pub fn is_pegout(&self) -> Option<PegoutData> {
+        // Must be NULLDATA
+        if !self.is_null_data() {
+            return None;
+        }
+
+        // Must have an explicit value
+        let value = if let confidential::Value::Explicit(val) = self.value {
+            val
+        } else {
+            return None;
+        };
+
+        let mut iter = self.script_pubkey.iter(true);
+
+        iter.next(); // Skip OP_RETURN
+
+        // Parse destination chain's genesis block
+        let genesis_hash = if let Some(Instruction::PushBytes(data)) = iter.next() {
+            if data.len() == 32 {
+                Sha256dHash::from(data)
+            } else {
+                return None;
+            }
+        } else {
+            return None;
+        };
+
+        // Parse destination scriptpubkey
+        let script_pubkey = if let Some(Instruction::PushBytes(data)) = iter.next() {
+            Script::from(data.to_owned())
+        } else {
+            return None;
+        };
+
+        // Return everything
+        let remainder = iter
+            .map(|x| if let Instruction::PushBytes(data) = x { data } else { unreachable!() })
+            .collect();
+
+        Some(PegoutData {
+            value: value,
+            genesis_hash: genesis_hash,
+            script_pubkey: script_pubkey,
+            extra_data: remainder,
+        })
     }
 
     /// Whether or not this output is a fee output
@@ -778,6 +841,8 @@ mod tests {
         assert_eq!(tx.output.len(), 2);
         assert_eq!(tx.output[0].is_null_data(), true);
         assert_eq!(tx.output[1].is_null_data(), true);
+        assert_eq!(tx.output[0].is_pegout(), None);
+        assert_eq!(tx.output[1].is_pegout(), None);
     }
 
     #[test]
@@ -818,6 +883,12 @@ mod tests {
         assert_eq!(tx.input[0].is_coinbase(), false);
         assert_eq!(tx.input[0].is_pegin(), true);
         assert_eq!(tx.input[0].witness.pegin_witness.len(), 6);
+
+        assert_eq!(tx.output.len(), 2);
+        assert!(!tx.output[0].is_null_data());
+        assert!(!tx.output[1].is_null_data());
+        assert_eq!(tx.output[0].is_pegout(), None);
+        assert_eq!(tx.output[1].is_pegout(), None);
     }
 
     #[test]
@@ -844,6 +915,38 @@ mod tests {
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 1);
         assert_eq!(tx.output[0].is_null_data(), true);
+        assert_eq!(
+            tx.output[0].is_pegout(),
+            Some(super::PegoutData {
+                value: 99993900,
+                genesis_hash: Sha256dHash::from_hex(
+                    "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
+                ).unwrap(),
+                script_pubkey: hex_deserialize!(
+                    "1976a914bedb324be05d1a1254afeb3e7ef40fea0368bc1e88ac"
+                ),
+                extra_data: vec![
+                    &[
+                        0x02,
+                        0xe2, 0x5e, 0x58, 0x2a, 0xc1, 0xad, 0xc6, 0x9f,
+                        0x16, 0x8a, 0xa7, 0xdb, 0xf0, 0xa9, 0x73, 0x41,
+                        0x42, 0x1e, 0x10, 0xb2, 0x2c, 0x65, 0x99, 0x27,
+                        0xde, 0x24, 0xfd, 0xac, 0x6e, 0x9f, 0x1f, 0xae,
+                    ],
+                    &[
+                        0x01, 0xa4, 0x8f, 0xe5, 0x27, 0x75, 0x70, 0x15,
+                        0x56, 0xa4, 0xa2, 0xdb, 0xf3, 0xd9, 0x5c, 0x0c,
+                        0x13, 0x84, 0x5b, 0xbf, 0x87, 0x27, 0x1e, 0x74,
+                        0x5b, 0x1c, 0x45, 0x4f, 0x8e, 0xbc, 0xb5, 0xcd,
+                        0x47, 0x92, 0xa4, 0x13, 0x9f, 0x41, 0x9f, 0x19,
+                        0x2c, 0xa6, 0xe3, 0x89, 0x53, 0x1d, 0x46, 0xfa,
+                        0x58, 0x57, 0xf2, 0xc1, 0x09, 0xdf, 0xe4, 0x00,
+                        0x3a, 0xd8, 0xb2, 0xce, 0x50, 0x4b, 0x48, 0x8b,
+                        0xed,
+                    ]
+                ],
+            })
+        );
 
         let expected_asset_id = Sha256dHash::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
         if let confidential::Asset::Explicit(asset_id) = tx.output[0].asset {
