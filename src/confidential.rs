@@ -22,8 +22,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::fmt;
 
-use bitcoin::network::encodable::{ConsensusEncodable, ConsensusDecodable};
-use bitcoin::network::serialize::{self, SimpleEncoder, SimpleDecoder};
+use bitcoin::consensus::{encode, Encodable, Encoder, Decodable, Decoder};
 use bitcoin::util::hash::Sha256dHash;
 
 // Helper macro to implement various things for the various confidential
@@ -55,8 +54,8 @@ macro_rules! impl_confidential_commitment {
             }
         }
 
-        impl<S: SimpleEncoder> ConsensusEncodable<S> for $name {
-            fn consensus_encode(&self, s: &mut S) -> Result<(), serialize::Error> {
+        impl<S: Encoder> Encodable<S> for $name {
+            fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
                 match *self {
                     $name::Null => 0u8.consensus_encode(s),
                     $name::Explicit(n) => {
@@ -72,14 +71,14 @@ macro_rules! impl_confidential_commitment {
             }
         }
 
-        impl<D: SimpleDecoder> ConsensusDecodable<D> for $name {
-            fn consensus_decode(d: &mut D) -> Result<$name, serialize::Error> {
+        impl<D: Decoder> Decodable<D> for $name {
+            fn consensus_decode(d: &mut D) -> Result<$name, encode::Error> {
                 let prefix = u8::consensus_decode(d)?;
                 match prefix {
                     0 => Ok($name::Null),
                     1 => {
                         // Apply $explicit_fn to allow `Value` to swap the amount bytes
-                        let explicit = $explicit_fn(ConsensusDecodable::consensus_decode(d)?);
+                        let explicit = $explicit_fn(Decodable::consensus_decode(d)?);
                         Ok($name::Explicit(explicit))
                     }
                     x => {

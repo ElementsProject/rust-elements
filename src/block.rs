@@ -16,7 +16,7 @@
 //!
 
 use bitcoin::blockdata::script::Script;
-use bitcoin::network::serialize::BitcoinHash;
+use bitcoin::BitcoinHash;
 use bitcoin::util::hash::Sha256dHash;
 
 use Transaction;
@@ -54,7 +54,7 @@ impl_consensus_encoding!(BlockHeader, version, prev_blockhash, merkle_root, time
 
 impl BitcoinHash for BlockHeader {
     fn bitcoin_hash(&self) -> Sha256dHash {
-        use bitcoin::network::encodable::ConsensusEncodable;
+        use bitcoin::consensus::Encodable;
         use bitcoin::util::hash::Sha256dEncoder;
 
         // Everything except proof.solution goes into the hash
@@ -88,7 +88,7 @@ impl BitcoinHash for Block {
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::network::serialize::BitcoinHash;
+    use bitcoin::BitcoinHash;
 
     use Block;
 

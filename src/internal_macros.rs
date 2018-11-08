@@ -14,20 +14,20 @@
 
 macro_rules! impl_consensus_encoding {
     ($thing:ident, $($field:ident),+) => (
-        impl<S: $crate::bitcoin::network::serialize::SimpleEncoder> $crate::bitcoin::network::encodable::ConsensusEncodable<S> for $thing {
+        impl<S: $crate::bitcoin::consensus::Encoder> $crate::bitcoin::consensus::Encodable<S> for $thing {
             #[inline]
-            fn consensus_encode(&self, s: &mut S) -> Result<(), $crate::bitcoin::network::serialize::Error> {
+            fn consensus_encode(&self, s: &mut S) -> Result<(), $crate::bitcoin::consensus::encode::Error> {
                 $( self.$field.consensus_encode(s)?; )+
                 Ok(())
             }
         }
 
-        impl<D: $crate::bitcoin::network::serialize::SimpleDecoder> $crate::bitcoin::network::encodable::ConsensusDecodable<D> for $thing {
+        impl<D: $crate::bitcoin::consensus::Decoder> $crate::bitcoin::consensus::Decodable<D> for $thing {
             #[inline]
-            fn consensus_decode(d: &mut D) -> Result<$thing, $crate::bitcoin::network::serialize::Error> {
-                use $crate::bitcoin::network::encodable::ConsensusDecodable;
+            fn consensus_decode(d: &mut D) -> Result<$thing, $crate::bitcoin::consensus::encode::Error> {
+                use $crate::bitcoin::consensus::Decodable;
                 Ok($thing {
-                    $( $field: ConsensusDecodable::consensus_decode(d)?, )+
+                    $( $field: Decodable::consensus_decode(d)?, )+
                 })
             }
         }
@@ -157,7 +157,7 @@ macro_rules! serde_struct_impl {
 #[cfg(test)]
 macro_rules! hex_deserialize(
     ($e:expr) => ({
-        use ::bitcoin::network::serialize::deserialize;
+        use ::bitcoin::consensus::encode::deserialize;
 
         fn hex_char(c: char) -> u8 {
             match c {
