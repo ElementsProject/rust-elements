@@ -3,31 +3,18 @@ extern crate bitcoin;
 extern crate elements;
 
 fn do_test(data: &[u8]) {
-    let tx_result: Result<elements::Transaction, _> = bitcoin::network::serialize::deserialize(data);
-    match tx_result {
+    let result: Result<elements::TxOut, _> = bitcoin::network::serialize::deserialize(data);
+    match result {
         Err(_) => {},
-        Ok(mut tx) => {
-            let reser = bitcoin::network::serialize::serialize(&tx).unwrap();
+        Ok(output) => {
+            let reser = bitcoin::network::serialize::serialize(&output).unwrap();
             assert_eq!(data, &reser[..]);
-            let len = reser.len();
-            let calculated_weight = tx.get_weight();
-            for input in &mut tx.input {
-                input.witness = elements::TxInWitness::default();
-            }
-            for output in &mut tx.output {
-                output.witness = elements::TxOutWitness::default();
-            }
-            assert_eq!(tx.has_witness(), false);
-            let no_witness_len = bitcoin::network::serialize::serialize(&tx).unwrap().len();
-            assert_eq!(no_witness_len * 3 + len, calculated_weight);
 
-            for output in &tx.output {
-                output.is_null_data();
-                output.is_pegout();
-                output.pegout_data();
-                output.is_fee();
-                output.minimum_value();
-            }
+            output.is_null_data();
+            output.is_pegout();
+            output.pegout_data();
+            output.is_fee();
+            output.minimum_value();
         },
     }
 }
