@@ -353,9 +353,9 @@ impl TxOut {
         if iter.next() == Some(Instruction::Op(opcodes::All::OP_RETURN)) {
             for push in iter {
                 match push {
-                    Instruction::Op(op) if op as u8 > opcodes::All::OP_PUSHNUM_16 as u8 => {}
-                    Instruction::PushBytes(..) => {},
-                    _ => return false
+                    Instruction::Op(op) if op as u8 > opcodes::All::OP_PUSHNUM_16 as u8 => return false,
+                    Instruction::Error(_) => return false,
+                    _ => {}
                 }
             }
             true
@@ -403,7 +403,7 @@ impl TxOut {
         let script_pubkey = if let Some(Instruction::PushBytes(data)) = iter.next() {
             Script::from(data.to_owned())
         } else {
-            unreachable!()
+            return None;
         };
 
         // Return everything
@@ -1439,6 +1439,56 @@ mod tests {
                 inflation_keys: confidential::Value::Null,
             }
         );
+    }
+
+    #[test]
+    fn txout_null_data() {
+        // Output with high opcodes should not be considered nulldata
+        let output: TxOut = hex_deserialize!("\
+            c3319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
+            101010101010101010101010101012e010101010101010101fdfdfdfdfdfdfdfd\
+            fdfdfdfdfdfdfdfdfdfdfdfd006a209f6a6a6a6a6a6a806a6afdfdfdfd17fdfdf\
+            dfdfdfdfdfdfdfdddfdfdfdfdfdfdfdfdfddedededededededededededededede\
+            dedededededededededededededededededededededededededededededededed\
+            edededededededededededededededededededededededededededededededede\
+            dededededea7dedededededededededededededededededfdedededededededed\
+            edededededededede9edededede00000000000001000000000000050000ff0000\
+            000000000000000000ff000000000000000000000000200000000000011c00000\
+            000d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3f3d3d3d3d3d3d3d3d3d3d3d3d3\
+            d3d3d3d3d3d3\
+        ");
+
+        assert!(!output.is_null_data());
+        assert!(!output.is_pegout());
+
+        // Output with pushes that are e.g. OP_1 are nulldata but not pegouts
+        let output: TxOut = hex_deserialize!("\
+            c32d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
+            1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
+            fdfdfdfdfd3ca059fdfdfb6a2000002323232323232323232323232323232\
+            3232323232323232321232323010151232323232323232323232323232323\
+            23232323232323232323233323232323332323232323232323232323232323232\
+            32323232323232323232423232323232323232323232323232323232323232323\
+            2323232323232323232323232323232323232323232321230d000000232323232\
+            323232323a2232323232323222303233323232323332323232323232323232323\
+            23232324232123232323232323232423232323232323232323232323232323232\
+            3232323232323232323232323232323232323232323232323232321230d000000\
+            2323232323d3\
+        ");
+
+        assert!(output.is_null_data());
+        assert!(!output.is_pegout());
+
+        // Output with just one push and nothing else should be nulldata but not pegout
+        let output: TxOut = hex_deserialize!("\
+            c32d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
+            1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
+            fdfdfdfdfd3ca059fdf2226a20000000000000000000000000000000000000000\
+            0000000000000000000000000\
+        ");
+        
+        assert!(output.is_null_data());
+        assert!(!output.is_pegout());
     }
 }
 
