@@ -17,7 +17,7 @@ afl = { version = "0.3", optional = true }
 elements = { path = "..", features = ["fuzztarget", "serde-feature"] }
 
 [dependencies.bitcoin]
-version = "0.14"
+version = "0.15"
 
 # Prevent this from interfering with workspaces
 [workspace]

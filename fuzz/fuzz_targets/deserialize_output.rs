@@ -3,11 +3,11 @@ extern crate bitcoin;
 extern crate elements;
 
 fn do_test(data: &[u8]) {
-    let result: Result<elements::TxOut, _> = bitcoin::network::serialize::deserialize(data);
+    let result: Result<elements::TxOut, _> = bitcoin::consensus::encode::deserialize(data);
     match result {
         Err(_) => {},
         Ok(output) => {
-            let reser = bitcoin::network::serialize::serialize(&output).unwrap();
+            let reser = bitcoin::consensus::encode::serialize(&output);
             assert_eq!(data, &reser[..]);
 
             output.is_null_data();
