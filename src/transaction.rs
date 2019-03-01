@@ -21,7 +21,7 @@ use bitcoin::{self, BitcoinHash, VarInt};
 use bitcoin::consensus::{self, encode, Encodable, Encoder, Decodable, Decoder};
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Script, Instruction};
-use bitcoin::util::hash::Sha256dHash;
+use bitcoin_hashes::{Hash, sha256d};
 
 use confidential;
 
@@ -44,7 +44,7 @@ impl_consensus_encoding!(AssetIssuance, asset_blinding_nonce, asset_entropy, amo
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct OutPoint {
     /// The referenced transaction's txid
-    pub txid: Sha256dHash,
+    pub txid: sha256d::Hash,
     /// The index of the referenced output in its transaction's vout
     pub vout: u32,
 }
@@ -54,7 +54,7 @@ impl Default for OutPoint {
     /// Coinbase outpoint
     fn default() -> OutPoint {
         OutPoint {
-            txid: Sha256dHash::default(),
+            txid: sha256d::Hash::default(),
             vout: 0xffffffff,
         }
     }
@@ -69,7 +69,7 @@ impl<S: Encoder> Encodable<S> for OutPoint {
 
 impl<D: Decoder> Decodable<D> for OutPoint {
     fn consensus_decode(d: &mut D) -> Result<OutPoint, encode::Error> {
-        let txid = Sha256dHash::consensus_decode(d)?;
+        let txid = sha256d::Hash::consensus_decode(d)?;
         let vout = u32::consensus_decode(d)?;
         Ok(OutPoint {
             txid: txid,
@@ -121,7 +121,7 @@ pub struct PeginData<'tx> {
     /// Asset type being pegged in
     pub asset: confidential::Asset,
     /// Hash of genesis block of originating blockchain
-    pub genesis_hash: Sha256dHash,
+    pub genesis_hash: sha256d::Hash,
     /// The claim script that we should hash to tweak our address. Unparsed
     /// to avoid unnecessary allocation and copying. Typical use is simply
     /// to feed it raw into a hash function.
@@ -135,7 +135,7 @@ pub struct PeginData<'tx> {
     pub merkle_proof: &'tx [u8],
     /// The Bitcoin block that the pegin output appears in; scraped
     /// from the transaction inclusion proof
-    pub referenced_block: Sha256dHash,
+    pub referenced_block: sha256d::Hash,
 }
 
 /// A transaction input, which defines old coins to be consumed
@@ -261,7 +261,7 @@ impl TxIn {
             claim_script: &self.witness.pegin_witness[3],
             tx: &self.witness.pegin_witness[4],
             merkle_proof: &self.witness.pegin_witness[5],
-            referenced_block: Sha256dHash::from_data(
+            referenced_block: sha256d::Hash::hash(
                 &self.witness.pegin_witness[5][0..80],
             ),
         })
@@ -299,7 +299,7 @@ pub struct PegoutData<'txo> {
     /// Asset of pegout
     pub asset: confidential::Asset,
     /// Genesis hash of the target blockchain
-    pub genesis_hash: Sha256dHash,
+    pub genesis_hash: sha256d::Hash,
     /// Scriptpubkey to create on the target blockchain
     pub script_pubkey: Script,
     /// Remaining pegout data used by some forks of Elements
@@ -389,8 +389,8 @@ impl TxOut {
 
         // Parse destination chain's genesis block
         let genesis_hash = if let Some(Instruction::PushBytes(data)) = iter.next() {
-            if data.len() == 32 {
-                Sha256dHash::from(data)
+            if let Ok(hash) = sha256d::Hash::from_slice(data) {
+                hash
             } else {
                 return None;
             }
@@ -546,27 +546,23 @@ impl Transaction {
     }
 
     /// The txid of the transaction. To get its hash, use `BitcoinHash::bitcoin_hash()`.
-    pub fn txid(&self) -> Sha256dHash {
-        use bitcoin::util::hash::Sha256dEncoder;
-
-        let mut enc = Sha256dEncoder::new();
+    pub fn txid(&self) -> sha256d::Hash {
+        let mut enc = sha256d::Hash::engine();
         self.version.consensus_encode(&mut enc).unwrap();
         0u8.consensus_encode(&mut enc).unwrap();
         self.input.consensus_encode(&mut enc).unwrap();
         self.output.consensus_encode(&mut enc).unwrap();
         self.lock_time.consensus_encode(&mut enc).unwrap();
-        enc.into_hash()
+        sha256d::Hash::from_engine(enc)
     }
 }
 
 impl BitcoinHash for Transaction {
     /// To get a transaction's txid, which is usually what you want, use the `txid` method.
-    fn bitcoin_hash(&self) -> Sha256dHash {
-        use bitcoin::util::hash::Sha256dEncoder;
-
-        let mut enc = Sha256dEncoder::new();
+    fn bitcoin_hash(&self) -> sha256d::Hash {
+        let mut enc = sha256d::Hash::engine();
         self.consensus_encode(&mut enc).unwrap();
-        enc.into_hash()
+        sha256d::Hash::from_engine(enc)
     }
 }
 
@@ -638,7 +634,8 @@ impl<D: Decoder> Decodable<D> for Transaction {
 #[cfg(test)]
 mod tests {
     use bitcoin::{self, BitcoinHash};
-    use bitcoin::util::hash::Sha256dHash;
+    use bitcoin_hashes::hex::FromHex;
+    use bitcoin_hashes::sha256d;
 
     use confidential;
     use super::*;
@@ -963,14 +960,14 @@ mod tests {
             tx.input[0].pegin_data(),
             Some(super::PeginData {
                 outpoint: bitcoin::OutPoint {
-                    txid: Sha256dHash::from_hex(
+                    txid: sha256d::Hash::from_hex(
                         "c9d88eb5130365deed045eab11cfd3eea5ba32ad45fa2e156ae6ead5f1fce93f",
                     ).unwrap(),
                     vout: 0,
                 },
                 value: 100000000,
                 asset: tx.output[0].asset,
-                genesis_hash: Sha256dHash::from_hex(
+                genesis_hash: sha256d::Hash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
                 claim_script: &[
@@ -1029,7 +1026,7 @@ mod tests {
                     0x25, 0xf8, 0x55, 0x52, 0x97, 0x11, 0xed, 0x64,
                     0x50, 0xcc, 0x9b, 0x3c, 0x95, 0x01, 0x0b,
                 ],
-                referenced_block: Sha256dHash::from_hex(
+                referenced_block: sha256d::Hash::from_hex(
                     "297852caf43464d8f13a3847bd602184c21474cd06760dbf9fc5e87bade234f1"
                 ).unwrap(),
             })
@@ -1074,7 +1071,7 @@ mod tests {
             Some(super::PegoutData {
                 asset: tx.output[0].asset,
                 value: 99993900,
-                genesis_hash: Sha256dHash::from_hex(
+                genesis_hash: sha256d::Hash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
                 script_pubkey: hex_deserialize!(
@@ -1103,7 +1100,7 @@ mod tests {
             })
         );
 
-        let expected_asset_id = Sha256dHash::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
+        let expected_asset_id = sha256d::Hash::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
         if let confidential::Asset::Explicit(asset_id) = tx.output[0].asset {
             assert_eq!(expected_asset_id, asset_id);
         } else {

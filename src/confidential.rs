@@ -23,7 +23,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt;
 
 use bitcoin::consensus::{encode, Encodable, Encoder, Decodable, Decoder};
-use bitcoin::util::hash::Sha256dHash;
+use bitcoin_hashes::sha256d;
 
 // Helper macro to implement various things for the various confidential
 // commitment types
@@ -190,7 +190,7 @@ pub enum Asset {
     /// No value
     Null,
     /// Asset entropy is explicitly encoded
-    Explicit(Sha256dHash),
+    Explicit(sha256d::Hash),
     /// Asset is committed
     Confidential(u8, [u8; 32]),
 }
@@ -216,7 +216,7 @@ pub enum Nonce {
     /// There should be no such thing as an "explicit nonce", but Elements will deserialize
     /// such a thing (and insists that its size be 32 bytes). So we stick a 32-byte type here
     /// that implements all the traits we need.
-    Explicit(Sha256dHash),
+    Explicit(sha256d::Hash),
     /// Nonce is committed
     Confidential(u8, [u8; 32]),
 }
