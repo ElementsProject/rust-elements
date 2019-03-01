@@ -349,10 +349,10 @@ impl TxOut {
     /// Whether this data represents nulldata (OP_RETURN followed by pushes)
     pub fn is_null_data(&self) -> bool {
         let mut iter = self.script_pubkey.iter(false);
-        if iter.next() == Some(Instruction::Op(opcodes::All::OP_RETURN)) {
+        if iter.next() == Some(Instruction::Op(opcodes::all::OP_RETURN)) {
             for push in iter {
                 match push {
-                    Instruction::Op(op) if op as u8 > opcodes::All::OP_PUSHNUM_16 as u8 => return false,
+                    Instruction::Op(op) if op.into_u8() > opcodes::all::OP_PUSHNUM_16.into_u8() => return false,
                     Instruction::Error(_) => return false,
                     _ => {}
                 }
