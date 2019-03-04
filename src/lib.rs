@@ -26,6 +26,7 @@
 #![deny(missing_docs)]
 
 extern crate bitcoin;
+extern crate bitcoin_hashes;
 #[cfg(feature = "serde")] extern crate serde;
 
 #[macro_use] mod internal_macros;

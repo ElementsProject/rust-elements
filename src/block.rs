@@ -17,7 +17,7 @@
 
 use bitcoin::blockdata::script::Script;
 use bitcoin::BitcoinHash;
-use bitcoin::util::hash::Sha256dHash;
+use bitcoin_hashes::{Hash, sha256d};
 
 use Transaction;
 
@@ -38,9 +38,9 @@ pub struct BlockHeader {
     /// Version - should be 0x20000000 except when versionbits signalling
     pub version: u32,
     /// Previous blockhash
-    pub prev_blockhash: Sha256dHash,
+    pub prev_blockhash: sha256d::Hash,
     /// Transaction Merkle root
-    pub merkle_root: Sha256dHash,
+    pub merkle_root: sha256d::Hash,
     /// Block timestamp
     pub time: u32,
     /// Block height
@@ -53,19 +53,18 @@ serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, heig
 impl_consensus_encoding!(BlockHeader, version, prev_blockhash, merkle_root, time, height, proof);
 
 impl BitcoinHash for BlockHeader {
-    fn bitcoin_hash(&self) -> Sha256dHash {
+    fn bitcoin_hash(&self) -> sha256d::Hash {
         use bitcoin::consensus::Encodable;
-        use bitcoin::util::hash::Sha256dEncoder;
 
         // Everything except proof.solution goes into the hash
-        let mut enc = Sha256dEncoder::new();
+        let mut enc = sha256d::Hash::engine();
         self.version.consensus_encode(&mut enc).unwrap();
         self.prev_blockhash.consensus_encode(&mut enc).unwrap();
         self.merkle_root.consensus_encode(&mut enc).unwrap();
         self.time.consensus_encode(&mut enc).unwrap();
         self.height.consensus_encode(&mut enc).unwrap();
         self.proof.challenge.consensus_encode(&mut enc).unwrap();
-        enc.into_hash()
+        sha256d::Hash::from_engine(enc)
     }
 }
 
@@ -81,7 +80,7 @@ serde_struct_impl!(Block, header, txdata);
 impl_consensus_encoding!(Block, header, txdata);
 
 impl BitcoinHash for Block {
-    fn bitcoin_hash(&self) -> Sha256dHash {
+    fn bitcoin_hash(&self) -> sha256d::Hash {
         self.header.bitcoin_hash()
     }
 }
