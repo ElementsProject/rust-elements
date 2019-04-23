@@ -25,16 +25,24 @@
 #![deny(unused_mut)]
 #![deny(missing_docs)]
 
+extern crate bech32;
 extern crate bitcoin;
 extern crate bitcoin_hashes;
+extern crate secp256k1;
 #[cfg(feature = "serde")] extern crate serde;
 
+#[cfg(test)] extern crate rand;
+#[cfg(test)] extern crate serde_json;
+
 #[macro_use] mod internal_macros;
+pub mod address;
+pub mod blech32;
 mod block;
 pub mod confidential;
 mod transaction;
 
 // export everything at the top level so it can be used as `elements::Transaction` etc.
+pub use address::{Address, AddressParams, AddressError};
 pub use transaction::{OutPoint, PeginData, PegoutData, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
 pub use block::{BlockHeader, Block, Proof};
 
