@@ -366,8 +366,8 @@ impl TxOut {
 
     /// Whether this output is a pegout, which is a subset of nulldata with the
     /// following extra rules: (a) there must be at least 2 pushes, the first of
-    /// which must be 32 bytes; (b) all pushes must use a push opcode rather than
-    /// a numeric or reserved opcode.
+    /// which must be 32 bytes and the second of which must be nonempty; (b) all
+    /// pushes must use a push opcode rather than a numeric or reserved opcode
     pub fn is_pegout(&self) -> bool {
         self.pegout_data().is_some()
     }
@@ -404,7 +404,11 @@ impl TxOut {
 
         // Parse destination scriptpubkey
         let script_pubkey = if let Some(Instruction::PushBytes(data)) = iter.next() {
-            Script::from(data.to_owned())
+            if data.is_empty() {
+                return None;
+            } else {
+                Script::from(data.to_owned())
+            }
         } else {
             return None;
         };
@@ -1576,6 +1580,46 @@ mod tests {
             f5dbac47d54c9ef5ccf49895a4dbac4759005a74375f66c480e6c08651016d52\
             1c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f0100\
             000000000006fc000054840300\
+        ");
+
+        assert_eq!(tx.input.len(), 2);
+        assert_eq!(tx.output.len(), 3);
+        assert!(!tx.output[0].is_null_data());
+        assert!(!tx.output[0].is_pegout());
+        assert!(!tx.output[0].is_fee());
+
+        assert!(tx.output[1].is_null_data());
+        assert!(!tx.output[1].is_pegout());
+        assert!(!tx.output[1].is_fee());
+
+        assert!(!tx.output[2].is_null_data());
+        assert!(!tx.output[2].is_pegout());
+        assert!(tx.output[2].is_fee());
+
+        assert_eq!(tx.output[0].asset, tx.output[1].asset);
+        assert_eq!(tx.output[2].asset, tx.output[1].asset);
+    }
+
+    #[test]
+    fn pegout_with_null_scriptpubkey() {
+        let tx: Transaction = hex_deserialize!("\
+            0200000000021c39a226160dd8962eb273772950f0b603c319a8e4aa9912c9e8\
+            e36b5bdf71a2000000006a473044022071212fcde89d1055d5b74f17a162b3db\
+            e5348ac8527a131dab5dcf8a97d67d2f02202edf12f3c69fed1fa0c23da608e6\
+            aded86dd5c7b09da42f61b453c3a838e8cab012103557f25ff40f976670ddf59\
+            c71938bade91684b76ad69dfed27049de2afec59e5feffffff853db31f986dd8\
+            9c81fe87a84f385d7099c5ea841d762b26b03166e5e798dfbe000000006a4730\
+            44022042c70729fb50930179a9d76f5febbda5b0ee50e62febf92de4dd10b939\
+            3554d802203140b107519243e4110c065017c8ae1ac04843f94b3f20a1e5faf7\
+            343dd76159012102797ffcf7ccc8e2012a90e71962901a1ad740f2a28f2f563c\
+            76f9eb42a8100f5efeffffff03016d521c38ec1ea15734ae22b7c46064412829\
+            c0d0579f0a713d1c04ede979026f0100000000000f7869001976a914216d878e\
+            bff0c623909889265d8dc1ab26e2ff4388ac016d521c38ec1ea15734ae22b7c4\
+            6064412829c0d0579f0a713d1c04ede979026f0100000000000186a000466a20\
+            6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000\
+            0021025f756509f5dbac47d54c9ef5ccf49895a4dbac4759005a74375f66c480\
+            e6c08600016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04\
+            ede979026f0100000000000006fc000054840300\
         ");
 
         assert_eq!(tx.input.len(), 2);
