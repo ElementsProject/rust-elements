@@ -346,7 +346,8 @@ impl<D: Decoder> Decodable<D> for TxOut {
 }
 
 impl TxOut {
-    /// Whether this data represents nulldata (OP_RETURN followed by pushes)
+    /// Whether this data represents nulldata (OP_RETURN followed by pushes,
+    /// not necessarily minimal)
     pub fn is_null_data(&self) -> bool {
         let mut iter = self.script_pubkey.iter(false);
         if iter.next() == Some(Instruction::Op(opcodes::all::OP_RETURN)) {
@@ -363,12 +364,15 @@ impl TxOut {
         }
     }
 
-    /// Whether this output is a pegout
+    /// Whether this output is a pegout, which is a subset of nulldata with the
+    /// following extra rules: (a) there must be at least 2 pushes, the first of
+    /// which must be 32 bytes; (b) all pushes must use a push opcode rather than
+    /// a numeric or reserved opcode.
     pub fn is_pegout(&self) -> bool {
         self.pegout_data().is_some()
     }
 
-    /// Whether this output is a pegout; if so, returns the destination genesis block,
+    /// If this output is a pegout, returns the destination genesis block,
     /// the destination script pubkey, and any additional data
     pub fn pegout_data(&self) -> Option<PegoutData> {
         // Must be NULLDATA
@@ -383,7 +387,7 @@ impl TxOut {
             return None;
         };
 
-        let mut iter = self.script_pubkey.iter(true);
+        let mut iter = self.script_pubkey.iter(false);
 
         iter.next(); // Skip OP_RETURN
 
@@ -406,17 +410,27 @@ impl TxOut {
         };
 
         // Return everything
+        let mut found_non_data_push = false;
         let remainder = iter
-            .map(|x| if let Instruction::PushBytes(data) = x { data } else { unreachable!() })
+            .filter_map(|x| if let Instruction::PushBytes(data) = x {
+                Some(data)
+            } else {
+                found_non_data_push = true;
+                None
+            })
             .collect();
 
-        Some(PegoutData {
-            asset: self.asset,
-            value: value,
-            genesis_hash: genesis_hash,
-            script_pubkey: script_pubkey,
-            extra_data: remainder,
-        })
+        if found_non_data_push {
+            None
+        } else {
+            Some(PegoutData {
+                asset: self.asset,
+                value: value,
+                genesis_hash: genesis_hash,
+                script_pubkey: script_pubkey,
+                extra_data: remainder,
+            })
+        }
     }
 
     /// Whether or not this output is a fee output
@@ -1481,9 +1495,105 @@ mod tests {
             fdfdfdfdfd3ca059fdf2226a20000000000000000000000000000000000000000\
             0000000000000000000000000\
         ");
-        
+
         assert!(output.is_null_data());
         assert!(!output.is_pegout());
+    }
+
+    #[test]
+    fn pegout_tx_vector_1() {
+        let tx: Transaction = hex_deserialize!("\
+            0200000000021c39a226160dd8962eb273772950f0b603c319a8e4aa9912c9e8e\
+            36b5bdf71a2000000006a473044022071212fcde89d1055d5b74f17a162b3dbe5\
+            348ac8527a131dab5dcf8a97d67d2f02202edf12f3c69fed1fa0c23da608e6ade\
+            d86dd5c7b09da42f61b453c3a838e8cab012103557f25ff40f976670ddf59c719\
+            38bade91684b76ad69dfed27049de2afec59e5feffffff853db31f986dd89c81f\
+            e87a84f385d7099c5ea841d762b26b03166e5e798dfbe000000006a4730440220\
+            42c70729fb50930179a9d76f5febbda5b0ee50e62febf92de4dd10b9393554d80\
+            2203140b107519243e4110c065017c8ae1ac04843f94b3f20a1e5faf7343dd761\
+            59012102797ffcf7ccc8e2012a90e71962901a1ad740f2a28f2f563c76f9eb42a\
+            8100f5efeffffff03016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a\
+            713d1c04ede979026f0100000000000f7869001976a914216d878ebff0c623909\
+            889265d8dc1ab26e2ff4388ac016d521c38ec1ea15734ae22b7c46064412829c0\
+            d0579f0a713d1c04ede979026f0100000000000186a000fd02026a206fe28c0ab\
+            6f1b372c1a6a246ae63f74f931e8365e15a089c68d61900000000001976a914df\
+            662e2dd70fd82acba2d252cc897cb6e618093288ac21025f756509f5dbac47d54\
+            c9ef5ccf49895a4dbac4759005a74375f66c480e6c0864da1010ce552be292c37\
+            e7242d7e58e678a19349021d22f2712ea68de397b66167d141b09f98e3294e05b\
+            51c1469bab3ddb7096f5aa2817e218d137879fb54dbe1659353e6e64add9cb2d6\
+            f9e8647bd1ca94d9a6a80d193d76f115596f7bcc8a07eaf85c738f31f4fb192b7\
+            85aa2934bcb5e4f6a7b444da2bc64da3527a33cc7f0792630f57b92ba07dd0e47\
+            2d5e2e08b2bca8f1c06e18a07f226dac8acbcc1dfafe8be893d9c5092808b1dec\
+            fbb955c5f82968bed609b0b2e2c55abe4b0c12bc0c7ea3976e0af2c6aadab3c90\
+            ed862a9846fc1a1c20ef220a050538d3c9ff12669653f9b055606dd45fe66f18a\
+            a819c8cda5c1b224dc19c0fbf028133d1256588834ea14cb44a84da3af8344365\
+            7f9ff3eaa14216dc4ed06a92c0ce19be4fe066c9d830ee3acdd3062b9336ace12\
+            cc5935953284946bf6bc5c89f9a13d37dddd63e85173174a164f4b68cbc94d347\
+            b3d4a7e4ec79044b049375cc7b43b7657123b80f5834afca696b6bc7bf47fa677\
+            42e1caa609424cba3ec9d9d156b5909debd0475d91d31134acce50420c2ea694e\
+            2c2ea477a0bd14e670bccb42a0fb7009b41ee86a016d521c38ec1ea15734ae22b\
+            7c46064412829c0d0579f0a713d1c04ede979026f0100000000000006fc000054\
+            840300\
+        ");
+
+        assert_eq!(tx.input.len(), 2);
+        assert_eq!(tx.output.len(), 3);
+        assert!(!tx.output[0].is_null_data());
+        assert!(!tx.output[0].is_pegout());
+        assert!(!tx.output[0].is_fee());
+
+        assert!(tx.output[1].is_null_data());
+        assert!(tx.output[1].is_pegout());
+        assert!(tx.output[1].pegout_data().is_some());
+        assert!(!tx.output[1].is_fee());
+
+        assert!(!tx.output[2].is_null_data());
+        assert!(!tx.output[2].is_pegout());
+        assert!(tx.output[2].is_fee());
+
+        assert_eq!(tx.output[0].asset, tx.output[1].asset);
+        assert_eq!(tx.output[2].asset, tx.output[1].asset);
+    }
+
+    #[test]
+    fn pegout_with_numeric_pak() {
+        let tx: Transaction = hex_deserialize!("\
+            0200000000021c39a226160dd8962eb273772950f0b603c319a8e4aa9912c9e8\
+            e36b5bdf71a2000000006a473044022071212fcde89d1055d5b74f17a162b3db\
+            e5348ac8527a131dab5dcf8a97d67d2f02202edf12f3c69fed1fa0c23da608e6\
+            aded86dd5c7b09da42f61b453c3a838e8cab012103557f25ff40f976670ddf59\
+            c71938bade91684b76ad69dfed27049de2afec59e5feffffff853db31f986dd8\
+            9c81fe87a84f385d7099c5ea841d762b26b03166e5e798dfbe000000006a4730\
+            44022042c70729fb50930179a9d76f5febbda5b0ee50e62febf92de4dd10b939\
+            3554d802203140b107519243e4110c065017c8ae1ac04843f94b3f20a1e5faf7\
+            343dd76159012102797ffcf7ccc8e2012a90e71962901a1ad740f2a28f2f563c\
+            76f9eb42a8100f5efeffffff03016d521c38ec1ea15734ae22b7c46064412829\
+            c0d0579f0a713d1c04ede979026f0100000000000f7869001976a914216d878e\
+            bff0c623909889265d8dc1ab26e2ff4388ac016d521c38ec1ea15734ae22b7c4\
+            6064412829c0d0579f0a713d1c04ede979026f0100000000000186a0005f6a20\
+            6fe28c0ab6f1b372c1a6a246ae63f74f931e8365e15a089c68d6190000000000\
+            1976a914df662e2dd70fd82acba2d252cc897cb6e618093288ac21025f756509\
+            f5dbac47d54c9ef5ccf49895a4dbac4759005a74375f66c480e6c08651016d52\
+            1c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f0100\
+            000000000006fc000054840300\
+        ");
+
+        assert_eq!(tx.input.len(), 2);
+        assert_eq!(tx.output.len(), 3);
+        assert!(!tx.output[0].is_null_data());
+        assert!(!tx.output[0].is_pegout());
+        assert!(!tx.output[0].is_fee());
+
+        assert!(tx.output[1].is_null_data());
+        assert!(!tx.output[1].is_pegout());
+        assert!(!tx.output[1].is_fee());
+
+        assert!(!tx.output[2].is_null_data());
+        assert!(!tx.output[2].is_pegout());
+        assert!(tx.output[2].is_fee());
+
+        assert_eq!(tx.output[0].asset, tx.output[1].asset);
+        assert_eq!(tx.output[2].asset, tx.output[1].asset);
     }
 }
 
