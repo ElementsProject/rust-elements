@@ -255,7 +255,6 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         use bitcoin_hashes::sha256;
-        use bitcoin_hashes::Hash;
 
         Address {
             params: params,
@@ -274,9 +273,7 @@ impl Address {
         blinder: Option<secp256k1::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        use bitcoin_hashes::hash160;
         use bitcoin_hashes::sha256;
-        use bitcoin_hashes::Hash;
 
         let ws = script::Builder::new()
             .push_int(0)
@@ -624,7 +621,7 @@ impl<'de> serde::Deserialize<'de> for Address {
     where
         D: serde::Deserializer<'de>,
     {
-        use std::fmt::{self, Formatter};
+        use std::fmt::Formatter;
 
         struct Visitor;
         impl<'de> serde::de::Visitor<'de> for Visitor {
