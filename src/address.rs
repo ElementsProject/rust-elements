@@ -26,9 +26,8 @@ use std::ascii::AsciiExt;
 use bech32::{self, u5, Bech32, FromBase32, ToBase32};
 use bitcoin::blockdata::{opcodes, script};
 use bitcoin::util::base58;
-use bitcoin::PublicKey;
-use bitcoin_hashes::{hash160, Hash};
-use secp256k1;
+use bitcoin_hashes::{sha256, hash160, Hash};
+use secp256k1::{self, PublicKey};
 #[cfg(feature = "serde")]
 use serde;
 
@@ -165,7 +164,7 @@ pub struct Address {
     /// the traditional non-confidential payload
     pub payload: Payload,
     /// the blinding pubkey
-    pub blinding_pubkey: Option<secp256k1::PublicKey>,
+    pub blinding_pubkey: Option<PublicKey>,
 }
 
 impl Address {
@@ -179,15 +178,12 @@ impl Address {
     #[inline]
     pub fn p2pkh(
         pk: &PublicKey,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        let mut hash_engine = hash160::Hash::engine();
-        pk.write_into(&mut hash_engine);
-
         Address {
             params: params,
-            payload: Payload::PubkeyHash(hash160::Hash::from_engine(hash_engine)),
+            payload: Payload::PubkeyHash(hash160::Hash::hash(&pk.serialize()[..])),
             blinding_pubkey: blinder,
         }
     }
@@ -197,7 +193,7 @@ impl Address {
     #[inline]
     pub fn p2sh(
         script: &script::Script,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
         Address {
@@ -211,17 +207,14 @@ impl Address {
     /// This is the native segwit address type for an output redeemable with a single signature
     pub fn p2wpkh(
         pk: &PublicKey,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        let mut hash_engine = hash160::Hash::engine();
-        pk.write_into(&mut hash_engine);
-
         Address {
             params: params,
             payload: Payload::WitnessProgram {
                 version: u5::try_from_u8(0).expect("0<32"),
-                program: hash160::Hash::from_engine(hash_engine)[..].to_vec(),
+                program: hash160::Hash::hash(&pk.serialize()[..]).into_inner().to_vec(),
             },
             blinding_pubkey: blinder,
         }
@@ -231,15 +224,12 @@ impl Address {
     /// This is a segwit address type that looks familiar (as p2sh) to legacy clients
     pub fn p2shwpkh(
         pk: &PublicKey,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        let mut hash_engine = hash160::Hash::engine();
-        pk.write_into(&mut hash_engine);
-
         let builder = script::Builder::new()
             .push_int(0)
-            .push_slice(&hash160::Hash::from_engine(hash_engine)[..]);
+            .push_slice(&hash160::Hash::hash(&pk.serialize()[..])[..]);
 
         Address {
             params: params,
@@ -251,12 +241,9 @@ impl Address {
     /// Create a witness pay to script hash address
     pub fn p2wsh(
         script: &script::Script,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        use bitcoin_hashes::sha256;
-        use bitcoin_hashes::Hash;
-
         Address {
             params: params,
             payload: Payload::WitnessProgram {
@@ -271,13 +258,9 @@ impl Address {
     /// This is a segwit address type that looks familiar (as p2sh) to legacy clients
     pub fn p2shwsh(
         script: &script::Script,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        use bitcoin_hashes::hash160;
-        use bitcoin_hashes::sha256;
-        use bitcoin_hashes::Hash;
-
         let ws = script::Builder::new()
             .push_int(0)
             .push_slice(&sha256::Hash::hash(&script[..])[..])
@@ -293,7 +276,7 @@ impl Address {
     /// Get an [Address] from an output script.
     pub fn from_script(
         script: &script::Script,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<PublicKey>,
         params: &'static AddressParams,
     ) -> Option<Address> {
         Some(Address {
@@ -391,7 +374,7 @@ impl Address {
         let (blinding_pubkey, program) = match blinded {
             true => (
                 Some(
-                    secp256k1::PublicKey::from_slice(&data[..33])
+                    PublicKey::from_slice(&data[..33])
                         .map_err(AddressError::InvalidBlindingPubKey)?,
                 ),
                 data[33..].to_vec(),
@@ -434,7 +417,7 @@ impl Address {
         let (blinding_pubkey, payload_data) = match blinded {
             true => (
                 Some(
-                    secp256k1::PublicKey::from_slice(&data[2..35])
+                    PublicKey::from_slice(&data[2..35])
                         .map_err(AddressError::InvalidBlindingPubKey)?,
                 ),
                 &data[35..],
@@ -673,9 +656,8 @@ impl serde::Serialize for Address {
 #[cfg(test)]
 mod test {
     use super::*;
-    use bitcoin::util::key;
     use bitcoin::Script;
-    use secp256k1::{PublicKey, Secp256k1};
+    use secp256k1::{PublicKey, Secp256k1, SecretKey};
     #[cfg(feature = "serde")]
     use serde_json;
 
@@ -703,9 +685,9 @@ mod test {
     fn exhaustive() {
         let blinder_hex = "0218845781f631c48f1c9709e23092067d06837f30aa0cd0544ac887fe91ddd166";
         let blinder = PublicKey::from_str(blinder_hex).unwrap();
-        let sk_wif = "cVt4o7BGAig1UXywgGSmARhxMdzP5qvQsxKkSsc1XEkw3tDTQFpy";
-        let sk = key::PrivateKey::from_wif(sk_wif).unwrap();
-        let pk = sk.public_key(&Secp256k1::new());
+        let sk_hex = "f7a1d6cd23bc345dd57abe045d6026f4acf69a637c9e5840e232832bcf4ce58d";
+        let sk = SecretKey::from_str(&sk_hex).unwrap();
+        let pk = PublicKey::from_secret_key(&Secp256k1::new(), &sk);
         let script: Script = vec![1u8, 2, 42, 255, 196].into();
 
         let vectors = [
