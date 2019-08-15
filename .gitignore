@@ -1,6 +1,7 @@
 target
 **/*.rs.bk
 Cargo.lock
+*~
 
 #fuzz
 fuzz/hfuzz_target

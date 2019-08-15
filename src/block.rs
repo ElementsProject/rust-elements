@@ -17,20 +17,190 @@
 
 use bitcoin::blockdata::script::Script;
 use bitcoin::BitcoinHash;
+use bitcoin::consensus;
 use bitcoin_hashes::{Hash, sha256d};
+#[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde")] use std::fmt;
 
+use dynafed;
 use Transaction;
 
-/// Block proof, which replaces PoW with an arbitrary script satisfaction
-#[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
-pub struct Proof {
-    /// Block "public key"
-    pub challenge: Script,
-    /// Satisfying witness to the above challenge, or nothing
-    pub solution: Script,
+/// Data related to block signatures
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum ExtData {
+    /// Liquid v1-style static `signblockscript` and witness
+    Proof {
+        /// Block "public key"
+        challenge: Script,
+        /// Satisfying witness to the above challenge, or nothing
+        solution: Script,
+    },
+    /// Dynamic federations
+    Dynafed {
+        /// Current dynamic federation parameters
+        current: dynafed::Params,
+        /// Proposed dynamic federation parameters
+        proposed: dynafed::Params,
+        /// Witness satisfying the current blocksigning script
+        signblock_witness: Vec<Vec<u8>>,
+    },
 }
-serde_struct_impl!(Proof, challenge, solution);
-impl_consensus_encoding!(Proof, challenge, solution);
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for ExtData {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        use serde::de;
+
+        enum Enum { Unknown, Challenge, Solution, Current, Proposed, Witness }
+        struct EnumVisitor;
+
+        impl<'de> de::Visitor<'de> for EnumVisitor {
+            type Value = Enum;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("a field name")
+            }
+
+            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                match v {
+                    "challenge" => Ok(Enum::Challenge),
+                    "solution" => Ok(Enum::Solution),
+                    "current" => Ok(Enum::Current),
+                    "proposed" => Ok(Enum::Proposed),
+                    "signblock_witness" => Ok(Enum::Witness),
+                    _ => Ok(Enum::Unknown),
+                }
+            }
+        }
+
+        impl<'de> Deserialize<'de> for Enum {
+            fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+                d.deserialize_str(EnumVisitor)
+            }
+        }
+
+        struct Visitor;
+        impl<'de> de::Visitor<'de> for Visitor {
+            type Value = ExtData;
+
+            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                f.write_str("block header extra data")
+            }
+
+            fn visit_map<A>(self, mut map: A) -> Result<Self::Value, A::Error>
+            where
+                A: de::MapAccess<'de>,
+            {
+                let mut challenge = None;
+                let mut solution = None;
+                let mut current = None;
+                let mut proposed = None;
+                let mut witness = None;
+
+                loop {
+                    match map.next_key::<Enum>()? {
+                        Some(Enum::Unknown) => {
+                            map.next_value::<de::IgnoredAny>()?;
+                        },
+                        Some(Enum::Challenge) => challenge = Some(map.next_value()?),
+                        Some(Enum::Solution) => solution = Some(map.next_value()?),
+                        Some(Enum::Current) => current = Some(map.next_value()?),
+                        Some(Enum::Proposed) => proposed = Some(map.next_value()?),
+                        Some(Enum::Witness) => witness = Some(map.next_value()?),
+                        None => { break; }
+                    }
+                }
+
+                let challenge_missing = challenge.is_some();
+                if let (Some(chal), Some(soln)) = (challenge, solution) {
+                    Ok(ExtData::Proof {
+                        challenge: chal,
+                        solution: soln,
+                    })
+                } else if let (Some(cur), Some(prop), Some(wit))
+                    = (current, proposed, witness)
+                {
+                    Ok(ExtData::Dynafed {
+                        current: cur,
+                        proposed: prop,
+                        signblock_witness: wit,
+                    })
+                } else {
+                    if challenge_missing {
+                        Err(de::Error::missing_field("challenge"))
+                    } else {
+                        Err(de::Error::missing_field("solution"))
+                    }
+                }
+            }
+        }
+
+        static FIELDS: &'static [&'static str] = &[
+            "challenge",
+            "solution",
+            "current",
+            "proposed",
+            "signblock_witness",
+        ];
+        d.deserialize_struct("ExtData", FIELDS, Visitor)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for ExtData {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        use serde::ser::SerializeStruct;
+
+        match *self {
+            ExtData::Proof { ref challenge, ref solution } => {
+                let mut st = s.serialize_struct("ExtData", 2)?;
+                st.serialize_field("challenge", challenge)?;
+                st.serialize_field("solution", solution)?;
+                st.end()
+            },
+            ExtData::Dynafed { ref current, ref proposed, ref signblock_witness } => {
+                let mut st = s.serialize_struct("ExtData", 3)?;
+                st.serialize_field("current", current)?;
+                st.serialize_field("proposed", proposed)?;
+                st.serialize_field("signblock_witness", signblock_witness)?;
+                st.end()
+            },
+        }
+    }
+}
+
+impl<S: consensus::Encoder> consensus::Encodable<S> for ExtData {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), consensus::encode::Error> {
+        match *self {
+            ExtData::Proof {
+                ref challenge,
+                ref solution,
+            } => {
+                challenge.consensus_encode(s)?;
+                solution.consensus_encode(s)
+            },
+            ExtData::Dynafed {
+                ref current,
+                ref proposed,
+                ref signblock_witness,
+            } => {
+                current.consensus_encode(s)?;
+                proposed.consensus_encode(s)?;
+                signblock_witness.consensus_encode(s)
+            },
+        }
+    }
+}
+
+impl Default for ExtData {
+    fn default() -> ExtData {
+        ExtData::Dynafed {
+            current: dynafed::Params::Null,
+            proposed: dynafed::Params::Null,
+            signblock_witness: vec![],
+        }
+    }
+}
 
 /// Elements block header
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -45,25 +215,86 @@ pub struct BlockHeader {
     pub time: u32,
     /// Block height
     pub height: u32,
-    /// Block height
-    pub proof: Proof,
-
+    /// Block signature and dynamic federation-related data
+    pub ext: ExtData,
 }
-serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, height, proof);
-impl_consensus_encoding!(BlockHeader, version, prev_blockhash, merkle_root, time, height, proof);
+serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, height, ext);
+
+impl<S: consensus::Encoder> consensus::Encodable<S> for BlockHeader {
+    fn consensus_encode(&self, s: &mut S) -> Result<(), consensus::encode::Error> {
+        let version = if let ExtData::Dynafed { .. } = self.ext {
+            self.version | 0x8000_0000
+        } else {
+            self.version
+        };
+        version.consensus_encode(s)?;
+        self.prev_blockhash.consensus_encode(s)?;
+        self.merkle_root.consensus_encode(s)?;
+        self.time.consensus_encode(s)?;
+        self.height.consensus_encode(s)?;
+        self.ext.consensus_encode(s)?;
+        Ok(())
+    }
+}
+
+impl<D: consensus::Decoder> consensus::Decodable<D> for BlockHeader {
+    fn consensus_decode(d: &mut D) -> Result<Self, consensus::encode::Error> {
+        let mut version: u32 = consensus::Decodable::consensus_decode(d)?;
+        let is_dyna = if version >> 31 == 1 {
+            version &= 0x7fff_ffff;
+            true
+        } else {
+            false
+        };
+
+        Ok(BlockHeader {
+            version: version,
+            prev_blockhash: consensus::Decodable::consensus_decode(d)?,
+            merkle_root: consensus::Decodable::consensus_decode(d)?,
+            time: consensus::Decodable::consensus_decode(d)?,
+            height: consensus::Decodable::consensus_decode(d)?,
+            ext: if is_dyna {
+                ExtData::Dynafed {
+                    current: consensus::Decodable::consensus_decode(d)?,
+                    proposed: consensus::Decodable::consensus_decode(d)?,
+                    signblock_witness: consensus::Decodable::consensus_decode(d)?,
+                }
+            } else {
+                ExtData::Proof {
+                    challenge: consensus::Decodable::consensus_decode(d)?,
+                    solution: consensus::Decodable::consensus_decode(d)?,
+                }
+            },
+        })
+    }
+}
 
 impl BitcoinHash for BlockHeader {
     fn bitcoin_hash(&self) -> sha256d::Hash {
         use bitcoin::consensus::Encodable;
 
-        // Everything except proof.solution goes into the hash
+        let version = if let ExtData::Dynafed { .. } = self.ext {
+            self.version | 0x8000_0000
+        } else {
+            self.version
+        };
+
+        // Everything except the signblock witness goes into the hash
         let mut enc = sha256d::Hash::engine();
-        self.version.consensus_encode(&mut enc).unwrap();
+        version.consensus_encode(&mut enc).unwrap();
         self.prev_blockhash.consensus_encode(&mut enc).unwrap();
         self.merkle_root.consensus_encode(&mut enc).unwrap();
         self.time.consensus_encode(&mut enc).unwrap();
         self.height.consensus_encode(&mut enc).unwrap();
-        self.proof.challenge.consensus_encode(&mut enc).unwrap();
+        match self.ext {
+            ExtData::Proof { ref challenge, .. } => {
+                challenge.consensus_encode(&mut enc).unwrap();
+            },
+            ExtData::Dynafed { ref current, ref proposed, .. } => {
+                current.consensus_encode(&mut enc).unwrap();
+                proposed.consensus_encode(&mut enc).unwrap();
+            },
+        }
         sha256d::Hash::from_engine(enc)
     }
 }
@@ -90,6 +321,8 @@ mod tests {
     use bitcoin::BitcoinHash;
 
     use Block;
+
+    use super::*;
 
     #[test]
     fn block() {
@@ -352,8 +585,35 @@ mod tests {
             "bcc6eb2ab6c97b9b4590825b9136f100b22e090c0469818572b8b93926a79f28"
         );
         assert_eq!(block.header.version, 0x20000000);
-        assert_eq!(block.header.proof.challenge.len(), 1 + 3 * 34 + 2);
-        assert_eq!(block.header.proof.solution.len(), 144);
+        if let ExtData::Proof { challenge, solution } = block.header.ext {
+            assert_eq!(challenge.len(), 1 + 3 * 34 + 2);
+            assert_eq!(solution.len(), 144);
+        } else {
+            panic!("dynafed test vector was parsed as non-dynafed");
+        }
+    }
+
+    #[test]
+    fn dynafed_block() {
+        let block: Block = hex_deserialize!("\
+            000000a07a7159e1b793a80d826f72ddcfb11397160773ebc6e5ea10f3adb6ef\
+            ef481eb2cb94ec7aafb983b5ef45a33d49b725088abc43a127c035ef636a8852\
+            ecf9526d7bf2305d01000000012200204ae81572f06e1b88fd5ced7a1a000945\
+            432e83e1551e6f721ee9c00b8cc332604b000000000101510102000000010100\
+            00000000000000000000000000000000000000000000000000000000000000ff\
+            ffffff03510101ffffffff0201ed455f3f6bd15c60a3e770a04cbfcc482cb1bf\
+            95a0ac1db9bede08cac049783901000000000000000000016a01ed455f3f6bd1\
+            5c60a3e770a04cbfcc482cb1bf95a0ac1db9bede08cac0497839010000000000\
+            00000000266a24aa21a9ed94f15ed3a62165e4a0b99699cc28b48e19cb5bc1b1\
+            f47155db62d63f1e047d45000000000000012000000000000000000000000000\
+            000000000000000000000000000000000000000000000000\
+        ");
+
+        assert_eq!(
+            block.bitcoin_hash().to_string(),
+            "4c7b60fc11a380811cfb8a17201ba54506a896eb1f53e9646d8bc2398d2448bd"
+        );
+        assert_eq!(block.header.version, 0x20000000);
     }
 }
 
