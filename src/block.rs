@@ -17,7 +17,7 @@
 
 use bitcoin::blockdata::script::Script;
 use bitcoin::BitcoinHash;
-use bitcoin_hashes::{Hash, sha256d};
+use bitcoin::hashes::{Hash, sha256d};
 
 use Transaction;
 

@@ -23,12 +23,12 @@ use std::str::FromStr;
 #[allow(unused_imports, deprecated)]
 use std::ascii::AsciiExt;
 
-use bech32::{self, u5, Bech32, FromBase32, ToBase32};
+use bitcoin::bech32::{self, u5, FromBase32, ToBase32};
 use bitcoin::blockdata::{opcodes, script};
 use bitcoin::util::base58;
 use bitcoin::PublicKey;
-use bitcoin_hashes::{hash160, Hash};
-use secp256k1;
+use bitcoin::hashes::{hash160, Hash};
+use bitcoin::secp256k1;
 #[cfg(feature = "serde")]
 use serde;
 
@@ -254,8 +254,7 @@ impl Address {
         blinder: Option<secp256k1::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        use bitcoin_hashes::sha256;
-        use bitcoin_hashes::Hash;
+        use bitcoin::hashes::sha256;
 
         Address {
             params: params,
@@ -274,9 +273,7 @@ impl Address {
         blinder: Option<secp256k1::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        use bitcoin_hashes::hash160;
-        use bitcoin_hashes::sha256;
-        use bitcoin_hashes::Hash;
+        use bitcoin::hashes::sha256;
 
         let ws = script::Builder::new()
             .push_int(0)
@@ -346,13 +343,7 @@ impl Address {
         params: &'static AddressParams,
     ) -> Result<Address, AddressError> {
         let payload = if !blinded {
-            //TODO(stevenroose) use `decode` after
-            // https://github.com/rust-bitcoin/rust-bech32/pull/31
-            let b32: Bech32 = s.parse().map_err(AddressError::Bech32)?;
-            if b32.data().is_empty() || b32.data().len() > 140 {
-                return Err(AddressError::Bech32(bech32::Error::InvalidLength));
-            }
-            b32.into_parts().1
+            bech32::decode(s).map_err(AddressError::Bech32)?.1
         } else {
             blech32::decode(s).map_err(AddressError::Blech32)?.1
         };
@@ -517,26 +508,24 @@ impl fmt::Display for Address {
                 version: witver,
                 program: ref witprog,
             } => {
-                let mut data = Vec::with_capacity(53);
-                if let Some(ref blinder) = self.blinding_pubkey {
-                    data.extend_from_slice(&blinder.serialize());
-                }
-                data.extend_from_slice(&witprog);
-                //TODO(stevenroose) optimize after
-                // https://github.com/rust-bitcoin/rust-bech32/pull/30
-                let mut b32_data = vec![witver];
-                b32_data.extend_from_slice(&data.to_base32());
                 let hrp = match self.blinding_pubkey.is_some() {
-                    true => self.params.blech_hrp.to_owned(),
-                    false => self.params.bech_hrp.to_owned(),
+                    true => self.params.blech_hrp,
+                    false => self.params.bech_hrp,
                 };
 
                 if self.is_blinded() {
+                    let mut data = Vec::with_capacity(53);
+                    if let Some(ref blinder) = self.blinding_pubkey {
+                        data.extend_from_slice(&blinder.serialize());
+                    }
+                    data.extend_from_slice(&witprog);
+                    let mut b32_data = vec![witver];
+                    b32_data.extend_from_slice(&data.to_base32());
                     blech32::encode_to_fmt(fmt, &hrp, &b32_data)
                 } else {
-                    // only produces error if the HRP is invalid
-                    let b32 = Bech32::new(hrp, b32_data).expect("invalid HRP in address params");
-                    fmt.write_str(&b32.to_string())
+                    let mut bech32_writer = bech32::Bech32Writer::new(hrp, fmt)?;
+                    bech32::WriteBase32::write_u5(&mut bech32_writer, witver)?;
+                    bech32::ToBase32::write_base32(&witprog, &mut bech32_writer)
                 }
             }
         }
@@ -624,7 +613,7 @@ impl<'de> serde::Deserialize<'de> for Address {
     where
         D: serde::Deserializer<'de>,
     {
-        use std::fmt::{self, Formatter};
+        use std::fmt::Formatter;
 
         struct Visitor;
         impl<'de> serde::de::Visitor<'de> for Visitor {
@@ -675,7 +664,7 @@ mod test {
     use super::*;
     use bitcoin::util::key;
     use bitcoin::Script;
-    use secp256k1::{PublicKey, Secp256k1};
+    use bitcoin::secp256k1::{PublicKey, Secp256k1};
     #[cfg(feature = "serde")]
     use serde_json;
 
