@@ -15,15 +15,15 @@
 //! # Transactions
 //!
 
-use std::fmt;
+use std::{io, fmt};
 
 use bitcoin::{self, BitcoinHash, VarInt};
-use bitcoin::consensus::{self, encode, Encodable, Encoder, Decodable, Decoder};
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Script, Instruction};
-use bitcoin_hashes::{Hash, sha256d};
+use bitcoin::hashes::{Hash, sha256d};
 
 use confidential;
+use encode::{self, Encodable, Decodable};
 
 /// Description of an asset issuance in a transaction input
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -60,17 +60,17 @@ impl Default for OutPoint {
     }
 }
 
-impl<S: Encoder> Encodable<S> for OutPoint {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
-        self.txid.consensus_encode(s)?;
-        self.vout.consensus_encode(s)
+impl Encodable for OutPoint {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+        Ok(self.txid.consensus_encode(&mut s)? +
+        self.vout.consensus_encode(&mut s)?)
     }
 }
 
-impl<D: Decoder> Decodable<D> for OutPoint {
-    fn consensus_decode(d: &mut D) -> Result<OutPoint, encode::Error> {
-        let txid = sha256d::Hash::consensus_decode(d)?;
-        let vout = u32::consensus_decode(d)?;
+impl Decodable for OutPoint {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<OutPoint, encode::Error> {
+        let txid = sha256d::Hash::consensus_decode(&mut d)?;
+        let vout = u32::consensus_decode(&mut d)?;
         Ok(OutPoint {
             txid: txid,
             vout: vout,
@@ -164,8 +164,9 @@ pub struct TxIn {
 }
 serde_struct_impl!(TxIn, previous_output, is_pegin, has_issuance, script_sig, sequence, asset_issuance, witness);
 
-impl<S: Encoder> Encodable<S> for TxIn {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
+impl Encodable for TxIn {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+        let mut ret = 0;
         let mut vout = self.previous_output.vout;
         if self.is_pegin {
             vout |= 1 << 30;
@@ -173,22 +174,22 @@ impl<S: Encoder> Encodable<S> for TxIn {
         if self.has_issuance {
             vout |= 1 << 31;
         }
-        self.previous_output.txid.consensus_encode(s)?;
-        vout.consensus_encode(s)?;
-        self.script_sig.consensus_encode(s)?;
-        self.sequence.consensus_encode(s)?;
+        ret += self.previous_output.txid.consensus_encode(&mut s)?;
+        ret += vout.consensus_encode(&mut s)?;
+        ret += self.script_sig.consensus_encode(&mut s)?;
+        ret += self.sequence.consensus_encode(&mut s)?;
         if self.has_issuance() {
-            self.asset_issuance.consensus_encode(s)?;
+            ret += self.asset_issuance.consensus_encode(&mut s)?;
         }
-        Ok(())
+        Ok(ret)
     }
 }
 
-impl<D: Decoder> Decodable<D> for TxIn {
-    fn consensus_decode(d: &mut D) -> Result<TxIn, encode::Error> {
-        let mut outp = OutPoint::consensus_decode(d)?;
-        let script_sig = Script::consensus_decode(d)?;
-        let sequence = u32::consensus_decode(d)?;
+impl Decodable for TxIn {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<TxIn, encode::Error> {
+        let mut outp = OutPoint::consensus_decode(&mut d)?;
+        let script_sig = Script::consensus_decode(&mut d)?;
+        let sequence = u32::consensus_decode(&mut d)?;
         let issuance;
         let is_pegin;
         let has_issuance;
@@ -203,7 +204,7 @@ impl<D: Decoder> Decodable<D> for TxIn {
             outp.vout &= !((1 << 30) | (1 << 31));
         }
         if has_issuance {
-            issuance = AssetIssuance::consensus_decode(d)?;
+            issuance = AssetIssuance::consensus_decode(&mut d)?;
         } else {
             issuance = AssetIssuance::default();
         }
@@ -253,11 +254,11 @@ impl TxIn {
                 txid: self.previous_output.txid,
                 vout: self.previous_output.vout,
             },
-            value: opt_try!(consensus::deserialize(&self.witness.pegin_witness[0])),
+            value: opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[0])),
             asset: confidential::Asset::Explicit(
-                opt_try!(consensus::deserialize(&self.witness.pegin_witness[1])),
+                opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[1])),
             ),
-            genesis_hash: opt_try!(consensus::deserialize(&self.witness.pegin_witness[2])),
+            genesis_hash: opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[2])),
             claim_script: &self.witness.pegin_witness[3],
             tx: &self.witness.pegin_witness[4],
             merkle_proof: &self.witness.pegin_witness[5],
@@ -324,22 +325,22 @@ pub struct TxOut {
 }
 serde_struct_impl!(TxOut, asset, value, nonce, script_pubkey, witness);
 
-impl<S: Encoder> Encodable<S> for TxOut {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
-        self.asset.consensus_encode(s)?;
-        self.value.consensus_encode(s)?;
-        self.nonce.consensus_encode(s)?;
-        self.script_pubkey.consensus_encode(s)
+impl Encodable for TxOut {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+        Ok(self.asset.consensus_encode(&mut s)? +
+        self.value.consensus_encode(&mut s)? +
+        self.nonce.consensus_encode(&mut s)? +
+        self.script_pubkey.consensus_encode(&mut s)?)
     }
 }
 
-impl<D: Decoder> Decodable<D> for TxOut {
-    fn consensus_decode(d: &mut D) -> Result<TxOut, encode::Error> {
+impl Decodable for TxOut {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<TxOut, encode::Error> {
         Ok(TxOut {
-            asset: Decodable::consensus_decode(d)?,
-            value: Decodable::consensus_decode(d)?,
-            nonce: Decodable::consensus_decode(d)?,
-            script_pubkey: Decodable::consensus_decode(d)?,
+            asset: Decodable::consensus_decode(&mut d)?,
+            value: Decodable::consensus_decode(&mut d)?,
+            nonce: Decodable::consensus_decode(&mut d)?,
+            script_pubkey: Decodable::consensus_decode(&mut d)?,
             witness: TxOutWitness::default(),
         })
     }
@@ -461,11 +462,11 @@ impl TxOut {
                     if !has_min {
                         min_value
                     } else if has_nonzero_range {
-                        consensus::deserialize::<u64>(&self.witness.rangeproof[2..10])
+                        bitcoin::consensus::deserialize::<u64>(&self.witness.rangeproof[2..10])
                             .expect("any 8 bytes is a u64")
                             .swap_bytes()  // min-value is BE
                     } else {
-                        consensus::deserialize::<u64>(&self.witness.rangeproof[1..9])
+                        bitcoin::consensus::deserialize::<u64>(&self.witness.rangeproof[1..9])
                             .expect("any 8 bytes is a u64")
                             .swap_bytes()  // min-value is BE
                     }
@@ -509,7 +510,7 @@ impl Transaction {
         let input_weight = self.input.iter().map(|input| {
             4 * (
                 32 + 4 + 4 + // output + nSequence
-                VarInt(input.script_sig.len() as u64).encoded_length() as usize +
+                VarInt(input.script_sig.len() as u64).len() as usize +
                 input.script_sig.len() + if input.has_issuance() {
                     64 +
                     input.asset_issuance.amount.encoded_length() +
@@ -518,18 +519,18 @@ impl Transaction {
                     0
                 }
             ) + if witness_flag {
-                VarInt(input.witness.amount_rangeproof.len() as u64).encoded_length() as usize +
+                VarInt(input.witness.amount_rangeproof.len() as u64).len() as usize +
                 input.witness.amount_rangeproof.len() +
-                VarInt(input.witness.inflation_keys_rangeproof.len() as u64).encoded_length() as usize +
+                VarInt(input.witness.inflation_keys_rangeproof.len() as u64).len() as usize +
                 input.witness.inflation_keys_rangeproof.len() +
-                VarInt(input.witness.script_witness.len() as u64).encoded_length() as usize +
+                VarInt(input.witness.script_witness.len() as u64).len() as usize +
                 input.witness.script_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).encoded_length() as usize +
+                    VarInt(wit.len() as u64).len() as usize +
                     wit.len()
                 ).sum::<usize>() +
-                VarInt(input.witness.pegin_witness.len() as u64).encoded_length() as usize +
+                VarInt(input.witness.pegin_witness.len() as u64).len() as usize +
                 input.witness.pegin_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).encoded_length() as usize +
+                    VarInt(wit.len() as u64).len() as usize +
                     wit.len()
                 ).sum::<usize>()
             } else {
@@ -542,12 +543,12 @@ impl Transaction {
                 output.asset.encoded_length() +
                 output.value.encoded_length() +
                 output.nonce.encoded_length() +
-                VarInt(output.script_pubkey.len() as u64).encoded_length() as usize +
+                VarInt(output.script_pubkey.len() as u64).len() as usize +
                 output.script_pubkey.len()
             ) + if witness_flag {
-                VarInt(output.witness.surjection_proof.len() as u64).encoded_length() as usize +
+                VarInt(output.witness.surjection_proof.len() as u64).len() as usize +
                 output.witness.surjection_proof.len() +
-                VarInt(output.witness.rangeproof.len() as u64).encoded_length() as usize +
+                VarInt(output.witness.rangeproof.len() as u64).len() as usize +
                 output.witness.rangeproof.len()
             } else {
                 0
@@ -557,8 +558,8 @@ impl Transaction {
         4 * (
             4 + // version
             4 + // locktime
-            VarInt(self.input.len() as u64).encoded_length() as usize +
-            VarInt(self.output.len() as u64).encoded_length() as usize +
+            VarInt(self.input.len() as u64).len() as usize +
+            VarInt(self.output.len() as u64).len() as usize +
             1 // segwit flag byte (note this is *not* witness data in Elements)
         ) + input_weight + output_weight
     }
@@ -584,39 +585,40 @@ impl BitcoinHash for Transaction {
     }
 }
 
-impl<S: Encoder> Encodable<S> for Transaction {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), encode::Error> {
-        self.version.consensus_encode(s)?;
+impl Encodable for Transaction {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+        let mut ret = 0;
+        ret += self.version.consensus_encode(&mut s)?;
 
         let wit_flag = self.has_witness();
         if wit_flag {
-            1u8.consensus_encode(s)?;
+            ret += 1u8.consensus_encode(&mut s)?;
         } else {
-            0u8.consensus_encode(s)?;
+            ret += 0u8.consensus_encode(&mut s)?;
         }
-        self.input.consensus_encode(s)?;
-        self.output.consensus_encode(s)?;
-        self.lock_time.consensus_encode(s)?;
+        ret += self.input.consensus_encode(&mut s)?;
+        ret += self.output.consensus_encode(&mut s)?;
+        ret += self.lock_time.consensus_encode(&mut s)?;
 
         if wit_flag {
             for i in &self.input {
-                i.witness.consensus_encode(s)?;
+                ret += i.witness.consensus_encode(&mut s)?;
             }
             for o in &self.output {
-                o.witness.consensus_encode(s)?;
+                ret += o.witness.consensus_encode(&mut s)?;
             }
         }
-        Ok(())
+        Ok(ret)
     }
 }
 
-impl<D: Decoder> Decodable<D> for Transaction {
-    fn consensus_decode(d: &mut D) -> Result<Transaction, encode::Error> {
-        let version = u32::consensus_decode(d)?;
-        let wit_flag = u8::consensus_decode(d)?;
-        let mut input = Vec::<TxIn>::consensus_decode(d)?;
-        let mut output = Vec::<TxOut>::consensus_decode(d)?;
-        let lock_time = u32::consensus_decode(d)?;
+impl Decodable for Transaction {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Transaction, encode::Error> {
+        let version = u32::consensus_decode(&mut d)?;
+        let wit_flag = u8::consensus_decode(&mut d)?;
+        let mut input = Vec::<TxIn>::consensus_decode(&mut d)?;
+        let mut output = Vec::<TxOut>::consensus_decode(&mut d)?;
+        let lock_time = u32::consensus_decode(&mut d)?;
 
         match wit_flag {
             0 => Ok(Transaction {
@@ -627,10 +629,10 @@ impl<D: Decoder> Decodable<D> for Transaction {
             }),
             1 => {
                 for i in &mut input {
-                    i.witness = Decodable::consensus_decode(d)?;
+                    i.witness = Decodable::consensus_decode(&mut d)?;
                 }
                 for o in &mut output {
-                    o.witness = Decodable::consensus_decode(d)?;
+                    o.witness = Decodable::consensus_decode(&mut d)?;
                 }
                 if input.iter().all(|input| input.witness.is_empty()) &&
                     output.iter().all(|output| output.witness.is_empty()) {
@@ -652,8 +654,8 @@ impl<D: Decoder> Decodable<D> for Transaction {
 #[cfg(test)]
 mod tests {
     use bitcoin::{self, BitcoinHash};
-    use bitcoin_hashes::hex::FromHex;
-    use bitcoin_hashes::sha256d;
+    use bitcoin::hashes::hex::FromHex;
+    use bitcoin::hashes::sha256d;
 
     use confidential;
     use super::*;

@@ -15,15 +15,17 @@
 //! # Blocks
 //!
 
+use std::io;
+
 use bitcoin::blockdata::script::Script;
 use bitcoin::BitcoinHash;
-use bitcoin::consensus;
-use bitcoin_hashes::{Hash, sha256d};
+use bitcoin::hashes::{Hash, sha256d};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
 
 use dynafed;
 use Transaction;
+use encode::{self, Encodable, Decodable};
 
 /// Data related to block signatures
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -169,26 +171,26 @@ impl Serialize for ExtData {
     }
 }
 
-impl<S: consensus::Encoder> consensus::Encodable<S> for ExtData {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), consensus::encode::Error> {
-        match *self {
+impl Encodable for ExtData {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+        Ok(match *self {
             ExtData::Proof {
                 ref challenge,
                 ref solution,
             } => {
-                challenge.consensus_encode(s)?;
-                solution.consensus_encode(s)
+                challenge.consensus_encode(&mut s)? +
+                solution.consensus_encode(&mut s)?
             },
             ExtData::Dynafed {
                 ref current,
                 ref proposed,
                 ref signblock_witness,
             } => {
-                current.consensus_encode(s)?;
-                proposed.consensus_encode(s)?;
-                signblock_witness.consensus_encode(s)
+                current.consensus_encode(&mut s)? +
+                proposed.consensus_encode(&mut s)? +
+                signblock_witness.consensus_encode(&mut s)?
             },
-        }
+        })
     }
 }
 
@@ -220,26 +222,26 @@ pub struct BlockHeader {
 }
 serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, height, ext);
 
-impl<S: consensus::Encoder> consensus::Encodable<S> for BlockHeader {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), consensus::encode::Error> {
+impl Encodable for BlockHeader {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
         let version = if let ExtData::Dynafed { .. } = self.ext {
             self.version | 0x8000_0000
         } else {
             self.version
         };
-        version.consensus_encode(s)?;
-        self.prev_blockhash.consensus_encode(s)?;
-        self.merkle_root.consensus_encode(s)?;
-        self.time.consensus_encode(s)?;
-        self.height.consensus_encode(s)?;
-        self.ext.consensus_encode(s)?;
-        Ok(())
+
+        Ok(version.consensus_encode(&mut s)? +
+        self.prev_blockhash.consensus_encode(&mut s)? +
+        self.merkle_root.consensus_encode(&mut s)? +
+        self.time.consensus_encode(&mut s)? +
+        self.height.consensus_encode(&mut s)? +
+        self.ext.consensus_encode(&mut s)?)
     }
 }
 
-impl<D: consensus::Decoder> consensus::Decodable<D> for BlockHeader {
-    fn consensus_decode(d: &mut D) -> Result<Self, consensus::encode::Error> {
-        let mut version: u32 = consensus::Decodable::consensus_decode(d)?;
+impl Decodable for BlockHeader {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        let mut version: u32 = Decodable::consensus_decode(&mut d)?;
         let is_dyna = if version >> 31 == 1 {
             version &= 0x7fff_ffff;
             true
@@ -249,20 +251,20 @@ impl<D: consensus::Decoder> consensus::Decodable<D> for BlockHeader {
 
         Ok(BlockHeader {
             version: version,
-            prev_blockhash: consensus::Decodable::consensus_decode(d)?,
-            merkle_root: consensus::Decodable::consensus_decode(d)?,
-            time: consensus::Decodable::consensus_decode(d)?,
-            height: consensus::Decodable::consensus_decode(d)?,
+            prev_blockhash: Decodable::consensus_decode(&mut d)?,
+            merkle_root: Decodable::consensus_decode(&mut d)?,
+            time: Decodable::consensus_decode(&mut d)?,
+            height: Decodable::consensus_decode(&mut d)?,
             ext: if is_dyna {
                 ExtData::Dynafed {
-                    current: consensus::Decodable::consensus_decode(d)?,
-                    proposed: consensus::Decodable::consensus_decode(d)?,
-                    signblock_witness: consensus::Decodable::consensus_decode(d)?,
+                    current: Decodable::consensus_decode(&mut d)?,
+                    proposed: Decodable::consensus_decode(&mut d)?,
+                    signblock_witness: Decodable::consensus_decode(&mut d)?,
                 }
             } else {
                 ExtData::Proof {
-                    challenge: consensus::Decodable::consensus_decode(d)?,
-                    solution: consensus::Decodable::consensus_decode(d)?,
+                    challenge: Decodable::consensus_decode(&mut d)?,
+                    solution: Decodable::consensus_decode(&mut d)?,
                 }
             },
         })
@@ -271,7 +273,6 @@ impl<D: consensus::Decoder> consensus::Decodable<D> for BlockHeader {
 
 impl BitcoinHash for BlockHeader {
     fn bitcoin_hash(&self) -> sha256d::Hash {
-        use bitcoin::consensus::Encodable;
 
         let version = if let ExtData::Dynafed { .. } = self.ext {
             self.version | 0x8000_0000
