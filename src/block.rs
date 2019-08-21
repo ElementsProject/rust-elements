@@ -609,11 +609,69 @@ mod tests {
             000000000000000000000000000000000000000000000000\
         ");
 
+        // Test that this is a block with compact current params and null proposed params
+        if let ExtData::Dynafed { current, proposed, .. } = block.clone().header.ext {
+            if let dynafed::Params::Compact { signblock_witness_limit, .. } = current {
+                assert_eq!(signblock_witness_limit, 75);
+            } else {
+                panic!("Current block dynafed params not compact");
+            }
+            if let dynafed::Params::Null { .. } = proposed {
+                /* pass */
+            } else {
+                panic!("Proposed block dynafed params not compact");
+            }
+        } else {
+            panic!("No dynafed params");
+        }
+
         assert_eq!(
             block.bitcoin_hash().to_string(),
             "4c7b60fc11a380811cfb8a17201ba54506a896eb1f53e9646d8bc2398d2448bd"
         );
         assert_eq!(block.header.version, 0x20000000);
+
+        // Full current and proposal
+        let block: Block = hex_deserialize!("\
+            000000a08b73cb590b11730880dd9c042101e853bcd2d5195f8efcffa66df48e\
+            bf39d8c10a9de8013a78fb0acc86dd7e1c137581e4951b196d7c9d8f96a90bd3\
+            c4768c575f535c5dcc010000022200204ae81572f06e1b88fd5ced7a1a000945\
+            432e83e1551e6f721ee9c00b8cc332604b00000017a91472c44f957fc011d97e\
+            3406667dca5b1c930c4026870151014202fcba7ecf41bc7e1be4ee122d9d22e3\
+            333671eb0a3a87b5cdf099d59874e1940f02fcba7ecf41bc7e1be4ee122d9d22\
+            e3333671eb0a3a87b5cdf099d59874e1940f021600142bb5aebe7c280263fa60\
+            6c97e4f6c07ee62dddf0640000002200208c2574892063f995fdf756bce07f46\
+            c1a5193e54cd52837ed91e32008ccf41ac0152014203808355deeb0555203b53\
+            df7ef8f36edaf66ab0207ca1b11968a7ac421554e62102fcba7ecf41bc7e1be4\
+            ee122d9d22e3333671eb0a3a87b5cdf099d59874e1940f010151010200000001\
+            0100000000000000000000000000000000000000000000000000000000000000\
+            00ffffffff0502cc010101ffffffff0201230f4f5d4b7c6fa845806ee4f67713\
+            459e1b69e8e60fcee2e4940c7a0d5de1b201000000002540be4000015101230f\
+            4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100\
+            0000000000000000266a24aa21a9ed94f15ed3a62165e4a0b99699cc28b48e19\
+            cb5bc1b1f47155db62d63f1e047d450000000000000120000000000000000000\
+            00000000000000000000000000000000000000000000000000000000\
+        ");
+
+        // Test that this is a block with full current params and full proposed params
+        if let ExtData::Dynafed { current, proposed, .. } = block.clone().header.ext {
+            if let dynafed::Params::Full { .. } = current {
+                /* pass */
+            } else {
+                panic!("Current block dynafed params not full");
+            }
+            if let dynafed::Params::Full { .. } = proposed {
+                /* pass */
+            } else {
+                panic!("Proposed block dynafed params not full");
+            }
+        } else {
+            panic!("No dynafed params");
+        }
+        assert_eq!(
+            block.bitcoin_hash().to_string(),
+            "6d6d1172376a187579396df29cd6bbf36761d504fb400eea2f314b3d6b6b44f5"
+        );
     }
 }
 
