@@ -45,4 +45,5 @@ pub use address::{Address, AddressParams, AddressError};
 pub use transaction::{OutPoint, PeginData, PegoutData, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
 pub use block::{BlockHeader, Block};
 pub use block::ExtData as BlockExtData;
+pub use ::bitcoin::consensus::encode::VarInt;
 

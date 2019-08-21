@@ -22,6 +22,8 @@ use ::bitcoin::consensus::encode as btcenc;
 
 use transaction::{Transaction, TxIn, TxOut};
 
+pub use ::bitcoin::consensus::encode::MAX_VEC_SIZE;
+
 /// Encoding error
 #[derive(Debug)]
 pub enum Error {
@@ -168,10 +170,10 @@ macro_rules! impl_vec {
                 let byte_size = (len as usize)
                     .checked_mul(mem::size_of::<$type>())
                     .ok_or(self::Error::ParseFailed("Invalid length"))?;
-                if byte_size > btcenc::MAX_VEC_SIZE {
+                if byte_size > MAX_VEC_SIZE {
                     return Err(self::Error::OversizedVectorAllocation {
                         requested: byte_size,
-                        max: btcenc::MAX_VEC_SIZE,
+                        max: MAX_VEC_SIZE,
                     });
                 }
                 let mut ret = Vec::with_capacity(len as usize);
