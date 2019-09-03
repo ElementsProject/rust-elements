@@ -14,9 +14,13 @@
 
 //! Dynamic Federations
 
-use bitcoin::{self, consensus};
+use std::io;
+
+use bitcoin;
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
+
+use encode::{self, Encodable, Decodable};
 
 /// Dynamic federations paramaters, as encoded in a block header
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -216,19 +220,17 @@ impl Serialize for Params {
     }
 }
 
-impl<S: consensus::Encoder> consensus::Encodable<S> for Params {
-    fn consensus_encode(&self, s: &mut S) -> Result<(), consensus::encode::Error> {
-        use self::consensus::Encodable;
-
-        match *self {
-            Params::Null => Encodable::consensus_encode(&0u8, s),
+impl Encodable for Params {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+        Ok(match *self {
+            Params::Null => Encodable::consensus_encode(&0u8, &mut s)?,
             Params::Compact {
                 ref signblockscript,
                 ref signblock_witness_limit,
             } => {
-                Encodable::consensus_encode(&1u8, s)?;
-                Encodable::consensus_encode(signblockscript, s)?;
-                Encodable::consensus_encode(signblock_witness_limit, s)
+                Encodable::consensus_encode(&1u8, &mut s)? +
+                Encodable::consensus_encode(signblockscript, &mut s)? +
+                Encodable::consensus_encode(signblock_witness_limit, &mut s)?
             },
             Params::Full {
                 ref signblockscript,
@@ -237,36 +239,34 @@ impl<S: consensus::Encoder> consensus::Encodable<S> for Params {
                 ref fedpegscript,
                 ref extension_space,
             } => {
-                Encodable::consensus_encode(&2u8, s)?;
-                Encodable::consensus_encode(signblockscript, s)?;
-                Encodable::consensus_encode(signblock_witness_limit, s)?;
-                Encodable::consensus_encode(fedpeg_program, s)?;
-                Encodable::consensus_encode(fedpegscript, s)?;
-                Encodable::consensus_encode(extension_space, s)
+                Encodable::consensus_encode(&2u8, &mut s)? +
+                Encodable::consensus_encode(signblockscript, &mut s)? +
+                Encodable::consensus_encode(signblock_witness_limit, &mut s)? +
+                Encodable::consensus_encode(fedpeg_program, &mut s)? +
+                Encodable::consensus_encode(fedpegscript, &mut s)? +
+                Encodable::consensus_encode(extension_space, &mut s)?
             },
-        }
+        })
     }
 }
 
-impl<D: consensus::Decoder> consensus::Decodable<D> for Params {
-    fn consensus_decode(d: &mut D) -> Result<Self, consensus::encode::Error> {
-        use self::consensus::Decodable;
-
-        let ser_type: u8 = Decodable::consensus_decode(d)?;
+impl Decodable for Params {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        let ser_type: u8 = Decodable::consensus_decode(&mut d)?;
         match ser_type {
             0 => Ok(Params::Null),
             1 => Ok(Params::Compact {
-                signblockscript: Decodable::consensus_decode(d)?,
-                signblock_witness_limit: Decodable::consensus_decode(d)?,
+                signblockscript: Decodable::consensus_decode(&mut d)?,
+                signblock_witness_limit: Decodable::consensus_decode(&mut d)?,
             }),
             2 => Ok(Params::Full {
-                signblockscript: Decodable::consensus_decode(d)?,
-                signblock_witness_limit: Decodable::consensus_decode(d)?,
-                fedpeg_program: Decodable::consensus_decode(d)?,
-                fedpegscript: Decodable::consensus_decode(d)?,
-                extension_space: Decodable::consensus_decode(d)?,
+                signblockscript: Decodable::consensus_decode(&mut d)?,
+                signblock_witness_limit: Decodable::consensus_decode(&mut d)?,
+                fedpeg_program: Decodable::consensus_decode(&mut d)?,
+                fedpegscript: Decodable::consensus_decode(&mut d)?,
+                extension_space: Decodable::consensus_decode(&mut d)?,
             }),
-            _ => Err(consensus::encode::Error::ParseFailed(
+            _ => Err(encode::Error::ParseFailed(
                 "bad serialize type for dynafed parameters"
             )),
         }

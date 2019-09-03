@@ -46,7 +46,7 @@ use std::fmt;
 #[allow(unused_imports, deprecated)]
 use std::ascii::AsciiExt;
 
-use bech32::{u5, Error};
+use bitcoin::bech32::{u5, Error};
 
 /// Encode a bech32 payload to an [fmt::Formatter].
 pub fn encode_to_fmt<T: AsRef<[u5]>>(fmt: &mut fmt::Formatter, hrp: &str, data: T) -> fmt::Result {
@@ -235,7 +235,7 @@ const GEN: [u64; 5] = [
 mod test {
     use super::*;
 
-    use bech32::ToBase32;
+    use bitcoin::bech32::ToBase32;
     use rand;
 
     #[test]

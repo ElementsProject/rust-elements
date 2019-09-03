@@ -10,19 +10,13 @@ documentation = "https://docs.rs/elements/"
 
 [features]
 "serde-feature" = [
-    "bitcoin/serde",
-    "bitcoin_hashes/serde",
+    "bitcoin/use-serde",
     "serde"
 ]
 "fuzztarget" = []
 
 [dependencies]
-bech32 = "0.6"
-bitcoin_hashes = "0.3.0"
-secp256k1 = "0.12.0"
-
-[dependencies.bitcoin]
-version = "0.18.0"
+bitcoin = "0.19.1"
 
 [dependencies.serde]
 version = "1.0"
