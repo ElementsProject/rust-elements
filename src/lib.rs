@@ -25,7 +25,7 @@
 #![deny(unused_mut)]
 #![deny(missing_docs)]
 
-extern crate bitcoin;
+pub extern crate bitcoin;
 #[cfg(feature = "serde")] extern crate serde;
 
 #[cfg(test)] extern crate rand;
