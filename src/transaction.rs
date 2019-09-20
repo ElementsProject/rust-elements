@@ -78,10 +78,32 @@ impl Decodable for OutPoint {
     }
 }
 
+impl BitcoinHash for OutPoint {
+    fn bitcoin_hash(&self) -> sha256d::Hash {
+        let mut enc = sha256d::Hash::engine();
+        self.consensus_encode(&mut enc).unwrap();
+        sha256d::Hash::from_engine(enc)
+    }
+}
+
 impl fmt::Display for OutPoint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("[elements]")?;
         write!(f, "{}:{}", self.txid, self.vout)
+    }
+}
+
+impl ::std::str::FromStr for OutPoint {
+    type Err = bitcoin::blockdata::transaction::ParseOutPointError;
+    fn from_str(mut s: &str) -> Result<Self, Self::Err> {
+        if s.starts_with("[elements]") {
+            s = &s[10..];
+        }
+        let bitcoin_outpoint = bitcoin::OutPoint::from_str(s)?;
+        Ok(OutPoint {
+            txid: bitcoin_outpoint.txid,
+            vout: bitcoin_outpoint.vout,
+        })
     }
 }
 
@@ -659,6 +681,21 @@ mod tests {
 
     use confidential;
     use super::*;
+
+    #[test]
+    fn outpoint() {
+        let txid = "d0a5c455ea7221dead9513596d2f97c09943bad81a386fe61a14a6cda060e422";
+        let s = format!("{}:42", txid);
+        let expected = OutPoint {
+            txid: sha256d::Hash::from_hex(&txid).unwrap(),
+            vout: 42,
+        };
+        let op = ::std::str::FromStr::from_str(&s).ok();
+        assert_eq!(op, Some(expected));
+        // roundtrip with elements prefix
+        let op = ::std::str::FromStr::from_str(&expected.to_string()).ok();
+        assert_eq!(op, Some(expected));
+    }
 
     #[test]
     fn transaction() {

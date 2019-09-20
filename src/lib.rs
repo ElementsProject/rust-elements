@@ -38,6 +38,8 @@ mod block;
 pub mod confidential;
 pub mod dynafed;
 pub mod encode;
+mod fast_merkle_root;
+pub mod issuance;
 mod transaction;
 
 // export everything at the top level so it can be used as `elements::Transaction` etc.
@@ -46,4 +48,6 @@ pub use transaction::{OutPoint, PeginData, PegoutData, TxIn, TxOut, TxInWitness,
 pub use block::{BlockHeader, Block};
 pub use block::ExtData as BlockExtData;
 pub use ::bitcoin::consensus::encode::VarInt;
+pub use fast_merkle_root::fast_merkle_root;
+pub use issuance::AssetId;
 
