@@ -223,6 +223,18 @@ pub struct BlockHeader {
 serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, height, ext);
 
 impl BlockHeader {
+    /// Returns true if this is a block with dynamic federations enabled.
+    pub fn is_dynafed(&self) -> bool {
+        if let ExtData::Dynafed {
+            ..
+        } = self.ext
+        {
+            true
+        } else {
+            false
+        }
+    }
+
     /// Calculate the root of the dynafed params. Returns [None] when not dynafed.
     pub fn calculate_dynafed_params_root(&self) -> Option<sha256::Midstate> {
         match self.ext {
