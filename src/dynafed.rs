@@ -53,6 +53,80 @@ pub enum Params {
     },
 }
 
+impl Params {
+    /// Check whether this is [Params::Null].
+    pub fn is_null(&self) -> bool {
+        match *self {
+            Params::Null => true,
+            Params::Compact { .. } => false,
+            Params::Full { .. } => false,
+        }
+    }
+
+    /// Check whether this is [Params::Compact].
+    pub fn is_compact(&self) -> bool {
+        match *self {
+            Params::Null => false,
+            Params::Compact { .. } => true,
+            Params::Full { .. } => false,
+        }
+    }
+
+    /// Check whether this is [Params::Full].
+    pub fn is_full(&self) -> bool {
+        match *self {
+            Params::Null => false,
+            Params::Compact { .. } => false,
+            Params::Full { .. } => true,
+        }
+    }
+
+    /// Get the signblockscript. Is [None] for [Null] params.
+    pub fn signblockscript(&self) -> Option<&bitcoin::Script> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { ref signblockscript, ..} => Some(signblockscript),
+            Params::Full { ref signblockscript, ..} => Some(signblockscript),
+        }
+    }
+
+    /// Get the signblock_witness_limit. Is [None] for [Null] params.
+    pub fn signblock_witness_limit(&self) -> Option<u32> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { signblock_witness_limit, ..} => Some(signblock_witness_limit),
+            Params::Full { signblock_witness_limit, ..} => Some(signblock_witness_limit),
+        }
+    }
+
+    /// Get the fedpeg_program. Is [None] for non-[Full] params.
+    pub fn fedpeg_program(&self) -> Option<&bitcoin::Script> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { .. } => None,
+            Params::Full { ref fedpeg_program, ..} => Some(fedpeg_program),
+        }
+    }
+
+    /// Get the fedpegscript. Is [None] for non-[Full] params.
+    pub fn fedpegscript(&self) -> Option<&Vec<u8>> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { .. } => None,
+            Params::Full { ref fedpegscript, ..} => Some(fedpegscript),
+        }
+    }
+
+    /// Get the extension_space. Is [None] for non-[Full] params.
+    pub fn extension_space(&self) -> Option<&Vec<Vec<u8>>> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { .. } => None,
+            Params::Full { ref extension_space, ..} => Some(extension_space),
+        }
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for Params {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
