@@ -19,7 +19,7 @@ use std::io;
 
 use bitcoin::blockdata::script::Script;
 use bitcoin::BitcoinHash;
-use bitcoin::hashes::{Hash, sha256d};
+use bitcoin::hashes::{Hash, sha256d, sha256};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
 
@@ -221,6 +221,22 @@ pub struct BlockHeader {
     pub ext: ExtData,
 }
 serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, height, ext);
+
+impl BlockHeader {
+    /// Calculate the root of the dynafed params. Returns [None] when not dynafed.
+    pub fn calculate_dynafed_params_root(&self) -> Option<sha256::Midstate> {
+        match self.ext {
+            ExtData::Proof { .. } => None,
+            ExtData::Dynafed { ref current, ref proposed, .. } => {
+                let leaves = [
+                    current.calculate_root().into_inner(),
+                    proposed.calculate_root().into_inner(),
+                ];
+                Some(::fast_merkle_root::fast_merkle_root(&leaves[..]))
+            }
+        }
+    }
+}
 
 impl Encodable for BlockHeader {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {

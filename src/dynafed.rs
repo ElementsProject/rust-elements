@@ -17,6 +17,7 @@
 use std::io;
 
 use bitcoin;
+use bitcoin::hashes::{Hash, sha256, sha256d};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
 
@@ -51,6 +52,102 @@ pub enum Params {
         /// "Extension space" used by Liquid for PAK key entries
         extension_space: Vec<Vec<u8>>,
     },
+}
+
+impl Params {
+    /// Check whether this is [Params::Null].
+    pub fn is_null(&self) -> bool {
+        match *self {
+            Params::Null => true,
+            Params::Compact { .. } => false,
+            Params::Full { .. } => false,
+        }
+    }
+
+    /// Check whether this is [Params::Compact].
+    pub fn is_compact(&self) -> bool {
+        match *self {
+            Params::Null => false,
+            Params::Compact { .. } => true,
+            Params::Full { .. } => false,
+        }
+    }
+
+    /// Check whether this is [Params::Full].
+    pub fn is_full(&self) -> bool {
+        match *self {
+            Params::Null => false,
+            Params::Compact { .. } => false,
+            Params::Full { .. } => true,
+        }
+    }
+
+    /// Get the signblockscript. Is [None] for [Null] params.
+    pub fn signblockscript(&self) -> Option<&bitcoin::Script> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { ref signblockscript, ..} => Some(signblockscript),
+            Params::Full { ref signblockscript, ..} => Some(signblockscript),
+        }
+    }
+
+    /// Get the signblock_witness_limit. Is [None] for [Null] params.
+    pub fn signblock_witness_limit(&self) -> Option<u32> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { signblock_witness_limit, ..} => Some(signblock_witness_limit),
+            Params::Full { signblock_witness_limit, ..} => Some(signblock_witness_limit),
+        }
+    }
+
+    /// Get the fedpeg_program. Is [None] for non-[Full] params.
+    pub fn fedpeg_program(&self) -> Option<&bitcoin::Script> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { .. } => None,
+            Params::Full { ref fedpeg_program, ..} => Some(fedpeg_program),
+        }
+    }
+
+    /// Get the fedpegscript. Is [None] for non-[Full] params.
+    pub fn fedpegscript(&self) -> Option<&Vec<u8>> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { .. } => None,
+            Params::Full { ref fedpegscript, ..} => Some(fedpegscript),
+        }
+    }
+
+    /// Get the extension_space. Is [None] for non-[Full] params.
+    pub fn extension_space(&self) -> Option<&Vec<Vec<u8>>> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { .. } => None,
+            Params::Full { ref extension_space, ..} => Some(extension_space),
+        }
+    }
+
+    /// Calculate the root of this [Params].
+    pub fn calculate_root(&self) -> sha256::Midstate {
+        fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
+            let mut engine = sha256d::Hash::engine();
+            obj.consensus_encode(&mut engine).expect("engines don't error");
+            sha256d::Hash::from_engine(engine)
+        }
+
+        if self.is_null() {
+            return sha256::Midstate::from_inner([0u8; 32]);
+        }
+
+        let leaves = [
+            serialize_hash(self.signblockscript().unwrap()).into_inner(),
+            serialize_hash(&self.signblock_witness_limit().unwrap()).into_inner(),
+            serialize_hash(self.fedpeg_program().unwrap_or(&bitcoin::Script::new())).into_inner(),
+            serialize_hash(self.fedpegscript().unwrap_or(&Vec::new())).into_inner(),
+            serialize_hash(self.extension_space().unwrap_or(&Vec::new())).into_inner(),
+        ];
+        ::fast_merkle_root::fast_merkle_root(&leaves[..])
+    }
 }
 
 #[cfg(feature = "serde")]
@@ -270,5 +367,83 @@ impl Decodable for Params {
                 "bad serialize type for dynafed parameters"
             )),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use bitcoin;
+    use bitcoin::hashes::hex::ToHex;
+
+    #[test]
+    fn test_param_roots() {
+        // Taken from the following Elements Core test:
+
+        // CScript signblockscript(opcodetype(1));
+        // uint32_t signblock_wl(2);
+        // CScript fp_program(opcodetype(3));
+        // CScript fp_script(opcodetype(4));
+        // std::vector<std::vector<unsigned char>> ext{ {5, 6}, {7} };
+        //
+        // DynaFedParamEntry compact_entry = DynaFedParamEntry(signblockscript, signblock_wl);
+        // BOOST_CHECK_EQUAL(
+        //     compact_entry.CalculateRoot().GetHex(),
+        //     "dff5f3793abc06a6d75e80fe3cfd47406f732fa4ec9305960ae2a229222a1ad5"
+        // );
+        //
+        // DynaFedParamEntry full_entry =
+        //     DynaFedParamEntry(signblockscript, signblock_wl, fp_program, fp_script, ext);
+        // BOOST_CHECK_EQUAL(
+        //     full_entry.CalculateRoot().GetHex(),
+        //     "175be2087ba7cc0e33348bef493bd3e34f31f64bf9226e5881ab310dafa432ff"
+        // );
+        //
+        // DynaFedParams params = DynaFedParams(compact_entry, full_entry);
+        // BOOST_CHECK_EQUAL(
+        //     params.CalculateRoot().GetHex(),
+        //     "e56cf79487952dfa85fe6a85829600adc19714ba6ab1157fdff02b25ae60cee2"
+        // );
+
+        let signblockscript: bitcoin::Script = vec![1].into();
+        let signblock_wl = 2;
+        let fp_program: bitcoin::Script = vec![3].into();
+        let fp_script = vec![4];
+        let ext = vec![vec![5, 6], vec![7]];
+
+        let compact_entry = Params::Compact {
+            signblockscript: signblockscript.clone(),
+            signblock_witness_limit: signblock_wl,
+        };
+        assert_eq!(
+            compact_entry.calculate_root().to_hex(),
+            "dff5f3793abc06a6d75e80fe3cfd47406f732fa4ec9305960ae2a229222a1ad5"
+        );
+
+        let full_entry = Params::Full {
+            signblockscript: signblockscript,
+            signblock_witness_limit: signblock_wl,
+            fedpeg_program: fp_program,
+            fedpegscript: fp_script,
+            extension_space: ext,
+        };
+        assert_eq!(
+            full_entry.calculate_root().to_hex(),
+            "175be2087ba7cc0e33348bef493bd3e34f31f64bf9226e5881ab310dafa432ff"
+        );
+
+        let header = ::block::BlockHeader{
+            ext: ::block::ExtData::Dynafed {
+                current: compact_entry,
+                proposed: full_entry,
+                signblock_witness: vec![],
+            },
+            ..Default::default()
+        };
+        assert_eq!(
+            header.calculate_dynafed_params_root().unwrap().to_hex(),
+            "e56cf79487952dfa85fe6a85829600adc19714ba6ab1157fdff02b25ae60cee2"
+        );
     }
 }
