@@ -129,6 +129,15 @@ impl Params {
         }
     }
 
+    /// Get the elided_root. Is [None] for non-[Compact] params.
+    pub fn elided_root(&self) -> Option<&sha256::Midstate> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { ref elided_root, ..} => Some(elided_root),
+            Params::Full { .. } => None,
+        }
+    }
+
     /// Calculate the root of this [Params].
     pub fn calculate_root(&self) -> sha256::Midstate {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
