@@ -138,6 +138,30 @@ impl Params {
         }
     }
 
+    /// Return the `extra root` of this params.
+    /// The extra root commits to the consensus parameters unrelated to
+    /// blocksigning: `fedpeg_program`, `fedpegscript` and `extension_space`.
+    fn extra_root(&self) -> sha256::Midstate {
+        fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
+            let mut engine = sha256d::Hash::engine();
+            obj.consensus_encode(&mut engine).expect("engines don't error");
+            sha256d::Hash::from_engine(engine)
+        }
+
+        match *self {
+            Params::Null => return sha256::Midstate::from_inner([0u8; 32]),
+            Params::Compact { ref elided_root, .. } => *elided_root,
+            Params::Full { ref fedpeg_program, ref fedpegscript, ref extension_space, .. } => {
+                let leaves = [
+                    serialize_hash(fedpeg_program).into_inner(),
+                    serialize_hash(fedpegscript).into_inner(),
+                    serialize_hash(extension_space).into_inner(),
+                ];
+                ::fast_merkle_root::fast_merkle_root(&leaves[..])
+            },
+        }
+    }
+
     /// Calculate the root of this [Params].
     pub fn calculate_root(&self) -> sha256::Midstate {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
@@ -150,18 +174,6 @@ impl Params {
             return sha256::Midstate::from_inner([0u8; 32]);
         }
 
-        let extra_root = match *self {
-            Params::Null => return sha256::Midstate::from_inner([0u8; 32]),
-            Params::Compact { ref elided_root, .. } => *elided_root,
-            Params::Full { ref fedpeg_program, ref fedpegscript, ref extension_space, .. } => {
-                let leaves = [
-                    serialize_hash(fedpeg_program).into_inner(),
-                    serialize_hash(fedpegscript).into_inner(),
-                    serialize_hash(extension_space).into_inner(),
-                ];
-                ::fast_merkle_root::fast_merkle_root(&leaves[..])
-            },
-        };
         let leaves = [
             serialize_hash(self.signblockscript().unwrap()).into_inner(),
             serialize_hash(&self.signblock_witness_limit().unwrap()).into_inner(),
@@ -170,9 +182,37 @@ impl Params {
 
         let leaves = [
             compact_root.into_inner(),
-            extra_root.into_inner(),
+            self.extra_root().into_inner(),
         ];
         ::fast_merkle_root::fast_merkle_root(&leaves[..])
+    }
+
+    /// Turns paramers into compact parameters.
+    /// This returns self for compact params and [None] for null ones.
+    pub fn into_compact(self) -> Option<Params> {
+        // Avoid calcualting when it's not needed.
+        let mut extra_root = None;
+        if self.is_full() {
+            extra_root = Some(self.extra_root());
+        }
+
+        match self {
+            Params::Null => None,
+            Params::Compact { signblockscript, signblock_witness_limit, elided_root } => {
+                Some(Params::Compact {
+                    signblockscript: signblockscript,
+                    signblock_witness_limit,
+                    elided_root: elided_root,
+                })
+            }
+            Params::Full { signblockscript, signblock_witness_limit, ..} => {
+                Some(Params::Compact {
+                    signblockscript: signblockscript,
+                    signblock_witness_limit,
+                    elided_root: extra_root.unwrap(),
+                })
+            }
+        }
     }
 }
 
