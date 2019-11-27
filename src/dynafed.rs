@@ -529,4 +529,20 @@ mod tests {
             "113160f76dc17fe367a2def79aefe06feeea9c795310c9e88aeedc23e145982e"
         );
     }
+
+    #[test]
+    fn into_compact_test() {
+        let full = Params::Full {
+            signblockscript: vec![0x01, 0x02].into(),
+            signblock_witness_limit: 3,
+            fedpeg_program: vec![0x04, 0x05].into(),
+            fedpegscript: vec![0x06, 0x07],
+            extension_space: vec![vec![0x08, 0x09], vec![0x0a]],
+        };
+        let extra_root = full.extra_root();
+
+        let compact = full.into_compact().unwrap();
+        assert_eq!(compact.elided_root(), Some(&extra_root));
+        assert_eq!(compact.extra_root(), extra_root);
+    }
 }
