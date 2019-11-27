@@ -129,6 +129,39 @@ impl Params {
         }
     }
 
+    /// Get the elided_root. Is [None] for non-[Compact] params.
+    pub fn elided_root(&self) -> Option<&sha256::Midstate> {
+        match *self {
+            Params::Null => None,
+            Params::Compact { ref elided_root, ..} => Some(elided_root),
+            Params::Full { .. } => None,
+        }
+    }
+
+    /// Return the `extra root` of this params.
+    /// The extra root commits to the consensus parameters unrelated to
+    /// blocksigning: `fedpeg_program`, `fedpegscript` and `extension_space`.
+    fn extra_root(&self) -> sha256::Midstate {
+        fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
+            let mut engine = sha256d::Hash::engine();
+            obj.consensus_encode(&mut engine).expect("engines don't error");
+            sha256d::Hash::from_engine(engine)
+        }
+
+        match *self {
+            Params::Null => return sha256::Midstate::from_inner([0u8; 32]),
+            Params::Compact { ref elided_root, .. } => *elided_root,
+            Params::Full { ref fedpeg_program, ref fedpegscript, ref extension_space, .. } => {
+                let leaves = [
+                    serialize_hash(fedpeg_program).into_inner(),
+                    serialize_hash(fedpegscript).into_inner(),
+                    serialize_hash(extension_space).into_inner(),
+                ];
+                ::fast_merkle_root::fast_merkle_root(&leaves[..])
+            },
+        }
+    }
+
     /// Calculate the root of this [Params].
     pub fn calculate_root(&self) -> sha256::Midstate {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
@@ -141,18 +174,6 @@ impl Params {
             return sha256::Midstate::from_inner([0u8; 32]);
         }
 
-        let extra_root = match *self {
-            Params::Null => return sha256::Midstate::from_inner([0u8; 32]),
-            Params::Compact { ref elided_root, .. } => *elided_root,
-            Params::Full { ref fedpeg_program, ref fedpegscript, ref extension_space, .. } => {
-                let leaves = [
-                    serialize_hash(fedpeg_program).into_inner(),
-                    serialize_hash(fedpegscript).into_inner(),
-                    serialize_hash(extension_space).into_inner(),
-                ];
-                ::fast_merkle_root::fast_merkle_root(&leaves[..])
-            },
-        };
         let leaves = [
             serialize_hash(self.signblockscript().unwrap()).into_inner(),
             serialize_hash(&self.signblock_witness_limit().unwrap()).into_inner(),
@@ -161,9 +182,37 @@ impl Params {
 
         let leaves = [
             compact_root.into_inner(),
-            extra_root.into_inner(),
+            self.extra_root().into_inner(),
         ];
         ::fast_merkle_root::fast_merkle_root(&leaves[..])
+    }
+
+    /// Turns paramers into compact parameters.
+    /// This returns self for compact params and [None] for null ones.
+    pub fn into_compact(self) -> Option<Params> {
+        // Avoid calcualting when it's not needed.
+        let mut extra_root = None;
+        if self.is_full() {
+            extra_root = Some(self.extra_root());
+        }
+
+        match self {
+            Params::Null => None,
+            Params::Compact { signblockscript, signblock_witness_limit, elided_root } => {
+                Some(Params::Compact {
+                    signblockscript: signblockscript,
+                    signblock_witness_limit,
+                    elided_root: elided_root,
+                })
+            }
+            Params::Full { signblockscript, signblock_witness_limit, ..} => {
+                Some(Params::Compact {
+                    signblockscript: signblockscript,
+                    signblock_witness_limit,
+                    elided_root: extra_root.unwrap(),
+                })
+            }
+        }
     }
 }
 
@@ -479,5 +528,21 @@ mod tests {
             header.calculate_dynafed_params_root().unwrap().to_hex(),
             "113160f76dc17fe367a2def79aefe06feeea9c795310c9e88aeedc23e145982e"
         );
+    }
+
+    #[test]
+    fn into_compact_test() {
+        let full = Params::Full {
+            signblockscript: vec![0x01, 0x02].into(),
+            signblock_witness_limit: 3,
+            fedpeg_program: vec![0x04, 0x05].into(),
+            fedpegscript: vec![0x06, 0x07],
+            extension_space: vec![vec![0x08, 0x09], vec![0x0a]],
+        };
+        let extra_root = full.extra_root();
+
+        let compact = full.into_compact().unwrap();
+        assert_eq!(compact.elided_root(), Some(&extra_root));
+        assert_eq!(compact.extra_root(), extra_root);
     }
 }
