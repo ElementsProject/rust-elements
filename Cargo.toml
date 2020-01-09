@@ -1,6 +1,6 @@
 [package]
 name = "elements"
-version = "0.10.1"
+version = "0.11.0"
 authors = ["Andrew Poelstra <apoelstra@blockstream.com>"]
 description = "Library with support for de/serialization, parsing and executing on data structures and network messages related to Elements"
 license = "CC0-1.0"
@@ -16,7 +16,7 @@ documentation = "https://docs.rs/elements/"
 "fuzztarget" = []
 
 [dependencies]
-bitcoin = "0.20"
+bitcoin = "0.23"
 
 [dependencies.serde]
 version = "1.0"
