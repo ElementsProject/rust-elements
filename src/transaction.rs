@@ -17,7 +17,7 @@
 
 use std::{io, fmt};
 
-use bitcoin::{self, BitcoinHash, VarInt};
+use bitcoin::{self, BitcoinHash, Txid, VarInt};
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Script, Instruction};
 use bitcoin::hashes::{Hash, sha256d};
@@ -44,7 +44,7 @@ impl_consensus_encoding!(AssetIssuance, asset_blinding_nonce, asset_entropy, amo
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct OutPoint {
     /// The referenced transaction's txid
-    pub txid: sha256d::Hash,
+    pub txid: Txid,
     /// The index of the referenced output in its transaction's vout
     pub vout: u32,
 }
@@ -54,7 +54,7 @@ impl Default for OutPoint {
     /// Coinbase outpoint
     fn default() -> OutPoint {
         OutPoint {
-            txid: sha256d::Hash::default(),
+            txid: Txid::default(),
             vout: 0xffffffff,
         }
     }
@@ -69,7 +69,7 @@ impl Encodable for OutPoint {
 
 impl Decodable for OutPoint {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<OutPoint, encode::Error> {
-        let txid = sha256d::Hash::consensus_decode(&mut d)?;
+        let txid = Txid::consensus_decode(&mut d)?;
         let vout = u32::consensus_decode(&mut d)?;
         Ok(OutPoint {
             txid: txid,
@@ -78,11 +78,11 @@ impl Decodable for OutPoint {
     }
 }
 
-impl BitcoinHash for OutPoint {
-    fn bitcoin_hash(&self) -> sha256d::Hash {
+impl BitcoinHash<Txid> for OutPoint {
+    fn bitcoin_hash(&self) -> Txid {
         let mut enc = sha256d::Hash::engine();
         self.consensus_encode(&mut enc).unwrap();
-        sha256d::Hash::from_engine(enc)
+        Txid::from_engine(enc)
     }
 }
 
@@ -598,12 +598,12 @@ impl Transaction {
     }
 }
 
-impl BitcoinHash for Transaction {
+impl BitcoinHash<Txid> for Transaction {
     /// To get a transaction's txid, which is usually what you want, use the `txid` method.
-    fn bitcoin_hash(&self) -> sha256d::Hash {
+    fn bitcoin_hash(&self) -> Txid {
         let mut enc = sha256d::Hash::engine();
         self.consensus_encode(&mut enc).unwrap();
-        sha256d::Hash::from_engine(enc)
+        Txid::from_engine(enc)
     }
 }
 
@@ -687,7 +687,7 @@ mod tests {
         let txid = "d0a5c455ea7221dead9513596d2f97c09943bad81a386fe61a14a6cda060e422";
         let s = format!("{}:42", txid);
         let expected = OutPoint {
-            txid: sha256d::Hash::from_hex(&txid).unwrap(),
+            txid: Txid::from_hex(&txid).unwrap(),
             vout: 42,
         };
         let op = ::std::str::FromStr::from_str(&s).ok();
@@ -1017,7 +1017,7 @@ mod tests {
             tx.input[0].pegin_data(),
             Some(super::PeginData {
                 outpoint: bitcoin::OutPoint {
-                    txid: sha256d::Hash::from_hex(
+                    txid: Txid::from_hex(
                         "c9d88eb5130365deed045eab11cfd3eea5ba32ad45fa2e156ae6ead5f1fce93f",
                     ).unwrap(),
                     vout: 0,

@@ -18,7 +18,7 @@
 use std::io;
 
 use bitcoin::blockdata::script::Script;
-use bitcoin::BitcoinHash;
+use bitcoin::{BitcoinHash, BlockHash};
 use bitcoin::hashes::{Hash, sha256d, sha256};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
@@ -313,8 +313,8 @@ impl Decodable for BlockHeader {
     }
 }
 
-impl BitcoinHash for BlockHeader {
-    fn bitcoin_hash(&self) -> sha256d::Hash {
+impl BitcoinHash<BlockHash> for BlockHeader {
+    fn bitcoin_hash(&self) -> BlockHash {
 
         let version = if let ExtData::Dynafed { .. } = self.ext {
             self.version | 0x8000_0000
@@ -338,7 +338,7 @@ impl BitcoinHash for BlockHeader {
                 proposed.consensus_encode(&mut enc).unwrap();
             },
         }
-        sha256d::Hash::from_engine(enc)
+        BlockHash::from_engine(enc)
     }
 }
 
@@ -353,8 +353,8 @@ pub struct Block {
 serde_struct_impl!(Block, header, txdata);
 impl_consensus_encoding!(Block, header, txdata);
 
-impl BitcoinHash for Block {
-    fn bitcoin_hash(&self) -> sha256d::Hash {
+impl BitcoinHash<BlockHash> for Block {
+    fn bitcoin_hash(&self) -> BlockHash {
         self.header.bitcoin_hash()
     }
 }
