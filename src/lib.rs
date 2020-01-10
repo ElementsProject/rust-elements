@@ -42,6 +42,10 @@ mod fast_merkle_root;
 pub mod issuance;
 mod transaction;
 
+// Re-export all the hash newtypes that bitcoin specifies because they are not identical
+// semantically.
+pub use bitcoin::hash_types::*;
+
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use address::{Address, AddressParams, AddressError};
 pub use transaction::{OutPoint, PeginData, PegoutData, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
