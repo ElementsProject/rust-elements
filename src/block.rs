@@ -17,9 +17,10 @@
 
 use std::io;
 
+use bitcoin;
 use bitcoin::blockdata::script::Script;
 use bitcoin::{BitcoinHash, BlockHash};
-use bitcoin::hashes::{Hash, sha256d, sha256};
+use bitcoin::hashes::{Hash, sha256};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
 
@@ -210,9 +211,9 @@ pub struct BlockHeader {
     /// Version - should be 0x20000000 except when versionbits signalling
     pub version: u32,
     /// Previous blockhash
-    pub prev_blockhash: sha256d::Hash,
+    pub prev_blockhash: bitcoin::BlockHash,
     /// Transaction Merkle root
-    pub merkle_root: sha256d::Hash,
+    pub merkle_root: bitcoin::TxMerkleNode,
     /// Block timestamp
     pub time: u32,
     /// Block height
@@ -323,7 +324,7 @@ impl BitcoinHash<BlockHash> for BlockHeader {
         };
 
         // Everything except the signblock witness goes into the hash
-        let mut enc = sha256d::Hash::engine();
+        let mut enc = bitcoin::BlockHash::engine();
         version.consensus_encode(&mut enc).unwrap();
         self.prev_blockhash.consensus_encode(&mut enc).unwrap();
         self.merkle_root.consensus_encode(&mut enc).unwrap();

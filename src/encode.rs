@@ -148,6 +148,8 @@ impl_upstream!(btcenc::VarInt);
 impl_upstream!(::bitcoin::blockdata::script::Script);
 impl_upstream!(::bitcoin::hashes::sha256d::Hash);
 impl_upstream!(::bitcoin::Txid);
+impl_upstream!(::bitcoin::TxMerkleNode);
+impl_upstream!(::bitcoin::BlockHash);
 
 // Vectors
 macro_rules! impl_vec {

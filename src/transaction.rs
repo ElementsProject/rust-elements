@@ -20,7 +20,7 @@ use std::{io, fmt};
 use bitcoin::{self, BitcoinHash, Txid, VarInt};
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Script, Instruction};
-use bitcoin::hashes::{Hash, sha256d};
+use bitcoin::hashes::Hash;
 
 use confidential;
 use encode::{self, Encodable, Decodable};
@@ -80,7 +80,7 @@ impl Decodable for OutPoint {
 
 impl BitcoinHash<Txid> for OutPoint {
     fn bitcoin_hash(&self) -> Txid {
-        let mut enc = sha256d::Hash::engine();
+        let mut enc = Txid::engine();
         self.consensus_encode(&mut enc).unwrap();
         Txid::from_engine(enc)
     }
@@ -143,7 +143,7 @@ pub struct PeginData<'tx> {
     /// Asset type being pegged in
     pub asset: confidential::Asset,
     /// Hash of genesis block of originating blockchain
-    pub genesis_hash: sha256d::Hash,
+    pub genesis_hash: bitcoin::BlockHash,
     /// The claim script that we should hash to tweak our address. Unparsed
     /// to avoid unnecessary allocation and copying. Typical use is simply
     /// to feed it raw into a hash function.
@@ -157,7 +157,7 @@ pub struct PeginData<'tx> {
     pub merkle_proof: &'tx [u8],
     /// The Bitcoin block that the pegin output appears in; scraped
     /// from the transaction inclusion proof
-    pub referenced_block: sha256d::Hash,
+    pub referenced_block: bitcoin::BlockHash,
 }
 
 /// A transaction input, which defines old coins to be consumed
@@ -284,7 +284,7 @@ impl TxIn {
             claim_script: &self.witness.pegin_witness[3],
             tx: &self.witness.pegin_witness[4],
             merkle_proof: &self.witness.pegin_witness[5],
-            referenced_block: sha256d::Hash::hash(
+            referenced_block: bitcoin::BlockHash::hash(
                 &self.witness.pegin_witness[5][0..80],
             ),
         })
@@ -322,7 +322,7 @@ pub struct PegoutData<'txo> {
     /// Asset of pegout
     pub asset: confidential::Asset,
     /// Genesis hash of the target blockchain
-    pub genesis_hash: sha256d::Hash,
+    pub genesis_hash: bitcoin::BlockHash,
     /// Scriptpubkey to create on the target blockchain
     pub script_pubkey: Script,
     /// Remaining pegout data used by some forks of Elements
@@ -416,7 +416,7 @@ impl TxOut {
 
         // Parse destination chain's genesis block
         let genesis_hash = if let Some(Instruction::PushBytes(data)) = iter.next() {
-            if let Ok(hash) = sha256d::Hash::from_slice(data) {
+            if let Ok(hash) = bitcoin::BlockHash::from_slice(data) {
                 hash
             } else {
                 return None;
@@ -587,21 +587,21 @@ impl Transaction {
     }
 
     /// The txid of the transaction. To get its hash, use `BitcoinHash::bitcoin_hash()`.
-    pub fn txid(&self) -> sha256d::Hash {
-        let mut enc = sha256d::Hash::engine();
+    pub fn txid(&self) -> bitcoin::Txid {
+        let mut enc = bitcoin::Txid::engine();
         self.version.consensus_encode(&mut enc).unwrap();
         0u8.consensus_encode(&mut enc).unwrap();
         self.input.consensus_encode(&mut enc).unwrap();
         self.output.consensus_encode(&mut enc).unwrap();
         self.lock_time.consensus_encode(&mut enc).unwrap();
-        sha256d::Hash::from_engine(enc)
+        bitcoin::Txid::from_engine(enc)
     }
 }
 
 impl BitcoinHash<Txid> for Transaction {
     /// To get a transaction's txid, which is usually what you want, use the `txid` method.
     fn bitcoin_hash(&self) -> Txid {
-        let mut enc = sha256d::Hash::engine();
+        let mut enc = Txid::engine();
         self.consensus_encode(&mut enc).unwrap();
         Txid::from_engine(enc)
     }
@@ -1024,7 +1024,7 @@ mod tests {
                 },
                 value: 100000000,
                 asset: tx.output[0].asset,
-                genesis_hash: sha256d::Hash::from_hex(
+                genesis_hash: bitcoin::BlockHash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
                 claim_script: &[
@@ -1083,7 +1083,7 @@ mod tests {
                     0x25, 0xf8, 0x55, 0x52, 0x97, 0x11, 0xed, 0x64,
                     0x50, 0xcc, 0x9b, 0x3c, 0x95, 0x01, 0x0b,
                 ],
-                referenced_block: sha256d::Hash::from_hex(
+                referenced_block: bitcoin::BlockHash::from_hex(
                     "297852caf43464d8f13a3847bd602184c21474cd06760dbf9fc5e87bade234f1"
                 ).unwrap(),
             })
@@ -1128,7 +1128,7 @@ mod tests {
             Some(super::PegoutData {
                 asset: tx.output[0].asset,
                 value: 99993900,
-                genesis_hash: sha256d::Hash::from_hex(
+                genesis_hash: bitcoin::BlockHash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
                 script_pubkey: hex_deserialize!(
