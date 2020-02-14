@@ -596,8 +596,16 @@ impl Transaction {
         self.lock_time.consensus_encode(&mut enc).unwrap();
         bitcoin::Txid::from_engine(enc)
     }
+
+    /// Get the witness txid of the transaction.
+    pub fn wtxid(&self) -> bitcoin::Wtxid {
+        let mut enc = Txid::engine();
+        self.consensus_encode(&mut enc).unwrap();
+        bitcoin::Wtxid::from_engine(enc)
+    }
 }
 
+//TODO(stevenroose) remove this, it's incorrect
 impl BitcoinHash<Txid> for Transaction {
     /// To get a transaction's txid, which is usually what you want, use the `txid` method.
     fn bitcoin_hash(&self) -> Txid {
