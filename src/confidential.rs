@@ -182,6 +182,14 @@ impl Value {
             Value::Confidential(..) => 33,
         }
     }
+
+    /// Check if the value is explicit.
+    pub fn is_explicit(&self) -> bool {
+        match *self {
+            Value::Explicit(_) => true,
+            _ => false,
+        }
+    }
 }
 
 /// A CT commitment to an asset
@@ -203,6 +211,14 @@ impl Asset {
             Asset::Null => 1,
             Asset::Explicit(..) => 33,
             Asset::Confidential(..) => 33,
+        }
+    }
+
+    /// Check if the asset is explicit.
+    pub fn is_explicit(&self) -> bool {
+        match *self {
+            Asset::Explicit(_) => true,
+            _ => false,
         }
     }
 }
@@ -229,6 +245,14 @@ impl Nonce {
             Nonce::Null => 1,
             Nonce::Explicit(..) => 33,
             Nonce::Confidential(..) => 33,
+        }
+    }
+
+    /// Check if the nonce is explicit.
+    pub fn is_explicit(&self) -> bool {
+        match *self {
+            Nonce::Explicit(_) => true,
+            _ => false,
         }
     }
 }
