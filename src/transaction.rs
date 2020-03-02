@@ -462,7 +462,7 @@ impl TxOut {
 
     /// Whether or not this output is a fee output
     pub fn is_fee(&self) -> bool {
-        self.script_pubkey.is_empty()
+        self.script_pubkey.is_empty() && self.value.is_explicit() && self.asset.is_explicit()
     }
 
     /// Extracts the minimum value from the rangeproof, if there is one, or returns 0.
