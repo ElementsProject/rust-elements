@@ -527,10 +527,19 @@ impl Transaction {
     /// Get the "weight" of this transaction; roughly equivalent to BIP141, in that witness data is
     /// counted as 1 while non-witness data is counted as 4.
     pub fn get_weight(&self) -> usize {
+        self.get_scaled_size(4)
+    }
+
+    /// Gets the regular byte-wise consensus-serialized size of this transaction.
+    pub fn get_size(&self) -> usize {
+        self.get_scaled_size(1)
+    }
+
+    fn get_scaled_size(&self, scale_factor: usize) -> usize {
         let witness_flag = self.has_witness();
 
         let input_weight = self.input.iter().map(|input| {
-            4 * (
+            scale_factor * (
                 32 + 4 + 4 + // output + nSequence
                 VarInt(input.script_sig.len() as u64).len() as usize +
                 input.script_sig.len() + if input.has_issuance() {
@@ -561,7 +570,7 @@ impl Transaction {
         }).sum::<usize>();
 
         let output_weight = self.output.iter().map(|output| {
-            4 * (
+            scale_factor * (
                 output.asset.encoded_length() +
                 output.value.encoded_length() +
                 output.nonce.encoded_length() +
@@ -577,7 +586,7 @@ impl Transaction {
             }
         }).sum::<usize>();
 
-        4 * (
+        scale_factor * (
             4 + // version
             4 + // locktime
             VarInt(self.input.len() as u64).len() as usize +
@@ -687,6 +696,7 @@ mod tests {
     use bitcoin::hashes::hex::FromHex;
     use bitcoin::hashes::sha256d;
 
+    use encode::serialize;
     use confidential;
     use super::*;
 
@@ -727,6 +737,8 @@ mod tests {
         );
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 2);
+        assert_eq!(tx.get_size(), serialize(&tx).len());
+        assert_eq!(tx.get_weight(), tx.get_size() * 4);
         assert_eq!(tx.output[0].is_fee(), false);
         assert_eq!(tx.output[1].is_fee(), true);
         assert_eq!(tx.output[0].value, confidential::Value::Explicit(9999996700));
@@ -932,6 +944,8 @@ mod tests {
             tx.txid().to_string(),
             "d606b563122409191e3b114a41d5611332dc58237ad5d2dccded302664fd56c4"
         );
+        assert_eq!(tx.get_size(), serialize(&tx).len());
+        assert_eq!(tx.get_weight(), 7296);
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.input[0].is_coinbase(), false);
         assert_eq!(tx.is_coinbase(), false);
@@ -969,6 +983,8 @@ mod tests {
             "cc1f895908af2509e55719e662acf4a50ca4dcf0454edd718459241745e2b0aa"
         );
         assert_eq!(tx.input.len(), 1);
+        assert_eq!(tx.get_size(), serialize(&tx).len());
+        assert_eq!(tx.get_weight(), 769);
         assert_eq!(tx.input[0].is_coinbase(), true);
         assert_eq!(!tx.input[0].is_pegin(), true);
         assert_eq!(tx.input[0].pegin_data(), None);
