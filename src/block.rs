@@ -19,14 +19,14 @@ use std::io;
 
 use bitcoin;
 use bitcoin::blockdata::script::Script;
-use bitcoin::{BitcoinHash, BlockHash};
+use bitcoin::{BitcoinHash, BlockHash, VarInt};
 use bitcoin::hashes::{Hash, sha256};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
 
 use dynafed;
 use Transaction;
-use encode::{self, Encodable, Decodable};
+use encode::{self, Encodable, Decodable, serialize};
 
 /// Data related to block signatures
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -354,6 +354,23 @@ pub struct Block {
 serde_struct_impl!(Block, header, txdata);
 impl_consensus_encoding!(Block, header, txdata);
 
+impl Block {
+    /// Get the size of the block
+    pub fn get_size(&self) -> usize {
+        // The size of the header + the size of the varint with the tx count + the txs themselves
+        let base_size = serialize(&self.header).len() + VarInt(self.txdata.len() as u64).len();
+        let txs_size: usize = self.txdata.iter().map(Transaction::get_size).sum();
+        base_size + txs_size
+    }
+
+    /// Get the weight of the block
+    pub fn get_weight(&self) -> usize {
+        let base_weight = 4 * (serialize(&self.header).len() + VarInt(self.txdata.len() as u64).len());
+        let txs_weight: usize = self.txdata.iter().map(Transaction::get_weight).sum();
+        base_weight + txs_weight
+    }
+}
+
 impl BitcoinHash<BlockHash> for Block {
     fn bitcoin_hash(&self) -> BlockHash {
         self.header.bitcoin_hash()
@@ -391,6 +408,8 @@ mod tests {
         assert_eq!(block.header.version, 0x20000000);
         assert_eq!(block.header.height, 2);
         assert_eq!(block.txdata.len(), 1);
+        assert_eq!(block.get_size(), serialize(&block).len());
+        assert_eq!(block.get_weight(), 1089);
 
         // Block with 3 transactions ... the rangeproofs are very large :)
         let block: Block = hex_deserialize!(
@@ -601,6 +620,7 @@ mod tests {
         assert_eq!(block.header.version, 0x20000000);
         assert_eq!(block.header.height, 1);
         assert_eq!(block.txdata.len(), 3);
+        assert_eq!(block.get_size(), serialize(&block).len());
 
         // 2-of-3 signed block from Liquid integration tests
         let block: Block = hex_deserialize!(
