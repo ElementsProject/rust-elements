@@ -462,7 +462,7 @@ impl TxOut {
 
     /// Whether or not this output is a fee output
     pub fn is_fee(&self) -> bool {
-        self.script_pubkey.is_empty()
+        self.script_pubkey.is_empty() && self.value.is_explicit() && self.asset.is_explicit()
     }
 
     /// Extracts the minimum value from the rangeproof, if there is one, or returns 0.
@@ -612,6 +612,12 @@ impl Transaction {
         self.consensus_encode(&mut enc).unwrap();
         bitcoin::Wtxid::from_engine(enc)
     }
+
+    /// Get the total transaction fee.
+    pub fn fee(&self) -> u64 {
+        // All values should be explicit, so we don't have to assert that here.
+        self.output.iter().filter(|o| o.is_fee()).filter_map(|o| o.value.explicit()).sum()
+    }
 }
 
 //TODO(stevenroose) remove this, it's incorrect
@@ -745,6 +751,7 @@ mod tests {
         assert_eq!(tx.output[1].value, confidential::Value::Explicit(      3300));
         assert_eq!(tx.output[0].minimum_value(), 9999996700);
         assert_eq!(tx.output[1].minimum_value(),       3300);
+        assert_eq!(tx.fee(), 3300);
 
         // CT transaction with explicit input (with script witness) and confidential outputs
         let tx: Transaction = hex_deserialize!(
@@ -963,6 +970,8 @@ mod tests {
         assert_eq!(tx.output[1].is_null_data(), false);
         assert_eq!(tx.output[2].is_null_data(), false);
 
+        assert_eq!(tx.fee(), 36480);
+
         // Coinbase tx
         let tx: Transaction = hex_deserialize!(
             "0200000001010000000000000000000000000000000000000000000000000000\
@@ -997,6 +1006,7 @@ mod tests {
         assert_eq!(tx.output[1].is_pegout(), false);
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
+        assert_eq!(tx.fee(), 0);
     }
 
     #[test]
@@ -1120,6 +1130,7 @@ mod tests {
         assert_eq!(tx.output[1].is_pegout(), false);
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
+        assert_eq!(tx.fee(), 6260);
     }
 
     #[test]
@@ -1147,6 +1158,7 @@ mod tests {
         assert_eq!(tx.output.len(), 1);
         assert_eq!(tx.output[0].is_null_data(), true);
         assert_eq!(tx.output[0].is_pegout(), true);
+        assert_eq!(tx.fee(), 0);
         assert_eq!(
             tx.output[0].pegout_data(),
             Some(super::PegoutData {
@@ -1498,6 +1510,7 @@ mod tests {
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 3);
         assert_eq!(tx.input[0].has_issuance, true);
+        assert_eq!(tx.fee(), 56400);
         assert_eq!(
             tx.input[0].asset_issuance,
             AssetIssuance {
@@ -1620,6 +1633,7 @@ mod tests {
 
         assert_eq!(tx.output[0].asset, tx.output[1].asset);
         assert_eq!(tx.output[2].asset, tx.output[1].asset);
+        assert_eq!(tx.fee(), 1788);
     }
 
     #[test]
@@ -1661,6 +1675,7 @@ mod tests {
 
         assert_eq!(tx.output[0].asset, tx.output[1].asset);
         assert_eq!(tx.output[2].asset, tx.output[1].asset);
+        assert_eq!(tx.fee(), 1788);
     }
 
     #[test]
@@ -1701,6 +1716,7 @@ mod tests {
 
         assert_eq!(tx.output[0].asset, tx.output[1].asset);
         assert_eq!(tx.output[2].asset, tx.output[1].asset);
+        assert_eq!(tx.fee(), 1788);
     }
 }
 

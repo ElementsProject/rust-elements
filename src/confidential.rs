@@ -182,6 +182,23 @@ impl Value {
             Value::Confidential(..) => 33,
         }
     }
+
+    /// Check if the value is explicit.
+    pub fn is_explicit(&self) -> bool {
+        match *self {
+            Value::Explicit(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Returns the explicit value.
+    /// Returns [None] if [is_explicit] returns false.
+    pub fn explicit(&self) -> Option<u64> {
+        match *self {
+            Value::Explicit(v) => Some(v),
+            _ => None,
+        }
+    }
 }
 
 /// A CT commitment to an asset
@@ -203,6 +220,23 @@ impl Asset {
             Asset::Null => 1,
             Asset::Explicit(..) => 33,
             Asset::Confidential(..) => 33,
+        }
+    }
+
+    /// Check if the asset is explicit.
+    pub fn is_explicit(&self) -> bool {
+        match *self {
+            Asset::Explicit(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Unwrap the explicit value of this type.
+    /// Panics if [is_explicit] returns false.
+    pub fn unwrap_explicit(&self) -> sha256d::Hash {
+        match *self {
+            Asset::Explicit(v) => v,
+            _ => panic!("Called unwrap_explicit on non-explicit asset: {:?}", self),
         }
     }
 }
@@ -229,6 +263,23 @@ impl Nonce {
             Nonce::Null => 1,
             Nonce::Explicit(..) => 33,
             Nonce::Confidential(..) => 33,
+        }
+    }
+
+    /// Check if the nonce is explicit.
+    pub fn is_explicit(&self) -> bool {
+        match *self {
+            Nonce::Explicit(_) => true,
+            _ => false,
+        }
+    }
+
+    /// Unwrap the explicit value of this type.
+    /// Panics if [is_explicit] returns false.
+    pub fn unwrap_explicit(&self) -> sha256d::Hash {
+        match *self {
+            Nonce::Explicit(v) => v,
+            _ => panic!("Called unwrap_explicit on non-explicit nonce: {:?}", self),
         }
     }
 }
