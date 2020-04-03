@@ -16,14 +16,16 @@
 //!
 
 use std::{io, fmt};
+use std::collections::HashMap;
 
 use bitcoin::{self, BitcoinHash, Txid, VarInt};
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Script, Instruction};
-use bitcoin::hashes::Hash;
+use bitcoin::hashes::{Hash, sha256, sha256d};
 
 use confidential;
 use encode::{self, Encodable, Decodable};
+use issuance::AssetId;
 
 /// Description of an asset issuance in a transaction input
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -613,10 +615,27 @@ impl Transaction {
         bitcoin::Wtxid::from_engine(enc)
     }
 
-    /// Get the total transaction fee.
-    pub fn fee(&self) -> u64 {
-        // All values should be explicit, so we don't have to assert that here.
-        self.output.iter().filter(|o| o.is_fee()).filter_map(|o| o.value.explicit()).sum()
+    /// Get the total transaction fee in the given asset.
+    pub fn fee_in(&self, asset: AssetId) -> u64 {
+        let asset = sha256d::Hash::from_inner(asset.into_inner().into_inner());
+        // is_fee checks for explicit asset and value, so we can unwrap them here.
+        self.output.iter()
+            .filter(|o| o.is_fee() && o.asset.explicit().expect("is_fee") == asset)
+            .map(|o| o.value.explicit().expect("is_fee"))
+            .sum()
+    }
+
+    /// Get all fees in all assets.
+    pub fn all_fees(&self) -> HashMap<AssetId, u64> {
+        let mut fees = HashMap::new();
+        for out in self.output.iter().filter(|o| o.is_fee()) {
+            // is_fee checks for explicit asset and value, so we can unwrap them here.
+            let asset = out.asset.explicit().expect("is_fee").into_inner();
+            let asset = AssetId::from_inner(sha256::Midstate::from_inner(asset));
+            let entry = fees.entry(asset).or_insert(0);
+            *entry += out.value.explicit().expect("is_fee");
+        }
+        fees
     }
 }
 
@@ -751,7 +770,9 @@ mod tests {
         assert_eq!(tx.output[1].value, confidential::Value::Explicit(      3300));
         assert_eq!(tx.output[0].minimum_value(), 9999996700);
         assert_eq!(tx.output[1].minimum_value(),       3300);
-        assert_eq!(tx.fee(), 3300);
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        assert_eq!(tx.fee_in(fee_asset), 3300);
+        assert_eq!(tx.all_fees()[&fee_asset], 3300);
 
         // CT transaction with explicit input (with script witness) and confidential outputs
         let tx: Transaction = hex_deserialize!(
@@ -970,7 +991,9 @@ mod tests {
         assert_eq!(tx.output[1].is_null_data(), false);
         assert_eq!(tx.output[2].is_null_data(), false);
 
-        assert_eq!(tx.fee(), 36480);
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        assert_eq!(tx.fee_in(fee_asset), 36480);
+        assert_eq!(tx.all_fees()[&fee_asset], 36480);
 
         // Coinbase tx
         let tx: Transaction = hex_deserialize!(
@@ -1006,7 +1029,9 @@ mod tests {
         assert_eq!(tx.output[1].is_pegout(), false);
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
-        assert_eq!(tx.fee(), 0);
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        assert_eq!(tx.fee_in(fee_asset), 0);
+        assert!(tx.all_fees().is_empty());
     }
 
     #[test]
@@ -1130,7 +1155,9 @@ mod tests {
         assert_eq!(tx.output[1].is_pegout(), false);
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
-        assert_eq!(tx.fee(), 6260);
+        let fee_asset = "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8".parse().unwrap();
+        assert_eq!(tx.fee_in(fee_asset), 6260);
+        assert_eq!(tx.all_fees()[&fee_asset], 6260);
     }
 
     #[test]
@@ -1158,7 +1185,9 @@ mod tests {
         assert_eq!(tx.output.len(), 1);
         assert_eq!(tx.output[0].is_null_data(), true);
         assert_eq!(tx.output[0].is_pegout(), true);
-        assert_eq!(tx.fee(), 0);
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        assert_eq!(tx.fee_in(fee_asset), 0);
+        assert!(tx.all_fees().is_empty());
         assert_eq!(
             tx.output[0].pegout_data(),
             Some(super::PegoutData {
@@ -1510,7 +1539,9 @@ mod tests {
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 3);
         assert_eq!(tx.input[0].has_issuance, true);
-        assert_eq!(tx.fee(), 56400);
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        assert_eq!(tx.fee_in(fee_asset), 56400);
+        assert_eq!(tx.all_fees()[&fee_asset], 56400);
         assert_eq!(
             tx.input[0].asset_issuance,
             AssetIssuance {
@@ -1633,7 +1664,9 @@ mod tests {
 
         assert_eq!(tx.output[0].asset, tx.output[1].asset);
         assert_eq!(tx.output[2].asset, tx.output[1].asset);
-        assert_eq!(tx.fee(), 1788);
+        let fee_asset = "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d".parse().unwrap();
+        assert_eq!(tx.fee_in(fee_asset), 1788);
+        assert_eq!(tx.all_fees()[&fee_asset], 1788);
     }
 
     #[test]
@@ -1675,7 +1708,9 @@ mod tests {
 
         assert_eq!(tx.output[0].asset, tx.output[1].asset);
         assert_eq!(tx.output[2].asset, tx.output[1].asset);
-        assert_eq!(tx.fee(), 1788);
+        let fee_asset = "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d".parse().unwrap();
+        assert_eq!(tx.fee_in(fee_asset), 1788);
+        assert_eq!(tx.all_fees()[&fee_asset], 1788);
     }
 
     #[test]
@@ -1716,7 +1751,9 @@ mod tests {
 
         assert_eq!(tx.output[0].asset, tx.output[1].asset);
         assert_eq!(tx.output[2].asset, tx.output[1].asset);
-        assert_eq!(tx.fee(), 1788);
+        let fee_asset = "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d".parse().unwrap();
+        assert_eq!(tx.fee_in(fee_asset), 1788);
+        assert_eq!(tx.all_fees()[&fee_asset], 1788);
     }
 }
 
