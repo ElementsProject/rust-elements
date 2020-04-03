@@ -25,6 +25,7 @@ use std::{io, fmt};
 use bitcoin::hashes::sha256d;
 
 use encode::{self, Encodable, Decodable};
+use issuance::AssetId;
 
 // Helper macro to implement various things for the various confidential
 // commitment types
@@ -207,7 +208,7 @@ pub enum Asset {
     /// No value
     Null,
     /// Asset entropy is explicitly encoded
-    Explicit(sha256d::Hash),
+    Explicit(AssetId),
     /// Asset is committed
     Confidential(u8, [u8; 32]),
 }
@@ -233,7 +234,7 @@ impl Asset {
 
     /// Returns the explicit asset.
     /// Returns [None] if [is_explicit] returns false.
-    pub fn explicit(&self) -> Option<sha256d::Hash> {
+    pub fn explicit(&self) -> Option<AssetId> {
         match *self {
             Asset::Explicit(v) => Some(v),
             _ => None,
@@ -286,7 +287,7 @@ impl Nonce {
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::hashes::Hash;
+    use bitcoin::hashes::{Hash, sha256};
     use super::*;
 
     #[test]
@@ -315,7 +316,7 @@ mod tests {
 
         let assets = [
             Asset::Null,
-            Asset::Explicit(sha256d::Hash::from_inner([0; 32])),
+            Asset::Explicit(AssetId::from_inner(sha256::Midstate::from_inner([0; 32]))),
             Asset::Confidential(0x0a, [1; 32]),
         ];
         for v in &assets[..] {
