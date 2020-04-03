@@ -21,7 +21,7 @@ use std::collections::HashMap;
 use bitcoin::{self, BitcoinHash, Txid, VarInt};
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Script, Instruction};
-use bitcoin::hashes::{Hash, sha256, sha256d};
+use bitcoin::hashes::Hash;
 
 use confidential;
 use encode::{self, Encodable, Decodable};
@@ -280,7 +280,7 @@ impl TxIn {
             },
             value: opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[0])),
             asset: confidential::Asset::Explicit(
-                opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[1])),
+                opt_try!(encode::deserialize(&self.witness.pegin_witness[1])),
             ),
             genesis_hash: opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[2])),
             claim_script: &self.witness.pegin_witness[3],
@@ -617,7 +617,6 @@ impl Transaction {
 
     /// Get the total transaction fee in the given asset.
     pub fn fee_in(&self, asset: AssetId) -> u64 {
-        let asset = sha256d::Hash::from_inner(asset.into_inner().into_inner());
         // is_fee checks for explicit asset and value, so we can unwrap them here.
         self.output.iter()
             .filter(|o| o.is_fee() && o.asset.explicit().expect("is_fee") == asset)
@@ -630,8 +629,7 @@ impl Transaction {
         let mut fees = HashMap::new();
         for out in self.output.iter().filter(|o| o.is_fee()) {
             // is_fee checks for explicit asset and value, so we can unwrap them here.
-            let asset = out.asset.explicit().expect("is_fee").into_inner();
-            let asset = AssetId::from_inner(sha256::Midstate::from_inner(asset));
+            let asset = out.asset.explicit().expect("is_fee");
             let entry = fees.entry(asset).or_insert(0);
             *entry += out.value.explicit().expect("is_fee");
         }
@@ -719,7 +717,6 @@ impl Decodable for Transaction {
 mod tests {
     use bitcoin::{self, BitcoinHash};
     use bitcoin::hashes::hex::FromHex;
-    use bitcoin::hashes::sha256d;
 
     use encode::serialize;
     use confidential;
@@ -1222,7 +1219,7 @@ mod tests {
             })
         );
 
-        let expected_asset_id = sha256d::Hash::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
+        let expected_asset_id = AssetId::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
         if let confidential::Asset::Explicit(asset_id) = tx.output[0].asset {
             assert_eq!(expected_asset_id, asset_id);
         } else {

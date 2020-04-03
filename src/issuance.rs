@@ -14,10 +14,13 @@
 
 //! Asset Issuance
 
+use std::io;
 use std::str::FromStr;
 
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::hashes::{hex, sha256, Hash};
+
+use encode::{self, Encodable, Decodable};
 use fast_merkle_root::fast_merkle_root;
 use transaction::OutPoint;
 
@@ -117,6 +120,18 @@ impl FromStr for AssetId {
 	fn from_str(s: &str) -> Result<Self, Self::Err> {
 		hex::FromHex::from_hex(s)
 	}
+}
+
+impl Encodable for AssetId {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, encode::Error> {
+        self.0.consensus_encode(e)
+    }
+}
+
+impl Decodable for AssetId {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
+        Ok(Self::from_inner(sha256::Midstate::consensus_decode(d)?))
+    }
 }
 
 #[cfg(feature = "serde")]

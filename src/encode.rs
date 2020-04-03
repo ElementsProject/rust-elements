@@ -18,11 +18,12 @@
 use std::io::Cursor;
 use std::{error, fmt, io, mem};
 
-use ::bitcoin::consensus::encode as btcenc;
+use bitcoin::consensus::encode as btcenc;
+use bitcoin::hashes::sha256;
 
 use transaction::{Transaction, TxIn, TxOut};
 
-pub use ::bitcoin::consensus::encode::MAX_VEC_SIZE;
+pub use bitcoin::consensus::encode::MAX_VEC_SIZE;
 
 /// Encoding error
 #[derive(Debug)]
@@ -120,6 +121,18 @@ pub fn deserialize_partial<'a, T: Decodable>(data: &'a [u8]) -> Result<(T, usize
     let consumed = decoder.position() as usize;
 
     Ok((rv, consumed))
+}
+
+impl Encodable for sha256::Midstate {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+        self.into_inner().consensus_encode(e)
+    }
+}
+
+impl Decodable for sha256::Midstate {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
+        Ok(Self::from_inner(<[u8; 32]>::consensus_decode(d)?))
+    }
 }
 
 /// Implement Elements encodable traits for Bitcoin encodable types.
