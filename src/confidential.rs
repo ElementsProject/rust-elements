@@ -231,12 +231,12 @@ impl Asset {
         }
     }
 
-    /// Unwrap the explicit value of this type.
-    /// Panics if [is_explicit] returns false.
-    pub fn unwrap_explicit(&self) -> sha256d::Hash {
+    /// Returns the explicit asset.
+    /// Returns [None] if [is_explicit] returns false.
+    pub fn explicit(&self) -> Option<sha256d::Hash> {
         match *self {
-            Asset::Explicit(v) => v,
-            _ => panic!("Called unwrap_explicit on non-explicit asset: {:?}", self),
+            Asset::Explicit(v) => Some(v),
+            _ => None,
         }
     }
 }
@@ -274,12 +274,12 @@ impl Nonce {
         }
     }
 
-    /// Unwrap the explicit value of this type.
-    /// Panics if [is_explicit] returns false.
-    pub fn unwrap_explicit(&self) -> sha256d::Hash {
+    /// Returns the explicit nonce.
+    /// Returns [None] if [is_explicit] returns false.
+    pub fn explicit(&self) -> Option<sha256d::Hash> {
         match *self {
-            Nonce::Explicit(v) => v,
-            _ => panic!("Called unwrap_explicit on non-explicit nonce: {:?}", self),
+            Nonce::Explicit(v) => Some(v),
+            _ => None,
         }
     }
 }
