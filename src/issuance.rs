@@ -14,6 +14,8 @@
 
 //! Asset Issuance
 
+use std::str::FromStr;
+
 use bitcoin::util::hash::BitcoinHash;
 use bitcoin::hashes::{hex, sha256, Hash};
 use fast_merkle_root::fast_merkle_root;
@@ -108,6 +110,13 @@ impl ::std::fmt::LowerHex for AssetId {
     fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
         ::std::fmt::LowerHex::fmt(&self.0, f)
     }
+}
+
+impl FromStr for AssetId {
+	type Err = hex::Error;
+	fn from_str(s: &str) -> Result<Self, Self::Err> {
+		hex::FromHex::from_hex(s)
+	}
 }
 
 #[cfg(feature = "serde")]
