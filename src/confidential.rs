@@ -104,22 +104,6 @@ macro_rules! impl_confidential_commitment {
             }
         }
 
-        impl fmt::Display for $name {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                match *self {
-                    $name::Null => f.write_str("null"),
-                    $name::Explicit(n) => write!(f, "{}", n),
-                    $name::Confidential(prefix, bytes) => {
-                        write!(f, "{:02x}", prefix)?;
-                        for b in bytes.iter() {
-                            write!(f, "{:02x}", b)?;
-                        }
-                        Ok(())
-                    }
-                }
-            }
-        }
-
         impl Encodable for $name {
             fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
                 match *self {
@@ -253,6 +237,22 @@ impl Value {
     }
 }
 
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Value::Null => f.write_str("null"),
+            Value::Explicit(n) => write!(f, "{}", n),
+            Value::Confidential(prefix, bytes) => {
+                write!(f, "{:02x}", prefix)?;
+                for b in bytes.iter() {
+                    write!(f, "{:02x}", b)?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
 /// A CT commitment to an asset
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Asset {
@@ -276,6 +276,21 @@ impl Asset {
     }
 }
 
+impl fmt::Display for Asset {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Asset::Null => f.write_str("null"),
+            Asset::Explicit(n) => write!(f, "{}", n),
+            Asset::Confidential(prefix, bytes) => {
+                write!(f, "{:02x}", prefix)?;
+                for b in bytes.iter() {
+                    write!(f, "{:02x}", b)?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
 
 /// A CT commitment to an output nonce (i.e. a public key)
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -285,11 +300,11 @@ pub enum Nonce {
     /// There should be no such thing as an "explicit nonce", but Elements will deserialize
     /// such a thing (and insists that its size be 32 bytes). So we stick a 32-byte type here
     /// that implements all the traits we need.
-    Explicit(sha256d::Hash),
+    Explicit([u8; 32]),
     /// Nonce is committed
     Confidential(u8, [u8; 32]),
 }
-impl_confidential_commitment!(Nonce, sha256d::Hash, 0x02, 0x03);
+impl_confidential_commitment!(Nonce, [u8; 32], 0x02, 0x03);
 
 impl Nonce {
     /// Serialized length, in bytes
@@ -302,9 +317,30 @@ impl Nonce {
     }
 }
 
+impl fmt::Display for Nonce {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Nonce::Null => f.write_str("null"),
+            Nonce::Explicit(n) => {
+                for b in n.iter() {
+                    write!(f, "{:02x}", b)?;
+                }
+                Ok(())
+            },
+            Nonce::Confidential(prefix, bytes) => {
+                write!(f, "{:02x}", prefix)?;
+                for b in bytes.iter() {
+                    write!(f, "{:02x}", b)?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use bitcoin::hashes::{Hash, sha256};
+    use bitcoin::hashes::sha256;
     use super::*;
 
     #[test]
@@ -322,7 +358,7 @@ mod tests {
 
         let nonces = [
             Nonce::Null,
-            Nonce::Explicit(sha256d::Hash::from_inner([0; 32])),
+            Nonce::Explicit([0; 32]),
             Nonce::Confidential(0x02, [1; 32]),
         ];
         for v in &nonces[..] {
