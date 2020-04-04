@@ -82,10 +82,11 @@ macro_rules! impl_confidential_commitment {
                         let explicit = $explicit_fn(Decodable::consensus_decode(&mut d)?);
                         Ok($name::Explicit(explicit))
                     }
-                    x => {
+                    p if p == $prefixA || p == $prefixB => {
                         let commitment = <[u8; 32]>::consensus_decode(&mut d)?;
-                        Ok($name::Confidential(x, commitment))
+                        Ok($name::Confidential(p, commitment))
                     }
+                    p => return Err(encode::Error::InvalidConfidentialPrefix(p)),
                 }
             }
         }
@@ -143,12 +144,15 @@ macro_rules! impl_confidential_commitment {
                                     None => Err(A::Error::custom("missing commitment")),
                                 }
                             }
-                            x => {
+                            p if p == $prefixA || p == $prefixB => {
                                 match access.next_element()? {
-                                    Some(y) => Ok($name::Confidential(x, y)),
+                                    Some(y) => Ok($name::Confidential(p, y)),
                                     None => Err(A::Error::custom("missing commitment")),
                                 }
                             }
+                            p => return Err(A::Error::custom(format!(
+                                "invalid commitment, invalid prefix: 0x{:02x}", p
+                            ))),
                         }
                     }
                 }
