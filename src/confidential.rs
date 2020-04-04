@@ -30,10 +30,74 @@ use issuance::AssetId;
 // Helper macro to implement various things for the various confidential
 // commitment types
 macro_rules! impl_confidential_commitment {
-    ($name:ident, $prefixA:expr, $prefixB:expr) => (
-        impl_confidential_commitment!($name, $prefixA, $prefixB, |x|x);
+    ($name:ident, $inner:ty, $prefixA:expr, $prefixB:expr) => (
+        impl_confidential_commitment!($name, $inner, $prefixA, $prefixB, |x|x);
     );
-    ($name:ident, $prefixA:expr, $prefixB:expr, $explicit_fn:expr) => (
+    ($name:ident, $inner:ty, $prefixA:expr, $prefixB:expr, $explicit_fn:expr) => (
+        impl $name {
+            /// Create from commitment.
+            pub fn from_commitment(bytes: &[u8]) -> Result<$name, encode::Error> {
+                if bytes.len() != 33 {
+                    return Err(encode::Error::ParseFailed("commitments must be 33 bytes long"));
+                }
+                let prefix = bytes[0];
+                if prefix != $prefixA && prefix != $prefixB {
+                    return Err(encode::Error::InvalidConfidentialPrefix(prefix));
+                }
+                let mut c = [0; 32];
+                c.copy_from_slice(&bytes[1..]);
+                Ok($name::Confidential(prefix, c))
+            }
+
+            /// Check if the object is null.
+            pub fn is_null(&self) -> bool {
+                match *self {
+                    $name::Null => true,
+                    _ => false,
+                }
+            }
+
+            /// Check if the object is explicit.
+            pub fn is_explicit(&self) -> bool {
+                match *self {
+                    $name::Explicit(_) => true,
+                    _ => false,
+                }
+            }
+
+            /// Check if the object is confidential.
+            pub fn is_confidential(&self) -> bool {
+                match *self {
+                    // Impossible to create an object with invalid prefix.
+                    $name::Explicit(_) => true,
+                    _ => false,
+                }
+            }
+
+            /// Returns the explicit inner value.
+            /// Returns [None] if [is_explicit] returns false.
+            pub fn explicit(&self) -> Option<$inner> {
+                match *self {
+                    $name::Explicit(i) => Some(i),
+                    _ => None,
+                }
+            }
+
+            /// Returns the confidential commitment in case of a confidential value.
+            /// Returns [None] if [is_confidential] returns false.
+            pub fn commitment(&self) -> Option<[u8; 33]> {
+                match *self {
+                    $name::Confidential(p, c) => {
+                        let mut res = [0; 33];
+                        res[0] = p;
+                        res[1..].copy_from_slice(&c[..]);
+                        Some(res)
+                    }
+                    _ => None,
+                }
+            }
+        }
+
         impl Default for $name {
             fn default() -> Self {
                 $name::Null
@@ -176,7 +240,7 @@ pub enum Value {
     /// Value is committed
     Confidential(u8, [u8; 32]),
 }
-impl_confidential_commitment!(Value, 0x08, 0x09, u64::swap_bytes);
+impl_confidential_commitment!(Value, u64, 0x08, 0x09, u64::swap_bytes);
 
 impl Value {
     /// Serialized length, in bytes
@@ -185,23 +249,6 @@ impl Value {
             Value::Null => 1,
             Value::Explicit(..) => 9,
             Value::Confidential(..) => 33,
-        }
-    }
-
-    /// Check if the value is explicit.
-    pub fn is_explicit(&self) -> bool {
-        match *self {
-            Value::Explicit(_) => true,
-            _ => false,
-        }
-    }
-
-    /// Returns the explicit value.
-    /// Returns [None] if [is_explicit] returns false.
-    pub fn explicit(&self) -> Option<u64> {
-        match *self {
-            Value::Explicit(v) => Some(v),
-            _ => None,
         }
     }
 }
@@ -216,7 +263,7 @@ pub enum Asset {
     /// Asset is committed
     Confidential(u8, [u8; 32]),
 }
-impl_confidential_commitment!(Asset, 0x0a, 0x0b);
+impl_confidential_commitment!(Asset, AssetId, 0x0a, 0x0b);
 
 impl Asset {
     /// Serialized length, in bytes
@@ -225,23 +272,6 @@ impl Asset {
             Asset::Null => 1,
             Asset::Explicit(..) => 33,
             Asset::Confidential(..) => 33,
-        }
-    }
-
-    /// Check if the asset is explicit.
-    pub fn is_explicit(&self) -> bool {
-        match *self {
-            Asset::Explicit(_) => true,
-            _ => false,
-        }
-    }
-
-    /// Returns the explicit asset.
-    /// Returns [None] if [is_explicit] returns false.
-    pub fn explicit(&self) -> Option<AssetId> {
-        match *self {
-            Asset::Explicit(v) => Some(v),
-            _ => None,
         }
     }
 }
@@ -259,7 +289,7 @@ pub enum Nonce {
     /// Nonce is committed
     Confidential(u8, [u8; 32]),
 }
-impl_confidential_commitment!(Nonce, 0x02, 0x03);
+impl_confidential_commitment!(Nonce, sha256d::Hash, 0x02, 0x03);
 
 impl Nonce {
     /// Serialized length, in bytes
@@ -268,23 +298,6 @@ impl Nonce {
             Nonce::Null => 1,
             Nonce::Explicit(..) => 33,
             Nonce::Confidential(..) => 33,
-        }
-    }
-
-    /// Check if the nonce is explicit.
-    pub fn is_explicit(&self) -> bool {
-        match *self {
-            Nonce::Explicit(_) => true,
-            _ => false,
-        }
-    }
-
-    /// Returns the explicit nonce.
-    /// Returns [None] if [is_explicit] returns false.
-    pub fn explicit(&self) -> Option<sha256d::Hash> {
-        match *self {
-            Nonce::Explicit(v) => Some(v),
-            _ => None,
         }
     }
 }
@@ -328,6 +341,27 @@ mod tests {
             assert_eq!(v.consensus_encode(&mut x).unwrap(), v.encoded_length());
             assert_eq!(x.len(), v.encoded_length());
         }
+    }
+
+    #[test]
+    fn commitments() {
+        let x = Value::Confidential(0x08, [1; 32]);
+        let mut commitment = x.commitment().unwrap();
+        assert_eq!(x, Value::from_commitment(&commitment[..]).unwrap());
+        commitment[0] = 42;
+        assert!(Value::from_commitment(&commitment[..]).is_err());
+
+        let x = Asset::Confidential(0x0a, [1; 32]);
+        let mut commitment = x.commitment().unwrap();
+        assert_eq!(x, Asset::from_commitment(&commitment[..]).unwrap());
+        commitment[0] = 42;
+        assert!(Asset::from_commitment(&commitment[..]).is_err());
+
+        let x = Nonce::Confidential(0x02, [1; 32]);
+        let mut commitment = x.commitment().unwrap();
+        assert_eq!(x, Nonce::from_commitment(&commitment[..]).unwrap());
+        commitment[0] = 42;
+        assert!(Nonce::from_commitment(&commitment[..]).is_err());
     }
 }
 
