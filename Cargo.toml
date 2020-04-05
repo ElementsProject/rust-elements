@@ -17,6 +17,10 @@ documentation = "https://docs.rs/elements/"
 
 [dependencies]
 bitcoin = "0.23"
+# While this dependency is included in bitcoin, we need this to use the macros.
+# We should probably try keep this one in sync with the bitcoin version,
+# to avoid requiring two version of bitcoin_hashes.
+bitcoin_hashes = "0.7.6"
 
 [dependencies.serde]
 version = "1.0"
