@@ -39,6 +39,8 @@ pub enum Error {
     },
     /// Parsing error
     ParseFailed(&'static str),
+    /// Invalid prefix for the confidential type.
+    InvalidConfidentialPrefix(u8),
 }
 
 impl fmt::Display for Error {
@@ -50,6 +52,7 @@ impl fmt::Display for Error {
                 max: ref m,
             } => write!(f, "oversized vector allocation: requested {}, maximum {}", r, m),
             Error::ParseFailed(ref e) => write!(f, "parse failed: {}", e),
+            Error::InvalidConfidentialPrefix(p) => write!(f, "invalid confidential prefix: 0x{:02x}", p),
         }
     }
 }

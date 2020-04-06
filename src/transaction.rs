@@ -1562,7 +1562,7 @@ mod tests {
     fn txout_null_data() {
         // Output with high opcodes should not be considered nulldata
         let output: TxOut = hex_deserialize!("\
-            c3319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
+            0a319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
             101010101010101010101010101012e010101010101010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfdfdfdfdfdfdfdfd006a209f6a6a6a6a6a6a806a6afdfdfdfd17fdfdf\
             dfdfdfdfdfdfdfdddfdfdfdfdfdfdfdfdfddedededededededededededededede\
@@ -1580,7 +1580,7 @@ mod tests {
 
         // Output with pushes that are e.g. OP_1 are nulldata but not pegouts
         let output: TxOut = hex_deserialize!("\
-            c32d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
+            0a2d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
             1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfd3ca059fdfdfb6a2000002323232323232323232323232323232\
             3232323232323232321232323010151232323232323232323232323232323\
@@ -1598,7 +1598,7 @@ mod tests {
 
         // Output with just one push and nothing else should be nulldata but not pegout
         let output: TxOut = hex_deserialize!("\
-            c32d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
+            0a2d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
             1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfd3ca059fdf2226a20000000000000000000000000000000000000000\
             0000000000000000000000000\
