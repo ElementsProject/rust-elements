@@ -18,7 +18,7 @@ use std::io;
 use std::str::FromStr;
 
 use bitcoin::util::hash::BitcoinHash;
-use bitcoin::hashes::{hex, sha256, Hash};
+use bitcoin::hashes::{hex, sha256, sha256d, Hash};
 
 use encode::{self, Encodable, Decodable};
 use fast_merkle_root::fast_merkle_root;
@@ -36,6 +36,8 @@ const ONE32: [u8; 32] = [
 const TWO32: [u8; 32] = [
     2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
+
+hash_newtype!(ContractHash, sha256d::Hash, 32, doc="The hash of an asset contract.", true);
 
 /// An issued asset ID.
 #[derive(Copy, Clone, PartialEq, Eq, Default, PartialOrd, Ord, Hash)]
@@ -55,7 +57,7 @@ impl AssetId {
     /// Generate the asset entropy from the issuance prevout and the contract hash.
     pub fn generate_asset_entropy(
         prevout: OutPoint,
-        contract_hash: sha256::Hash,
+        contract_hash: ContractHash,
     ) -> sha256::Midstate {
         // E : entropy
         // I : prevout
@@ -226,7 +228,7 @@ mod test {
         let asset_id_hex = "dcd60818d863b5c026c40b2bc3ba6fdaf5018bcc8606c18adf7db4da0bcd8533";
         let token_id_hex = "c1adb114f4f87d33bf9ce90dd4f9ca523dd414d6cd010a7917903e2009689530";
 
-        let contract_hash = sha256::Hash::from_inner(ZERO32);
+        let contract_hash = ContractHash::from_inner(ZERO32);
         let prevout = OutPoint::from_str(prevout_str).unwrap();
         let entropy = sha256::Midstate::from_hex(entropy_hex).unwrap();
         assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);

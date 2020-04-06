@@ -26,6 +26,8 @@
 #![deny(missing_docs)]
 
 pub extern crate bitcoin;
+#[macro_use]
+pub extern crate bitcoin_hashes;
 #[cfg(feature = "serde")] extern crate serde;
 
 #[cfg(test)] extern crate rand;
