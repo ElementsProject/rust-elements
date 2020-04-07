@@ -18,7 +18,7 @@ use std::io;
 use std::str::FromStr;
 
 use bitcoin::util::hash::BitcoinHash;
-use bitcoin::hashes::{hex, sha256, sha256d, Hash};
+use bitcoin::hashes::{self, hex, sha256, sha256d, Hash};
 
 use encode::{self, Encodable, Decodable};
 use fast_merkle_root::fast_merkle_root;
@@ -52,6 +52,11 @@ impl AssetId {
     /// Convert the [AssetId] into its inner type.
     pub fn into_inner(self) -> sha256::Midstate {
         self.0
+    }
+
+    /// Copies a byte slice into an AssetId object
+    pub fn from_slice(sl: &[u8]) -> Result<AssetId, hashes::Error> {
+        sha256::Midstate::from_slice(sl).map(AssetId)
     }
 
     /// Generate the asset entropy from the issuance prevout and the contract hash.
