@@ -22,8 +22,6 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::{io, fmt};
 
-use bitcoin::hashes::sha256d;
-
 use encode::{self, Encodable, Decodable};
 use issuance::AssetId;
 
