@@ -9,6 +9,9 @@ repository = "https://github.com/ElementsProject/rust-elements/"
 documentation = "https://docs.rs/elements/"
 
 [features]
+default = [ "json-contract" ]
+
+json-contract = [ "serde_json" ]
 "serde-feature" = [
     "bitcoin/use-serde",
     "serde"
@@ -21,6 +24,9 @@ bitcoin = "0.23"
 # We should probably try keep this one in sync with the bitcoin version,
 # to avoid requiring two version of bitcoin_hashes.
 bitcoin_hashes = "0.7.6"
+
+# Used for ContractHash::from_json_contract.
+serde_json = { version = "<=1.0.44", optional = true }
 
 [dependencies.serde]
 version = "1.0"

@@ -31,7 +31,7 @@ pub extern crate bitcoin_hashes;
 #[cfg(feature = "serde")] extern crate serde;
 
 #[cfg(test)] extern crate rand;
-#[cfg(test)] extern crate serde_json;
+#[cfg(any(test, feature = "serde_json"))] extern crate serde_json;
 
 #[macro_use] mod internal_macros;
 pub mod address;
