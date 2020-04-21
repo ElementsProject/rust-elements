@@ -18,7 +18,7 @@ use std::io;
 use std::str::FromStr;
 
 use bitcoin::util::hash::BitcoinHash;
-use bitcoin::hashes::{self, hex, sha256, sha256d, Hash};
+use bitcoin::hashes::{self, hex, sha256, Hash};
 
 use encode::{self, Encodable, Decodable};
 use fast_merkle_root::fast_merkle_root;
@@ -37,7 +37,7 @@ const TWO32: [u8; 32] = [
     2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-hash_newtype!(ContractHash, sha256d::Hash, 32, doc="The hash of an asset contract.", true);
+hash_newtype!(ContractHash, sha256::Hash, 32, doc="The hash of an asset contract.", true);
 
 /// An issued asset ID.
 #[derive(Copy, Clone, PartialEq, Eq, Default, PartialOrd, Ord, Hash)]
