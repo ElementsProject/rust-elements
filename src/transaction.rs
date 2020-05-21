@@ -602,6 +602,8 @@ impl Transaction {
         let mut enc = bitcoin::Txid::engine();
         self.version.consensus_encode(&mut enc).unwrap();
         0u8.consensus_encode(&mut enc).unwrap();
+        // The consensus encoding of inputs and outputs
+        // don't include their witness data.
         self.input.consensus_encode(&mut enc).unwrap();
         self.output.consensus_encode(&mut enc).unwrap();
         self.lock_time.consensus_encode(&mut enc).unwrap();
