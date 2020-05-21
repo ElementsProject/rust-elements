@@ -18,7 +18,7 @@
 use std::{io, fmt};
 use std::collections::HashMap;
 
-use bitcoin::{self, BitcoinHash, Txid, VarInt};
+use bitcoin::{self, Txid, VarInt};
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Script, Instruction};
 use bitcoin::hashes::Hash;
@@ -597,7 +597,7 @@ impl Transaction {
         ) + input_weight + output_weight
     }
 
-    /// The txid of the transaction. To get its hash, use `BitcoinHash::bitcoin_hash()`.
+    /// The txid of the transaction. To get its hash, use [wtxid].
     pub fn txid(&self) -> bitcoin::Txid {
         let mut enc = bitcoin::Txid::engine();
         self.version.consensus_encode(&mut enc).unwrap();
@@ -612,7 +612,7 @@ impl Transaction {
 
     /// Get the witness txid of the transaction.
     pub fn wtxid(&self) -> bitcoin::Wtxid {
-        let mut enc = Txid::engine();
+        let mut enc = bitcoin::Wtxid::engine();
         self.consensus_encode(&mut enc).unwrap();
         bitcoin::Wtxid::from_engine(enc)
     }
@@ -636,16 +636,6 @@ impl Transaction {
             *entry += out.value.explicit().expect("is_fee");
         }
         fees
-    }
-}
-
-//TODO(stevenroose) remove this, it's incorrect
-impl BitcoinHash<Txid> for Transaction {
-    /// To get a transaction's txid, which is usually what you want, use the `txid` method.
-    fn bitcoin_hash(&self) -> Txid {
-        let mut enc = Txid::engine();
-        self.consensus_encode(&mut enc).unwrap();
-        Txid::from_engine(enc)
     }
 }
 
@@ -717,7 +707,7 @@ impl Decodable for Transaction {
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::{self, BitcoinHash};
+    use bitcoin;
     use bitcoin::hashes::hex::FromHex;
 
     use encode::serialize;
@@ -752,7 +742,7 @@ mod tests {
         );
 
         assert_eq!(
-            tx.bitcoin_hash().to_string(),
+            tx.wtxid().to_string(),
             "758f784bdfa89b62c8b882542afb46074d3851a6da997199bcfb7cc6daed3cf2"
         );
         assert_eq!(
@@ -964,7 +954,7 @@ mod tests {
         );
 
         assert_eq!(
-            tx.bitcoin_hash().to_string(),
+            tx.wtxid().to_string(),
             "7ac6c1400003162ab667406221656f06dad902c70f96ee703f3f5f9f09df4bb9"
         );
         assert_eq!(
@@ -1006,7 +996,7 @@ mod tests {
         );
 
         assert_eq!(
-            tx.bitcoin_hash().to_string(),
+            tx.wtxid().to_string(),
             "69e214ecad13b954208084572a6dedc264a016b953d71901f5aa1706d5f4916a"
         );
         assert_eq!(
