@@ -41,6 +41,10 @@ pub enum Error {
     ParseFailed(&'static str),
     /// Invalid prefix for the confidential type.
     InvalidConfidentialPrefix(u8),
+    /// And I/O error
+    Io(io::Error),
+    /// PSBT-related error
+    Pset(::pset::Error),
 }
 
 impl fmt::Display for Error {
@@ -53,6 +57,8 @@ impl fmt::Display for Error {
             } => write!(f, "oversized vector allocation: requested {}, maximum {}", r, m),
             Error::ParseFailed(ref e) => write!(f, "parse failed: {}", e),
             Error::InvalidConfidentialPrefix(p) => write!(f, "invalid confidential prefix: 0x{:02x}", p),
+            Error::Io(ref e) => write!(f, "I/O error: {}", e),
+            Error::Pset(ref e) => write!(f, "PSET error: {}", e),
         }
     }
 }
@@ -74,6 +80,20 @@ impl error::Error for Error {
 impl From<btcenc::Error> for Error {
     fn from(e: btcenc::Error) -> Error {
         Error::Bitcoin(e)
+    }
+}
+
+#[doc(hidden)]
+impl From<io::Error> for Error {
+    fn from(error: io::Error) -> Self {
+        Error::Io(error)
+    }
+}
+
+#[doc(hidden)]
+impl From<::pset::Error> for Error {
+    fn from(e: ::pset::Error) -> Error {
+        Error::Pset(e)
     }
 }
 
@@ -157,6 +177,7 @@ macro_rules! impl_upstream {
 impl_upstream!(u8);
 impl_upstream!(u32);
 impl_upstream!(u64);
+impl_upstream!([u8; 4]);
 impl_upstream!([u8; 32]);
 impl_upstream!(Vec<u8>);
 impl_upstream!(Vec<Vec<u8>>);
@@ -166,6 +187,8 @@ impl_upstream!(::bitcoin::hashes::sha256d::Hash);
 impl_upstream!(::bitcoin::Txid);
 impl_upstream!(::bitcoin::TxMerkleNode);
 impl_upstream!(::bitcoin::BlockHash);
+impl_upstream!(::bitcoin::util::psbt::raw::Key);
+impl_upstream!(::bitcoin::util::psbt::raw::Pair);
 
 // Vectors
 macro_rules! impl_vec {

@@ -42,6 +42,7 @@ pub mod dynafed;
 pub mod encode;
 mod fast_merkle_root;
 pub mod issuance;
+pub mod pset;
 mod transaction;
 
 // export everything at the top level so it can be used as `elements::Transaction` etc.
