@@ -30,7 +30,7 @@ use bitcoin::util::base58;
 use bitcoin::PublicKey;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1;
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-feature")]
 use serde;
 
 use blech32;
@@ -595,7 +595,7 @@ impl FromStr for Address {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-feature")]
 impl<'de> serde::Deserialize<'de> for Address {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
@@ -638,7 +638,7 @@ impl<'de> serde::Deserialize<'de> for Address {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-feature")]
 impl serde::Serialize for Address {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -654,8 +654,6 @@ mod test {
     use bitcoin::util::key;
     use bitcoin::Script;
     use bitcoin::secp256k1::{PublicKey, Secp256k1};
-    #[cfg(feature = "serde")]
-    use serde_json;
 
     fn roundtrips(addr: &Address) {
         assert_eq!(
@@ -670,9 +668,9 @@ mod test {
             "script round-trip failed for {}",
             addr,
         );
-        #[cfg(feature = "serde")]
+        #[cfg(feature = "serde-feature")]
         assert_eq!(
-            serde_json::from_value::<Address>(serde_json::to_value(&addr).unwrap()).ok().as_ref(),
+            ::serde_json::from_value::<Address>(serde_json::to_value(&addr).unwrap()).ok().as_ref(),
             Some(addr)
         );
     }
