@@ -9,6 +9,9 @@ repository = "https://github.com/ElementsProject/rust-elements/"
 documentation = "https://docs.rs/elements/"
 
 [features]
+default = [ "contracts" ]
+
+contracts = [ "serde", "serde_cbor", "serde_json" ]
 "serde-feature" = [
     "bitcoin/use-serde",
     "serde"
@@ -22,9 +25,11 @@ bitcoin = "0.23"
 # to avoid requiring two version of bitcoin_hashes.
 bitcoin_hashes = "0.7.6"
 
-[dependencies.serde]
-version = "1.0"
-optional = true
+serde = { version = "1.0", optional = true, features = ["derive"] }
+
+# Used for contracts module.
+serde_cbor = { version = "0.11.1", optional = true }
+serde_json = { version = "<=1.0.44", optional = true }
 
 [dev-dependencies]
 rand = "0.6.5"

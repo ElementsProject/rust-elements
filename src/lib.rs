@@ -28,16 +28,19 @@
 pub extern crate bitcoin;
 #[macro_use]
 pub extern crate bitcoin_hashes;
-#[cfg(feature = "serde")] extern crate serde;
+#[cfg(feature = "serde")] #[macro_use] extern crate serde;
+#[cfg(feature = "serde_cbor")] extern crate serde_cbor;
+#[cfg(feature = "serde_json")] extern crate serde_json;
 
 #[cfg(test)] extern crate rand;
-#[cfg(test)] extern crate serde_json;
 
 #[macro_use] mod internal_macros;
 pub mod address;
 pub mod blech32;
 mod block;
 pub mod confidential;
+#[cfg(feature = "contracts")]
+pub mod contracts;
 pub mod dynafed;
 pub mod encode;
 mod fast_merkle_root;
