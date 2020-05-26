@@ -334,6 +334,24 @@ impl Address {
         .into_script()
     }
 
+    /// Convert this address to an unconfidential address.
+    pub fn to_unconfidential(&self) -> Address {
+        Address {
+            params: self.params,
+            payload: self.payload.clone(),
+            blinding_pubkey: None,
+        }
+    }
+
+    /// Convert this address to a confidential address with the given blinding pubkey.
+    pub fn to_confidential(&self, blinding_pubkey: secp256k1::PublicKey) -> Address {
+        Address {
+            params: self.params,
+            payload: self.payload.clone(),
+            blinding_pubkey: Some(blinding_pubkey),
+        }
+    }
+
     fn from_bech32(
         s: &str,
         blinded: bool,
