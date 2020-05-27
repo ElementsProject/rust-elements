@@ -367,3 +367,169 @@ impl fmt::Debug for Contract {
         write!(f, "Contract({:?})", Content::from_bytes(self.as_bytes()).expect("invariant"))
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use bitcoin::hashes::hex::FromHex;
+    use std::str::FromStr;
+
+    /// A shorthand method for testing tether properties.
+    fn assert_has_tether_properties(contract: &Contract) {
+        assert_eq!(contract.precision(), 8);
+        assert_eq!(contract.ticker(), "USDt".to_owned());
+
+        assert_eq!(contract.property("name").unwrap(), Some("Tether USD".to_owned()));
+        assert_eq!(contract.property("issuer_pubkey").unwrap(),
+            Some(bitcoin::PublicKey::from_str("0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904").unwrap()),
+        );
+
+        #[derive(Debug, PartialEq, Eq, Deserialize)]
+        struct Entity {
+            pub domain: String,
+        }
+        assert_eq!(contract.property("entity").unwrap(),
+            Some(Entity { domain: "tether.to".into() }),
+        );
+    }
+
+    #[test]
+    fn test_legacy_parsing() {
+        let correct = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
+        assert!(Contract::from_bytes(correct.as_bytes()).is_ok());
+
+        let invalid = [
+            // missing precision
+            r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","ticker":"USDt","version":0}"#,
+            // precision is string
+            r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":"no","ticker":"USDt","version":0}"#,
+            // negative precision
+            r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":-2,"ticker":"USDt","version":0}"#,
+            // too high precision
+            r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":9,"ticker":"USDt","version":0}"#,
+            // missing ticker
+            r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"version":0}"#,
+            // ticker is int
+            r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":8,"version":0}"#,
+            // ticker too long
+            r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDtether","version":0}"#,
+        ];
+        for json in &invalid {
+            assert!(Contract::from_bytes(json.as_bytes()).is_err(), "invalid JSON was accepted: {}", json);
+        }
+    }
+
+    #[test]
+    fn test_tether() {
+        let json = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
+        let tether_id = AssetId::from_str("ce091c998b83c78bb71a632313ba3760f1763d9cfcffae02258ffa9865a37bd2").unwrap();
+        let tether_prevout = OutPoint::from_str("9596d259270ef5bac0020435e6d859aea633409483ba64e232b8ba04ce288668:0").unwrap();
+        let tether_contract_hash = ContractHash::from_hex("3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82").unwrap();
+
+        let contract = Contract::from_bytes(json.as_bytes()).unwrap();
+        assert_eq!(contract.contract_hash(), tether_contract_hash);
+        assert_eq!(contract.asset_id(tether_prevout), tether_id);
+        assert_has_tether_properties(&contract);
+    }
+
+    #[test]
+    fn test_create_cbor() {
+        let details = ContractDetails {
+            precision: 8,
+            ticker: "USDt".into(),
+            name: Some("Tether USD".into()),
+            entity: Some(ContractDetailsEntity {
+                domain: Some("tether.to".into()),
+            }),
+            issuer_pubkey: Some("0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904".parse().unwrap()),
+        };
+        let mut extra = BTreeMap::new();
+        extra.insert("foo".to_owned(), "bar".to_owned().into());
+        let contract = Contract::from_details(details.clone(), extra.clone()).unwrap();
+
+        assert_has_tether_properties(&contract);
+        assert_eq!(contract.property("foo").unwrap(), Some("bar".to_owned()));
+
+        // Some wrong values
+        let mut det = details.clone();
+        det.precision = 9;
+        assert!(Contract::from_details(det, extra.clone()).is_err());
+
+        let mut det = details.clone();
+        det.ticker = "TICKER".into();
+        assert!(Contract::from_details(det, extra.clone()).is_err());
+
+        let mut ex = extra.clone();
+        ex.insert("name".to_owned(), "Not Tether USD".to_owned().into());
+        assert!(Contract::from_details(details.clone(), ex).is_err());
+    }
+
+    #[test]
+    #[allow(deprecated)]
+    fn test_create_legacy() {
+        let details = ContractDetails {
+            precision: 8,
+            ticker: "USDt".into(),
+            name: Some("Tether USD".into()),
+            entity: Some(ContractDetailsEntity {
+                domain: Some("tether.to".into()),
+            }),
+            issuer_pubkey: Some("0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904".parse().unwrap()),
+        };
+        let mut extra = BTreeMap::new();
+        extra.insert("foo".to_owned(), "bar".into());
+        let contract = Contract::legacy_from_details(details.clone(), extra.clone()).unwrap();
+
+        assert_has_tether_properties(&contract);
+        assert_eq!(contract.property("foo").unwrap(), Some("bar".to_owned()));
+
+        // Some wrong values
+        let mut det = details.clone();
+        det.precision = 9;
+        assert!(Contract::legacy_from_details(det, extra.clone()).is_err());
+
+        let mut det = details.clone();
+        det.ticker = "TICKER".into();
+        assert!(Contract::legacy_from_details(det, extra.clone()).is_err());
+
+        let mut ex = extra.clone();
+        ex.insert("name".to_owned(), "Not Tether USD".into());
+        assert!(Contract::legacy_from_details(details.clone(), ex).is_err());
+    }
+
+    #[test]
+    fn test_cbor_wip() {
+        #[derive(Debug, PartialEq, Eq, Deserialize, Serialize)]
+        struct Entity {
+            pub domain: String,
+        }
+        #[derive(Debug, Serialize)]
+        struct ContractExtraContent {
+            pub entity: Entity,
+            pub name: String,
+            pub issuer_pubkey: bitcoin::PublicKey,
+        }
+
+        let extra = ContractExtraContent {
+            entity: Entity {
+                domain: "tether.to".into(),
+            },
+            name: "Tether USD".into(),
+            issuer_pubkey: "0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904".parse().unwrap(),
+        };
+        let cbor_content: Vec<serde_cbor::Value> = vec![
+            8.into(),
+            "USDt".to_owned().into(),
+            //TODO(stevenroose) optimize this as serde_cbor gets to_value
+            serde_cbor::from_slice::<serde_cbor::Value>(&serde_cbor::to_vec(&extra).unwrap()).unwrap(),
+        ];
+
+        // version byte
+        let mut buffer = vec![CONTRACT_VERSION_CBOR];
+        serde_cbor::to_writer(&mut buffer, &cbor_content).unwrap();
+        let contract = Contract::from_bytes(&buffer).unwrap();
+
+        assert_eq!(contract.contract_hash(), ContractHash::hash(&buffer));
+        assert_has_tether_properties(&contract);
+    }
+}

@@ -34,3 +34,4 @@ serde_json = { version = "<=1.0.44", optional = true }
 [dev-dependencies]
 rand = "0.6.5"
 serde_json = "<=1.0.44"
+bitcoin = { version = "0.23", features = ["use-serde"] }
