@@ -228,6 +228,7 @@ impl Contract {
 
         // Add extra fields.
         for (key, value) in extra_fields.into_iter() {
+            //TODO(stevenroose) should we check the keys of all recursive objects?
             check_key(&key)?;
             if props.insert(key.into(), value).is_some() {
                 return Err(Error::InvalidContract("extra field reused key from details"));
