@@ -21,8 +21,8 @@ use bitcoin;
 use bitcoin::blockdata::script::Script;
 use bitcoin::{BitcoinHash, BlockHash, VarInt};
 use bitcoin::hashes::{Hash, sha256};
-#[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(feature = "serde")] use std::fmt;
+#[cfg(feature = "serde-feature")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde-feature")] use std::fmt;
 
 use dynafed;
 use Transaction;
@@ -49,7 +49,7 @@ pub enum ExtData {
     },
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-feature")]
 impl<'de> Deserialize<'de> for ExtData {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         use serde::de;
@@ -149,7 +149,7 @@ impl<'de> Deserialize<'de> for ExtData {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-feature")]
 impl Serialize for ExtData {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;

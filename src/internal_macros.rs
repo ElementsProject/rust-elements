@@ -36,7 +36,7 @@ macro_rules! impl_consensus_encoding {
 
 macro_rules! serde_struct_impl {
     ($name:ident, $($fe:ident),*) => (
-        #[cfg(feature = "serde")]
+        #[cfg(feature = "serde-feature")]
         impl<'de> $crate::serde::Deserialize<'de> for $name {
             fn deserialize<D>(deserializer: D) -> Result<$name, D::Error>
             where
@@ -131,7 +131,7 @@ macro_rules! serde_struct_impl {
             }
         }
 
-        #[cfg(feature = "serde")]
+        #[cfg(feature = "serde-feature")]
         impl $crate::serde::Serialize for $name {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where

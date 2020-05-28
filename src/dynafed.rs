@@ -18,8 +18,8 @@ use std::io;
 
 use bitcoin;
 use bitcoin::hashes::{Hash, sha256, sha256d};
-#[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(feature = "serde")] use std::fmt;
+#[cfg(feature = "serde-feature")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde-feature")] use std::fmt;
 
 use encode::{self, Encodable, Decodable};
 
@@ -216,7 +216,7 @@ impl Params {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-feature")]
 impl<'de> Deserialize<'de> for Params {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         use serde::de;
@@ -355,7 +355,7 @@ impl<'de> Deserialize<'de> for Params {
     }
 }
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-feature")]
 impl Serialize for Params {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;

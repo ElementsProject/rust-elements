@@ -17,7 +17,7 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
-#[cfg(feature = "serde")]
+#[cfg(feature = "serde-feature")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::{io, fmt};
@@ -137,7 +137,7 @@ macro_rules! impl_confidential_commitment {
             }
         }
 
-        #[cfg(feature = "serde")]
+        #[cfg(feature = "serde-feature")]
         impl Serialize for $name {
             fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
                 use serde::ser::SerializeSeq;
@@ -161,7 +161,7 @@ macro_rules! impl_confidential_commitment {
             }
         }
 
-        #[cfg(feature = "serde")]
+        #[cfg(feature = "serde-feature")]
         impl<'de> Deserialize<'de> for $name {
             fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
                 use serde::de::{Error, Visitor, SeqAccess};
