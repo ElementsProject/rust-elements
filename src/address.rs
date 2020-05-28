@@ -75,6 +75,7 @@ impl fmt::Display for AddressError {
     }
 }
 
+#[allow(deprecated)]
 impl error::Error for AddressError {
     fn cause(&self) -> Option<&error::Error> {
         match *self {
@@ -87,16 +88,7 @@ impl error::Error for AddressError {
     }
 
     fn description(&self) -> &str {
-        match *self {
-            AddressError::Base58(ref e) => e.description(),
-            AddressError::Bech32(ref e) => e.description(),
-            AddressError::Blech32(ref e) => e.description(),
-            AddressError::InvalidAddress(..) => "was unable to parse the address",
-            AddressError::UnsupportedWitnessVersion(..) => "unsupported witness version",
-            AddressError::InvalidBlindingPubKey(..) => "an invalid blinding pubkey was encountered",
-            AddressError::InvalidWitnessProgramLength => "program length incompatible with version",
-            AddressError::InvalidWitnessVersion => "invalid witness script version",
-        }
+        "description() is deprecated; use Display"
     }
 }
 
