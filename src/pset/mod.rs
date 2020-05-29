@@ -90,7 +90,7 @@ impl Encodable for PartiallySignedTransaction {
         mut s: S,
     ) -> Result<usize, encode::Error> {
         let mut len = 0;
-        len += b"psbt".consensus_encode(&mut s)?;
+        len += b"pset".consensus_encode(&mut s)?;
 
         len += 0xff_u8.consensus_encode(&mut s)?;
 
@@ -112,7 +112,7 @@ impl Decodable for PartiallySignedTransaction {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
         let magic: [u8; 4] = Decodable::consensus_decode(&mut d)?;
 
-        if *b"psbt" != magic {
+        if *b"pset" != magic {
             return Err(Error::InvalidMagic.into());
         }
 
