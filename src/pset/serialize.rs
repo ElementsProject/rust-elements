@@ -20,12 +20,13 @@
 use std::io;
 
 use bitcoin::blockdata::script::Script;
-use transaction::{Transaction, TxOut};
 use bitcoin::blockdata::transaction::SigHashType;
-use encode::{self, serialize, Decodable};
+use bitcoin::secp256k1::SecretKey;
 use bitcoin::util::bip32::{ChildNumber, DerivationPath, Fingerprint};
 use bitcoin::util::key::PublicKey;
 use pset;
+use transaction::{Transaction, TxOut};
+use encode::{self, serialize, Decodable};
 
 /// A trait for serializing a value as raw data for insertion into PSBT
 /// key-value pairs.
@@ -43,6 +44,15 @@ pub trait Deserialize: Sized {
 impl_psbt_de_serialize!(Transaction);
 impl_psbt_de_serialize!(TxOut);
 impl_psbt_de_serialize!(Vec<Vec<u8>>); // scriptWitness
+
+impl_psbt_de_serialize!(::confidential::Value);
+impl_psbt_de_serialize!(::confidential::Asset);
+impl_psbt_de_serialize!(::confidential::Nonce);
+impl_psbt_de_serialize!(u64);
+impl_psbt_de_serialize!(::issuance::AssetId);
+impl_psbt_de_serialize!(::bitcoin::BlockHash);
+impl_psbt_de_serialize!(::bitcoin::MerkleBlock);
+impl_psbt_de_serialize!(::bitcoin::Transaction);
 
 impl Serialize for Script {
     fn serialize(&self) -> Vec<u8> {
@@ -135,5 +145,18 @@ impl Deserialize for SigHashType {
         } else {
             Err(pset::Error::NonStandardSigHashType(raw).into())
         }
+    }
+}
+
+impl Serialize for SecretKey {
+    fn serialize(&self) -> Vec<u8> {
+        self[..].to_vec()
+    }
+}
+
+impl Deserialize for SecretKey {
+    fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
+        SecretKey::from_slice(bytes)
+            .map_err(|_| encode::Error::ParseFailed("invalid secret key or blinding factor"))
     }
 }

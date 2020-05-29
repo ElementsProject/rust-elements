@@ -184,9 +184,11 @@ impl_upstream!(Vec<Vec<u8>>);
 impl_upstream!(btcenc::VarInt);
 impl_upstream!(::bitcoin::blockdata::script::Script);
 impl_upstream!(::bitcoin::hashes::sha256d::Hash);
+impl_upstream!(::bitcoin::Transaction);
 impl_upstream!(::bitcoin::Txid);
 impl_upstream!(::bitcoin::TxMerkleNode);
 impl_upstream!(::bitcoin::BlockHash);
+impl_upstream!(::bitcoin::MerkleBlock);
 impl_upstream!(::bitcoin::util::psbt::raw::Key);
 impl_upstream!(::bitcoin::util::psbt::raw::Pair);
 

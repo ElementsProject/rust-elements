@@ -12,18 +12,20 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use std::collections::BTreeMap;
+use std::collections::btree_map::{BTreeMap, Entry};
 
+use bitcoin;
 use bitcoin::blockdata::script::Script;
-use transaction::{Transaction, TxOut};
 use bitcoin::blockdata::transaction::SigHashType;
-use encode;
+use bitcoin::secp256k1::SecretKey;
 use bitcoin::util::bip32::{DerivationPath, Fingerprint};
 use bitcoin::util::key::PublicKey;
-use pset;
+
+use encode;
+use issuance::AssetId;
 use pset::map::Map;
-use pset::raw;
-use pset::Error;
+use pset::{self, raw, Error, ELEMENTS_PROP_KEY};
+use transaction::{Transaction, TxOut};
 
 /// A key-value map for an input of the corresponding index in the unsigned
 /// transaction.
@@ -58,6 +60,24 @@ pub struct Input {
     pub final_script_witness: Option<Vec<Vec<u8>>>,
     /// Unknown key-value pairs for this input.
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
+
+    // Elements fields:
+    /// The value for this input.
+    pub value: Option<u64>,
+    /// The value blinding factor for this input.
+    pub value_blinding_factor: Option<SecretKey>,
+    /// The asset for this input.
+    pub asset: Option<AssetId>,
+    /// The asset blinding factor for this input.
+    pub asset_blinding_factor: Option<SecretKey>,
+    /// The pegin tx of the pegin for this input.
+    pub pegin_tx: Option<bitcoin::Transaction>,
+    /// The txout proof of the pegin for this input.
+    pub pegin_txout_proof: Option<bitcoin::MerkleBlock>,
+    /// The claim script of the pegin for this input.
+    pub pegin_claim_script: Option<Script>,
+    /// The genesis block hash of the pegin for this input.
+    pub pegin_genesis_hash: Option<bitcoin::BlockHash>,
 }
 
 impl Map for Input {
@@ -113,6 +133,55 @@ impl Map for Input {
                     self.hd_keypaths <= <raw_key: PublicKey>|<raw_value: (Fingerprint, DerivationPath)>
                 }
             }
+            0xfc_u8 => {
+                match impl_psbt_extract_prop!(ELEMENTS_PROP_KEY, raw_key, raw_value) {
+                    None => {},
+                    Some((raw_key, raw_value)) if raw_key.type_value == 0u8 => {
+                        impl_psbt_insert_pair! {
+                            self.value <= <raw_key: _>|<raw_value: u64>
+                        }
+                    }
+                    Some((raw_key, raw_value)) if raw_key.type_value == 1u8 => {
+                        impl_psbt_insert_pair! {
+                            self.value_blinding_factor <= <raw_key: _>|<raw_value: SecretKey>
+                        }
+                    }
+                    Some((raw_key, raw_value)) if raw_key.type_value == 2u8 => {
+                        impl_psbt_insert_pair! {
+                            self.asset <= <raw_key: _>|<raw_value: AssetId>
+                        }
+                    }
+                    Some((raw_key, raw_value)) if raw_key.type_value == 3u8 => {
+                        impl_psbt_insert_pair! {
+                            self.asset_blinding_factor <= <raw_key: _>|<raw_value: SecretKey>
+                        }
+                    }
+                    Some((raw_key, raw_value)) if raw_key.type_value == 4u8 => {
+                        impl_psbt_insert_pair! {
+                            self.pegin_tx <= <raw_key: _>|<raw_value: bitcoin::Transaction>
+                        }
+                    }
+                    Some((raw_key, raw_value)) if raw_key.type_value == 5u8 => {
+                        impl_psbt_insert_pair! {
+                            self.pegin_txout_proof <= <raw_key: _>|<raw_value: bitcoin::MerkleBlock>
+                        }
+                    }
+                    Some((raw_key, raw_value)) if raw_key.type_value == 6u8 => {
+                        impl_psbt_insert_pair! {
+                            self.pegin_genesis_hash <= <raw_key: _>|<raw_value: bitcoin::BlockHash>
+                        }
+                    }
+                    Some((raw_key, raw_value)) if raw_key.type_value == 7u8 => {
+                        impl_psbt_insert_pair! {
+                            self.pegin_claim_script <= <raw_key: _>|<raw_value: Script>
+                        }
+                    }
+                    Some((_, raw_value)) => match self.unknown.entry(raw_key) {
+                        Entry::Vacant(empty_key) => {empty_key.insert(raw_value);},
+                        Entry::Occupied(k) => return Err(Error::DuplicateKey(k.key().clone()).into()),
+                    }
+                }
+            }
             _ => match self.unknown.entry(raw_key) {
                 ::std::collections::btree_map::Entry::Vacant(empty_key) => {empty_key.insert(raw_value);},
                 ::std::collections::btree_map::Entry::Occupied(k) => return Err(Error::DuplicateKey(k.key().clone()).into()),
@@ -161,6 +230,22 @@ impl Map for Input {
             rv.push(self.final_script_witness as <8u8, _>|<Script>)
         }
 
+        impl_psbt_get_prop_pair! {
+            rv.push(self.value as <ELEMENTS_PROP_KEY, 0u8, _>|<u64>)
+        }
+
+        impl_psbt_get_prop_pair! {
+            rv.push(self.value_blinding_factor as <ELEMENTS_PROP_KEY, 1u8, _>|<confidential::SecretKey>)
+        }
+
+        impl_psbt_get_prop_pair! {
+            rv.push(self.asset as <ELEMENTS_PROP_KEY, 2u8, _>|<AssetId>)
+        }
+
+        impl_psbt_get_prop_pair! {
+            rv.push(self.asset_blinding_factor as <ELEMENTS_PROP_KEY, 3u8, _>|<confidential::SecretKey>)
+        }
+
         for (key, value) in self.unknown.iter() {
             rv.push(raw::Pair {
                 key: key.clone(),
@@ -187,6 +272,15 @@ impl Map for Input {
         merge!(witness_script, self, other);
         merge!(final_script_sig, self, other);
         merge!(final_script_witness, self, other);
+
+		merge!(value, self, other);
+		merge!(value_blinding_factor, self, other);
+		merge!(asset, self, other);
+		merge!(asset_blinding_factor, self, other);
+		merge!(pegin_tx, self, other);
+		merge!(pegin_txout_proof, self, other);
+		merge!(pegin_claim_script, self, other);
+		merge!(pegin_genesis_hash, self, other);
 
         Ok(())
     }

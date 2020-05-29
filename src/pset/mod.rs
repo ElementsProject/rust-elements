@@ -26,6 +26,9 @@ pub use self::map::{Map, Global, Input, Output};
 /// The key code for proprietary pairs.
 pub(crate) const PSET_PROP_KEY: u8 = 0xfc;
 
+/// The proprietary type key for Elements-specific PSET keys.
+pub(crate) const ELEMENTS_PROP_KEY: &[u8] = b"elements";
+
 /// A Partially Signed Transaction.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PartiallySignedTransaction {
