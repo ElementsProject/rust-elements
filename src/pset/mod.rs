@@ -15,15 +15,16 @@ use std::io;
 mod error;
 pub use self::error::Error;
 
-pub use bitcoin::util::psbt::raw;
-
 #[macro_use]
 mod macros;
 
+pub mod raw;
 pub mod serialize;
-
 mod map;
 pub use self::map::{Map, Global, Input, Output};
+
+/// The key code for proprietary pairs.
+pub(crate) const PSET_PROP_KEY: u8 = 0xfc;
 
 /// A Partially Signed Transaction.
 #[derive(Debug, Clone, PartialEq)]

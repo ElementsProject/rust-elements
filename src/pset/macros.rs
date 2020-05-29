@@ -109,10 +109,10 @@ macro_rules! impl_psbt_insert_pair {
 
                 $slf.$unkeyed_name = Some(val)
             } else {
-                return Err(::pset::Error::DuplicateKey($raw_key).into());
+                return Err(::pset::Error::DuplicateKey($raw_key.into()).into());
             }
         } else {
-            return Err(::pset::Error::InvalidKey($raw_key).into());
+            return Err(::pset::Error::InvalidKey($raw_key.into()).into());
         }
     };
     ($slf:ident.$keyed_name:ident <= <$raw_key:ident: $keyed_key_type:ty>|<$raw_value:ident: $keyed_value_type:ty>) => {
@@ -124,12 +124,30 @@ macro_rules! impl_psbt_insert_pair {
                     let val: $keyed_value_type = ::pset::serialize::Deserialize::deserialize(&$raw_value)?;
                     empty_key.insert(val);
                 }
-                ::std::collections::btree_map::Entry::Occupied(_) => return Err(::pset::Error::DuplicateKey($raw_key).into()),
+                ::std::collections::btree_map::Entry::Occupied(_) => return Err(::pset::Error::DuplicateKey($raw_key.into()).into()),
             }
         } else {
-            return Err(::pset::Error::InvalidKey($raw_key).into());
+            return Err(::pset::Error::InvalidKey($raw_key.into()).into());
         }
     };
+}
+
+#[cfg_attr(rustfmt, rustfmt_skip)]
+macro_rules! impl_psbt_extract_prop {
+    ($prop_key:expr, $raw_key:ident, $raw_value:ident) => {{
+        let prop_key = $prop_key;
+        if $raw_key.key.len() >= prop_key.len() + 1 &&
+            $raw_key.key[0..prop_key.len()] == prop_key[..]
+        {
+            let raw_key = ::pset::raw::BorrowedKey {
+                type_value: $raw_key.key[prop_key.len()],
+                key: &$raw_key.key[prop_key.len() + 1 ..],
+            };
+            Some((raw_key, $raw_value))
+        } else {
+            None
+        }
+    }}
 }
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
@@ -151,6 +169,46 @@ macro_rules! impl_psbt_get_pair {
                 key: ::pset::raw::Key {
                     type_value: $keyed_typeval,
                     key: ::pset::serialize::Serialize::serialize(key),
+                },
+                value: ::pset::serialize::Serialize::serialize(val),
+            });
+        }
+    };
+}
+
+#[cfg_attr(rustfmt, rustfmt_skip)]
+macro_rules! impl_psbt_get_prop_pair {
+    ($rv:ident.push($slf:ident.$unkeyed_name:ident as <$prop_key:expr, $unkeyed_typeval:expr, _>|<$unkeyed_value_type:ty>)) => {
+        if let Some(ref $unkeyed_name) = $slf.$unkeyed_name {
+            $rv.push(::pset::raw::Pair {
+                key: ::pset::raw::Key {
+                    type_value: ::pset::PSET_PROP_KEY,
+                    key: {
+                        let prop_key = $prop_key;
+                        let mut buf = Vec::with_capacity(prop_key.len() + 1);
+                        buf[0] = $unkeyed_typeval;
+                        buf[1..].copy_from_slice(prop_key);
+                        buf
+                    },
+                },
+                value: ::pset::serialize::Serialize::serialize($unkeyed_name),
+            });
+        }
+    };
+    ($rv:ident.push($slf:ident.$keyed_name:ident as <$prop_key:expr, $keyed_typeval:expr, $keyed_key_type:ty>|<$keyed_value_type:ty>)) => {
+        for (key, val) in &$slf.$keyed_name {
+            $rv.push(::pset::raw::Pair {
+                key: ::pset::raw::Key {
+                    type_value: ::pset::PSET_PROP_KEY,
+                    key: {
+                        let key = ::pset::serialize::Serialize::serialize(key);
+                        let prop_key = $prop_key;
+                        let mut buf = Vec::with_capacity(key.len() + prop_key.len() + 1);
+                        buf[0] = $unkeyed_typeval;
+                        buf[1..prop_key.len()+1].copy_from_slice(prop_key);
+                        buf[prop_key.len()+1..].copy_from_slice(key);
+                        buf
+                    },
                 },
                 value: ::pset::serialize::Serialize::serialize(val),
             });
