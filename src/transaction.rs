@@ -18,7 +18,7 @@
 use std::{io, fmt};
 use std::collections::HashMap;
 
-use bitcoin::{self, BitcoinHash, Txid, VarInt};
+use bitcoin::{self, Txid, VarInt};
 use bitcoin::blockdata::opcodes;
 use bitcoin::blockdata::script::{Script, Instruction};
 use bitcoin::hashes::Hash;
@@ -80,8 +80,9 @@ impl Decodable for OutPoint {
     }
 }
 
-impl BitcoinHash<Txid> for OutPoint {
-    fn bitcoin_hash(&self) -> Txid {
+impl OutPoint {
+    /// Remove this
+    pub fn hash(&self) -> Txid {
         let mut enc = Txid::engine();
         self.consensus_encode(&mut enc).unwrap();
         Txid::from_engine(enc)
@@ -374,12 +375,12 @@ impl TxOut {
     /// Whether this data represents nulldata (OP_RETURN followed by pushes,
     /// not necessarily minimal)
     pub fn is_null_data(&self) -> bool {
-        let mut iter = self.script_pubkey.iter(false);
-        if iter.next() == Some(Instruction::Op(opcodes::all::OP_RETURN)) {
+        let mut iter = self.script_pubkey.instructions();
+        if iter.next() == Some(Ok(Instruction::Op(opcodes::all::OP_RETURN))) {
             for push in iter {
                 match push {
-                    Instruction::Op(op) if op.into_u8() > opcodes::all::OP_PUSHNUM_16.into_u8() => return false,
-                    Instruction::Error(_) => return false,
+                    Ok(Instruction::Op(op)) if op.into_u8() > opcodes::all::OP_PUSHNUM_16.into_u8() => return false,
+                    Err(_) => return false,
                     _ => {}
                 }
             }
@@ -412,12 +413,12 @@ impl TxOut {
             return None;
         };
 
-        let mut iter = self.script_pubkey.iter(false);
+        let mut iter = self.script_pubkey.instructions();
 
         iter.next(); // Skip OP_RETURN
 
         // Parse destination chain's genesis block
-        let genesis_hash = if let Some(Instruction::PushBytes(data)) = iter.next() {
+        let genesis_hash = if let Some(Ok(Instruction::PushBytes(data))) = iter.next() {
             if let Ok(hash) = bitcoin::BlockHash::from_slice(data) {
                 hash
             } else {
@@ -428,7 +429,7 @@ impl TxOut {
         };
 
         // Parse destination scriptpubkey
-        let script_pubkey = if let Some(Instruction::PushBytes(data)) = iter.next() {
+        let script_pubkey = if let Some(Ok(Instruction::PushBytes(data))) = iter.next() {
             if data.is_empty() {
                 return None;
             } else {
@@ -441,7 +442,7 @@ impl TxOut {
         // Return everything
         let mut found_non_data_push = false;
         let remainder = iter
-            .filter_map(|x| if let Instruction::PushBytes(data) = x {
+            .filter_map(|x| if let Ok(Instruction::PushBytes(data)) = x {
                 Some(data)
             } else {
                 found_non_data_push = true;
@@ -597,7 +598,7 @@ impl Transaction {
         ) + input_weight + output_weight
     }
 
-    /// The txid of the transaction. To get its hash, use `BitcoinHash::bitcoin_hash()`.
+    /// The txid of the transaction.
     pub fn txid(&self) -> bitcoin::Txid {
         let mut enc = bitcoin::Txid::engine();
         self.version.consensus_encode(&mut enc).unwrap();
@@ -634,16 +635,6 @@ impl Transaction {
             *entry += out.value.explicit().expect("is_fee");
         }
         fees
-    }
-}
-
-//TODO(stevenroose) remove this, it's incorrect
-impl BitcoinHash<Txid> for Transaction {
-    /// To get a transaction's txid, which is usually what you want, use the `txid` method.
-    fn bitcoin_hash(&self) -> Txid {
-        let mut enc = Txid::engine();
-        self.consensus_encode(&mut enc).unwrap();
-        Txid::from_engine(enc)
     }
 }
 
@@ -715,7 +706,7 @@ impl Decodable for Transaction {
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::{self, BitcoinHash};
+    use bitcoin;
     use bitcoin::hashes::hex::FromHex;
 
     use encode::serialize;
@@ -750,7 +741,7 @@ mod tests {
         );
 
         assert_eq!(
-            tx.bitcoin_hash().to_string(),
+            tx.wtxid().to_string(),
             "758f784bdfa89b62c8b882542afb46074d3851a6da997199bcfb7cc6daed3cf2"
         );
         assert_eq!(
@@ -962,7 +953,7 @@ mod tests {
         );
 
         assert_eq!(
-            tx.bitcoin_hash().to_string(),
+            tx.wtxid().to_string(),
             "7ac6c1400003162ab667406221656f06dad902c70f96ee703f3f5f9f09df4bb9"
         );
         assert_eq!(
@@ -1004,7 +995,7 @@ mod tests {
         );
 
         assert_eq!(
-            tx.bitcoin_hash().to_string(),
+            tx.wtxid().to_string(),
             "69e214ecad13b954208084572a6dedc264a016b953d71901f5aa1706d5f4916a"
         );
         assert_eq!(

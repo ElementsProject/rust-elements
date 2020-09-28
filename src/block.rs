@@ -19,7 +19,7 @@ use std::io;
 
 use bitcoin;
 use bitcoin::blockdata::script::Script;
-use bitcoin::{BitcoinHash, BlockHash, VarInt};
+use bitcoin::{BlockHash, VarInt};
 use bitcoin::hashes::{Hash, sha256};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
@@ -314,8 +314,9 @@ impl Decodable for BlockHeader {
     }
 }
 
-impl BitcoinHash<BlockHash> for BlockHeader {
-    fn bitcoin_hash(&self) -> BlockHash {
+impl BlockHeader {
+    /// Return the block hash.
+    pub fn block_hash(&self) -> BlockHash {
 
         let version = if let ExtData::Dynafed { .. } = self.ext {
             self.version | 0x8000_0000
@@ -371,16 +372,15 @@ impl Block {
     }
 }
 
-impl BitcoinHash<BlockHash> for Block {
-    fn bitcoin_hash(&self) -> BlockHash {
-        self.header.bitcoin_hash()
+impl Block {
+    /// Return the block hash.
+    pub fn block_hash(&self) -> BlockHash {
+        self.header.block_hash()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use bitcoin::BitcoinHash;
-
     use Block;
 
     use super::*;
@@ -402,7 +402,7 @@ mod tests {
         );
 
         assert_eq!(
-            block.bitcoin_hash().to_string(),
+            block.block_hash().to_string(),
             "287ca47e8da47eb8c28d870663450bb026922eadb30a1b2f8293e6e9d1ca5322"
         );
         assert_eq!(block.header.version, 0x20000000);
@@ -614,7 +614,7 @@ mod tests {
         );
 
         assert_eq!(
-            block.bitcoin_hash().to_string(),
+            block.block_hash().to_string(),
             "e935d06cf3a616eb4d551338598b84daa0e8592ed14673263597f6af4b4a6ea6"
         );
         assert_eq!(block.header.version, 0x20000000);
@@ -645,7 +645,7 @@ mod tests {
         );
 
         assert_eq!(
-            block.bitcoin_hash().to_string(),
+            block.block_hash().to_string(),
             "bcc6eb2ab6c97b9b4590825b9136f100b22e090c0469818572b8b93926a79f28"
         );
         assert_eq!(block.header.version, 0x20000000);
@@ -700,7 +700,7 @@ mod tests {
         }
 
         assert_eq!(
-            block.bitcoin_hash().to_string(),
+            block.block_hash().to_string(),
             "4961df970cf12d789383974e6ab439f780d956b5a50162ca9d281362e46c605a"
         );
         assert_eq!(block.header.version, 0x20000000);
@@ -750,7 +750,7 @@ mod tests {
             panic!("No dynafed params");
         }
         assert_eq!(
-            block.bitcoin_hash().to_string(),
+            block.block_hash().to_string(),
             "e9a5176b1690a448f76fb691ab4d516e60e13a6e7a49454c62dbf0d611ffcce7"
         );
     }

@@ -3,17 +3,15 @@ rust:
   - stable
   - beta
   - nightly
-  - 1.22.0
+  - 1.29.0
 
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y binutils-dev libunwind8-dev
 
 script:
-  # The standard linker fails to link the fuzzing infrastructure but
-  # gold seems to handle it.
-  # See https://github.com/rust-lang/rust/issues/53945
-  - export RUSTFLAGS='-Clink-arg=-fuse-ld=gold'
+  # Pin `cc` for Rust 1.29
+  - if [ "$TRAVIS_RUST_VERSION" = "1.29.0" ]; then cargo generate-lockfile --verbose && cargo update -p cc --precise "1.0.41" --verbose; fi
   - cargo build --verbose
   - cargo test --verbose
   - cargo build --verbose --features=serde-feature

@@ -17,7 +17,6 @@
 use std::io;
 use std::str::FromStr;
 
-use bitcoin::util::hash::BitcoinHash;
 use bitcoin::hashes::{self, hex, sha256, Hash};
 
 use encode::{self, Encodable, Decodable};
@@ -88,7 +87,7 @@ impl AssetId {
         // I : prevout
         // C : contract
         // E = H( H(I) || H(C) )
-        fast_merkle_root(&[prevout.bitcoin_hash().into_inner(), contract_hash.into_inner()])
+        fast_merkle_root(&[prevout.hash().into_inner(), contract_hash.into_inner()])
     }
 
     /// Calculate the asset ID from the asset entropy.
