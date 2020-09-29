@@ -80,15 +80,6 @@ impl Decodable for OutPoint {
     }
 }
 
-impl OutPoint {
-    /// Remove this
-    pub fn hash(&self) -> Txid {
-        let mut enc = Txid::engine();
-        self.consensus_encode(&mut enc).unwrap();
-        Txid::from_engine(enc)
-    }
-}
-
 impl fmt::Display for OutPoint {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("[elements]")?;
