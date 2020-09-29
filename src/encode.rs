@@ -64,10 +64,6 @@ impl error::Error for Error {
             _ => None,
         }
     }
-
-    fn description(&self) -> &str {
-        "an Elements encoding error"
-    }
 }
 
 #[doc(hidden)]

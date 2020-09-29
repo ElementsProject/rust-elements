@@ -60,17 +60,23 @@ pub enum AddressError {
 
 impl fmt::Display for AddressError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let desc = error::Error::description;
         match *self {
-            AddressError::Base58(ref e) => fmt::Display::fmt(e, f),
+            AddressError::Base58(ref e) => write!(f, "base58 error: {}", e),
             AddressError::Bech32(ref e) => write!(f, "bech32 error: {}", e),
             AddressError::Blech32(ref e) => write!(f, "blech32 error: {}", e),
-            AddressError::InvalidAddress(ref a) => write!(f, "{}: {}", desc(self), a),
-            AddressError::UnsupportedWitnessVersion(ref wver) => {
-                write!(f, "{}: {}", desc(self), wver)
+            AddressError::InvalidAddress(ref a) => {
+                write!(f, "was unable to parse the address: {}", a)
             }
-            AddressError::InvalidBlindingPubKey(ref e) => write!(f, "{}: {}", desc(self), e),
-            _ => f.write_str(desc(self)),
+            AddressError::UnsupportedWitnessVersion(ref wver) => {
+                write!(f, "unsupported witness version: {}", wver)
+            }
+            AddressError::InvalidBlindingPubKey(ref e) => {
+                write!(f, "an invalid blinding pubkey was encountered: {}", e)
+            }
+            AddressError::InvalidWitnessProgramLength => {
+                write!(f, "program length incompatible with version")
+            }
+            AddressError::InvalidWitnessVersion => write!(f, "invalid witness script version"),
         }
     }
 }
@@ -83,19 +89,6 @@ impl error::Error for AddressError {
             AddressError::Blech32(ref e) => Some(e),
             AddressError::InvalidBlindingPubKey(ref e) => Some(e),
             _ => None,
-        }
-    }
-
-    fn description(&self) -> &str {
-        match *self {
-            AddressError::Base58(ref e) => e.description(),
-            AddressError::Bech32(ref e) => e.description(),
-            AddressError::Blech32(ref e) => e.description(),
-            AddressError::InvalidAddress(..) => "was unable to parse the address",
-            AddressError::UnsupportedWitnessVersion(..) => "unsupported witness version",
-            AddressError::InvalidBlindingPubKey(..) => "an invalid blinding pubkey was encountered",
-            AddressError::InvalidWitnessProgramLength => "program length incompatible with version",
-            AddressError::InvalidWitnessVersion => "invalid witness script version",
         }
     }
 }
