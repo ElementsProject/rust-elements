@@ -82,7 +82,7 @@ impl fmt::Display for AddressError {
 }
 
 impl error::Error for AddressError {
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             AddressError::Base58(ref e) => Some(e),
             AddressError::Bech32(ref e) => Some(e),
