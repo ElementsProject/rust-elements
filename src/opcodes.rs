@@ -429,12 +429,12 @@ pub mod all {
     pub const OP_RETURN_191: All = All {code: 0xbf};
     /// Synonym for OP_RETURN
     pub const OP_RETURN_192: All = All {code: 0xc0};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_193: All = All {code: 0xc1};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_194: All = All {code: 0xc2};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_195: All = All {code: 0xc3};
+    /// Check a signature on a given hash with a given public key
+    pub const OP_CHECKSIGFROMSTACK: All = All {code: 0xc1};
+    /// Check a signature on a given hash with a given public key, failing if the sigcheck fails
+    pub const OP_CHECKSIGFROMSTACKVERIFY: All = All {code: 0xc2};
+    /// Same as `OP_SUBSTR` but clamps start and length rather than erroring if they are out of bounds
+    pub const OP_SUBSTR_LAZY: All = All {code: 0xc3};
     /// Synonym for OP_RETURN
     pub const OP_RETURN_196: All = All {code: 0xc4};
     /// Synonym for OP_RETURN
@@ -599,6 +599,7 @@ impl fmt::Debug for All {
             all::OP_TUCK => write!(f, "TUCK"),
             all::OP_CAT => write!(f, "CAT"),
             all::OP_SUBSTR => write!(f, "SUBSTR"),
+            all::OP_SUBSTR_LAZY => write!(f, "SUBSTR_LAZY"),
             all::OP_LEFT => write!(f, "LEFT"),
             all::OP_RIGHT => write!(f, "RIGHT"),
             all::OP_SIZE => write!(f, "SIZE"),
@@ -647,6 +648,8 @@ impl fmt::Debug for All {
             all::OP_CHECKSIGVERIFY => write!(f, "CHECKSIGVERIFY"),
             all::OP_CHECKMULTISIG => write!(f, "CHECKMULTISIG"),
             all::OP_CHECKMULTISIGVERIFY => write!(f, "CHECKMULTISIGVERIFY"),
+            all::OP_CHECKSIGFROMSTACK => write!(f, "CHECKSIGFROMSTACK"),
+            all::OP_CHECKSIGFROMSTACKVERIFY => write!(f, "CHECKSIGFROMSTACKVERIFY"),
             all::OP_CLTV => write!(f, "CLTV"),
             all::OP_CSV => write!(f, "CSV"),
             All {code: x} if x >= all::OP_NOP1.code && x <= all::OP_NOP10.code => write!(f, "NOP{}", x - all::OP_NOP1.code + 1),
@@ -1019,9 +1022,9 @@ mod tests {
         roundtrip!(unique, OP_RETURN_190);
         roundtrip!(unique, OP_RETURN_191);
         roundtrip!(unique, OP_RETURN_192);
-        roundtrip!(unique, OP_RETURN_193);
-        roundtrip!(unique, OP_RETURN_194);
-        roundtrip!(unique, OP_RETURN_195);
+        roundtrip!(unique, OP_CHECKSIGFROMSTACK);
+        roundtrip!(unique, OP_CHECKSIGFROMSTACKVERIFY);
+        roundtrip!(unique, OP_SUBSTR_LAZY);
         roundtrip!(unique, OP_RETURN_196);
         roundtrip!(unique, OP_RETURN_197);
         roundtrip!(unique, OP_RETURN_198);

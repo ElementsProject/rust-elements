@@ -676,6 +676,10 @@ impl Builder {
                 self.0.pop();
                 self.push_opcode(opcodes::all::OP_CHECKMULTISIGVERIFY)
             },
+            Some(opcodes::all::OP_CHECKSIGFROMSTACK) => {
+                self.0.pop();
+                self.push_opcode(opcodes::all::OP_CHECKSIGFROMSTACKVERIFY)
+            },
             _ => self.push_opcode(opcodes::all::OP_VERIFY),
         }
     }
