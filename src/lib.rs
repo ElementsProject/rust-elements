@@ -44,6 +44,8 @@ pub mod encode;
 mod fast_merkle_root;
 pub mod hash_types;
 pub mod issuance;
+pub mod opcodes;
+pub mod script;
 mod transaction;
 pub mod slip77;
 
@@ -56,4 +58,5 @@ pub use ::bitcoin::consensus::encode::VarInt;
 pub use fast_merkle_root::fast_merkle_root;
 pub use hash_types::*;
 pub use issuance::{AssetId, ContractHash};
+pub use script::Script;
 
