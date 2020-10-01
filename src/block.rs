@@ -224,6 +224,34 @@ pub struct BlockHeader {
 serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, height, ext);
 
 impl BlockHeader {
+    /// Return the block hash.
+    pub fn block_hash(&self) -> BlockHash {
+
+        let version = if let ExtData::Dynafed { .. } = self.ext {
+            self.version | 0x8000_0000
+        } else {
+            self.version
+        };
+
+        // Everything except the signblock witness goes into the hash
+        let mut enc = bitcoin::BlockHash::engine();
+        version.consensus_encode(&mut enc).unwrap();
+        self.prev_blockhash.consensus_encode(&mut enc).unwrap();
+        self.merkle_root.consensus_encode(&mut enc).unwrap();
+        self.time.consensus_encode(&mut enc).unwrap();
+        self.height.consensus_encode(&mut enc).unwrap();
+        match self.ext {
+            ExtData::Proof { ref challenge, .. } => {
+                challenge.consensus_encode(&mut enc).unwrap();
+            },
+            ExtData::Dynafed { ref current, ref proposed, .. } => {
+                current.consensus_encode(&mut enc).unwrap();
+                proposed.consensus_encode(&mut enc).unwrap();
+            },
+        }
+        BlockHash::from_engine(enc)
+    }
+
     /// Returns true if this is a block with dynamic federations enabled.
     pub fn is_dynafed(&self) -> bool {
         if let ExtData::Dynafed {
@@ -314,36 +342,6 @@ impl Decodable for BlockHeader {
     }
 }
 
-impl BlockHeader {
-    /// Return the block hash.
-    pub fn block_hash(&self) -> BlockHash {
-
-        let version = if let ExtData::Dynafed { .. } = self.ext {
-            self.version | 0x8000_0000
-        } else {
-            self.version
-        };
-
-        // Everything except the signblock witness goes into the hash
-        let mut enc = bitcoin::BlockHash::engine();
-        version.consensus_encode(&mut enc).unwrap();
-        self.prev_blockhash.consensus_encode(&mut enc).unwrap();
-        self.merkle_root.consensus_encode(&mut enc).unwrap();
-        self.time.consensus_encode(&mut enc).unwrap();
-        self.height.consensus_encode(&mut enc).unwrap();
-        match self.ext {
-            ExtData::Proof { ref challenge, .. } => {
-                challenge.consensus_encode(&mut enc).unwrap();
-            },
-            ExtData::Dynafed { ref current, ref proposed, .. } => {
-                current.consensus_encode(&mut enc).unwrap();
-                proposed.consensus_encode(&mut enc).unwrap();
-            },
-        }
-        BlockHash::from_engine(enc)
-    }
-}
-
 /// Elements block
 #[derive(Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct Block {
@@ -356,6 +354,11 @@ serde_struct_impl!(Block, header, txdata);
 impl_consensus_encoding!(Block, header, txdata);
 
 impl Block {
+    /// Return the block hash.
+    pub fn block_hash(&self) -> BlockHash {
+        self.header.block_hash()
+    }
+
     /// Get the size of the block
     pub fn get_size(&self) -> usize {
         // The size of the header + the size of the varint with the tx count + the txs themselves
@@ -369,13 +372,6 @@ impl Block {
         let base_weight = 4 * (serialize(&self.header).len() + VarInt(self.txdata.len() as u64).len());
         let txs_weight: usize = self.txdata.iter().map(Transaction::get_weight).sum();
         base_weight + txs_weight
-    }
-}
-
-impl Block {
-    /// Return the block hash.
-    pub fn block_hash(&self) -> BlockHash {
-        self.header.block_hash()
     }
 }
 
