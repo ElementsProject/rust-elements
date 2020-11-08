@@ -17,9 +17,7 @@
 
 use std::io;
 
-use bitcoin;
-use bitcoin::blockdata::script::Script;
-use bitcoin::{BlockHash, VarInt};
+use bitcoin::{self, Script};
 use bitcoin::hashes::{Hash, sha256};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
@@ -27,6 +25,7 @@ use bitcoin::hashes::{Hash, sha256};
 use dynafed;
 use Transaction;
 use encode::{self, Encodable, Decodable, serialize};
+use {BlockHash, TxMerkleNode, VarInt};
 
 /// Data related to block signatures
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -211,9 +210,9 @@ pub struct BlockHeader {
     /// Version - should be 0x20000000 except when versionbits signalling
     pub version: u32,
     /// Previous blockhash
-    pub prev_blockhash: bitcoin::BlockHash,
+    pub prev_blockhash: BlockHash,
     /// Transaction Merkle root
-    pub merkle_root: bitcoin::TxMerkleNode,
+    pub merkle_root: TxMerkleNode,
     /// Block timestamp
     pub time: u32,
     /// Block height

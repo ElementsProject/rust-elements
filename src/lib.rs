@@ -42,6 +42,7 @@ pub mod confidential;
 pub mod dynafed;
 pub mod encode;
 mod fast_merkle_root;
+pub mod hash_types;
 pub mod issuance;
 mod transaction;
 pub mod slip77;
@@ -53,5 +54,6 @@ pub use block::{BlockHeader, Block};
 pub use block::ExtData as BlockExtData;
 pub use ::bitcoin::consensus::encode::VarInt;
 pub use fast_merkle_root::fast_merkle_root;
+pub use hash_types::*;
 pub use issuance::{AssetId, ContractHash};
 

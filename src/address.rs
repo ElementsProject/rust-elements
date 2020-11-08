@@ -23,7 +23,6 @@ use std::str::FromStr;
 #[allow(unused_imports, deprecated)]
 use std::ascii::AsciiExt;
 
-use bitcoin;
 use bitcoin::bech32::{self, u5, FromBase32, ToBase32};
 use bitcoin::blockdata::{opcodes, script};
 use bitcoin::util::base58;
@@ -34,6 +33,8 @@ use bitcoin::secp256k1;
 use serde;
 
 use blech32;
+
+use {PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 
 /// Encoding error
 #[derive(Debug, PartialEq)]
@@ -139,9 +140,9 @@ impl AddressParams {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Payload {
     /// pay-to-pkhash address
-    PubkeyHash(bitcoin::PubkeyHash),
+    PubkeyHash(PubkeyHash),
     /// P2SH address
-    ScriptHash(bitcoin::ScriptHash),
+    ScriptHash(ScriptHash),
     /// Segwit address
     WitnessProgram {
         /// The segwit version.
@@ -176,12 +177,12 @@ impl Address {
         blinder: Option<secp256k1::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        let mut hash_engine = bitcoin::PubkeyHash::engine();
+        let mut hash_engine = PubkeyHash::engine();
         pk.write_into(&mut hash_engine);
 
         Address {
             params: params,
-            payload: Payload::PubkeyHash(bitcoin::PubkeyHash::from_engine(hash_engine)),
+            payload: Payload::PubkeyHash(PubkeyHash::from_engine(hash_engine)),
             blinding_pubkey: blinder,
         }
     }
@@ -196,7 +197,7 @@ impl Address {
     ) -> Address {
         Address {
             params: params,
-            payload: Payload::ScriptHash(bitcoin::ScriptHash::hash(&script[..])),
+            payload: Payload::ScriptHash(ScriptHash::hash(&script[..])),
             blinding_pubkey: blinder,
         }
     }
@@ -208,14 +209,14 @@ impl Address {
         blinder: Option<secp256k1::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        let mut hash_engine = bitcoin::PubkeyHash::engine();
+        let mut hash_engine = WPubkeyHash::engine();
         pk.write_into(&mut hash_engine);
 
         Address {
             params: params,
             payload: Payload::WitnessProgram {
                 version: u5::try_from_u8(0).expect("0<32"),
-                program: bitcoin::PubkeyHash::from_engine(hash_engine)[..].to_vec(),
+                program: WPubkeyHash::from_engine(hash_engine)[..].to_vec(),
             },
             blinding_pubkey: blinder,
         }
@@ -228,16 +229,16 @@ impl Address {
         blinder: Option<secp256k1::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        let mut hash_engine = bitcoin::ScriptHash::engine();
+        let mut hash_engine = ScriptHash::engine();
         pk.write_into(&mut hash_engine);
 
         let builder = script::Builder::new()
             .push_int(0)
-            .push_slice(&bitcoin::ScriptHash::from_engine(hash_engine)[..]);
+            .push_slice(&ScriptHash::from_engine(hash_engine)[..]);
 
         Address {
             params: params,
-            payload: Payload::ScriptHash(bitcoin::ScriptHash::hash(builder.into_script().as_bytes())),
+            payload: Payload::ScriptHash(ScriptHash::hash(builder.into_script().as_bytes())),
             blinding_pubkey: blinder,
         }
     }
@@ -252,7 +253,7 @@ impl Address {
             params: params,
             payload: Payload::WitnessProgram {
                 version: u5::try_from_u8(0).expect("0<32"),
-                program: bitcoin::WScriptHash::hash(&script[..])[..].to_vec(),
+                program: WScriptHash::hash(&script[..])[..].to_vec(),
             },
             blinding_pubkey: blinder,
         }
@@ -267,12 +268,12 @@ impl Address {
     ) -> Address {
         let ws = script::Builder::new()
             .push_int(0)
-            .push_slice(&bitcoin::WScriptHash::hash(&script[..])[..])
+            .push_slice(&WScriptHash::hash(&script[..])[..])
             .into_script();
 
         Address {
             params: params,
-            payload: Payload::ScriptHash(bitcoin::ScriptHash::hash(&ws[..])),
+            payload: Payload::ScriptHash(ScriptHash::hash(&ws[..])),
             blinding_pubkey: blinder,
         }
     }
@@ -442,9 +443,9 @@ impl Address {
         };
 
         let payload = if prefix == params.p2pkh_prefix {
-            Payload::PubkeyHash(bitcoin::PubkeyHash::from_slice(payload_data).unwrap())
+            Payload::PubkeyHash(PubkeyHash::from_slice(payload_data).unwrap())
         } else if prefix == params.p2sh_prefix {
-            Payload::ScriptHash(bitcoin::ScriptHash::from_slice(payload_data).unwrap())
+            Payload::ScriptHash(ScriptHash::from_slice(payload_data).unwrap())
         } else {
             return Err(base58::Error::InvalidVersion(vec![prefix]))?;
         };
