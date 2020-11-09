@@ -158,11 +158,7 @@ impl_upstream!(Box<[u8]>);
 impl_upstream!(Vec<u8>);
 impl_upstream!(Vec<Vec<u8>>);
 impl_upstream!(btcenc::VarInt);
-impl_upstream!(::bitcoin::blockdata::script::Script);
-impl_upstream!(::bitcoin::hashes::sha256d::Hash);
-impl_upstream!(::bitcoin::Txid);
-impl_upstream!(::bitcoin::TxMerkleNode);
-impl_upstream!(::bitcoin::BlockHash);
+impl_upstream!(::hashes::sha256d::Hash);
 
 // Vectors
 macro_rules! impl_vec {
