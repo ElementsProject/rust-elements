@@ -27,7 +27,7 @@
 
 pub extern crate bitcoin;
 #[macro_use]
-pub extern crate bitcoin_hashes;
+pub extern crate bitcoin_hashes as do_not_use_me_just_imported_for_the_macros;
 extern crate slip21;
 #[cfg(feature = "serde")] extern crate serde;
 
@@ -49,6 +49,8 @@ pub mod script;
 mod transaction;
 pub mod slip77;
 
+// re-export bitcoin deps which we re-use
+pub use bitcoin::{bech32, hashes, secp256k1};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use address::{Address, AddressParams, AddressError};
 pub use transaction::{OutPoint, PeginData, PegoutData, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
