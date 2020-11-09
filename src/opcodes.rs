@@ -660,27 +660,22 @@ impl fmt::Debug for All {
 
 impl All {
     /// Classifies an Opcode into a broad class
-    #[inline]
     pub fn classify(self) -> Class {
-        // 17 opcodes
+        // 7 opcodes
         if self == all::OP_VERIF || self == all::OP_VERNOTIF ||
-           self == all::OP_CAT || self == all::OP_SUBSTR ||
-           self == all::OP_LEFT || self == all::OP_RIGHT ||
-           self == all::OP_INVERT || self == all::OP_AND ||
-           self == all::OP_OR || self == all::OP_XOR ||
            self == all::OP_2MUL || self == all::OP_2DIV ||
-           self == all::OP_MUL || self == all::OP_DIV || self == all::OP_MOD ||
-           self == all::OP_LSHIFT || self == all::OP_RSHIFT {
+           self == all::OP_MUL || self == all::OP_DIV || self == all::OP_MOD {
             Class::IllegalOp
         // 11 opcodes
         } else if self == all::OP_NOP ||
                   (all::OP_NOP1.code <= self.code &&
                    self.code <= all::OP_NOP10.code) {
             Class::NoOp
-        // 75 opcodes
+        // 72 opcodes
         } else if self == all::OP_RESERVED || self == all::OP_VER || self == all::OP_RETURN ||
                   self == all::OP_RESERVED1 || self == all::OP_RESERVED2 ||
-                  self.code >= all::OP_RETURN_186.code {
+                  (self.code >= all::OP_RETURN_186.code && self.code <= all::OP_RETURN_192.code) ||
+                  self.code >= all::OP_RETURN_196.code {
             Class::ReturnOp
         // 1 opcode
         } else if self == all::OP_PUSHNUM_NEG1 {
@@ -692,7 +687,7 @@ impl All {
         // 76 opcodes
         } else if self.code <= all::OP_PUSHBYTES_75.code {
             Class::PushBytes(self.code as u32)
-        // 60 opcodes
+        // 73 opcodes
         } else {
             Class::Ordinary(Ordinary::try_from_all(self).unwrap())
         }
@@ -775,7 +770,7 @@ macro_rules! ordinary_opcode {
     );
 }
 
-// "Ordinary" opcodes -- should be 60 of these
+// "Ordinary" opcodes -- should be 73 of these
 ordinary_opcode! {
     // pushdata
     OP_PUSHDATA1, OP_PUSHDATA2, OP_PUSHDATA4,
@@ -797,7 +792,12 @@ ordinary_opcode! {
     // crypto
     OP_RIPEMD160, OP_SHA1, OP_SHA256, OP_HASH160, OP_HASH256,
     OP_CODESEPARATOR, OP_CHECKSIG, OP_CHECKSIGVERIFY,
-    OP_CHECKMULTISIG, OP_CHECKMULTISIGVERIFY
+    OP_CHECKMULTISIG, OP_CHECKMULTISIGVERIFY,
+    // elements
+    OP_CAT, OP_SUBSTR, OP_SUBSTR_LAZY, OP_LEFT, OP_RIGHT,
+    OP_INVERT, OP_AND, OP_OR, OP_XOR, OP_LSHIFT, OP_RSHIFT,
+    OP_CHECKSIGFROMSTACK, OP_CHECKSIGFROMSTACKVERIFY
+
 }
 
 impl Ordinary {
