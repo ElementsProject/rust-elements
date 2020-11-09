@@ -17,7 +17,6 @@
 
 use std::io;
 
-use bitcoin::{self, Script};
 use bitcoin::hashes::{Hash, sha256};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
@@ -25,7 +24,7 @@ use bitcoin::hashes::{Hash, sha256};
 use dynafed;
 use Transaction;
 use encode::{self, Encodable, Decodable, serialize};
-use {BlockHash, TxMerkleNode, VarInt};
+use {BlockHash, Script, TxMerkleNode, VarInt};
 
 /// Data related to block signatures
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -233,7 +232,7 @@ impl BlockHeader {
         };
 
         // Everything except the signblock witness goes into the hash
-        let mut enc = bitcoin::BlockHash::engine();
+        let mut enc = BlockHash::engine();
         version.consensus_encode(&mut enc).unwrap();
         self.prev_blockhash.consensus_encode(&mut enc).unwrap();
         self.merkle_root.consensus_encode(&mut enc).unwrap();

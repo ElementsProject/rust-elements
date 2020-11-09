@@ -24,7 +24,6 @@ use std::str::FromStr;
 use std::ascii::AsciiExt;
 
 use bitcoin::bech32::{self, u5, FromBase32, ToBase32};
-use bitcoin::blockdata::{opcodes, script};
 use bitcoin::util::base58;
 use bitcoin::PublicKey;
 use bitcoin::hashes::Hash;
@@ -35,6 +34,7 @@ use serde;
 use blech32;
 
 use {PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
+use {opcodes, script};
 
 /// Encoding error
 #[derive(Debug, PartialEq)]
@@ -672,8 +672,8 @@ impl serde::Serialize for Address {
 mod test {
     use super::*;
     use bitcoin::util::key;
-    use bitcoin::Script;
     use bitcoin::secp256k1::{PublicKey, Secp256k1};
+    use Script;
     #[cfg(feature = "serde")]
     use serde_json;
 
