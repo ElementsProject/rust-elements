@@ -363,6 +363,17 @@ impl Decodable for TxOut {
 }
 
 impl TxOut {
+    /// Create a new fee output.
+    pub fn new_fee(amount: u64, asset: AssetId) -> TxOut {
+        TxOut{
+            asset: confidential::Asset::Explicit(asset),
+            value: confidential::Value::Explicit(amount),
+            nonce: confidential::Nonce::Null,
+            script_pubkey: bitcoin::Script::new(),
+            witness: TxOutWitness::default(),
+        }
+    }
+
     /// Whether this data represents nulldata (OP_RETURN followed by pushes,
     /// not necessarily minimal)
     pub fn is_null_data(&self) -> bool {
@@ -717,6 +728,31 @@ mod tests {
         // roundtrip with elements prefix
         let op = ::std::str::FromStr::from_str(&expected.to_string()).ok();
         assert_eq!(op, Some(expected));
+    }
+
+    #[test]
+    fn test_fees() {
+        let asset1: AssetId = "0000000000000000000000000000000000000000000000000000000000000011".parse().unwrap();
+        let asset2: AssetId = "0000000000000000000000000000000000000000000000000000000000000022".parse().unwrap();
+
+        let fee1 = TxOut::new_fee(42, asset1);
+        assert!(fee1.is_fee());
+        let fee2 = TxOut::new_fee(24, asset2);
+        assert!(fee2.is_fee());
+
+        let tx = Transaction {
+            version: 0,
+            lock_time: 0,
+            input: vec![],
+            output: vec![fee1, fee2],
+        };
+
+        assert_eq!(tx.fee_in(asset1), 42);
+        assert_eq!(tx.fee_in(asset2), 24);
+        let all_fees = tx.all_fees();
+        assert_eq!(all_fees.len(), 2);
+        assert_eq!(all_fees[&asset1], 42);
+        assert_eq!(all_fees[&asset2], 24);
     }
 
     #[test]
