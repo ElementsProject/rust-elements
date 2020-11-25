@@ -27,7 +27,7 @@
 
 pub extern crate bitcoin;
 #[macro_use]
-pub extern crate bitcoin_hashes as do_not_use_me_just_imported_for_the_macros;
+extern crate bitcoin_hashes as just_imported_for_the_macros;
 extern crate slip21;
 #[cfg(feature = "serde")] extern crate serde;
 
