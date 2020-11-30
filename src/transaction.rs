@@ -53,6 +53,16 @@ pub struct OutPoint {
 }
 serde_struct_human_string_impl!(OutPoint, "an Elements OutPoint", txid, vout);
 
+impl OutPoint {
+    /// Create a new outpoint.
+    pub fn new(txid: Txid, vout: u32) -> OutPoint {
+        OutPoint {
+            txid: txid,
+            vout: vout,
+        }
+    }
+}
+
 impl Default for OutPoint {
     /// Coinbase outpoint
     fn default() -> OutPoint {
@@ -720,10 +730,7 @@ mod tests {
     fn outpoint() {
         let txid = "d0a5c455ea7221dead9513596d2f97c09943bad81a386fe61a14a6cda060e422";
         let s = format!("{}:42", txid);
-        let expected = OutPoint {
-            txid: Txid::from_hex(&txid).unwrap(),
-            vout: 42,
-        };
+        let expected = OutPoint::new(Txid::from_hex(&txid).unwrap(), 42);
         let op = ::std::str::FromStr::from_str(&s).ok();
         assert_eq!(op, Some(expected));
         // roundtrip with elements prefix
