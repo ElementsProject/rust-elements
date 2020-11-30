@@ -27,7 +27,7 @@
 
 pub extern crate bitcoin;
 #[macro_use]
-pub extern crate bitcoin_hashes;
+extern crate bitcoin_hashes as just_imported_for_the_macros;
 extern crate slip21;
 #[cfg(feature = "serde")] extern crate serde;
 
@@ -42,10 +42,15 @@ pub mod confidential;
 pub mod dynafed;
 pub mod encode;
 mod fast_merkle_root;
+pub mod hash_types;
 pub mod issuance;
+pub mod opcodes;
+pub mod script;
 mod transaction;
 pub mod slip77;
 
+// re-export bitcoin deps which we re-use
+pub use bitcoin::{bech32, hashes, secp256k1};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use address::{Address, AddressParams, AddressError};
 pub use transaction::{OutPoint, PeginData, PegoutData, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
@@ -53,5 +58,7 @@ pub use block::{BlockHeader, Block};
 pub use block::ExtData as BlockExtData;
 pub use ::bitcoin::consensus::encode::VarInt;
 pub use fast_merkle_root::fast_merkle_root;
+pub use hash_types::*;
 pub use issuance::{AssetId, ContractHash};
+pub use script::Script;
 

@@ -16,12 +16,12 @@
 
 use std::io;
 
-use bitcoin;
 use bitcoin::hashes::{Hash, sha256, sha256d};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
 
 use encode::{self, Encodable, Decodable};
+use Script;
 
 /// Dynamic federations paramaters, as encoded in a block header
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -33,7 +33,7 @@ pub enum Params {
     /// from the previous block
     Compact {
         /// "scriptPubKey" used for block signing
-        signblockscript: bitcoin::Script,
+        signblockscript: Script,
         /// Maximum, in bytes, of the size of a blocksigning witness
         signblock_witness_limit: u32,
         /// Merkle root of extra data
@@ -42,11 +42,11 @@ pub enum Params {
     /// Full dynamic federations parameters
     Full {
         /// "scriptPubKey" used for block signing
-        signblockscript: bitcoin::Script,
+        signblockscript: Script,
         /// Maximum, in bytes, of the size of a blocksigning witness
         signblock_witness_limit: u32,
         /// Untweaked `scriptPubKey` used for pegins
-        fedpeg_program: bitcoin::Script,
+        fedpeg_program: Script,
         /// For v0 fedpeg programs, the witness script of the untweaked
         /// pegin address. For future versions, this data has no defined
         /// meaning and will be considered "anyone can spend".
@@ -85,7 +85,7 @@ impl Params {
     }
 
     /// Get the signblockscript. Is [None] for [Null] params.
-    pub fn signblockscript(&self) -> Option<&bitcoin::Script> {
+    pub fn signblockscript(&self) -> Option<&Script> {
         match *self {
             Params::Null => None,
             Params::Compact { ref signblockscript, ..} => Some(signblockscript),
@@ -103,7 +103,7 @@ impl Params {
     }
 
     /// Get the fedpeg_program. Is [None] for non-[Full] params.
-    pub fn fedpeg_program(&self) -> Option<&bitcoin::Script> {
+    pub fn fedpeg_program(&self) -> Option<&Script> {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
@@ -455,7 +455,6 @@ impl Decodable for Params {
 mod tests {
     use super::*;
 
-    use bitcoin;
     use bitcoin::hashes::hex::ToHex;
     use bitcoin::hashes::sha256;
 
@@ -488,9 +487,9 @@ mod tests {
         //     "e56cf79487952dfa85fe6a85829600adc19714ba6ab1157fdff02b25ae60cee2"
         // );
 
-        let signblockscript: bitcoin::Script = vec![1].into();
+        let signblockscript: Script = vec![1].into();
         let signblock_wl = 2;
-        let fp_program: bitcoin::Script = vec![3].into();
+        let fp_program: Script = vec![3].into();
         let fp_script = vec![4];
         let ext = vec![vec![5, 6], vec![7]];
 
