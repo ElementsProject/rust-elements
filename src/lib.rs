@@ -49,6 +49,8 @@ pub mod script;
 mod transaction;
 pub mod slip77;
 pub mod sighash;
+// consider making upstream public
+mod endian;
 // re-export bitcoin deps which we re-use
 pub use bitcoin::{bech32, hashes, secp256k1};
 // export everything at the top level so it can be used as `elements::Transaction` etc.

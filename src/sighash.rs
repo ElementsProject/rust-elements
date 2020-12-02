@@ -25,8 +25,8 @@ use hashes::{sha256d, Hash};
 use script::Script;
 use std::ops::Deref;
 use std::io;
-use transaction::SigHashType;
-use transaction::Transaction;
+use endian;
+use transaction::{SigHashType, Transaction, TxIn, TxOut, TxInWitness};
 use confidential;
 
 /// A replacement for SigHashComponents which supports all sighash modes
@@ -56,6 +56,121 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             hash_outputs: None,
             hash_issuances: None,
         }
+    }
+
+    /// Encodes the signing data from which a signature hash for a given input index with a given
+    /// sighash flag can be computed.  To actually produce a scriptSig, this hash needs to be run
+    /// through an ECDSA signer, the SigHashType appended to the resulting sig, and a script
+    /// written around this, but this is the general (and hard) part.
+    ///
+    /// *Warning* This does NOT attempt to support OP_CODESEPARATOR. In general this would require
+    /// evaluating `script_pubkey` to determine which separators get evaluated and which don't,
+    /// which we don't have the information to determine.
+    ///
+    /// # Panics Panics if `input_index` is greater than or equal to `self.input.len()`
+    ///
+    pub fn encode_legacy_signing_data_to<Write: io::Write>(
+        &self,
+        mut writer: Write,
+        input_index: usize,
+        script_pubkey: &Script,
+        sighash_type: SigHashType,
+    ) -> Result<(), encode::Error> {
+        assert!(input_index < self.tx.input.len());  // Panic on OOB
+
+        let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
+
+        // Special-case sighash_single bug because this is easy enough.
+        if sighash == SigHashType::Single && input_index >= self.tx.output.len() {
+            writer.write_all(&[1, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0,
+                               0, 0, 0, 0, 0, 0, 0, 0])?;
+            return Ok(());
+        }
+
+        // Build tx to sign
+        let mut tx = Transaction {
+            version: self.tx.version,
+            lock_time: self.tx.lock_time,
+            input: vec![],
+            output: vec![],
+        };
+        // Add all inputs necessary..
+        if anyone_can_pay {
+            tx.input = vec![TxIn {
+                previous_output: self.tx.input[input_index].previous_output,
+                is_pegin: self.tx.input[input_index].is_pegin,
+                has_issuance: self.tx.input[input_index].has_issuance,
+                script_sig: script_pubkey.clone(),
+                sequence: self.tx.input[input_index].sequence,
+                asset_issuance: self.tx.input[input_index].asset_issuance,
+                witness: TxInWitness::default(),
+            }];
+        } else {
+            tx.input = Vec::with_capacity(self.tx.input.len());
+            for (n, input) in self.tx.input.iter().enumerate() {
+                tx.input.push(TxIn {
+                    previous_output: input.previous_output,
+                    is_pegin: input.is_pegin,
+                    has_issuance: input.has_issuance,
+                    script_sig: if n == input_index { script_pubkey.clone() } else { Script::new() },
+                    sequence: if n != input_index && (sighash == SigHashType::Single || sighash == SigHashType::None) { 0 } else { input.sequence },
+                    asset_issuance: input.asset_issuance,
+                    witness: TxInWitness::default(),
+                });
+            }
+        }
+        // ..then all outputs
+        tx.output = match sighash {
+            SigHashType::All => self.tx.output.clone(),
+            SigHashType::Single => {
+                let output_iter = self.tx.output.iter()
+                                      .take(input_index + 1)  // sign all outputs up to and including this one, but erase
+                                      .enumerate()            // all of them except for this one
+                                      .map(|(n, out)| if n == input_index { out.clone() } else { TxOut::default() });
+                output_iter.collect()
+            }
+            SigHashType::None => vec![],
+            _ => unreachable!()
+        };
+        // hash the result
+        // cannot encode tx directly because of different consensus encoding
+        // of elements tx(they include witness flag even for non-witness transactions)
+        tx.version.consensus_encode(&mut writer)?;
+        tx.input.consensus_encode(&mut writer)?;
+        tx.output.consensus_encode(&mut writer)?;
+        tx.lock_time.consensus_encode(&mut writer)?;
+
+        let sighash_arr = endian::u32_to_array_le(sighash_type.as_u32());
+        sighash_arr.consensus_encode(&mut writer)?;
+        Ok(())
+    }
+
+    /// Computes a signature hash for a given input index with a given sighash flag.
+    /// To actually produce a scriptSig, this hash needs to be run through an
+    /// ECDSA signer, the SigHashType appended to the resulting sig, and a
+    /// script written around this, but this is the general (and hard) part.
+    /// Does not take a mutable reference because it does not do any caching.
+    ///
+    /// *Warning* This does NOT attempt to support OP_CODESEPARATOR. In general
+    /// this would require evaluating `script_pubkey` to determine which separators
+    /// get evaluated and which don't, which we don't have the information to
+    /// determine.
+    ///
+    /// # Panics
+    /// Panics if `input_index` is greater than or equal to `self.input.len()`
+    ///
+    pub fn legacy_sighash(
+        &self,
+        input_index: usize,
+        script_pubkey: &Script,
+        sighash_type: SigHashType,
+    ) -> SigHash {
+        let mut engine = SigHash::engine();
+        self.encode_legacy_signing_data_to(&mut engine, input_index, script_pubkey, sighash_type)
+            .expect("engines don't error");
+        SigHash::from_engine(engine)
     }
 
     /// Calculate hash for prevouts
@@ -249,5 +364,31 @@ mod tests{
 
         // Test a issuance test with only sighash all
         test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003e801000000000000000a0201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", SigHashType::All, "ea946ee417d5a16a1038b2c3b54d1b7b12a9f98c0dcb4684bf005eb1c27d0c92");
+    }
+
+
+    fn test_legacy_sighash(tx: &str, script: &str, input_index: usize, hash_type: SigHashType, expected_result: &str) {
+        let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
+        let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
+        // A hack to parse sha256d strings are sha256 so that we don't reverse them...
+        let raw_expected = bitcoin::hashes::sha256::Hash::from_hex(expected_result).unwrap();
+        let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
+        let sighash_cache = SigHashCache::new(&tx);
+        let actual_result = sighash_cache.legacy_sighash(input_index, &script, hash_type);
+        assert_eq!(actual_result, expected_result);
+    }
+
+    #[test]
+    fn test_legacy_sighashes(){
+        // generated by script(example_test.py) at https://github.com/sanket1729/elements/commit/5ddfb5a749e85b71c961d29d5689d692ef7cee4b
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, SigHashType::All, "769ad754a77282712895475eb17251bcb8f3cc35dc13406fa1188ef2707556cf");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, SigHashType::None, "b399ca018b4fec7d94e47092b72d25983db2d0d16eaa6a672050add66077ef40");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, SigHashType::Single, "4efef74996f840ed104c0b69461f33da2e364288f3015c55b2516a68e3ee60bc");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, SigHashType::AllPlusAnyoneCanPay, "a70a59ae29f1d9f4461f12e730e5cb75d3a75312666e8d911584aebb8e4afc5c");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, SigHashType::NonePlusAnyoneCanPay, "5f3694a35f3b994639d3fb1f6214ec166f9e0721c7ab3f216e465b9b2728d834");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, SigHashType::SinglePlusAnyoneCanPay, "4c18486c473dc31c264c477c55e9c17d70fddb9f567c7d411ce922261577167c");
+
+        // Test a issuance test with only sighash all
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003e801000000000000000a0201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, SigHashType::All, "9f00e1758a230aaf6c9bce777701a604f50b2ac5f2a07e1cd478d8a0e70fc195");
     }
 }
