@@ -30,7 +30,8 @@ use std::{fmt, io, ops};
 #[cfg(feature = "serde")] use serde;
 
 use encode::{self, Decodable, Encodable};
-use {opcodes, ScriptHash, WScriptHash};
+use bitcoin::hashes::Hash;
+use {opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
 
 use bitcoin::PublicKey;
 
@@ -208,6 +209,75 @@ impl Script {
     /// Creates a new empty script
     pub fn new() -> Script { Script(vec![].into_boxed_slice()) }
 
+    /// Generates P2PK-type of scriptPubkey
+    pub fn new_p2pk(pubkey: &PublicKey) -> Script {
+        Builder::new()
+            .push_key(pubkey)
+            .push_opcode(opcodes::all::OP_CHECKSIG)
+            .into_script()
+    }
+
+    /// Generates P2PKH-type of scriptPubkey
+    pub fn new_p2pkh(pubkey_hash: &PubkeyHash) -> Script {
+        Builder::new()
+            .push_opcode(opcodes::all::OP_DUP)
+            .push_opcode(opcodes::all::OP_HASH160)
+            .push_slice(&pubkey_hash[..])
+            .push_opcode(opcodes::all::OP_EQUALVERIFY)
+            .push_opcode(opcodes::all::OP_CHECKSIG)
+            .into_script()
+    }
+
+    /// Generates P2SH-type of scriptPubkey with a given hash of the redeem script
+    pub fn new_p2sh(script_hash: &ScriptHash) -> Script {
+        Builder::new()
+            .push_opcode(opcodes::all::OP_HASH160)
+            .push_slice(&script_hash[..])
+            .push_opcode(opcodes::all::OP_EQUAL)
+            .into_script()
+    }
+
+    /// Generates P2WPKH-type of scriptPubkey
+    pub fn new_v0_wpkh(pubkey_hash: &WPubkeyHash) -> Script {
+        Script::new_witness_program(::bech32::u5::try_from_u8(0).unwrap(), &pubkey_hash.to_vec())
+    }
+
+    /// Generates P2WSH-type of scriptPubkey with a given hash of the redeem script
+    pub fn new_v0_wsh(script_hash: &WScriptHash) -> Script {
+        Script::new_witness_program(::bech32::u5::try_from_u8(0).unwrap(), &script_hash.to_vec())
+    }
+
+    /// Generates P2WSH-type of scriptPubkey with a given hash of the redeem script
+    pub fn new_witness_program(ver: ::bech32::u5, program: &[u8]) -> Script {
+        let mut verop = ver.to_u8();
+        assert!(verop <= 16, "incorrect witness version provided: {}", verop);
+        if verop > 0 {
+            verop = 0x50 + verop;
+        }
+        Builder::new()
+            .push_opcode(verop.into())
+            .push_slice(&program)
+            .into_script()
+    }
+
+    /// Generates OP_RETURN-type of scriptPubkey for a given data
+    pub fn new_op_return(data: &[u8]) -> Script {
+        Builder::new()
+            .push_opcode(opcodes::all::OP_RETURN)
+            .push_slice(data)
+            .into_script()
+    }
+
+    /// Returns 160-bit hash of the script
+    pub fn script_hash(&self) -> ScriptHash {
+        ScriptHash::hash(&self.as_bytes())
+    }
+
+    /// Returns 256-bit hash of the script for P2WSH outputs
+    pub fn wscript_hash(&self) -> WScriptHash {
+        WScriptHash::hash(&self.as_bytes())
+    }
+
     /// The length in bytes of the script
     pub fn len(&self) -> usize { self.0.len() }
 
@@ -225,7 +295,6 @@ impl Script {
 
     /// Compute the P2SH output corresponding to this redeem script
     pub fn to_p2sh(&self) -> Script {
-        use bitcoin::hashes::Hash;
         Builder::new().push_opcode(opcodes::all::OP_HASH160)
                       .push_slice(&ScriptHash::hash(&self.0)[..])
                       .push_opcode(opcodes::all::OP_EQUAL)
@@ -235,7 +304,6 @@ impl Script {
     /// Compute the P2WSH output corresponding to this witnessScript (aka the "witness redeem
     /// script")
     pub fn to_v0_p2wsh(&self) -> Script {
-        use bitcoin::hashes::Hash;
         Builder::new().push_int(0)
                       .push_slice(&WScriptHash::hash(&self.0)[..])
                       .into_script()
