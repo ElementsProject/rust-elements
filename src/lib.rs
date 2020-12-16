@@ -49,6 +49,7 @@ pub mod script;
 mod transaction;
 pub mod slip77;
 pub mod sighash;
+
 // consider making upstream public
 mod endian;
 // re-export bitcoin deps which we re-use

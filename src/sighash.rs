@@ -231,7 +231,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
 
     /// Encode the BIP143 signing data for any flag type into a given object implementing a
     /// std::io::Write trait.
-    /// 
+    ///
     /// *Warning* This does NOT attempt to support OP_CODESEPARATOR. In general
     /// this would require evaluating `script_pubkey` to determine which separators
     /// get evaluated and which don't, which we don't have the information to
