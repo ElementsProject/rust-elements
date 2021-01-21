@@ -329,7 +329,7 @@ pub struct PegoutData<'txo> {
     /// Genesis hash of the target blockchain
     pub genesis_hash: bitcoin::BlockHash,
     /// Scriptpubkey to create on the target blockchain
-    pub script_pubkey: Script,
+    pub script_pubkey: bitcoin::Script,
     /// Remaining pegout data used by some forks of Elements
     pub extra_data: Vec<&'txo [u8]>,
 }
@@ -446,7 +446,7 @@ impl TxOut {
             if data.is_empty() {
                 return None;
             } else {
-                Script::from(data.to_owned())
+                bitcoin::Script::from(data.to_owned())
             }
         } else {
             return None;
@@ -1274,9 +1274,9 @@ mod tests {
                 genesis_hash: bitcoin::BlockHash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
-                script_pubkey: hex_deserialize!(
-                    "1976a914bedb324be05d1a1254afeb3e7ef40fea0368bc1e88ac"
-                ),
+                script_pubkey: bitcoin::Script::from_hex(
+                    "76a914bedb324be05d1a1254afeb3e7ef40fea0368bc1e88ac"
+                ).unwrap(),
                 extra_data: vec![
                     &[
                         0x02,
