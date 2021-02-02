@@ -155,7 +155,7 @@ impl Decodable for Value {
                 let bytes = <[u8; 33]>::consensus_decode(&mut d)?;
                 Ok(Value::Confidential(PedersenCommitment::from_slice(&bytes)?))
             }
-            p => return Err(encode::Error::InvalidConfidentialPrefix(p)),
+            p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
     }
 }
@@ -195,7 +195,7 @@ impl<'de> Deserialize<'de> for Value {
                 f.write_str("a committed value")
             }
 
-            fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Self::Value, A::Error> {
+            fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Value, A::Error> {
                 let prefix: u8 = if let Some(x) = access.next_element()? {
                     x
                 } else {
@@ -218,12 +218,10 @@ impl<'de> Deserialize<'de> for Value {
                         }
                         None => Err(A::Error::custom("missing commitment")),
                     },
-                    p => {
-                        return Err(A::Error::custom(format!(
-                            "invalid commitment, invalid prefix: 0x{:02x}",
-                            p
-                        )))
-                    }
+                    p => Err(A::Error::custom(format!(
+                        "invalid commitment, invalid prefix: 0x{:02x}",
+                        p
+                    ))),
                 }
             }
         }
@@ -361,7 +359,7 @@ impl Decodable for Asset {
                 let bytes = <[u8; 33]>::consensus_decode(&mut d)?;
                 Ok(Asset::Confidential(Generator::from_slice(&bytes)?))
             }
-            p => return Err(encode::Error::InvalidConfidentialPrefix(p)),
+            p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
     }
 }
@@ -423,12 +421,10 @@ impl<'de> Deserialize<'de> for Asset {
                         }
                         None => Err(A::Error::custom("missing commitment")),
                     },
-                    p => {
-                        return Err(A::Error::custom(format!(
-                            "invalid commitment, invalid prefix: 0x{:02x}",
-                            p
-                        )))
-                    }
+                    p => Err(A::Error::custom(format!(
+                        "invalid commitment, invalid prefix: 0x{:02x}",
+                        p
+                    ))),
                 }
             }
         }
@@ -577,7 +573,7 @@ impl Decodable for Nonce {
                     PublicKey::from_slice(&bytes).map_err(secp256k1_zkp::Error::Upstream)?,
                 ))
             }
-            p => return Err(encode::Error::InvalidConfidentialPrefix(p)),
+            p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
     }
 }
@@ -639,12 +635,10 @@ impl<'de> Deserialize<'de> for Nonce {
                         }
                         None => Err(A::Error::custom("missing commitment")),
                     },
-                    p => {
-                        return Err(A::Error::custom(format!(
-                            "invalid commitment, invalid prefix: 0x{:02x}",
-                            p
-                        )))
-                    }
+                    p => Err(A::Error::custom(format!(
+                        "invalid commitment, invalid prefix: 0x{:02x}",
+                        p
+                    ))),
                 }
             }
         }

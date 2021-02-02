@@ -9,7 +9,7 @@ use slip21;
 
 use Script;
 
-const SLIP77_DERIVATION: &'static str = "SLIP-0077";
+const SLIP77_DERIVATION: &str = "SLIP-0077";
 
 /// A SLIP-77 master blinding key used to derive shared blinding keys.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -69,7 +69,7 @@ mod tests {
         assert_eq!(master.0, privkey);
 
         let scriptpk_hex = "a914afa92d77cd3541b443771649572db096cf49bf8c87";
-        let scriptpk: Script = Vec::<u8>::from_hex(&scriptpk_hex).unwrap().clone().into();
+        let scriptpk: Script = Vec::<u8>::from_hex(&scriptpk_hex).unwrap().into();
 
         let blindingkey_hex = "02b067c374bb56c54c016fae29218c000ada60f81ef45b4aeebbeb24931bb8bc";
         let blindingkey = SecretKey::from_slice(&Vec::<u8>::from_hex(blindingkey_hex).unwrap()).unwrap();

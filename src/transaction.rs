@@ -57,8 +57,8 @@ impl OutPoint {
     /// Create a new outpoint.
     pub fn new(txid: Txid, vout: u32) -> OutPoint {
         OutPoint {
-            txid: txid,
-            vout: vout,
+            txid,
+            vout,
         }
     }
 }
@@ -85,8 +85,8 @@ impl Decodable for OutPoint {
         let txid = Txid::consensus_decode(&mut d)?;
         let vout = u32::consensus_decode(&mut d)?;
         Ok(OutPoint {
-            txid: txid,
-            vout: vout,
+            txid,
+            vout,
         })
     }
 }
@@ -237,10 +237,10 @@ impl Decodable for TxIn {
         }
         Ok(TxIn {
             previous_output: outp,
-            is_pegin: is_pegin,
-            has_issuance: has_issuance,
-            script_sig: script_sig,
-            sequence: sequence,
+            is_pegin,
+            has_issuance,
+            script_sig,
+            sequence,
             asset_issuance: issuance,
             witness: TxInWitness::default(),
         })
@@ -467,10 +467,10 @@ impl TxOut {
             None
         } else {
             Some(PegoutData {
+                value,
                 asset: self.asset,
-                value: value,
-                genesis_hash: genesis_hash,
-                script_pubkey: script_pubkey,
+                genesis_hash,
+                script_pubkey,
                 extra_data: remainder,
             })
         }
@@ -688,10 +688,10 @@ impl Decodable for Transaction {
 
         match wit_flag {
             0 => Ok(Transaction {
-                version: version,
-                input: input,
-                output: output,
-                lock_time: lock_time,
+                version,
+                lock_time,
+                input,
+                output,
             }),
             1 => {
                 for i in &mut input {
@@ -705,10 +705,10 @@ impl Decodable for Transaction {
                     Err(encode::Error::ParseFailed("witness flag set but no witnesses were given"))
                 } else {
                     Ok(Transaction {
-                        version: version,
-                        input: input,
-                        output: output,
-                        lock_time: lock_time,
+                        version,
+                        lock_time,
+                        input,
+                        output,
                     })
                 }
             }

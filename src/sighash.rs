@@ -50,7 +50,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     /// script_sig and witnesses.
     pub fn new(tx: R) -> Self {
         SigHashCache {
-            tx: tx,
+            tx,
             hash_prevouts: None,
             hash_sequence: None,
             hash_outputs: None,

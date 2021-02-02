@@ -117,7 +117,7 @@ macro_rules! serde_struct_impl {
                         )*
 
                         let ret = $name {
-                            $($fe: $fe),*
+                            $($fe),*
                         };
 
                         Ok(ret)
@@ -262,7 +262,7 @@ macro_rules! serde_struct_human_string_impl {
                             )*
 
                             let ret = $name {
-                                $($fe: $fe),*
+                                $($fe),*
                             };
 
                             Ok(ret)
@@ -298,7 +298,7 @@ macro_rules! serde_struct_human_string_impl {
                             )*
 
                             let ret = $name {
-                                $($fe: $fe),*
+                                $($fe),*
                             };
 
                             Ok(ret)
