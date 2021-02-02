@@ -137,7 +137,7 @@ pub fn serialize_hex<T: Encodable + ?Sized>(data: &T) -> String {
 
 /// Deserialize an object from a vector, will error if said deserialization
 /// doesn't consume the entire vector.
-pub fn deserialize<'a, T: Decodable>(data: &'a [u8]) -> Result<T, Error> {
+pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
     let (rv, consumed) = deserialize_partial(data)?;
 
     // Fail if data are not consumed entirely.
@@ -150,7 +150,7 @@ pub fn deserialize<'a, T: Decodable>(data: &'a [u8]) -> Result<T, Error> {
 
 /// Deserialize an object from a vector, but will not report an error if said deserialization
 /// doesn't consume the entire vector.
-pub fn deserialize_partial<'a, T: Decodable>(data: &'a [u8]) -> Result<(T, usize), Error> {
+pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Error> {
     let mut decoder = Cursor::new(data);
     let rv = Decodable::consensus_decode(&mut decoder)?;
     let consumed = decoder.position() as usize;
