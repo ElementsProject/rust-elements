@@ -726,7 +726,7 @@ pub struct AssetBlindingFactor(pub(crate) SecretKey);
 
 impl AssetBlindingFactor {
     /// Generate random asset blinding factor.
-    pub fn new<R: Rng>(rng: &mut R) -> Self {
+    pub fn random<R: Rng>(rng: &mut R) -> Self {
         AssetBlindingFactor(SecretKey::new(rng))
     }
 
