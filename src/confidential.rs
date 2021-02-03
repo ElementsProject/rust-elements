@@ -17,7 +17,13 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
-use secp256k1_zkp::{self, Generator, PedersenCommitment, PublicKey};
+use bitcoin::hashes::{sha256d, Hash};
+use secp256k1_zkp::{
+    self, compute_adaptive_blinding_factor,
+    ecdh::SharedSecret,
+    rand::{CryptoRng, Rng, RngCore},
+    CommitmentSecrets, Generator, PedersenCommitment, PublicKey, Secp256k1, SecretKey, Signing,
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -38,6 +44,16 @@ pub enum Value {
 }
 
 impl Value {
+    /// Create value commitment.
+    pub fn new_confidential<C: Signing>(
+        secp: &Secp256k1<C>,
+        value: u64,
+        asset: Generator,
+        bf: ValueBlindingFactor,
+    ) -> Self {
+        Value::Confidential(PedersenCommitment::new(secp, value, bf.0, asset))
+    }
+
     /// Serialized length, in bytes
     pub fn encoded_length(&self) -> usize {
         match *self {
@@ -253,6 +269,19 @@ pub enum Asset {
 }
 
 impl Asset {
+    /// Create asset commitment.
+    pub fn new_confidential<C: Signing>(
+        secp: &Secp256k1<C>,
+        asset: AssetId,
+        bf: AssetBlindingFactor,
+    ) -> Self {
+        Asset::Confidential(Generator::new_blinded(
+            secp,
+            asset.into_tag(),
+            bf.into_inner(),
+        ))
+    }
+
     /// Serialized length, in bytes
     pub fn encoded_length(&self) -> usize {
         match *self {
@@ -471,6 +500,50 @@ pub enum Nonce {
 }
 
 impl Nonce {
+    /// Create nonce commitment.
+    pub fn new_confidential<R: RngCore + CryptoRng, C: Signing>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        receiver_blinding_pk: &PublicKey,
+    ) -> (Self, SecretKey) {
+        let sender_sk = SecretKey::new(rng);
+        let sender_pk = PublicKey::from_secret_key(&secp, &sender_sk);
+
+        let shared_secret = Self::make_shared_secret(receiver_blinding_pk, &sender_sk);
+
+        (Nonce::Confidential(sender_pk), shared_secret)
+    }
+
+    /// Calculate the shared secret.
+    pub fn shared_secret(&self, receiver_blinding_sk: &SecretKey) -> Option<SecretKey> {
+        match self {
+            Nonce::Confidential(sender_pk) => {
+                Some(Self::make_shared_secret(&sender_pk, receiver_blinding_sk))
+            }
+            _ => None,
+        }
+    }
+
+    /// Create the shared secret.
+    fn make_shared_secret(pk: &PublicKey, sk: &SecretKey) -> SecretKey {
+        let shared_secret = SharedSecret::new_with_hash(pk, sk, |x, y| {
+            // Yes, what follows is the compressed representation of a Bitcoin public key.
+            // However, this is more by accident then by design, see here: https://github.com/rust-bitcoin/rust-secp256k1/pull/255#issuecomment-744146282
+
+            let mut dh_secret = [0u8; 33];
+            dh_secret[0] = if y.last().unwrap() % 2 == 0 {
+                0x02
+            } else {
+                0x03
+            };
+            dh_secret[1..].copy_from_slice(&x);
+
+            sha256d::Hash::hash(&dh_secret).into_inner().into()
+        });
+
+        SecretKey::from_slice(&shared_secret.as_ref()[..32]).expect("always has exactly 32 bytes")
+    }
+
     /// Serialized length, in bytes
     pub fn encoded_length(&self) -> usize {
         match *self {
@@ -678,6 +751,68 @@ impl<'de> Deserialize<'de> for Nonce {
         }
 
         d.deserialize_seq(CommitVisitor)
+    }
+}
+
+/// Blinding factor used for asset commitments.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+pub struct AssetBlindingFactor(pub(crate) SecretKey);
+
+impl AssetBlindingFactor {
+    /// Generate random asset blinding factor.
+    pub fn new<R: Rng>(rng: &mut R) -> Self {
+        AssetBlindingFactor(SecretKey::new(rng))
+    }
+
+    /// Create from bytes.
+    pub fn from_slice(bytes: &[u8]) -> Result<Self, secp256k1_zkp::Error> {
+        Ok(AssetBlindingFactor(SecretKey::from_slice(bytes)?))
+    }
+
+    /// Returns the inner value.
+    pub fn into_inner(self) -> SecretKey {
+        self.0
+    }
+}
+
+/// Blinding factor used for value commitments.
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub struct ValueBlindingFactor(pub(crate) SecretKey);
+
+impl ValueBlindingFactor {
+    /// Generate random value blinding factor.
+    pub fn new<R: Rng>(rng: &mut R) -> Self {
+        ValueBlindingFactor(SecretKey::new(rng))
+    }
+
+    /// Create the value blinding factor of the last output of a transaction.
+    pub fn last<C: Signing>(
+        secp: &Secp256k1<C>,
+        value: u64,
+        abf: AssetBlindingFactor,
+        inputs: &[(u64, AssetBlindingFactor, ValueBlindingFactor)],
+        outputs: &[(u64, AssetBlindingFactor, ValueBlindingFactor)],
+    ) -> Self {
+        let set_a = inputs
+            .iter()
+            .map(|(value, abf, vbf)| CommitmentSecrets {
+                value: *value,
+                value_blinding_factor: vbf.0,
+                generator_blinding_factor: abf.into_inner(),
+            })
+            .collect::<Vec<_>>();
+        let set_b = outputs
+            .iter()
+            .map(|(value, abf, vbf)| CommitmentSecrets {
+                value: *value,
+                value_blinding_factor: vbf.0,
+                generator_blinding_factor: abf.into_inner(),
+            })
+            .collect::<Vec<_>>();
+
+        ValueBlindingFactor(compute_adaptive_blinding_factor(
+            secp, value, abf.0, &set_a, &set_b,
+        ))
     }
 }
 

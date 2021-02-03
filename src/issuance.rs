@@ -21,6 +21,7 @@ use bitcoin::hashes::{self, hex, sha256, sha256d, Hash};
 
 use encode::{self, Encodable, Decodable};
 use fast_merkle_root::fast_merkle_root;
+use secp256k1_zkp::Tag;
 use transaction::OutPoint;
 
 /// The zero hash.
@@ -116,6 +117,10 @@ impl AssetId {
             true => TWO32,
         };
         AssetId(fast_merkle_root(&[entropy.into_inner(), second]))
+    }
+
+    pub(crate) fn into_tag(self) -> Tag {
+        self.0.into_inner().into()
     }
 }
 

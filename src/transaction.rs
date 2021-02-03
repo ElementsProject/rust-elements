@@ -15,18 +15,20 @@
 //! # Transactions
 //!
 
-use std::{io, fmt};
+use std::{io, fmt, self};
 use std::collections::HashMap;
 
 use bitcoin::{self, VarInt};
 use bitcoin::hashes::Hash;
 
-use confidential;
+use confidential::{self, AssetBlindingFactor, ValueBlindingFactor, Asset, Nonce, Value};
 use encode::{self, Encodable, Decodable};
 use issuance::AssetId;
 use opcodes;
 use script::Instruction;
 use {Script, Txid, Wtxid};
+use address::Address;
+use secp256k1_zkp::{self, Generator, RangeProof, Secp256k1, Signing, SurjectionProof, rand::{RngCore, CryptoRng}};
 
 /// Description of an asset issuance in a transaction input
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -373,10 +375,195 @@ impl Decodable for TxOut {
     }
 }
 
+/// Errors encountered when constructing confidential transaction outputs.
+#[derive(Debug, Clone, Copy)]
+pub enum ConfidentialTxOutError {
+    /// The address provided does not have a blinding key.
+    NoBlindingKeyInAddress,
+    /// Error originated in `secp256k1_zkp`.
+    Upstream(secp256k1_zkp::Error),
+}
+
+impl fmt::Display for ConfidentialTxOutError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match self {
+            ConfidentialTxOutError::NoBlindingKeyInAddress => {
+                write!(f, "address does not include a blinding key")
+            }
+            ConfidentialTxOutError::Upstream(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl std::error::Error for ConfidentialTxOutError {
+    fn cause(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ConfidentialTxOutError::NoBlindingKeyInAddress => None,
+            ConfidentialTxOutError::Upstream(e) => Some(e),
+        }
+    }
+}
+
+impl From<secp256k1_zkp::Error> for ConfidentialTxOutError {
+    fn from(from: secp256k1_zkp::Error) -> Self {
+        ConfidentialTxOutError::Upstream(from)
+    }
+}
+
 impl TxOut {
+    /// Creates a new confidential output that is **not** the last one in the transaction.
+    pub fn new_not_last_confidential<R, C>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        value: u64,
+        address: Address,
+        asset: AssetId,
+        inputs: &[(
+            AssetId,
+            u64,
+            Generator,
+            AssetBlindingFactor,
+            ValueBlindingFactor,
+        )],
+    ) -> Result<(Self, AssetBlindingFactor, ValueBlindingFactor), ConfidentialTxOutError>
+    where
+        R: RngCore + CryptoRng,
+        C: Signing,
+    {
+        let out_abf = AssetBlindingFactor::new(rng);
+        let out_asset = Asset::new_confidential(secp, asset, out_abf);
+
+        let out_asset_commitment = out_asset.commitment().expect("confidential asset");
+        let out_vbf = ValueBlindingFactor::new(rng);
+        let value_commitment = Value::new_confidential(secp, value, out_asset_commitment, out_vbf);
+
+        let receiver_blinding_pk = &address
+            .blinding_pubkey
+            .ok_or(ConfidentialTxOutError::NoBlindingKeyInAddress)?;
+        let (nonce, shared_secret) = Nonce::new_confidential(rng, secp, receiver_blinding_pk);
+
+        let message = RangeProofMessage { asset, bf: out_abf };
+        let rangeproof = RangeProof::new(
+            secp,
+            1,
+            value_commitment.commitment().expect("confidential value"),
+            value,
+            out_vbf.0,
+            &message.to_bytes(),
+            address.script_pubkey().as_bytes(),
+            shared_secret,
+            0,
+            52,
+            out_asset_commitment,
+        )?;
+
+        let inputs = inputs
+            .iter()
+            .map(|(id, _, asset, abf, _)| (*asset, id.into_tag(), abf.0))
+            .collect::<Vec<_>>();
+
+        let surjection_proof = SurjectionProof::new(
+            secp,
+            rng,
+            asset.into_tag(),
+            out_abf.into_inner(),
+            inputs.as_ref(),
+        )?;
+
+        let txout = TxOut {
+            asset: out_asset,
+            value: value_commitment,
+            nonce,
+            script_pubkey: address.script_pubkey(),
+            witness: TxOutWitness {
+                surjection_proof: surjection_proof.serialize(),
+                rangeproof: rangeproof.serialize(),
+            },
+        };
+
+        Ok((txout, out_abf, out_vbf))
+    }
+
+    /// Creates a new confidential output that IS the last one in the transaction.
+    pub fn new_last_confidential<R, C>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        value: u64,
+        address: Address,
+        asset: AssetId,
+        inputs: &[(
+            AssetId,
+            u64,
+            Generator,
+            AssetBlindingFactor,
+            ValueBlindingFactor,
+        )],
+        outputs: &[(u64, AssetBlindingFactor, ValueBlindingFactor)],
+    ) -> Result<Self, ConfidentialTxOutError>
+    where
+        R: RngCore + CryptoRng,
+        C: Signing,
+    {
+        let (surjection_proof_inputs, value_blind_inputs) = inputs
+            .iter()
+            .map(|(id, value, asset, abf, vbf)| {
+                ((*asset, id.into_tag(), abf.0), (*value, *abf, *vbf))
+            })
+            .unzip::<_, _, Vec<_>, Vec<_>>();
+
+        let out_abf = AssetBlindingFactor::new(rng);
+        let out_asset = Asset::new_confidential(secp, asset, out_abf);
+
+        let out_asset_commitment = out_asset.commitment().expect("confidential asset");
+        let out_vbf =
+            ValueBlindingFactor::last(secp, value, out_abf, &value_blind_inputs, &outputs);
+        let value_commitment = Value::new_confidential(secp, value, out_asset_commitment, out_vbf);
+
+        let receiver_blinding_pk = &address
+            .blinding_pubkey
+            .ok_or(ConfidentialTxOutError::NoBlindingKeyInAddress)?;
+        let (nonce, shared_secret) = Nonce::new_confidential(rng, secp, receiver_blinding_pk);
+
+        let message = RangeProofMessage { asset, bf: out_abf };
+        let rangeproof = RangeProof::new(
+            secp,
+            1,
+            value_commitment.commitment().expect("confidential value"),
+            value,
+            out_vbf.0,
+            &message.to_bytes(),
+            address.script_pubkey().as_bytes(),
+            shared_secret,
+            0,
+            52,
+            out_asset_commitment,
+        )?;
+
+        let surjection_proof = SurjectionProof::new(
+            secp,
+            rng,
+            asset.into_tag(),
+            out_abf.into_inner(),
+            surjection_proof_inputs.as_ref(),
+        )?;
+
+        let txout = TxOut {
+            asset: out_asset,
+            value: value_commitment,
+            nonce,
+            script_pubkey: address.script_pubkey(),
+            witness: TxOutWitness {
+                surjection_proof: surjection_proof.serialize(),
+                rangeproof: rangeproof.serialize(),
+            },
+        };
+
+        Ok(txout)
+    }
+
     /// Create a new fee output.
     pub fn new_fee(amount: u64, asset: AssetId) -> TxOut {
-        TxOut{
+        TxOut {
             asset: confidential::Asset::Explicit(asset),
             value: confidential::Value::Explicit(amount),
             nonce: confidential::Nonce::Null,
@@ -511,6 +698,22 @@ impl TxOut {
                 }
             }
         }
+    }
+}
+
+struct RangeProofMessage {
+    asset: AssetId,
+    bf: AssetBlindingFactor,
+}
+
+impl RangeProofMessage {
+    fn to_bytes(&self) -> [u8; 64] {
+        let mut message = [0u8; 64];
+
+        message[..32].copy_from_slice(self.asset.into_tag().as_ref());
+        message[32..].copy_from_slice(self.bf.into_inner().as_ref());
+
+        message
     }
 }
 
