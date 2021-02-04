@@ -1147,7 +1147,7 @@ mod test {
         assert_eq!(v_nonmin_alt.unwrap(), slop_v_nonmin_alt.unwrap());
     }
 
-        #[test]
+    #[test]
     fn script_ord() {
         let script_1 = Builder::new().push_slice(&[1,2,3,4]).into_script();
         let script_2 = Builder::new().push_int(10).into_script();
@@ -1158,8 +1158,7 @@ mod test {
         assert!(script_2 < script_3);
         assert!(script_3 < script_4);
 
-        assert!(script_1 <= script_1);
-        assert!(script_1 >= script_1);
+        assert_eq!(script_1, script_1);
 
         assert!(script_4 > script_3);
         assert!(script_3 > script_2);

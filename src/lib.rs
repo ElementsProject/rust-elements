@@ -29,6 +29,7 @@ pub extern crate bitcoin;
 #[macro_use]
 extern crate bitcoin_hashes as just_imported_for_the_macros;
 extern crate slip21;
+extern crate secp256k1_zkp;
 #[cfg(feature = "serde")] extern crate serde;
 
 #[cfg(test)] extern crate rand;
@@ -64,4 +65,3 @@ pub use fast_merkle_root::fast_merkle_root;
 pub use hash_types::*;
 pub use issuance::{AssetId, ContractHash};
 pub use script::Script;
-

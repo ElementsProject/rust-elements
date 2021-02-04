@@ -29,7 +29,7 @@ use script::Instruction;
 use {Script, Txid, Wtxid};
 
 /// Description of an asset issuance in a transaction input
-#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct AssetIssuance {
     /// Zero for a new asset issuance; otherwise a blinding factor for the input
     pub asset_blinding_nonce: [u8; 32],
@@ -1625,15 +1625,14 @@ mod tests {
             AssetIssuance {
                 asset_blinding_nonce: [0; 32],
                 asset_entropy: [0; 32],
-                amount: confidential::Value::Confidential(
-                    9,
-                    [
-                        0x81, 0x65, 0x4e, 0xb5, 0xcc, 0xd9, 0x92, 0x7b,
-                        0x8b, 0xea, 0x94, 0x99, 0x7d, 0xce, 0x4a, 0xe8,
-                        0x5b, 0x3d, 0x95, 0xa2, 0x07, 0x00, 0x38, 0x4f,
-                        0x0b, 0x8c, 0x1f, 0xe9, 0x95, 0x18, 0x06, 0x38
+                amount: confidential::Value::from_commitment(
+                    &[  0x09, 0x81, 0x65, 0x4e, 0xb5, 0xcc, 0xd9, 0x92,
+                        0x7b, 0x8b, 0xea, 0x94, 0x99, 0x7d, 0xce, 0x4a,
+                        0xe8, 0x5b, 0x3d, 0x95, 0xa2, 0x07, 0x00, 0x38,
+                        0x4f, 0x0b, 0x8c, 0x1f, 0xe9, 0x95, 0x18, 0x06,
+                        0x38
                     ],
-                ),
+                ).unwrap(),
                 inflation_keys: confidential::Value::Null,
             }
         );
@@ -1661,7 +1660,7 @@ mod tests {
 
         // Output with pushes that are e.g. OP_1 are nulldata but not pegouts
         let output: TxOut = hex_deserialize!("\
-            0a2d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
+            0a319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
             1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfd3ca059fdfdfb6a2000002323232323232323232323232323232\
             3232323232323232321232323010151232323232323232323232323232323\
@@ -1679,7 +1678,7 @@ mod tests {
 
         // Output with just one push and nothing else should be nulldata but not pegout
         let output: TxOut = hex_deserialize!("\
-            0a2d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
+            0a319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
             1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfd3ca059fdf2226a20000000000000000000000000000000000000000\
             0000000000000000000000000\
