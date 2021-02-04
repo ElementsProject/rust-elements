@@ -29,11 +29,12 @@ pub extern crate bitcoin;
 #[macro_use]
 extern crate bitcoin_hashes as just_imported_for_the_macros;
 extern crate slip21;
+extern crate secp256k1_zkp;
 #[cfg(feature = "serde")] extern crate serde;
+#[cfg(all(test, feature = "serde"))] extern crate serde_test;
 
 #[cfg(test)] extern crate rand;
 #[cfg(any(test, feature = "serde_json"))] extern crate serde_json;
-#[cfg(all(test, feature = "serde"))] extern crate serde_test;
 
 #[macro_use] mod internal_macros;
 pub mod address;

@@ -20,6 +20,8 @@ use std::{error, fmt, io, mem};
 
 use bitcoin::consensus::encode as btcenc;
 use bitcoin::hashes::sha256;
+use bitcoin::secp256k1;
+use secp256k1_zkp;
 
 use transaction::{Transaction, TxIn, TxOut};
 
@@ -41,8 +43,14 @@ pub enum Error {
     },
     /// Parsing error
     ParseFailed(&'static str),
+    /// We unexpectedly hit the end of the buffer
+    UnexpectedEOF,
     /// Invalid prefix for the confidential type.
     InvalidConfidentialPrefix(u8),
+    /// Parsing within libsecp256k1 failed
+    Secp256k1(secp256k1::Error),
+    /// Parsing within libsecp256k1-zkp failed
+    Secp256k1zkp(secp256k1_zkp::Error),
 }
 
 impl fmt::Display for Error {
@@ -55,7 +63,12 @@ impl fmt::Display for Error {
                 max: ref m,
             } => write!(f, "oversized vector allocation: requested {}, maximum {}", r, m),
             Error::ParseFailed(ref e) => write!(f, "parse failed: {}", e),
-            Error::InvalidConfidentialPrefix(p) => write!(f, "invalid confidential prefix: 0x{:02x}", p),
+            Error::UnexpectedEOF => write!(f, "unexpected EOF"),
+            Error::InvalidConfidentialPrefix(p) => {
+                write!(f, "invalid confidential prefix: 0x{:02x}", p)
+            }
+            Error::Secp256k1(ref e) => write!(f, "{}", e),
+            Error::Secp256k1zkp(ref e) => write!(f, "{}", e),
         }
     }
 }
@@ -64,6 +77,7 @@ impl error::Error for Error {
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::Bitcoin(ref e) => Some(e),
+            Error::Secp256k1zkp(ref e) => Some(e),
             _ => None,
         }
     }
@@ -80,6 +94,18 @@ impl From<btcenc::Error> for Error {
 impl From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
         Error::Io(error)
+    }
+}
+
+impl From<secp256k1::Error> for Error {
+    fn from(e: secp256k1::Error) -> Self {
+        Error::Secp256k1(e)
+    }
+}
+
+impl From<secp256k1_zkp::Error> for Error {
+    fn from(e: secp256k1_zkp::Error) -> Self {
+        Error::Secp256k1zkp(e)
     }
 }
 
@@ -163,9 +189,10 @@ macro_rules! impl_upstream {
 impl_upstream!(u8);
 impl_upstream!(u32);
 impl_upstream!(u64);
-impl_upstream!([u8;4]);
+impl_upstream!([u8; 4]);
 impl_upstream!([u8; 32]);
 impl_upstream!(Box<[u8]>);
+impl_upstream!([u8; 33]);
 impl_upstream!(Vec<u8>);
 impl_upstream!(Vec<Vec<u8>>);
 impl_upstream!(btcenc::VarInt);
