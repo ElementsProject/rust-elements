@@ -119,7 +119,7 @@ macro_rules! impl_confidential_commitment {
         }
 
         impl Decodable for $name {
-            fn consensus_decode<D: io::Read>(mut d: D) -> Result<$name, encode::Error> {
+            fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<$name, encode::Error> {
                 let prefix = u8::consensus_decode(&mut d)?;
                 match prefix {
                     0 => Ok($name::Null),
@@ -398,4 +398,3 @@ mod tests {
         assert!(Nonce::from_commitment(&commitment[..]).is_err());
     }
 }
-

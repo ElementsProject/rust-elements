@@ -843,7 +843,7 @@ impl Encodable for Script {
 
 impl Decodable for Script {
     #[inline]
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
         Ok(Script(Decodable::consensus_decode(d)?))
     }
 }
@@ -1147,7 +1147,7 @@ mod test {
         assert_eq!(v_nonmin_alt.unwrap(), slop_v_nonmin_alt.unwrap());
     }
 
-	#[test]
+        #[test]
     fn script_ord() {
         let script_1 = Builder::new().push_slice(&[1,2,3,4]).into_script();
         let script_2 = Builder::new().push_int(10).into_script();
@@ -1166,4 +1166,3 @@ mod test {
         assert!(script_2 > script_1);
     }
 }
-

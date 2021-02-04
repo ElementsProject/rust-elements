@@ -81,7 +81,7 @@ impl Encodable for OutPoint {
 }
 
 impl Decodable for OutPoint {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<OutPoint, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<OutPoint, encode::Error> {
         let txid = Txid::consensus_decode(&mut d)?;
         let vout = u32::consensus_decode(&mut d)?;
         Ok(OutPoint {
@@ -213,7 +213,7 @@ impl Encodable for TxIn {
 }
 
 impl Decodable for TxIn {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<TxIn, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<TxIn, encode::Error> {
         let mut outp = OutPoint::consensus_decode(&mut d)?;
         let script_sig = Script::consensus_decode(&mut d)?;
         let sequence = u32::consensus_decode(&mut d)?;
@@ -362,7 +362,7 @@ impl Encodable for TxOut {
 }
 
 impl Decodable for TxOut {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<TxOut, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<TxOut, encode::Error> {
         Ok(TxOut {
             asset: Decodable::consensus_decode(&mut d)?,
             value: Decodable::consensus_decode(&mut d)?,
@@ -679,7 +679,7 @@ impl Encodable for Transaction {
 }
 
 impl Decodable for Transaction {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Transaction, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Transaction, encode::Error> {
         let version = u32::consensus_decode(&mut d)?;
         let wit_flag = u8::consensus_decode(&mut d)?;
         let mut input = Vec::<TxIn>::consensus_decode(&mut d)?;
@@ -1834,4 +1834,3 @@ mod tests {
         assert_eq!(tx.all_fees()[&fee_asset], 1788);
     }
 }
-
