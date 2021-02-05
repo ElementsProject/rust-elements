@@ -451,8 +451,7 @@ impl TxOut {
             0,
             52,
             out_asset_commitment,
-        )
-        .map_err(TxOutError::Upstream)?;
+        )?;
 
         let inputs = inputs
             .iter()
@@ -465,8 +464,7 @@ impl TxOut {
             asset.into_tag(),
             out_abf.into_inner(),
             inputs.as_ref(),
-        )
-        .map_err(TxOutError::Upstream)?;
+        )?;
 
         let txout = TxOut {
             asset: out_asset,
@@ -535,8 +533,7 @@ impl TxOut {
             0,
             52,
             out_asset_commitment,
-        )
-        .map_err(TxOutError::Upstream)?;
+        )?;
 
         let surjection_proof = SurjectionProof::new(
             secp,
@@ -544,8 +541,7 @@ impl TxOut {
             asset.into_tag(),
             out_abf.into_inner(),
             surjection_proof_inputs.as_ref(),
-        )
-        .map_err(TxOutError::Upstream)?;
+        )?;
 
         let txout = TxOut {
             asset: out_asset,
@@ -782,6 +778,12 @@ impl std::error::Error for TxOutError {
     }
 }
 
+impl From<secp256k1_zkp::Error> for TxOutError {
+    fn from(from: secp256k1_zkp::Error) -> Self {
+        TxOutError::Upstream(from)
+    }
+}
+
 /// Explicit transaction output
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct ExplicitTxOut {
@@ -835,23 +837,19 @@ impl ConfidentialTxOut {
             .shared_secret(&blinding_key)
             .ok_or(UnblindError::MissingNonce)?;
 
-        let rangeproof =
-            RangeProof::from_slice(&self.witness.rangeproof).map_err(UnblindError::Upstream)?;
+        let rangeproof = RangeProof::from_slice(&self.witness.rangeproof)?;
 
-        let (opening, _) = rangeproof
-            .rewind(
-                secp,
-                self.value,
-                shared_secret,
-                self.script_pubkey.as_bytes(),
-                self.asset,
-            )
-            .map_err(UnblindError::Upstream)?;
+        let (opening, _) = rangeproof.rewind(
+            secp,
+            self.value,
+            shared_secret,
+            self.script_pubkey.as_bytes(),
+            self.asset,
+        )?;
 
         let (asset, asset_blinding_factor) = opening.message.as_ref().split_at(32);
-        let asset = AssetId::from_slice(asset).map_err(UnblindError::MalformedAssetId)?;
-        let asset_blinding_factor = AssetBlindingFactor::from_slice(&asset_blinding_factor[..32])
-            .map_err(UnblindError::Upstream)?;
+        let asset = AssetId::from_slice(asset)?;
+        let asset_blinding_factor = AssetBlindingFactor::from_slice(&asset_blinding_factor[..32])?;
 
         let value_blinding_factor = ValueBlindingFactor(opening.blinding_factor);
 
@@ -892,6 +890,18 @@ impl std::error::Error for UnblindError {
             UnblindError::MalformedAssetId(e) => Some(e),
             UnblindError::Upstream(e) => Some(e),
         }
+    }
+}
+
+impl From<secp256k1_zkp::Error> for UnblindError {
+    fn from(from: secp256k1_zkp::Error) -> Self {
+        UnblindError::Upstream(from)
+    }
+}
+
+impl From<hashes::Error> for UnblindError {
+    fn from(from: hashes::Error) -> Self {
+        UnblindError::MalformedAssetId(from)
     }
 }
 
