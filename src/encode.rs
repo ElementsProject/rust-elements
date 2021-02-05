@@ -20,6 +20,7 @@ use std::{error, fmt, io, mem};
 
 use bitcoin::consensus::encode as btcenc;
 use bitcoin::hashes::sha256;
+use bitcoin::secp256k1;
 use secp256k1_zkp;
 
 use transaction::{Transaction, TxIn, TxOut};
@@ -46,6 +47,8 @@ pub enum Error {
     UnexpectedEOF,
     /// Invalid prefix for the confidential type.
     InvalidConfidentialPrefix(u8),
+    /// Parsing within libsecp256k1 failed
+    Secp256k1(secp256k1::Error),
     /// Parsing within libsecp256k1-zkp failed
     Secp256k1zkp(secp256k1_zkp::Error),
 }
@@ -68,6 +71,7 @@ impl fmt::Display for Error {
             Error::InvalidConfidentialPrefix(p) => {
                 write!(f, "invalid confidential prefix: 0x{:02x}", p)
             }
+            Error::Secp256k1(ref e) => write!(f, "{}", e),
             Error::Secp256k1zkp(ref e) => write!(f, "{}", e),
         }
     }
@@ -94,6 +98,12 @@ impl From<btcenc::Error> for Error {
 impl From<io::Error> for Error {
     fn from(error: io::Error) -> Self {
         Error::Io(error)
+    }
+}
+
+impl From<secp256k1::Error> for Error {
+    fn from(e: secp256k1::Error) -> Self {
+        Error::Secp256k1(e)
     }
 }
 

@@ -135,11 +135,15 @@ impl Encodable for Value {
                 1u8.consensus_encode(&mut s)?;
                 Ok(1 + u64::swap_bytes(n).consensus_encode(&mut s)?)
             }
-            Value::Confidential(commitment) => {
-                s.write_all(&commitment.serialize())?;
-                Ok(33)
-            }
+            Value::Confidential(commitment) => commitment.consensus_encode(&mut s),
         }
+    }
+}
+
+impl Encodable for PedersenCommitment {
+    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
+        e.write_all(&self.serialize())?;
+        Ok(33)
     }
 }
 
@@ -168,11 +172,18 @@ impl Decodable for Value {
                 Ok(Value::Explicit(explicit))
             }
             p if p == 0x08 || p == 0x09 => {
-                let bytes = <[u8; 33]>::consensus_decode(&mut d)?;
-                Ok(Value::Confidential(PedersenCommitment::from_slice(&bytes)?))
+                let commitment = Decodable::consensus_decode(&mut d)?;
+                Ok(Value::Confidential(commitment))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
+    }
+}
+
+impl Decodable for PedersenCommitment {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
+        let bytes = <[u8; 33]>::consensus_decode(d)?;
+        Ok(PedersenCommitment::from_slice(&bytes)?)
     }
 }
 
@@ -352,11 +363,15 @@ impl Encodable for Asset {
                 1u8.consensus_encode(&mut s)?;
                 Ok(1 + n.consensus_encode(&mut s)?)
             }
-            Asset::Confidential(generator) => {
-                s.write_all(&generator.serialize())?;
-                Ok(33)
-            }
+            Asset::Confidential(generator) => generator.consensus_encode(&mut s)
         }
+    }
+}
+
+impl Encodable for Generator {
+    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
+        e.write_all(&self.serialize())?;
+        Ok(33)
     }
 }
 
@@ -385,13 +400,21 @@ impl Decodable for Asset {
                 Ok(Asset::Explicit(explicit))
             }
             p if p == 0x0a || p == 0x0b => {
-                let bytes = <[u8; 33]>::consensus_decode(&mut d)?;
-                Ok(Asset::Confidential(Generator::from_slice(&bytes)?))
+                let generator = Decodable::consensus_decode(&mut d)?;
+                Ok(Asset::Confidential(generator))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
     }
 }
+
+impl Decodable for Generator {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
+        let bytes = <[u8; 33]>::consensus_decode(d)?;
+        Ok(Generator::from_slice(&bytes)?)
+    }
+}
+
 
 #[cfg(feature = "serde")]
 impl Serialize for Asset {
@@ -608,11 +631,15 @@ impl Encodable for Nonce {
                 1u8.consensus_encode(&mut s)?;
                 Ok(1 + n.consensus_encode(&mut s)?)
             }
-            Nonce::Confidential(commitment) => {
-                s.write_all(&commitment.serialize())?;
-                Ok(33)
-            }
+            Nonce::Confidential(commitment) => commitment.consensus_encode(&mut s),
         }
+    }
+}
+
+impl Encodable for PublicKey {
+    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
+        e.write_all(&self.serialize())?;
+        Ok(33)
     }
 }
 
@@ -641,13 +668,18 @@ impl Decodable for Nonce {
                 Ok(Nonce::Explicit(explicit))
             }
             p if p == 0x02 || p == 0x03 => {
-                let bytes = <[u8; 33]>::consensus_decode(&mut d)?;
-                Ok(Nonce::Confidential(
-                    PublicKey::from_slice(&bytes).map_err(secp256k1_zkp::Error::Upstream)?,
-                ))
+                let pk = Decodable::consensus_decode(&mut d)?;
+                Ok(Nonce::Confidential(pk))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
+    }
+}
+
+impl Decodable for PublicKey {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
+        let bytes = <[u8; 33]>::consensus_decode(d)?;
+        Ok(PublicKey::from_slice(&bytes)?)
     }
 }
 
