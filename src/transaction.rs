@@ -406,19 +406,6 @@ impl Decodable for TxOut {
     }
 }
 
-/// Errors related to transaction outputs.
-#[derive(Debug)]
-pub enum TxOutError {
-    /// Address without blinding key.
-    NoBlindingKeyInAddress,
-    /// Transaction output does not have a nonce commitment.
-    MissingNonce,
-    /// Malformed asset ID.
-    MalformedAssetId(hashes::Error),
-    /// Error originated in `secp256k1_zkp`.
-    Upstream(secp256k1_zkp::Error),
-}
-
 impl TxOut {
     /// Creates a new confidential output that is **not** the last one in the transaction.
     pub fn new_not_last_confidential<R, C>(
@@ -766,6 +753,15 @@ impl TxOut {
     }
 }
 
+/// Errors encountered when constructing confidential transaction outputs.
+#[derive(Debug)]
+pub enum TxOutError {
+    /// Address without blinding key.
+    NoBlindingKeyInAddress,
+    /// Error originated in `secp256k1_zkp`.
+    Upstream(secp256k1_zkp::Error),
+}
+
 /// Explicit transaction output
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct ExplicitTxOut {
@@ -813,14 +809,14 @@ impl ConfidentialTxOut {
         &self,
         secp: &Secp256k1<C>,
         blinding_key: SecretKey,
-    ) -> Result<UnblindedTxOut, TxOutError> {
+    ) -> Result<UnblindedTxOut, UnblindError> {
         let shared_secret = self
             .nonce
             .shared_secret(&blinding_key)
-            .ok_or(TxOutError::MissingNonce)?;
+            .ok_or(UnblindError::MissingNonce)?;
 
         let rangeproof =
-            RangeProof::from_slice(&self.witness.rangeproof).map_err(TxOutError::Upstream)?;
+            RangeProof::from_slice(&self.witness.rangeproof).map_err(UnblindError::Upstream)?;
 
         let (opening, _) = rangeproof
             .rewind(
@@ -830,12 +826,12 @@ impl ConfidentialTxOut {
                 self.script_pubkey.as_bytes(),
                 self.asset,
             )
-            .map_err(TxOutError::Upstream)?;
+            .map_err(UnblindError::Upstream)?;
 
         let (asset, asset_blinding_factor) = opening.message.as_ref().split_at(32);
-        let asset = AssetId::from_slice(asset).map_err(TxOutError::MalformedAssetId)?;
+        let asset = AssetId::from_slice(asset).map_err(UnblindError::MalformedAssetId)?;
         let asset_blinding_factor = AssetBlindingFactor::from_slice(&asset_blinding_factor[..32])
-            .map_err(TxOutError::Upstream)?;
+            .map_err(UnblindError::Upstream)?;
 
         let value_blinding_factor = ValueBlindingFactor(opening.blinding_factor);
 
@@ -846,6 +842,17 @@ impl ConfidentialTxOut {
             value_blinding_factor,
         })
     }
+}
+
+/// Errors encountered when unblinding `ConfidentialTxOut`s.
+#[derive(Debug)]
+pub enum UnblindError {
+    /// Transaction output does not have a nonce commitment.
+    MissingNonce,
+    /// Malformed asset ID.
+    MalformedAssetId(hashes::Error),
+    /// Error originated in `secp256k1_zkp`.
+    Upstream(secp256k1_zkp::Error),
 }
 
 /// Result of unblinding a `ConfidentialTxOut`
