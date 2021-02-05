@@ -16,7 +16,7 @@
 //!
 
 use std::collections::HashMap;
-use std::{fmt, io};
+use std::{self, fmt, io};
 
 use bitcoin::hashes::{self, Hash};
 use bitcoin::{self, VarInt};
@@ -762,6 +762,26 @@ pub enum TxOutError {
     Upstream(secp256k1_zkp::Error),
 }
 
+impl fmt::Display for TxOutError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match self {
+            TxOutError::NoBlindingKeyInAddress => {
+                write!(f, "address does not include a blinding key")
+            }
+            TxOutError::Upstream(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl std::error::Error for TxOutError {
+    fn cause(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            TxOutError::NoBlindingKeyInAddress => None,
+            TxOutError::Upstream(e) => Some(e),
+        }
+    }
+}
+
 /// Explicit transaction output
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct ExplicitTxOut {
@@ -853,6 +873,26 @@ pub enum UnblindError {
     MalformedAssetId(hashes::Error),
     /// Error originated in `secp256k1_zkp`.
     Upstream(secp256k1_zkp::Error),
+}
+
+impl fmt::Display for UnblindError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match self {
+            UnblindError::MissingNonce => write!(f, "missing nonce in confidential txout"),
+            UnblindError::MalformedAssetId(_) => write!(f, "malformed asset id"),
+            UnblindError::Upstream(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl std::error::Error for UnblindError {
+    fn cause(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            UnblindError::MissingNonce => None,
+            UnblindError::MalformedAssetId(e) => Some(e),
+            UnblindError::Upstream(e) => Some(e),
+        }
+    }
 }
 
 /// Result of unblinding a `ConfidentialTxOut`
