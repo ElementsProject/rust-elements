@@ -111,6 +111,12 @@ impl Value {
     }
 }
 
+impl From<PedersenCommitment> for Value {
+    fn from(from: PedersenCommitment) -> Self {
+        Value::Confidential(from)
+    }
+}
+
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
@@ -336,6 +342,12 @@ impl Asset {
             Asset::Confidential(i) => Some(i),
             _ => None,
         }
+    }
+}
+
+impl From<Generator> for Asset {
+    fn from(from: Generator) -> Self {
+        Asset::Confidential(from)
     }
 }
 
@@ -599,6 +611,12 @@ impl Nonce {
             Nonce::Confidential(i) => Some(i),
             _ => None,
         }
+    }
+}
+
+impl From<PublicKey> for Nonce {
+    fn from(from: PublicKey) -> Self {
+        Nonce::Confidential(from)
     }
 }
 
