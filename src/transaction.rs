@@ -406,11 +406,16 @@ impl Decodable for TxOut {
     }
 }
 
+/// Errors related to transaction outputs.
 #[derive(Debug)]
 pub enum TxOutError {
+    /// Address without blinding key.
     NoBlindingKeyInAddress,
+    /// Transaction output does not have a nonce commitment.
     MissingNonce,
+    /// Malformed asset ID.
     MalformedAssetId(hashes::Error),
+    /// Error originated in `secp256k1_zkp`.
     Upstream(secp256k1_zkp::Error),
 }
 
@@ -761,6 +766,7 @@ impl TxOut {
     }
 }
 
+/// Explicit transaction output
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct ExplicitTxOut {
     /// Committed asset
@@ -842,11 +848,16 @@ impl ConfidentialTxOut {
     }
 }
 
+/// Result of unblinding a `ConfidentialTxOut`
 #[derive(Debug, PartialEq)]
 pub struct UnblindedTxOut {
+    /// Committed asset
     pub asset: AssetId,
+    /// Committed value
     pub value: u64,
+    /// Asset blinding factor
     pub asset_blinding_factor: AssetBlindingFactor,
+    /// Value blinding factor
     pub value_blinding_factor: ValueBlindingFactor,
 }
 
