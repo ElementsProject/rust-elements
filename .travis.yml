@@ -10,8 +10,13 @@ before_install:
   - sudo apt-get install -y binutils-dev libunwind8-dev
 
 script:
-  # Pin `cc` for Rust 1.29
-  - if [ "$TRAVIS_RUST_VERSION" = "1.29.0" ]; then cargo generate-lockfile --verbose && cargo update -p cc --precise "1.0.41" --verbose; fi
+  # Pin crates for Rust 1.29
+  - if [ "$TRAVIS_RUST_VERSION" = "1.29.0" ]; then
+      cargo generate-lockfile &&
+      cargo update -p cc --precise "1.0.41" &&
+      cargo update -p serde --precise 1.0.98 &&
+      cargo update -p serde_derive --precise 1.0.98;
+    fi
   - cargo build --verbose
   - cargo test --verbose
   - cargo build --verbose --features=serde-feature
