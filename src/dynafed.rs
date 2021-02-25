@@ -14,17 +14,17 @@
 
 //! Dynamic Federations
 
-use std::io;
+use std::{fmt, io};
 
+use bitcoin;
 use bitcoin::hashes::{Hash, sha256, sha256d};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(feature = "serde")] use std::fmt;
 
 use encode::{self, Encodable, Decodable};
 use Script;
 
 /// Dynamic federations paramaters, as encoded in a block header
-#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Clone, Eq, Hash, PartialEq)]
 pub enum Params {
     /// Null entry, used to signal "no vote" as a proposal
     Null,
@@ -54,6 +54,61 @@ pub enum Params {
         /// "Extension space" used by Liquid for PAK key entries
         extension_space: Vec<Vec<u8>>,
     },
+}
+
+impl fmt::Debug for Params {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        // Null and Compact have nice Debug formats, but Full has these annoying Vec's.
+        // For Full, we write the fedpeg program and script and the PAK list as hex.
+
+        // ad-hoc struct to fmt in hex
+        struct HexBytes<'a>(&'a [u8]);
+        impl<'a> fmt::Debug for HexBytes<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                bitcoin::hashes::hex::format_hex(&self.0[..], f)
+            }
+        }
+        // ad-hoc struct to fmt in hex
+        struct HexBytesArray<'a>(&'a [Vec<u8>]);
+        impl<'a> fmt::Debug for HexBytesArray<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                write!(f, "[")?;
+                for (i, e) in self.0.iter().enumerate() {
+                    if i != 0 {
+                        write!(f, " ")?;
+                    }
+                    bitcoin::hashes::hex::format_hex(&e[..], f)?;
+                }
+                write!(f, "]")
+            }
+        }
+
+        match self {
+            Params::Null => write!(f, "Null"),
+            Params::Compact { signblockscript, signblock_witness_limit, elided_root } => {
+                let mut s = f.debug_struct("Compact");
+                s.field("signblockscript", &HexBytes(&signblockscript[..]));
+                s.field("signblock_witness_limit", signblock_witness_limit);
+                s.field("elided_root", elided_root);
+                s.finish()
+            }
+            Params::Full {
+                signblockscript,
+                signblock_witness_limit,
+                fedpeg_program,
+                fedpegscript,
+                extension_space,
+            } => {
+                let mut s = f.debug_struct("Full");
+                s.field("signblockscript", &HexBytes(&signblockscript[..]));
+                s.field("signblock_witness_limit", signblock_witness_limit);
+                s.field("fedpeg_program", &HexBytes(&fedpeg_program[..]));
+                s.field("fedpegscript", &HexBytes(&fedpegscript[..]));
+                s.field("extension_space", &HexBytesArray(&extension_space));
+                s.finish()
+            }
+        }
+    }
 }
 
 impl Params {
@@ -459,10 +514,12 @@ impl Decodable for Params {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::fmt::{self, Write};
 
     use bitcoin::hashes::hex::ToHex;
     use bitcoin::hashes::sha256;
+
+    use super::*;
 
     #[test]
     fn test_param_roots() {
@@ -535,6 +592,12 @@ mod tests {
         );
     }
 
+    fn to_debug_string<O: fmt::Debug>(o: &O) -> String {
+        let mut s = String::new();
+        write!(&mut s, "{:?}", o).unwrap();
+        s
+    }
+
     #[test]
     fn into_compact_test() {
         let full = Params::Full {
@@ -544,9 +607,17 @@ mod tests {
             fedpegscript: vec![0x06, 0x07],
             extension_space: vec![vec![0x08, 0x09], vec![0x0a]],
         };
+        assert_eq!(
+            to_debug_string(&full),
+            "Full { signblockscript: 0102, signblock_witness_limit: 3, fedpeg_program: 0405, fedpegscript: 0607, extension_space: [0809 0a] }",
+        );
         let extra_root = full.extra_root();
 
         let compact = full.into_compact().unwrap();
+        assert_eq!(
+            to_debug_string(&compact),
+            "Compact { signblockscript: 0102, signblock_witness_limit: 3, elided_root: c3058c822b22a13bb7c47cf50d3f3c7817e7d9075ff55a7d16c85b9673e7e553 }",
+        );
         assert_eq!(compact.elided_root(), Some(&extra_root));
         assert_eq!(compact.extra_root(), extra_root);
     }
