@@ -15,7 +15,7 @@
 //! # Transactions
 //!
 
-use std::{io, fmt, self};
+use std::{io, fmt, str, self};
 use std::collections::HashMap;
 
 use bitcoin::{self, VarInt};
@@ -962,6 +962,38 @@ pub enum SigHashType {
     NonePlusAnyoneCanPay = 0x82,
     /// 0x83: Sign one output and only this input (see `Single` for what "one output" means)
     SinglePlusAnyoneCanPay = 0x83,
+}
+
+serde_string_impl!(SigHashType, "a SigHashType data");
+
+impl fmt::Display for SigHashType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            SigHashType::All => "SIGHASH_ALL",
+            SigHashType::None => "SIGHASH_NONE",
+            SigHashType::Single => "SIGHASH_SINGLE",
+            SigHashType::AllPlusAnyoneCanPay => "SIGHASH_ALL|SIGHASH_ANYONECANPAY",
+            SigHashType::NonePlusAnyoneCanPay => "SIGHASH_NONE|SIGHASH_ANYONECANPAY",
+            SigHashType::SinglePlusAnyoneCanPay => "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY",
+        };
+        f.write_str(s)
+    }
+}
+
+impl str::FromStr for SigHashType {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.as_ref() {
+            "SIGHASH_ALL" => Ok(SigHashType::All),
+            "SIGHASH_NONE" => Ok(SigHashType::None),
+            "SIGHASH_SINGLE" => Ok(SigHashType::Single),
+            "SIGHASH_ALL|SIGHASH_ANYONECANPAY" => Ok(SigHashType::AllPlusAnyoneCanPay),
+            "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(SigHashType::NonePlusAnyoneCanPay),
+            "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(SigHashType::SinglePlusAnyoneCanPay),
+            _ => Err("can't recognize SIGHASH string".to_string())
+        }
+    }
 }
 
 impl SigHashType {
