@@ -23,6 +23,7 @@ use bitcoin::hashes::sha256;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use transaction::{Transaction, TxIn, TxOut};
+use pset;
 
 pub use bitcoin::{self, consensus::encode::MAX_VEC_SIZE};
 
@@ -52,6 +53,8 @@ pub enum Error {
     Secp256k1(secp256k1_zkp::UpstreamError),
     /// Parsing within libsecp256k1-zkp failed
     Secp256k1zkp(secp256k1_zkp::Error),
+    /// Pset related Errors
+    PsetError(pset::Error),
 }
 
 impl fmt::Display for Error {
@@ -70,6 +73,7 @@ impl fmt::Display for Error {
             }
             Error::Secp256k1(ref e) => write!(f, "{}", e),
             Error::Secp256k1zkp(ref e) => write!(f, "{}", e),
+            Error::PsetError(ref e) => write!(f, "Pset Error: {}", e),
         }
     }
 }
@@ -108,6 +112,13 @@ impl From<secp256k1_zkp::UpstreamError> for Error {
 impl From<secp256k1_zkp::Error> for Error {
     fn from(e: secp256k1_zkp::Error) -> Self {
         Error::Secp256k1zkp(e)
+    }
+}
+
+#[doc(hidden)]
+impl From<pset::Error> for Error {
+    fn from(e: pset::Error) -> Error {
+        Error::PsetError(e)
     }
 }
 
