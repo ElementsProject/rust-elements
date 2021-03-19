@@ -66,11 +66,11 @@ pub struct TxData {
     /// Number of inputs in the transaction
     /// Not public. Users should not be able to mutate this directly
     /// This will be automatically whenever pset inputs are added
-    input_count: usize,
+    pub(crate) input_count: usize,
     /// Number of outputs in the transaction
     /// Not public. Users should not be able to mutate this directly
     /// This will be automatically whenever pset inputs are added
-    output_count: usize,
+    pub(crate) output_count: usize,
     /// Flags indicating that the transaction may be modified.
     /// May be omitted in which case it is interpreted as 0.
     pub tx_modifiable: Option<u8>,
