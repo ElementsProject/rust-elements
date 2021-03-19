@@ -16,7 +16,7 @@ use encode;
 use pset::{self, raw};
 
 /// A trait that describes a PSET key-value map.
-pub trait Map {
+pub(crate) trait Map {
     /// Attempt to insert a key-value pair.
     fn insert_pair(&mut self, pair: raw::Pair) -> Result<(), encode::Error>;
 

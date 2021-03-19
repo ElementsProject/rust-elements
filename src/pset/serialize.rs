@@ -19,12 +19,14 @@
 
 use std::io;
 
-use bitcoin::PublicKey;
-use {Script, SigHashType, Transaction, TxOut, Txid};
+use bitcoin::{self, PublicKey, VarInt};
+use {Script, SigHashType, Transaction, TxOut, Txid, BlockHash, AssetId};
 use encode::{self, serialize, Decodable};
 use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
 use hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use pset;
+use confidential;
+use secp256k1_zkp::{RangeProof, SurjectionProof, Tweak};
 
 /// A trait for serializing a value as raw data for insertion into PSET
 /// key-value pairs.
@@ -41,14 +43,25 @@ pub trait Deserialize: Sized {
 
 impl_pset_de_serialize!(Transaction);
 impl_pset_de_serialize!(TxOut);
+impl_pset_de_serialize!(AssetId);
+impl_pset_de_serialize!(u8);
 impl_pset_de_serialize!(u32);
 impl_pset_de_serialize!(u64);
+impl_pset_de_serialize!([u8; 32]);
+impl_pset_de_serialize!(Tweak);
+impl_pset_de_serialize!(VarInt);
+impl_pset_de_serialize!(RangeProof);
+impl_pset_de_serialize!(SurjectionProof);
 impl_pset_de_serialize!(Vec<Vec<u8>>); // scriptWitness
 impl_pset_hash_de_serialize!(Txid);
 impl_pset_hash_de_serialize!(ripemd160::Hash);
 impl_pset_hash_de_serialize!(sha256::Hash);
 impl_pset_hash_de_serialize!(hash160::Hash);
 impl_pset_hash_de_serialize!(sha256d::Hash);
+impl_pset_hash_de_serialize!(BlockHash);
+
+// required for pegin bitcoin::Transactions
+impl_pset_de_serialize!(bitcoin::Transaction);
 
 impl Serialize for Script {
     fn serialize(&self) -> Vec<u8> {
@@ -140,6 +153,44 @@ impl Deserialize for SigHashType {
             Ok(rv)
         } else {
             Err(pset::Error::NonStandardSigHashType(raw).into())
+        }
+    }
+}
+
+impl Serialize for confidential::Value {
+    fn serialize(&self) -> Vec<u8> {
+        match self{
+            confidential::Value::Null => vec![], // should never be invoked
+            confidential::Value::Explicit(x) => Serialize::serialize(x),
+            y => encode::serialize(y) // confidential can serialized as is
+        }
+    }
+}
+
+impl Deserialize for confidential::Value {
+    fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
+        match bytes.len() {
+            8 => Ok(confidential::Value::Explicit(encode::deserialize(bytes)?)),
+            _ => Ok(encode::deserialize(bytes)?),
+        }
+    }
+}
+
+impl Serialize for confidential::Asset {
+    fn serialize(&self) -> Vec<u8> {
+        match self{
+            confidential::Asset::Null => vec![], // should never be invoked
+            confidential::Asset::Explicit(x) => Serialize::serialize(x),
+            y => encode::serialize(y) // confidential can serialized as is
+        }
+    }
+}
+
+impl Deserialize for confidential::Asset {
+    fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
+        match bytes.len() {
+            32 => Ok(confidential::Asset::Explicit(encode::deserialize(bytes)?)),
+            _ => Ok(encode::deserialize(bytes)?),
         }
     }
 }

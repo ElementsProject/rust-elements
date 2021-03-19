@@ -29,10 +29,13 @@ mod map;
 pub mod raw;
 pub mod serialize;
 
-use {Script, Transaction, Txid};
+use {Transaction, Txid, TxIn, OutPoint, Script, AssetIssuance, TxInWitness, TxOut, TxOutWitness};
 use encode::{self, Encodable, Decodable};
+use confidential;
 pub use self::error::Error;
-pub use self::map::{Map, Global, GlobalTxData, Input, Output};
+pub use self::map::{Global, GlobalTxData, Input, Output};
+use self::map::Map;
+use secp256k1_zkp::ZERO_TWEAK;
 
 /// A Partially Signed Transaction.
 #[derive(Debug, Clone, PartialEq)]
@@ -49,14 +52,14 @@ pub struct PartiallySignedTransaction {
 }
 
 impl PartiallySignedTransaction {
-    /// Create a PartiallySignedTransaction from an unsigned transaction, error
-    /// if not unsigned
-    pub fn from_unsigned_tx(tx: Transaction) -> Result<Self, self::Error> {
-        Ok(PartiallySignedTransaction {
-            inputs: vec![Default::default(); tx.input.len()],
-            outputs: vec![Default::default(); tx.output.len()],
-            global: Global::from_unsigned_tx(tx)?,
-        })
+    /// Create a PartiallySignedTransaction with zero inputs
+    /// zero outputs with a version 2 and tx version 2
+    pub fn new_v2() -> Self {
+        PartiallySignedTransaction {
+            inputs: vec![],
+            outputs: vec![],
+            global: Global::default(),
+        }
     }
 
     /// Accessor for the number of inputs currently in the PSET
@@ -72,8 +75,7 @@ impl PartiallySignedTransaction {
     /// Accessor for the locktime to be used in the final transaction
     pub fn locktime(&self) -> Result<u32, Error> {
         match self.global.tx_data {
-            GlobalTxData::V0 { ref unsigned_tx } => Ok(unsigned_tx.lock_time),
-            GlobalTxData::V2 { fallback_locktime, .. } => {
+            GlobalTxData{ fallback_locktime, .. } => {
                 #[derive(PartialEq, Eq, PartialOrd, Ord)]
                 enum Locktime {
                     /// No inputs have specified this type of locktime
@@ -105,7 +107,7 @@ impl PartiallySignedTransaction {
                 }
 
                 match (time_locktime, height_locktime) {
-                    (Locktime::Unconstrained, Locktime::Unconstrained) => Ok(fallback_locktime),
+                    (Locktime::Unconstrained, Locktime::Unconstrained) => Ok(fallback_locktime.unwrap_or(0)),
                     (Locktime::Minimum(x), _) => Ok(x),
                     (_, Locktime::Minimum(x)) => Ok(x),
                     (Locktime::Disallowed, Locktime::Disallowed) => Err(Error::LocktimeConflict),
@@ -117,37 +119,96 @@ impl PartiallySignedTransaction {
     }
 
     /// Accessor for the "unique identifier" of this PSET, to be used when merging
-    pub fn unique_id(&self) -> Txid {
-        match self.global.tx_data {
-            // v0 PSETs are easy because they have an explicit transaction
-            GlobalTxData::V0 { ref unsigned_tx } => unsigned_tx.txid(),
-            GlobalTxData::V2 { .. } => unimplemented!(),
+    pub fn unique_id(&self) -> Result<Txid, Error> {
+        // A bit strange to call clone on the first line, but &self API makes
+        // more intuitive sense for unique id
+        let mut tx = self.clone().extract_tx()?;
+        // PSBTv2s can be uniquely identified by constructing an unsigned
+        // transaction given the information provided in the PSBT and computing
+        // the transaction ID of that transaction. Since PSBT_IN_SEQUENCE can be
+        // changed by Updaters and Combiners, the sequence number in this unsigned
+        // transaction must be set to 0 (not final, nor the sequence in PSBT_IN_SEQUENCE).
+        // The lock time in this unsigned transaction must be computed as described previously.
+        for inp in tx.input.iter_mut() {
+            inp.sequence = 0;
+        }
+        Ok(tx.txid())
+    }
+
+    /// Sanity check input and output count
+    pub fn sanity_check(&self) -> Result<(), Error> {
+        if self.n_inputs() != self.inputs.len() {
+            Err(Error::InputCountMismatch)
+        } else if self.n_outputs() != self.outputs.len() {
+            Err(Error::OutputCountMismatch)
+        } else {
+            Ok(())
         }
     }
 
+
     /// Extract the Transaction from a PartiallySignedTransaction by filling in
     /// the available signature information in place.
-    pub fn extract_tx(self) -> Transaction {
-        let mut tx = match self.global.tx_data {
-            // v0 PSETs are easy because they have an explicit transaction
-            GlobalTxData::V0 { unsigned_tx } => unsigned_tx,
-            GlobalTxData::V2 { .. } => unimplemented!(),
-        };
+    pub fn extract_tx(self) -> Result<Transaction, Error> {
+        // This should never trigger any error, should be panic here?
+        self.sanity_check()?;
+        let locktime = self.locktime()?;
+        let mut inputs = vec![];
+        let mut outputs = vec![];
 
-        for (vin, psetin) in tx.input.iter_mut().zip(self.inputs.into_iter()) {
-            vin.script_sig = psetin.final_script_sig.unwrap_or_else(Script::new);
-            vin.witness.script_witness = psetin.final_script_witness.unwrap_or_else(Vec::new);
+        for psetin in self.inputs.into_iter() {
+            let txin = TxIn {
+                previous_output: OutPoint::new(psetin.previous_txid, psetin.previous_output_index),
+                is_pegin: psetin.previous_output_index & (1 << 30) != 0,
+                has_issuance: psetin.previous_output_index & (1 << 31) != 0,
+                script_sig: psetin.final_script_sig.unwrap_or(Script::new()),
+                sequence: psetin.sequence.unwrap_or(0xffffffff),
+                asset_issuance: AssetIssuance {
+                    asset_blinding_nonce: psetin.issuance_blinding_nonce.as_ref()
+                        .unwrap_or_else(|| &ZERO_TWEAK).to_owned(),
+                    asset_entropy: psetin.issuance_asset_entropy.unwrap_or([0u8; 32]),
+                    amount: psetin.issuance_value.unwrap_or(confidential::Value::Null),
+                    inflation_keys: psetin.issuance_inflation_keys.unwrap_or(confidential::Value::Null),
+                },
+                witness: TxInWitness {
+                    amount_rangeproof: psetin.issuance_value_rangeproof,
+                    inflation_keys_rangeproof: psetin.issuance_keys_rangeproof,
+                    script_witness: psetin.final_script_witness.unwrap_or(Vec::new()),
+                    pegin_witness: psetin.pegin_witness.unwrap_or(Vec::new()),
+                },
+            };
+            inputs.push(txin);
         }
 
-        tx
+        for out in self.outputs {
+            let txout = TxOut {
+                asset: out.asset,
+                value: out.amount,
+                nonce: out.blinding_key
+                    .map(|x| confidential::Nonce::from(x.key))
+                    .unwrap_or(confidential::Nonce::Null),
+                script_pubkey: out.script_pubkey,
+                witness: TxOutWitness {
+                    surjection_proof: out.asset_surjection_proof,
+                    rangeproof: out.value_rangeproof,
+                },
+            };
+            outputs.push(txout);
+        }
+        Ok(Transaction {
+            version: self.global.tx_data.version,
+            lock_time: locktime,
+            input: inputs,
+            output: outputs,
+        })
     }
 
     /// Attempt to merge with another `PartiallySignedTransaction`.
     pub fn merge(&mut self, other: Self) -> Result<(), self::Error> {
         if self.unique_id() != other.unique_id() {
             return Err(Error::UniqueIdMismatch {
-                expected: self.unique_id(),
-                actual: other.unique_id(),
+                expected: self.unique_id()?,
+                actual: other.unique_id()?,
             });
         }
 
@@ -237,10 +298,12 @@ impl Decodable for PartiallySignedTransaction {
             outputs
         };
 
-        Ok(PartiallySignedTransaction {
+        let pset = PartiallySignedTransaction {
             global: global,
             inputs: inputs,
             outputs: outputs,
-        })
+        };
+        pset.sanity_check()?;
+        Ok(pset)
     }
 }

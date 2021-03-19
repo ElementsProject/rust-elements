@@ -80,6 +80,32 @@ pub enum Error {
     ConsensusEncoding,
     /// Too Large Pset
     TooLargePset,
+    /// Specified a feild in from psbt v0. Disallowed in psbtv2(pset)
+    ExpiredPsbtv0Field,
+    /// Cannot change pset version
+    IncorrectPsetVersion,
+    /// Missing Pset transaction global version
+    MissingTxVersion,
+    /// Missing Pset input count
+    MissingInputCount,
+    /// Missing Pset output count
+    MissingOutputCount,
+    /// Missing Pset Input Prev Txid
+    MissingInputPrevTxId,
+    /// Missing Input Prev Out
+    MissingInputPrevVout,
+    /// Global scalar must be 32 bytes
+    SecpScalarSizeError(usize),
+    /// Missing Output Value
+    MissingOutputValue,
+    /// Missing Output Asset
+    MissingOutputAsset,
+    /// Missing output Script Pubkey
+    MissingOutputSpk,
+    /// Input Count Mismatch
+    InputCountMismatch,
+    /// Output Count Mismatch
+    OutputCountMismatch,
 }
 
 impl fmt::Display for Error {
@@ -109,6 +135,26 @@ impl fmt::Display for Error {
             Error::TooLargePset => {
                 write!(f, "Psets with 10_000 or more inputs/outputs unsupported")
             }
+            Error::ExpiredPsbtv0Field => f.write_str("psbt v0 field specified in pset(based on pset)"),
+            Error::IncorrectPsetVersion => f.write_str("Pset version must be 2"),
+            Error::MissingTxVersion => f.write_str("PSET missing global transaction version"),
+            Error::MissingInputCount => f.write_str("PSET missing input count"),
+            Error::MissingOutputCount => f.write_str("PSET missing output count"),
+            Error::MissingInputPrevTxId => f.write_str("PSET input missing previous txid"),
+            Error::MissingInputPrevVout => f.write_str("PSET input missing previous output index"),
+            Error::SecpScalarSizeError(actual) => {
+                write!(f, "PSET blinding scalars must be 32 bytes. Found {} bytes", actual)
+            }
+            Error::MissingOutputValue => f.write_str("PSET output missing value. Must have \
+                exactly one of explicit/confidential value set"),
+            Error::MissingOutputAsset => f.write_str("PSET output missing asset. Must have \
+                exactly one of explicit/confidential asset set"),
+            Error::MissingOutputSpk => f.write_str("PSET output missing script pubkey. Must have \
+                exactly one of explicit/confidential script pubkey set"),
+            Error::InputCountMismatch => f.write_str("PSET input count global field must \
+                match the number of inputs"),
+            Error::OutputCountMismatch => f.write_str("PSET output count global field must \
+                match the number of outputs"),
         }
     }
 }

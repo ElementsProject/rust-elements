@@ -34,6 +34,18 @@ pub struct Key {
     pub key: Vec<u8>,
 }
 
+impl Key{
+    /// Helper to create a raw key from pset proprietary key components
+    pub fn from_pset_key(subtype: ProprietaryType, key: Vec<u8>) -> Self {
+        let pset_prop_key = ProprietaryKey {
+            prefix: "pset".as_bytes().to_vec(),
+            subtype: subtype,
+            key: key,
+        };
+        pset_prop_key.to_key()
+    }
+}
+
 /// A PSET key-value pair in its raw byte form.
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
@@ -62,6 +74,25 @@ pub struct ProprietaryKey<Subtype = ProprietaryType> where Subtype: Copy + From<
     /// Additional key bytes (like serialized public key data etc)
     #[cfg_attr(feature = "serde", serde(with = "::serde_utils::hex_bytes"))]
     pub key: Vec<u8>,
+}
+
+impl ProprietaryKey {
+    /// Check if the proprietary key is a "pset key"
+    /// starts with prefix pset
+    pub fn is_pset_key(&self) -> bool {
+        // TODO: precompute this
+        self.prefix == "pset".as_bytes().to_vec()
+    }
+
+    /// Create a pset prop key
+    pub fn from_pset_pair(subtype: ProprietaryType, key: Vec<u8>) -> Self {
+        Self {
+            // TODO: precompute this
+            prefix: String::from("pset").into_bytes(),
+            subtype: subtype,
+            key: key,
+        }
+    }
 }
 
 impl fmt::Display for Key {

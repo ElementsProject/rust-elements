@@ -73,30 +73,31 @@ macro_rules! impl_psetmap_consensus_encoding {
     };
 }
 
-macro_rules! impl_psetmap_consensus_decoding {
-    ($thing:ty) => {
-        impl $crate::encode::Decodable for $thing {
-            fn consensus_decode<D: ::std::io::BufRead>(
-                mut d: D,
-            ) -> Result<Self, $crate::encode::Error> {
-                let mut rv: Self = ::std::default::Default::default();
-
-                loop {
-                    match $crate::encode::Decodable::consensus_decode(&mut d) {
-                        Ok(pair) => $crate::pset::Map::insert_pair(&mut rv, pair)?,
-                        Err($crate::encode::Error::PsetError($crate::pset::Error::NoMorePairs)) => return Ok(rv),
-                        Err(e) => return Err(e),
-                    }
-                }
+#[cfg_attr(rustfmt, rustfmt_skip)]
+macro_rules! impl_pset_prop_insert_pair {
+    ($slf:ident.$unkeyed_name:ident <= <$raw_key:ident: _>|<$raw_value:ident: $unkeyed_value_type:ty>) => {
+        if $crate::pset::raw::ProprietaryKey::<u8>::from_key($raw_key.clone())?.key.is_empty() {
+            if $slf.$unkeyed_name.is_none() {
+                let val: $unkeyed_value_type = $crate::pset::serialize::Deserialize::deserialize(&$raw_value)?;
+                $slf.$unkeyed_name = Some(val)
+            } else {
+                return Err($crate::pset::Error::DuplicateKey($raw_key).into());
             }
+        } else {
+            return Err($crate::pset::Error::InvalidKey($raw_key).into());
         }
     };
-}
-
-macro_rules! impl_psetmap_consensus_enc_dec_oding {
-    ($thing:ty) => {
-        impl_psetmap_consensus_decoding!($thing);
-        impl_psetmap_consensus_encoding!($thing);
+    ($unkeyed_name:ident <= <$raw_key:ident: _>|<$raw_value:ident: $unkeyed_value_type:ty>) => {
+        if $crate::pset::raw::ProprietaryKey::<u8>::from_key($raw_key.clone())?.key.is_empty() {
+            if $unkeyed_name.is_none() {
+                let val: $unkeyed_value_type = $crate::pset::serialize::Deserialize::deserialize(&$raw_value)?;
+                $unkeyed_name = Some(val)
+            } else {
+                return Err($crate::pset::Error::DuplicateKey($raw_key).into());
+            }
+        } else {
+            return Err($crate::pset::Error::InvalidKey($raw_key).into());
+        }
     };
 }
 
@@ -107,6 +108,18 @@ macro_rules! impl_pset_insert_pair {
             if $slf.$unkeyed_name.is_none() {
                 let val: $unkeyed_value_type = $crate::pset::serialize::Deserialize::deserialize(&$raw_value)?;
                 $slf.$unkeyed_name = Some(val)
+            } else {
+                return Err($crate::pset::Error::DuplicateKey($raw_key).into());
+            }
+        } else {
+            return Err($crate::pset::Error::InvalidKey($raw_key).into());
+        }
+    };
+    ($unkeyed_name:ident <= <$raw_key:ident: _>|<$raw_value:ident: $unkeyed_value_type:ty>) => {
+        if $raw_key.key.is_empty() {
+            if $unkeyed_name.is_none() {
+                let val: $unkeyed_value_type = $crate::pset::serialize::Deserialize::deserialize(&$raw_value)?;
+                $unkeyed_name = Some(val)
             } else {
                 return Err($crate::pset::Error::DuplicateKey($raw_key).into());
             }
@@ -133,7 +146,7 @@ macro_rules! impl_pset_insert_pair {
 
 #[cfg_attr(rustfmt, rustfmt_skip)]
 macro_rules! impl_pset_get_pair {
-    ($rv:ident.push($slf:ident.$unkeyed_name:ident as <$unkeyed_typeval:expr, _>|<$unkeyed_value_type:ty>)) => {
+    ($rv:ident.push($slf:ident.$unkeyed_name:ident as <$unkeyed_typeval:expr, _>)) => {
         if let Some(ref $unkeyed_name) = $slf.$unkeyed_name {
             $rv.push($crate::pset::raw::Pair {
                 key: $crate::pset::raw::Key {
@@ -144,7 +157,36 @@ macro_rules! impl_pset_get_pair {
             });
         }
     };
-    ($rv:ident.push($slf:ident.$keyed_name:ident as <$keyed_typeval:expr, $keyed_key_type:ty>|<$keyed_value_type:ty>)) => {
+    ($rv:ident.push($unkeyed_name:ident as <$unkeyed_typeval:expr, _>)) => {
+        if let Some(ref $unkeyed_name) = $unkeyed_name {
+            $rv.push($crate::pset::raw::Pair {
+                key: $crate::pset::raw::Key {
+                    type_value: $unkeyed_typeval,
+                    key: vec![],
+                },
+                value: $crate::pset::serialize::Serialize::serialize($unkeyed_name),
+            });
+        }
+    };
+    ($rv:ident.push_prop($slf:ident.$unkeyed_name:ident as <$unkeyed_typeval:expr, _>)) => {
+        if let Some(ref $unkeyed_name) = $slf.$unkeyed_name {
+            let key = $crate::pset::raw::ProprietaryKey::from_pset_pair($unkeyed_typeval, vec![]);
+            $rv.push($crate::pset::raw::Pair {
+                key: key.to_key(),
+                value: $crate::pset::serialize::Serialize::serialize($unkeyed_name),
+            });
+        }
+    };
+    ($rv:ident.push_mandatory($unkeyed_name:ident as <$unkeyed_typeval:expr, _>)) => {
+            $rv.push($crate::pset::raw::Pair {
+                key: $crate::pset::raw::Key {
+                    type_value: $unkeyed_typeval,
+                    key: vec![],
+                },
+                value: $crate::pset::serialize::Serialize::serialize(&$unkeyed_name),
+            });
+    };
+    ($rv:ident.push($slf:ident.$keyed_name:ident as <$keyed_typeval:expr, $keyed_key_type:ty>)) => {
         for (key, val) in &$slf.$keyed_name {
             $rv.push($crate::pset::raw::Pair {
                 key: $crate::pset::raw::Key {
