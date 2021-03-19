@@ -62,6 +62,20 @@ impl PartiallySignedTransaction {
         }
     }
 
+    /// Add an input to pset. This also updates the
+    /// pset global input count
+    pub fn add_input(&mut self, inp: Input) {
+        self.global.tx_data.input_count += 1;
+        self.inputs.push(inp);
+    }
+
+    /// Add an output to pset. This also updates the
+    /// pset global output count
+    pub fn add_output(&mut self, out: Output) {
+        self.global.tx_data.output_count += 1;
+        self.outputs.push(out);
+    }
+
     /// Accessor for the number of inputs currently in the PSET
     pub fn n_inputs(&self) -> usize {
         self.global.n_inputs()
