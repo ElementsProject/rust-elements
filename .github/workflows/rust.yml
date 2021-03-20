@@ -1,0 +1,37 @@
+on: [push, pull_request]
+
+name: Continuous integration
+
+jobs:
+  Tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - rust: stable
+            env:
+              DUMMY: true
+          - rust: beta
+            env:
+              DUMMY: true
+          - rust: nightly
+            env:
+              DO_FUZZ: true
+          - rust: 1.29.0
+            env:
+              PIN_VERSIONS: true
+    steps:
+      - name: Install test dependencies
+        run: sudo apt-get install -y binutils-dev libunwind8-dev
+      - name: Checkout Crate
+        uses: actions/checkout@v2
+      - name: Checkout Toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: ${{ matrix.rust }}
+          override: true
+      - name: Running test script
+        env: ${{ matrix.env }}
+        run: ./contrib/test.sh
