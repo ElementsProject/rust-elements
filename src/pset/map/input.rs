@@ -14,7 +14,7 @@
 
 use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io};
 
-use {Script, SigHashType, Transaction, Txid, TxOut, BlockHash};
+use {Script, SigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
 use encode::{self, Decodable};
 use confidential;
 use bitcoin::util::bip32::KeySource;
@@ -218,6 +218,31 @@ impl Input{
         let mut ret = Self::default();
         ret.previous_output_index = outpoint.vout;
         ret.previous_txid = outpoint.txid;
+        ret
+    }
+
+    /// Create a pset input from TxIn
+    pub fn from_txin(txin: TxIn) -> Self {
+        let mut ret = Self::from_prevout(txin.previous_output);
+        ret.sequence = Some(txin.sequence);
+        ret.final_script_sig = Some(txin.script_sig);
+        ret.final_script_witness = Some(txin.witness.script_witness);
+
+        if txin.is_pegin {
+            ret.previous_output_index |= 1 << 30;
+            ret.pegin_witness = Some(txin.witness.pegin_witness);
+        }
+        if txin.has_issuance {
+            ret.previous_output_index |= 1 << 31;
+            ret.issuance_blinding_nonce = Some(txin.asset_issuance.asset_blinding_nonce);
+            ret.issuance_asset_entropy = Some(txin.asset_issuance.asset_entropy);
+            ret.issuance_value = Some(txin.asset_issuance.amount);
+            ret.issuance_inflation_keys = Some(txin.asset_issuance.inflation_keys);
+
+            // Witness
+            ret.issuance_keys_rangeproof = txin.witness.inflation_keys_rangeproof;
+            ret.issuance_value_rangeproof = txin.witness.amount_rangeproof;
+        }
         ret
     }
 }
