@@ -52,6 +52,23 @@ pub struct PartiallySignedTransaction {
 }
 
 impl PartiallySignedTransaction {
+
+    /// Create a new PSET from a raw transaction
+    pub fn from_tx(tx: Transaction) -> Self {
+        let mut global = Global::default();
+        global.tx_data.output_count = tx.output.len();
+        global.tx_data.input_count = tx.input.len();
+        global.tx_data.fallback_locktime = Some(tx.lock_time);
+        global.tx_data.version = tx.version;
+
+        let inputs = tx.input.into_iter().map(Input::from_txin).collect();
+        let outputs = tx.output.into_iter().map(Output::from_txout).collect();
+        Self {
+            global: global,
+            inputs: inputs,
+            outputs: outputs,
+        }
+    }
     /// Create a PartiallySignedTransaction with zero inputs
     /// zero outputs with a version 2 and tx version 2
     pub fn new_v2() -> Self {

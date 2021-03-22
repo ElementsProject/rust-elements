@@ -107,6 +107,11 @@ impl Output{
         let mut rv = Self::default();
         rv.amount = txout.value;
         rv.script_pubkey = txout.script_pubkey;
+        rv.asset = txout.asset;
+        rv.ecdh_pubkey = txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
+            key: pk,
+            compressed: true, // always serialize none as compressed pk
+        });
         rv
     }
 }
