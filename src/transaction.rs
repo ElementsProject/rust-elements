@@ -906,7 +906,7 @@ impl From<hashes::Error> for UnblindError {
 }
 
 /// Result of unblinding a `ConfidentialTxOut`
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct UnblindedTxOut {
     /// Committed asset
     pub asset: AssetId,
