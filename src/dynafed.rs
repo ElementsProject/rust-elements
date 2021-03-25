@@ -216,6 +216,12 @@ impl Params {
     }
 }
 
+impl Default for Params {
+    fn default() -> Params {
+        Params::Null
+    }
+}
+
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for Params {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
