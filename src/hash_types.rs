@@ -16,7 +16,10 @@
 //! to avoid mixing data of the same hash format (like SHA256d) but of different meaning
 //! (transaction id, block hash etc).
 
-use bitcoin::hashes::{Hash, sha256, sha256d,  hash160};
+use bitcoin::{
+    hashes::{hash160, sha256, sha256d, Hash},
+    secp256k1::ThirtyTwoByteHash,
+};
 
 macro_rules! impl_hashencode {
     ($hashtype:ident) => {
@@ -52,3 +55,9 @@ impl_hashencode!(Wtxid);
 impl_hashencode!(SigHash);
 impl_hashencode!(BlockHash);
 impl_hashencode!(TxMerkleNode);
+
+impl ThirtyTwoByteHash for SigHash {
+    fn into_32(self) -> [u8; 32] {
+        self.0.into_inner()
+    }
+}
