@@ -211,6 +211,7 @@ impl_upstream!(Vec<Vec<u8>>);
 impl_upstream!(btcenc::VarInt);
 impl_upstream!(::hashes::sha256d::Hash);
 impl_upstream!(bitcoin::Transaction);
+impl_upstream!(bitcoin::BlockHash);
 
 // Vectors
 macro_rules! impl_vec {
