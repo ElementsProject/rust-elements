@@ -1834,4 +1834,3 @@ mod tests {
         assert_eq!(tx.all_fees()[&fee_asset], 1788);
     }
 }
-

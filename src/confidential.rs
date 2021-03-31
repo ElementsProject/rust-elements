@@ -397,5 +397,190 @@ mod tests {
         commitment[0] = 42;
         assert!(Nonce::from_commitment(&commitment[..]).is_err());
     }
-}
 
+    #[cfg(feature = "serde")]
+    #[test]
+    fn value_serde() {
+        use serde_test::{assert_tokens, Token};
+
+        let value = Value::Explicit(100_000_000);
+        assert_tokens(
+            &value,
+            &[
+                Token::Seq { len: Some(2) },
+                Token::U8(1),
+                Token::U64(63601271583539200),
+                Token::SeqEnd
+            ]
+        );
+
+        let value = Value::from_commitment(&[
+            0x08,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ]).unwrap();
+
+        assert_tokens(
+            &value,
+            &[
+                Token::Seq { len: Some(2) },
+                Token::U8(8),
+                Token::Tuple { len: 32 },
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::TupleEnd,
+                Token::SeqEnd
+            ]
+        );
+
+        let value = Value::Null;
+        assert_tokens(
+            &value,
+            &[
+                Token::Seq { len: Some(1) },
+                Token::U8(0),
+                Token::SeqEnd
+            ]
+        );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn asset_serde() {
+        use bitcoin::hashes::hex::FromHex;
+        use serde_test::{assert_tokens, Configure, Token};
+
+        let asset_id = AssetId::from_hex(
+            "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
+        ).unwrap();
+        let asset = Asset::Explicit(asset_id);
+        assert_tokens(
+            &asset.readable(),
+            &[
+                Token::Seq { len: Some(2) },
+                Token::U8(1),
+                Token::Str(
+                    "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
+                ),
+                Token::SeqEnd
+            ]
+        );
+        assert_tokens(
+            &asset.compact(),
+            &[
+                Token::Seq { len: Some(2) },
+                Token::U8(1),
+                Token::Bytes(
+                    &[
+                        248, 11, 176, 3, 143, 72, 34, 67, 32, 47, 11, 45, 207, 136, 217, 180,
+                        231, 249, 48, 164, 138, 63, 205, 192, 3, 175, 118, 177, 249, 214, 14, 99
+                    ]
+                ),
+                Token::SeqEnd
+            ]
+        );
+
+        let asset = Asset::from_commitment(&[
+            0x0a,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ]).unwrap();
+        assert_tokens(
+            &asset,
+            &[
+                Token::Seq { len: Some(2) },
+                Token::U8(10),
+                Token::Tuple { len: 32 },
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::TupleEnd,
+                Token::SeqEnd
+            ]
+        );
+
+        let asset = Asset::Null;
+        assert_tokens(
+            &asset,
+            &[
+                Token::Seq { len: Some(1) },
+                Token::U8(0),
+                Token::SeqEnd
+            ]
+        );
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn nonce_serde() {
+        use serde_test::{assert_tokens, Token};
+
+        let nonce = Nonce::Explicit([
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ]);
+        assert_tokens(
+            &nonce,
+            &[
+                Token::Seq { len: Some(2) },
+                Token::U8(1),
+                Token::Tuple { len: 32 },
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::TupleEnd,
+                Token::SeqEnd
+            ]
+        );
+
+        let nonce = Nonce::from_commitment(&[
+            0x02,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        ]).unwrap();
+        assert_tokens(
+            &nonce,
+            &[
+                Token::Seq { len: Some(2) },
+                Token::U8(2),
+                Token::Tuple { len: 32 },
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::TupleEnd,
+                Token::SeqEnd
+            ]
+        );
+
+        let nonce = Nonce::Null;
+        assert_tokens(
+            &nonce,
+            &[
+                Token::Seq { len: Some(1) },
+                Token::U8(0),
+                Token::SeqEnd
+            ]
+        );
+    }
+}

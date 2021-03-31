@@ -33,6 +33,7 @@ extern crate slip21;
 
 #[cfg(test)] extern crate rand;
 #[cfg(any(test, feature = "serde_json"))] extern crate serde_json;
+#[cfg(all(test, feature = "serde"))] extern crate serde_test;
 
 #[macro_use] mod internal_macros;
 pub mod address;
@@ -64,4 +65,3 @@ pub use fast_merkle_root::fast_merkle_root;
 pub use hash_types::*;
 pub use issuance::{AssetId, ContractHash};
 pub use script::Script;
-
