@@ -151,9 +151,7 @@ impl PartiallySignedTransaction {
 
     /// Accessor for the "unique identifier" of this PSET, to be used when merging
     pub fn unique_id(&self) -> Result<Txid, Error> {
-        // A bit strange to call clone on the first line, but &self API makes
-        // more intuitive sense for unique id
-        let mut tx = self.clone().extract_tx()?;
+        let mut tx = self.extract_tx()?;
         // PSBTv2s can be uniquely identified by constructing an unsigned
         // transaction given the information provided in the PSBT and computing
         // the transaction ID of that transaction. Since PSBT_IN_SEQUENCE can be
@@ -180,19 +178,19 @@ impl PartiallySignedTransaction {
 
     /// Extract the Transaction from a PartiallySignedTransaction by filling in
     /// the available signature information in place.
-    pub fn extract_tx(self) -> Result<Transaction, Error> {
+    pub fn extract_tx(&self) -> Result<Transaction, Error> {
         // This should never trigger any error, should be panic here?
         self.sanity_check()?;
         let locktime = self.locktime()?;
         let mut inputs = vec![];
         let mut outputs = vec![];
 
-        for psetin in self.inputs.into_iter() {
+        for psetin in self.inputs.iter() {
             let txin = TxIn {
                 previous_output: OutPoint::new(psetin.previous_txid, psetin.previous_output_index),
                 is_pegin: psetin.previous_output_index & (1 << 30) != 0,
                 has_issuance: psetin.previous_output_index & (1 << 31) != 0,
-                script_sig: psetin.final_script_sig.unwrap_or(Script::new()),
+                script_sig: psetin.final_script_sig.clone().unwrap_or(Script::new()),
                 sequence: psetin.sequence.unwrap_or(0xffffffff),
                 asset_issuance: AssetIssuance {
                     asset_blinding_nonce: psetin.issuance_blinding_nonce.as_ref()
@@ -202,26 +200,28 @@ impl PartiallySignedTransaction {
                     inflation_keys: psetin.issuance_inflation_keys.unwrap_or(confidential::Value::Null),
                 },
                 witness: TxInWitness {
-                    amount_rangeproof: psetin.issuance_value_rangeproof,
-                    inflation_keys_rangeproof: psetin.issuance_keys_rangeproof,
-                    script_witness: psetin.final_script_witness.unwrap_or(Vec::new()),
-                    pegin_witness: psetin.pegin_witness.unwrap_or(Vec::new()),
+                    amount_rangeproof: psetin.issuance_value_rangeproof.clone(),
+                    inflation_keys_rangeproof: psetin.issuance_keys_rangeproof.clone(),
+                    script_witness: psetin.final_script_witness.as_ref()
+                        .map(|x| x.to_owned()).unwrap_or(Vec::new()),
+                    pegin_witness: psetin.pegin_witness.as_ref()
+                        .map(|x| x.to_owned()).unwrap_or(Vec::new()),
                 },
             };
             inputs.push(txin);
         }
 
-        for out in self.outputs {
+        for out in self.outputs.iter() {
             let txout = TxOut {
                 asset: out.asset,
                 value: out.amount,
                 nonce: out.blinding_key
                     .map(|x| confidential::Nonce::from(x.key))
                     .unwrap_or(confidential::Nonce::Null),
-                script_pubkey: out.script_pubkey,
+                script_pubkey: out.script_pubkey.clone(),
                 witness: TxOutWitness {
-                    surjection_proof: out.asset_surjection_proof,
-                    rangeproof: out.value_rangeproof,
+                    surjection_proof: out.asset_surjection_proof.clone(),
+                    rangeproof: out.value_rangeproof.clone(),
                 },
             };
             outputs.push(txout);
@@ -347,7 +347,7 @@ mod tests {
     fn pset_rtt(tx_hex: &str) {
         let tx: Transaction = encode::deserialize(&Vec::<u8>::from_hex(tx_hex).unwrap()[..]).unwrap();
         let pset= PartiallySignedTransaction::from_tx(tx);
-        let rtt_tx_hex = encode::serialize_hex(&pset.clone().extract_tx().unwrap());
+        let rtt_tx_hex = encode::serialize_hex(&pset.extract_tx().unwrap());
         assert_eq!(tx_hex, rtt_tx_hex);
         let pset_rtt_hex = encode::serialize_hex(&pset);
         let pset2 : PartiallySignedTransaction = encode::deserialize(&Vec::<u8>::from_hex(&pset_rtt_hex).unwrap()[..]).unwrap();
