@@ -147,10 +147,10 @@ impl ::std::fmt::LowerHex for AssetId {
 }
 
 impl FromStr for AssetId {
-	type Err = hex::Error;
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		hex::FromHex::from_hex(s)
-	}
+    type Err = hex::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        hex::FromHex::from_hex(s)
+    }
 }
 
 impl Encodable for AssetId {
@@ -160,7 +160,7 @@ impl Encodable for AssetId {
 }
 
 impl Decodable for AssetId {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
         Ok(Self::from_inner(sha256::Midstate::consensus_decode(d)?))
     }
 }
