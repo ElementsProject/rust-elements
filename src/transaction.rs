@@ -411,6 +411,10 @@ impl From<secp256k1_zkp::Error> for ConfidentialTxOutError {
 }
 
 impl TxOut {
+    const RANGEPROOF_MIN_VALUE: u64 = 1;
+    const RANGEPROOF_EXP_SHIFT: i32 = 0;
+    const RANGEPROOF_MIN_PRIV_BITS: u8 = 52;
+
     /// Creates a new confidential output that is **not** the last one in the transaction.
     pub fn new_not_last_confidential<R, C>(
         rng: &mut R,
@@ -445,15 +449,15 @@ impl TxOut {
         let message = RangeProofMessage { asset, bf: out_abf };
         let rangeproof = RangeProof::new(
             secp,
-            1,
+            Self::RANGEPROOF_MIN_VALUE,
             value_commitment.commitment().expect("confidential value"),
             value,
             out_vbf.0,
             &message.to_bytes(),
             address.script_pubkey().as_bytes(),
             shared_secret,
-            0,
-            52,
+            Self::RANGEPROOF_EXP_SHIFT,
+            Self::RANGEPROOF_MIN_PRIV_BITS,
             out_asset_commitment,
         )?;
 
@@ -527,15 +531,15 @@ impl TxOut {
         let message = RangeProofMessage { asset, bf: out_abf };
         let rangeproof = RangeProof::new(
             secp,
-            1,
+            Self::RANGEPROOF_MIN_VALUE,
             value_commitment.commitment().expect("confidential value"),
             value,
             out_vbf.0,
             &message.to_bytes(),
             address.script_pubkey().as_bytes(),
             shared_secret,
-            0,
-            52,
+            Self::RANGEPROOF_EXP_SHIFT,
+            Self::RANGEPROOF_MIN_PRIV_BITS,
             out_asset_commitment,
         )?;
 
