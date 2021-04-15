@@ -27,7 +27,7 @@ use bitcoin::bech32::{self, u5, FromBase32, ToBase32};
 use bitcoin::util::base58;
 use bitcoin::PublicKey;
 use bitcoin::hashes::Hash;
-use bitcoin::secp256k1;
+use secp256k1_zkp;
 #[cfg(feature = "serde")]
 use serde;
 
@@ -52,7 +52,7 @@ pub enum AddressError {
     /// Unsupported witness version
     UnsupportedWitnessVersion(u8),
     /// An invalid blinding pubkey was encountered.
-    InvalidBlindingPubKey(secp256k1::Error),
+    InvalidBlindingPubKey(secp256k1_zkp::UpstreamError),
     /// Given the program version, the length is invalid
     ///
     /// Version 0 scripts must be either 20 or 32 bytes
@@ -160,7 +160,7 @@ pub struct Address {
     /// the traditional non-confidential payload
     pub payload: Payload,
     /// the blinding pubkey
-    pub blinding_pubkey: Option<secp256k1::PublicKey>,
+    pub blinding_pubkey: Option<secp256k1_zkp::PublicKey>,
 }
 
 impl Address {
@@ -174,7 +174,7 @@ impl Address {
     #[inline]
     pub fn p2pkh(
         pk: &PublicKey,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = PubkeyHash::engine();
@@ -192,7 +192,7 @@ impl Address {
     #[inline]
     pub fn p2sh(
         script: &script::Script,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
         Address {
@@ -206,7 +206,7 @@ impl Address {
     /// This is the native segwit address type for an output redeemable with a single signature
     pub fn p2wpkh(
         pk: &PublicKey,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = WPubkeyHash::engine();
@@ -226,7 +226,7 @@ impl Address {
     /// This is a segwit address type that looks familiar (as p2sh) to legacy clients
     pub fn p2shwpkh(
         pk: &PublicKey,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = ScriptHash::engine();
@@ -246,7 +246,7 @@ impl Address {
     /// Create a witness pay to script hash address
     pub fn p2wsh(
         script: &script::Script,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
         Address {
@@ -263,7 +263,7 @@ impl Address {
     /// This is a segwit address type that looks familiar (as p2sh) to legacy clients
     pub fn p2shwsh(
         script: &script::Script,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
         let ws = script::Builder::new()
@@ -281,7 +281,7 @@ impl Address {
     /// Get an [Address] from an output script.
     pub fn from_script(
         script: &script::Script,
-        blinder: Option<secp256k1::PublicKey>,
+        blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Option<Address> {
         Some(Address {
@@ -338,7 +338,7 @@ impl Address {
     }
 
     /// Convert this address to a confidential address with the given blinding pubkey.
-    pub fn to_confidential(&self, blinding_pubkey: secp256k1::PublicKey) -> Address {
+    pub fn to_confidential(&self, blinding_pubkey: secp256k1_zkp::PublicKey) -> Address {
         Address {
             params: self.params,
             payload: self.payload.clone(),
@@ -391,7 +391,7 @@ impl Address {
         let (blinding_pubkey, program) = match blinded {
             true => (
                 Some(
-                    secp256k1::PublicKey::from_slice(&data[..33])
+                    secp256k1_zkp::PublicKey::from_slice(&data[..33])
                         .map_err(AddressError::InvalidBlindingPubKey)?,
                 ),
                 data[33..].to_vec(),
@@ -434,7 +434,7 @@ impl Address {
         let (blinding_pubkey, payload_data) = match blinded {
             true => (
                 Some(
-                    secp256k1::PublicKey::from_slice(&data[2..35])
+                    secp256k1_zkp::PublicKey::from_slice(&data[2..35])
                         .map_err(AddressError::InvalidBlindingPubKey)?,
                 ),
                 &data[35..],
@@ -672,7 +672,7 @@ impl serde::Serialize for Address {
 mod test {
     use super::*;
     use bitcoin::util::key;
-    use bitcoin::secp256k1::{PublicKey, Secp256k1};
+    use secp256k1_zkp::{PublicKey, Secp256k1};
     use Script;
     #[cfg(feature = "serde")]
     use serde_json;

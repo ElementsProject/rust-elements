@@ -103,6 +103,13 @@ impl From<io::Error> for Error {
 }
 
 #[doc(hidden)]
+impl From<pset::Error> for Error {
+    fn from(e: pset::Error) -> Error {
+        Error::PsetError(e)
+    }
+}
+
+#[doc(hidden)]
 impl From<secp256k1_zkp::UpstreamError> for Error {
     fn from(e: secp256k1_zkp::UpstreamError) -> Self {
         Error::Secp256k1(e)
@@ -112,13 +119,6 @@ impl From<secp256k1_zkp::UpstreamError> for Error {
 impl From<secp256k1_zkp::Error> for Error {
     fn from(e: secp256k1_zkp::Error) -> Self {
         Error::Secp256k1zkp(e)
-    }
-}
-
-#[doc(hidden)]
-impl From<pset::Error> for Error {
-    fn from(e: pset::Error) -> Error {
-        Error::PsetError(e)
     }
 }
 
