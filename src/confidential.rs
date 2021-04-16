@@ -17,12 +17,12 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
-use bitcoin::hashes::{sha256d, Hash};
+use hashes::{sha256d, Hash, hex, hex::FromHex};
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment, PublicKey, Secp256k1, SecretKey, Signing, Tweak, compute_adaptive_blinding_factor, ecdh::SharedSecret, rand::{CryptoRng, Rng, RngCore}};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use std::{fmt, io};
+use std::{fmt, io, str};
 
 use encode::{self, Decodable, Encodable};
 use issuance::AssetId;
@@ -770,6 +770,42 @@ impl AssetBlindingFactor {
     }
 }
 
+impl hex::FromHex for AssetBlindingFactor {
+    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
+        where I: Iterator<Item=Result<u8, hex::Error>> +
+            ExactSizeIterator +
+            DoubleEndedIterator
+    {
+        let slice = <[u8; 32]>::from_byte_iter(iter.rev())?;
+        // Incorrect Return Error
+        // See: https://github.com/rust-bitcoin/bitcoin_hashes/issues/124
+        let inner = Tweak::from_inner(slice)
+            .map_err(|_e| hex::Error::InvalidChar(0))?;
+        Ok(AssetBlindingFactor(inner))
+    }
+}
+
+impl fmt::Display for AssetBlindingFactor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        hex::format_hex_reverse(self.0.as_ref(), f)
+    }
+}
+
+impl fmt::LowerHex for AssetBlindingFactor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        hex::format_hex_reverse(self.0.as_ref(), f)
+    }
+}
+
+impl str::FromStr for AssetBlindingFactor {
+    type Err = encode::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let slice = <[u8; 32]>::from_hex(s)?;
+        Ok(Self::from_slice(&slice)?)
+    }
+}
+
 /// Blinding factor used for value commitments.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct ValueBlindingFactor(pub(crate) Tweak);
@@ -818,6 +854,42 @@ impl ValueBlindingFactor {
     /// Returns the inner value.
     pub fn into_inner(self) -> Tweak {
         self.0
+    }
+}
+
+impl hex::FromHex for ValueBlindingFactor {
+    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
+        where I: Iterator<Item=Result<u8, hex::Error>> +
+            ExactSizeIterator +
+            DoubleEndedIterator
+    {
+        let slice = <[u8; 32]>::from_byte_iter(iter.rev())?;
+        // Incorrect Return Error
+        // See: https://github.com/rust-bitcoin/bitcoin_hashes/issues/124
+        let inner = Tweak::from_inner(slice)
+            .map_err(|_e| hex::Error::InvalidChar(0))?;
+        Ok(ValueBlindingFactor(inner))
+    }
+}
+
+impl fmt::Display for ValueBlindingFactor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        hex::format_hex_reverse(self.0.as_ref(), f)
+    }
+}
+
+impl fmt::LowerHex for ValueBlindingFactor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        hex::format_hex_reverse(self.0.as_ref(), f)
+    }
+}
+
+impl str::FromStr for ValueBlindingFactor {
+    type Err = encode::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let slice = <[u8; 32]>::from_hex(s)?;
+        Ok(Self::from_slice(&slice)?)
     }
 }
 

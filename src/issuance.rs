@@ -270,6 +270,22 @@ mod test {
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
         let token_id = AssetId::from_hex(token_id_hex).unwrap();
         assert_eq!(AssetId::reissuance_token_from_entropy(entropy, false), token_id);
+
+        // example test data from Elements Core 0.21
+        // with confidential re-issuance
+        let prevout_str = "8903ee739b52859877fbfedc58194c2d59d0f5a4ea3c2774dc3cba3031cec757:0";
+        let entropy_hex = "b9789de8589dc1b664e4f2bda4d04af9d4d2180394a8c47b1f889acfb5e0acc4";
+        let asset_id_hex = "bdab916e8cda17781bcdb84505452e44d0ab2f080e9e5dd7765ffd5ce0c07cd9";
+        let token_id_hex = "f144868169dfc7afc024c4d8f55607ac8dfe925e67688650a9cdc54c3cfa5b1c";
+
+        let contract_hash = ContractHash::from_inner(ZERO32);
+        let prevout = OutPoint::from_str(prevout_str).unwrap();
+        let entropy = sha256::Midstate::from_hex(entropy_hex).unwrap();
+        assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
+        let asset_id = AssetId::from_hex(asset_id_hex).unwrap();
+        assert_eq!(AssetId::from_entropy(entropy), asset_id);
+        let token_id = AssetId::from_hex(token_id_hex).unwrap();
+        assert_eq!(AssetId::reissuance_token_from_entropy(entropy, true), token_id);
     }
 
     #[cfg(feature = "json-contract")]
