@@ -49,6 +49,21 @@ impl Value {
         Value::Confidential(PedersenCommitment::new(secp, value, bf.0, asset))
     }
 
+    /// Create value commitment from assetID, asset blinding factor,
+    /// value and value blinding factor
+    pub fn new_confidential_from_assetid<C: Signing>(
+        secp: &Secp256k1<C>,
+        value: u64,
+        asset: AssetId,
+        v_bf: ValueBlindingFactor,
+        a_bf: AssetBlindingFactor,
+    ) -> Self {
+        let generator = Generator::new_blinded(secp, asset.into_tag(), a_bf.0);
+        let comm = PedersenCommitment::new(secp, value, v_bf.0, generator);
+
+        Value::Confidential(comm)
+    }
+
     /// Serialized length, in bytes
     pub fn encoded_length(&self) -> usize {
         match *self {
