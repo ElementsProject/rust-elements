@@ -126,17 +126,15 @@ impl<'de> Deserialize<'de> for ExtData {
                         proposed: prop,
                         signblock_witness: wit,
                     })
+                } else if challenge_missing {
+                    Err(de::Error::missing_field("challenge"))
                 } else {
-                    if challenge_missing {
-                        Err(de::Error::missing_field("challenge"))
-                    } else {
-                        Err(de::Error::missing_field("solution"))
-                    }
+                    Err(de::Error::missing_field("solution"))
                 }
             }
         }
 
-        static FIELDS: &'static [&'static str] = &[
+        static FIELDS: &[&str] = &[
             "challenge",
             "solution",
             "current",
@@ -267,10 +265,10 @@ impl BlockHeader {
     /// the block hash.
     pub fn clear_witness(&mut self) {
         match &mut self.ext {
-            &mut ExtData::Proof { ref mut solution, .. } => {
+            ExtData::Proof { ref mut solution, .. } => {
                 *solution = Script::new();
             },
-            &mut ExtData::Dynafed { ref mut signblock_witness, .. } => {
+            ExtData::Dynafed { ref mut signblock_witness, .. } => {
                 signblock_witness.clear();
             },
         }
@@ -309,7 +307,7 @@ impl Encodable for BlockHeader {
 }
 
 impl Decodable for BlockHeader {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
         let mut version: u32 = Decodable::consensus_decode(&mut d)?;
         let is_dyna = if version >> 31 == 1 {
             version &= 0x7fff_ffff;
@@ -319,7 +317,7 @@ impl Decodable for BlockHeader {
         };
 
         Ok(BlockHeader {
-            version: version,
+            version,
             prev_blockhash: Decodable::consensus_decode(&mut d)?,
             merkle_root: Decodable::consensus_decode(&mut d)?,
             time: Decodable::consensus_decode(&mut d)?,
@@ -749,4 +747,3 @@ mod tests {
         );
     }
 }
-

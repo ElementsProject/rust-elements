@@ -14,12 +14,14 @@ default = [ "json-contract" ]
 json-contract = [ "serde_json" ]
 "serde-feature" = [
     "bitcoin/use-serde",
+    "secp256k1-zkp/use-serde",
     "serde"
 ]
 "fuzztarget" = []
 
 [dependencies]
 bitcoin = "0.26"
+secp256k1-zkp = { version = "0.2", features = [ "global-context", "hashes" ] }
 slip21 = "0.2.0"
 
 # While this dependency is included in bitcoin, we need this to use the macros.
@@ -34,5 +36,6 @@ serde = { version = "1.0", optional = true }
 
 [dev-dependencies]
 rand = "0.6.5"
+serde_test = "1.0"
 serde_json = "<=1.0.44"
 ryu = "<1.0.5"

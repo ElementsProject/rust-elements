@@ -77,7 +77,7 @@ pub fn decode(s: &str) -> Result<(&str, Vec<u5>), Error> {
     }
 
     // Split at separator and check for two pieces
-    let (raw_hrp, raw_data) = match s.rfind("1") {
+    let (raw_hrp, raw_data) = match s.rfind('1') {
         None => return Err(Error::MissingSeparator),
         Some(sep) => {
             let (hrp, data) = s.split_at(sep);
@@ -85,7 +85,7 @@ pub fn decode(s: &str) -> Result<(&str, Vec<u5>), Error> {
         }
     };
     // ELEMENTS: 6->12
-    if raw_hrp.len() < 1 || raw_data.len() < 12 || raw_hrp.len() > 83 {
+    if raw_hrp.is_empty() || raw_data.len() < 12 || raw_hrp.len() > 83 {
         return Err(Error::InvalidLength);
     }
 
@@ -193,9 +193,9 @@ fn polymod(values: &[u5]) -> u64 {
     for v in values {
         b = (chk >> 55) as u8; // ELEMENTS: 25->55
         chk = (chk & 0x7fffffffffffff) << 5 ^ (u64::from(*v.as_ref())); // ELEMENTS 0x1ffffff->0x7fffffffffffff
-        for i in 0..5 {
+        for (i, coef) in GEN.iter().enumerate() {
             if (b >> i) & 1 == 1 {
-                chk ^= GEN[i]
+                chk ^= coef
             }
         }
     }
@@ -248,7 +248,7 @@ mod test {
 
         let data2 = data.to_vec();
         let mut data2_b32 = data2.to_base32();
-		data2_b32.extend(vec![u5::try_from_u8(0).unwrap(); 1023]);
+                data2_b32.extend(vec![u5::try_from_u8(0).unwrap(); 1023]);
         let polymod2 = polymod(&data2_b32);
         assert_eq!(polymod1, polymod2);
     }
@@ -256,7 +256,7 @@ mod test {
     #[test]
     fn test_checksum() {
         let data = vec![7,2,3,4,5,6,7,8,9,234,123,213,16];
-        let cs = create_checksum("lq".as_bytes(), &data.to_base32());
+        let cs = create_checksum(b"lq", &data.to_base32());
         let expected_cs = vec![22,13,13,5,4,4,23,7,28,21,30,12];
         for i in 0..expected_cs.len() {
             assert_eq!(expected_cs[i], *cs[i].as_ref());

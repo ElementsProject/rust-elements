@@ -15,21 +15,23 @@
 //! # Transactions
 //!
 
-use std::{io, fmt};
+use std::{io, fmt, self};
 use std::collections::HashMap;
 
 use bitcoin::{self, VarInt};
 use bitcoin::hashes::Hash;
 
-use confidential;
+use confidential::{self, AssetBlindingFactor, ValueBlindingFactor, Asset, Nonce, Value};
 use encode::{self, Encodable, Decodable};
 use issuance::AssetId;
 use opcodes;
 use script::Instruction;
 use {Script, Txid, Wtxid};
+use address::Address;
+use secp256k1_zkp::{self, Generator, RangeProof, Secp256k1, Signing, SurjectionProof, rand::{RngCore, CryptoRng}};
 
 /// Description of an asset issuance in a transaction input
-#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct AssetIssuance {
     /// Zero for a new asset issuance; otherwise a blinding factor for the input
     pub asset_blinding_nonce: [u8; 32],
@@ -57,8 +59,8 @@ impl OutPoint {
     /// Create a new outpoint.
     pub fn new(txid: Txid, vout: u32) -> OutPoint {
         OutPoint {
-            txid: txid,
-            vout: vout,
+            txid,
+            vout,
         }
     }
 }
@@ -81,12 +83,12 @@ impl Encodable for OutPoint {
 }
 
 impl Decodable for OutPoint {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<OutPoint, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<OutPoint, encode::Error> {
         let txid = Txid::consensus_decode(&mut d)?;
         let vout = u32::consensus_decode(&mut d)?;
         Ok(OutPoint {
-            txid: txid,
-            vout: vout,
+            txid,
+            vout,
         })
     }
 }
@@ -213,7 +215,7 @@ impl Encodable for TxIn {
 }
 
 impl Decodable for TxIn {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<TxIn, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<TxIn, encode::Error> {
         let mut outp = OutPoint::consensus_decode(&mut d)?;
         let script_sig = Script::consensus_decode(&mut d)?;
         let sequence = u32::consensus_decode(&mut d)?;
@@ -237,10 +239,10 @@ impl Decodable for TxIn {
         }
         Ok(TxIn {
             previous_output: outp,
-            is_pegin: is_pegin,
-            has_issuance: has_issuance,
-            script_sig: script_sig,
-            sequence: sequence,
+            is_pegin,
+            has_issuance,
+            script_sig,
+            sequence,
             asset_issuance: issuance,
             witness: TxInWitness::default(),
         })
@@ -362,7 +364,7 @@ impl Encodable for TxOut {
 }
 
 impl Decodable for TxOut {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<TxOut, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<TxOut, encode::Error> {
         Ok(TxOut {
             asset: Decodable::consensus_decode(&mut d)?,
             value: Decodable::consensus_decode(&mut d)?,
@@ -373,10 +375,199 @@ impl Decodable for TxOut {
     }
 }
 
+/// Errors encountered when constructing confidential transaction outputs.
+#[derive(Debug, Clone, Copy)]
+pub enum ConfidentialTxOutError {
+    /// The address provided does not have a blinding key.
+    NoBlindingKeyInAddress,
+    /// Error originated in `secp256k1_zkp`.
+    Upstream(secp256k1_zkp::Error),
+}
+
+impl fmt::Display for ConfidentialTxOutError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match self {
+            ConfidentialTxOutError::NoBlindingKeyInAddress => {
+                write!(f, "address does not include a blinding key")
+            }
+            ConfidentialTxOutError::Upstream(e) => write!(f, "{}", e),
+        }
+    }
+}
+
+impl std::error::Error for ConfidentialTxOutError {
+    fn cause(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ConfidentialTxOutError::NoBlindingKeyInAddress => None,
+            ConfidentialTxOutError::Upstream(e) => Some(e),
+        }
+    }
+}
+
+impl From<secp256k1_zkp::Error> for ConfidentialTxOutError {
+    fn from(from: secp256k1_zkp::Error) -> Self {
+        ConfidentialTxOutError::Upstream(from)
+    }
+}
+
 impl TxOut {
+    const RANGEPROOF_MIN_VALUE: u64 = 1;
+    const RANGEPROOF_EXP_SHIFT: i32 = 0;
+    const RANGEPROOF_MIN_PRIV_BITS: u8 = 52;
+
+    /// Creates a new confidential output that is **not** the last one in the transaction.
+    pub fn new_not_last_confidential<R, C>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        value: u64,
+        address: Address,
+        asset: AssetId,
+        inputs: &[(
+            AssetId,
+            u64,
+            Generator,
+            AssetBlindingFactor,
+            ValueBlindingFactor,
+        )],
+    ) -> Result<(Self, AssetBlindingFactor, ValueBlindingFactor), ConfidentialTxOutError>
+    where
+        R: RngCore + CryptoRng,
+        C: Signing,
+    {
+        let out_abf = AssetBlindingFactor::new(rng);
+        let out_asset = Asset::new_confidential(secp, asset, out_abf);
+
+        let out_asset_commitment = out_asset.commitment().expect("confidential asset");
+        let out_vbf = ValueBlindingFactor::new(rng);
+        let value_commitment = Value::new_confidential(secp, value, out_asset_commitment, out_vbf);
+
+        let receiver_blinding_pk = &address
+            .blinding_pubkey
+            .ok_or(ConfidentialTxOutError::NoBlindingKeyInAddress)?;
+        let (nonce, shared_secret) = Nonce::new_confidential(rng, secp, receiver_blinding_pk);
+
+        let message = RangeProofMessage { asset, bf: out_abf };
+        let rangeproof = RangeProof::new(
+            secp,
+            Self::RANGEPROOF_MIN_VALUE,
+            value_commitment.commitment().expect("confidential value"),
+            value,
+            out_vbf.0,
+            &message.to_bytes(),
+            address.script_pubkey().as_bytes(),
+            shared_secret,
+            Self::RANGEPROOF_EXP_SHIFT,
+            Self::RANGEPROOF_MIN_PRIV_BITS,
+            out_asset_commitment,
+        )?;
+
+        let inputs = inputs
+            .iter()
+            .map(|(id, _, asset, abf, _)| (*asset, id.into_tag(), abf.0))
+            .collect::<Vec<_>>();
+
+        let surjection_proof = SurjectionProof::new(
+            secp,
+            rng,
+            asset.into_tag(),
+            out_abf.into_inner(),
+            inputs.as_ref(),
+        )?;
+
+        let txout = TxOut {
+            asset: out_asset,
+            value: value_commitment,
+            nonce,
+            script_pubkey: address.script_pubkey(),
+            witness: TxOutWitness {
+                surjection_proof: surjection_proof.serialize(),
+                rangeproof: rangeproof.serialize(),
+            },
+        };
+
+        Ok((txout, out_abf, out_vbf))
+    }
+
+    /// Creates a new confidential output that IS the last one in the transaction.
+    pub fn new_last_confidential<R, C>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        value: u64,
+        address: Address,
+        asset: AssetId,
+        inputs: &[(
+            AssetId,
+            u64,
+            Generator,
+            AssetBlindingFactor,
+            ValueBlindingFactor,
+        )],
+        outputs: &[(u64, AssetBlindingFactor, ValueBlindingFactor)],
+    ) -> Result<Self, ConfidentialTxOutError>
+    where
+        R: RngCore + CryptoRng,
+        C: Signing,
+    {
+        let (surjection_proof_inputs, value_blind_inputs) = inputs
+            .iter()
+            .map(|(id, value, asset, abf, vbf)| {
+                ((*asset, id.into_tag(), abf.0), (*value, *abf, *vbf))
+            })
+            .unzip::<_, _, Vec<_>, Vec<_>>();
+
+        let out_abf = AssetBlindingFactor::new(rng);
+        let out_asset = Asset::new_confidential(secp, asset, out_abf);
+
+        let out_asset_commitment = out_asset.commitment().expect("confidential asset");
+        let out_vbf =
+            ValueBlindingFactor::last(secp, value, out_abf, &value_blind_inputs, &outputs);
+        let value_commitment = Value::new_confidential(secp, value, out_asset_commitment, out_vbf);
+
+        let receiver_blinding_pk = &address
+            .blinding_pubkey
+            .ok_or(ConfidentialTxOutError::NoBlindingKeyInAddress)?;
+        let (nonce, shared_secret) = Nonce::new_confidential(rng, secp, receiver_blinding_pk);
+
+        let message = RangeProofMessage { asset, bf: out_abf };
+        let rangeproof = RangeProof::new(
+            secp,
+            Self::RANGEPROOF_MIN_VALUE,
+            value_commitment.commitment().expect("confidential value"),
+            value,
+            out_vbf.0,
+            &message.to_bytes(),
+            address.script_pubkey().as_bytes(),
+            shared_secret,
+            Self::RANGEPROOF_EXP_SHIFT,
+            Self::RANGEPROOF_MIN_PRIV_BITS,
+            out_asset_commitment,
+        )?;
+
+        let surjection_proof = SurjectionProof::new(
+            secp,
+            rng,
+            asset.into_tag(),
+            out_abf.into_inner(),
+            surjection_proof_inputs.as_ref(),
+        )?;
+
+        let txout = TxOut {
+            asset: out_asset,
+            value: value_commitment,
+            nonce,
+            script_pubkey: address.script_pubkey(),
+            witness: TxOutWitness {
+                surjection_proof: surjection_proof.serialize(),
+                rangeproof: rangeproof.serialize(),
+            },
+        };
+
+        Ok(txout)
+    }
+
     /// Create a new fee output.
     pub fn new_fee(amount: u64, asset: AssetId) -> TxOut {
-        TxOut{
+        TxOut {
             asset: confidential::Asset::Explicit(asset),
             value: confidential::Value::Explicit(amount),
             nonce: confidential::Nonce::Null,
@@ -467,10 +658,10 @@ impl TxOut {
             None
         } else {
             Some(PegoutData {
+                value,
                 asset: self.asset,
-                value: value,
-                genesis_hash: genesis_hash,
-                script_pubkey: script_pubkey,
+                genesis_hash,
+                script_pubkey,
                 extra_data: remainder,
             })
         }
@@ -511,6 +702,22 @@ impl TxOut {
                 }
             }
         }
+    }
+}
+
+struct RangeProofMessage {
+    asset: AssetId,
+    bf: AssetBlindingFactor,
+}
+
+impl RangeProofMessage {
+    fn to_bytes(&self) -> [u8; 64] {
+        let mut message = [0u8; 64];
+
+        message[..32].copy_from_slice(self.asset.into_tag().as_ref());
+        message[32..].copy_from_slice(self.bf.into_inner().as_ref());
+
+        message
     }
 }
 
@@ -679,7 +886,7 @@ impl Encodable for Transaction {
 }
 
 impl Decodable for Transaction {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Transaction, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Transaction, encode::Error> {
         let version = u32::consensus_decode(&mut d)?;
         let wit_flag = u8::consensus_decode(&mut d)?;
         let mut input = Vec::<TxIn>::consensus_decode(&mut d)?;
@@ -688,10 +895,10 @@ impl Decodable for Transaction {
 
         match wit_flag {
             0 => Ok(Transaction {
-                version: version,
-                input: input,
-                output: output,
-                lock_time: lock_time,
+                version,
+                lock_time,
+                input,
+                output,
             }),
             1 => {
                 for i in &mut input {
@@ -705,10 +912,10 @@ impl Decodable for Transaction {
                     Err(encode::Error::ParseFailed("witness flag set but no witnesses were given"))
                 } else {
                     Ok(Transaction {
-                        version: version,
-                        input: input,
-                        output: output,
-                        lock_time: lock_time,
+                        version,
+                        lock_time,
+                        input,
+                        output,
                     })
                 }
             }
@@ -1625,15 +1832,14 @@ mod tests {
             AssetIssuance {
                 asset_blinding_nonce: [0; 32],
                 asset_entropy: [0; 32],
-                amount: confidential::Value::Confidential(
-                    9,
-                    [
-                        0x81, 0x65, 0x4e, 0xb5, 0xcc, 0xd9, 0x92, 0x7b,
-                        0x8b, 0xea, 0x94, 0x99, 0x7d, 0xce, 0x4a, 0xe8,
-                        0x5b, 0x3d, 0x95, 0xa2, 0x07, 0x00, 0x38, 0x4f,
-                        0x0b, 0x8c, 0x1f, 0xe9, 0x95, 0x18, 0x06, 0x38
+                amount: confidential::Value::from_commitment(
+                    &[  0x09, 0x81, 0x65, 0x4e, 0xb5, 0xcc, 0xd9, 0x92,
+                        0x7b, 0x8b, 0xea, 0x94, 0x99, 0x7d, 0xce, 0x4a,
+                        0xe8, 0x5b, 0x3d, 0x95, 0xa2, 0x07, 0x00, 0x38,
+                        0x4f, 0x0b, 0x8c, 0x1f, 0xe9, 0x95, 0x18, 0x06,
+                        0x38
                     ],
-                ),
+                ).unwrap(),
                 inflation_keys: confidential::Value::Null,
             }
         );
@@ -1661,7 +1867,7 @@ mod tests {
 
         // Output with pushes that are e.g. OP_1 are nulldata but not pegouts
         let output: TxOut = hex_deserialize!("\
-            0a2d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
+            0a319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
             1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfd3ca059fdfdfb6a2000002323232323232323232323232323232\
             3232323232323232321232323010151232323232323232323232323232323\
@@ -1679,7 +1885,7 @@ mod tests {
 
         // Output with just one push and nothing else should be nulldata but not pegout
         let output: TxOut = hex_deserialize!("\
-            0a2d3634393536d9a2d0aaba3823f442fb24363831fdfd0101010101010101010\
+            0a319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
             1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfd3ca059fdf2226a20000000000000000000000000000000000000000\
             0000000000000000000000000\
@@ -1834,4 +2040,3 @@ mod tests {
         assert_eq!(tx.all_fees()[&fee_asset], 1788);
     }
 }
-

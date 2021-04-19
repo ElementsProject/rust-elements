@@ -149,7 +149,7 @@ impl Params {
         }
 
         match *self {
-            Params::Null => return sha256::Midstate::from_inner([0u8; 32]),
+            Params::Null => sha256::Midstate::from_inner([0u8; 32]),
             Params::Compact { ref elided_root, .. } => *elided_root,
             Params::Full { ref fedpeg_program, ref fedpegscript, ref extension_space, .. } => {
                 let leaves = [
@@ -200,14 +200,14 @@ impl Params {
             Params::Null => None,
             Params::Compact { signblockscript, signblock_witness_limit, elided_root } => {
                 Some(Params::Compact {
-                    signblockscript: signblockscript,
+                    signblockscript,
                     signblock_witness_limit,
-                    elided_root: elided_root,
+                    elided_root,
                 })
             }
             Params::Full { signblockscript, signblock_witness_limit, ..} => {
                 Some(Params::Compact {
-                    signblockscript: signblockscript,
+                    signblockscript,
                     signblock_witness_limit,
                     elided_root: extra_root.unwrap(),
                 })
@@ -350,7 +350,7 @@ impl<'de> Deserialize<'de> for Params {
             }
         }
 
-        static FIELDS: &'static [&'static str] = &[
+        static FIELDS: &[&str] = &[
             "signblockscript",
             "signblock_witness_limit",
             "fedpeg_program",
@@ -434,7 +434,7 @@ impl Encodable for Params {
 }
 
 impl Decodable for Params {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
         let ser_type: u8 = Decodable::consensus_decode(&mut d)?;
         match ser_type {
             0 => Ok(Params::Null),
@@ -510,7 +510,7 @@ mod tests {
         );
 
         let full_entry = Params::Full {
-            signblockscript: signblockscript,
+            signblockscript,
             signblock_witness_limit: signblock_wl,
             fedpeg_program: fp_program,
             fedpegscript: fp_script,

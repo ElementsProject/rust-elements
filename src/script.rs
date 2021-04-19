@@ -252,7 +252,7 @@ impl Script {
         let mut verop = ver.to_u8();
         assert!(verop <= 16, "incorrect witness version provided: {}", verop);
         if verop > 0 {
-            verop = 0x50 + verop;
+            verop += 0x50;
         }
         Builder::new()
             .push_opcode(verop.into())
@@ -549,11 +549,11 @@ impl<'a> Iterator for Instructions<'a> {
                     self.data = &[];  // Kill iterator so that it does not return an infinite stream of errors
                     return Some(Err(Error::EarlyEndOfScript));
                 }
-                if self.enforce_minimal {
-                    if n == 1 && (self.data[1] == 0x81 || (self.data[1] > 0 && self.data[1] <= 16)) {
+                if self.enforce_minimal
+                    && n == 1
+                    && (self.data[1] == 0x81 || (self.data[1] > 0 && self.data[1] <= 16)) {
                         self.data = &[];
                         return Some(Err(Error::NonMinimalPush));
-                    }
                 }
                 let ret = Some(Ok(Instruction::PushBytes(&self.data[1..n+1])));
                 self.data = &self.data[n + 1..];
@@ -843,7 +843,7 @@ impl Encodable for Script {
 
 impl Decodable for Script {
     #[inline]
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
         Ok(Script(Decodable::consensus_decode(d)?))
     }
 }
@@ -881,7 +881,7 @@ mod test {
         script = script.push_int(-10000000); comp.extend([4u8, 128, 150, 152, 128].iter().cloned()); assert_eq!(&script[..], &comp[..]);
 
         // data
-        script = script.push_slice("NRA4VR".as_bytes()); comp.extend([6u8, 78, 82, 65, 52, 86, 82].iter().cloned()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_slice(b"NRA4VR"); comp.extend([6u8, 78, 82, 65, 52, 86, 82].iter().cloned()); assert_eq!(&script[..], &comp[..]);
 
         // keys
         let keystr = "21032e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af";
@@ -1147,7 +1147,7 @@ mod test {
         assert_eq!(v_nonmin_alt.unwrap(), slop_v_nonmin_alt.unwrap());
     }
 
-	#[test]
+    #[test]
     fn script_ord() {
         let script_1 = Builder::new().push_slice(&[1,2,3,4]).into_script();
         let script_2 = Builder::new().push_int(10).into_script();
@@ -1166,4 +1166,3 @@ mod test {
         assert!(script_2 > script_1);
     }
 }
-

@@ -178,10 +178,10 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = PubkeyHash::engine();
-        pk.write_into(&mut hash_engine);
+        pk.write_into(&mut hash_engine).expect("engines don't error");
 
         Address {
-            params: params,
+            params,
             payload: Payload::PubkeyHash(PubkeyHash::from_engine(hash_engine)),
             blinding_pubkey: blinder,
         }
@@ -196,7 +196,7 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         Address {
-            params: params,
+            params,
             payload: Payload::ScriptHash(ScriptHash::hash(&script[..])),
             blinding_pubkey: blinder,
         }
@@ -210,10 +210,10 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = WPubkeyHash::engine();
-        pk.write_into(&mut hash_engine);
+        pk.write_into(&mut hash_engine).expect("engines don't error");
 
         Address {
-            params: params,
+            params,
             payload: Payload::WitnessProgram {
                 version: u5::try_from_u8(0).expect("0<32"),
                 program: WPubkeyHash::from_engine(hash_engine)[..].to_vec(),
@@ -230,14 +230,14 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = ScriptHash::engine();
-        pk.write_into(&mut hash_engine);
+        pk.write_into(&mut hash_engine).expect("engines don't error");
 
         let builder = script::Builder::new()
             .push_int(0)
             .push_slice(&ScriptHash::from_engine(hash_engine)[..]);
 
         Address {
-            params: params,
+            params,
             payload: Payload::ScriptHash(ScriptHash::hash(builder.into_script().as_bytes())),
             blinding_pubkey: blinder,
         }
@@ -250,7 +250,7 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         Address {
-            params: params,
+            params,
             payload: Payload::WitnessProgram {
                 version: u5::try_from_u8(0).expect("0<32"),
                 program: WScriptHash::hash(&script[..])[..].to_vec(),
@@ -272,7 +272,7 @@ impl Address {
             .into_script();
 
         Address {
-            params: params,
+            params,
             payload: Payload::ScriptHash(ScriptHash::hash(&ws[..])),
             blinding_pubkey: blinder,
         }
@@ -303,7 +303,7 @@ impl Address {
                 return None;
             },
             blinding_pubkey: blinder,
-            params: params,
+            params,
         })
     }
 
@@ -357,7 +357,7 @@ impl Address {
             blech32::decode(s).map_err(AddressError::Blech32)?.1
         };
 
-        if payload.len() == 0 {
+        if payload.is_empty() {
             return Err(AddressError::InvalidAddress(s.to_owned()));
         }
 
@@ -400,12 +400,12 @@ impl Address {
         };
 
         Ok(Address {
-            params: params,
+            params,
             payload: Payload::WitnessProgram {
-                version: version,
-                program: program,
+                version,
+                program,
             },
-            blinding_pubkey: blinding_pubkey,
+            blinding_pubkey,
         })
     }
 
@@ -419,13 +419,13 @@ impl Address {
         let (blinded, prefix) = match data[0] == params.blinded_prefix {
             true => {
                 if data.len() != 55 {
-                    return Err(base58::Error::InvalidLength(data.len()))?;
+                    return Err(base58::Error::InvalidLength(data.len()).into());
                 }
                 (true, data[1])
             }
             false => {
                 if data.len() != 21 {
-                    return Err(base58::Error::InvalidLength(data.len()))?;
+                    return Err(base58::Error::InvalidLength(data.len()).into());
                 }
                 (false, data[0])
             }
@@ -447,13 +447,13 @@ impl Address {
         } else if prefix == params.p2sh_prefix {
             Payload::ScriptHash(ScriptHash::from_slice(payload_data).unwrap())
         } else {
-            return Err(base58::Error::InvalidVersion(vec![prefix]))?;
+            return Err(base58::Error::InvalidVersion(vec![prefix]).into());
         };
 
         Ok(Address {
-            params: params,
-            payload: payload,
-            blinding_pubkey: blinding_pubkey,
+            params,
+            payload,
+            blinding_pubkey,
         })
     }
 
@@ -473,7 +473,7 @@ impl Address {
 
         // Base58.
         if s.len() > 150 {
-            return Err(base58::Error::InvalidLength(s.len() * 11 / 15))?;
+            return Err(base58::Error::InvalidLength(s.len() * 11 / 15).into());
         }
         let data = base58::from_check(s)?;
         Address::from_base58(&data, params)
@@ -551,7 +551,7 @@ impl fmt::Debug for Address {
 /// Returns the same slice when no prefix is found.
 fn find_prefix(bech32: &str) -> &str {
     // Split at the last occurrence of the separator character '1'.
-    match bech32.rfind("1") {
+    match bech32.rfind('1') {
         None => bech32,
         Some(sep) => bech32.split_at(sep).0,
     }
@@ -596,11 +596,11 @@ impl FromStr for Address {
 
         // Base58.
         if s.len() > 150 {
-            return Err(base58::Error::InvalidLength(s.len() * 11 / 15))?;
+            return Err(base58::Error::InvalidLength(s.len() * 11 / 15).into());
         }
         let data = base58::from_check(s)?;
-        if data.len() < 1 {
-            return Err(base58::Error::InvalidLength(data.len()))?;
+        if data.is_empty() {
+            return Err(base58::Error::InvalidLength(data.len()).into());
         }
 
         let p = data[0];
@@ -709,33 +709,33 @@ mod test {
         let vectors = [
             /* #00 */ Address::p2pkh(&pk, None, &AddressParams::LIQUID),
             /* #01 */ Address::p2pkh(&pk, None, &AddressParams::ELEMENTS),
-            /* #02 */ Address::p2pkh(&pk, Some(blinder.clone()), &AddressParams::LIQUID),
-            /* #03 */ Address::p2pkh(&pk, Some(blinder.clone()), &AddressParams::ELEMENTS),
+            /* #02 */ Address::p2pkh(&pk, Some(blinder), &AddressParams::LIQUID),
+            /* #03 */ Address::p2pkh(&pk, Some(blinder), &AddressParams::ELEMENTS),
             /* #04 */ Address::p2sh(&script, None, &AddressParams::LIQUID),
             /* #05 */ Address::p2sh(&script, None, &AddressParams::ELEMENTS),
-            /* #06 */ Address::p2sh(&script, Some(blinder.clone()), &AddressParams::LIQUID),
+            /* #06 */ Address::p2sh(&script, Some(blinder), &AddressParams::LIQUID),
             /* #07 */
-            Address::p2sh(&script, Some(blinder.clone()), &AddressParams::ELEMENTS),
+            Address::p2sh(&script, Some(blinder), &AddressParams::ELEMENTS),
             /* #08 */ Address::p2wpkh(&pk, None, &AddressParams::LIQUID),
             /* #09 */ Address::p2wpkh(&pk, None, &AddressParams::ELEMENTS),
-            /* #10 */ Address::p2wpkh(&pk, Some(blinder.clone()), &AddressParams::LIQUID),
-            /* #11 */ Address::p2wpkh(&pk, Some(blinder.clone()), &AddressParams::ELEMENTS),
+            /* #10 */ Address::p2wpkh(&pk, Some(blinder), &AddressParams::LIQUID),
+            /* #11 */ Address::p2wpkh(&pk, Some(blinder), &AddressParams::ELEMENTS),
             /* #12 */ Address::p2shwpkh(&pk, None, &AddressParams::LIQUID),
             /* #13 */ Address::p2shwpkh(&pk, None, &AddressParams::ELEMENTS),
-            /* #14 */ Address::p2shwpkh(&pk, Some(blinder.clone()), &AddressParams::LIQUID),
+            /* #14 */ Address::p2shwpkh(&pk, Some(blinder), &AddressParams::LIQUID),
             /* #15 */
-            Address::p2shwpkh(&pk, Some(blinder.clone()), &AddressParams::ELEMENTS),
+            Address::p2shwpkh(&pk, Some(blinder), &AddressParams::ELEMENTS),
             /* #16 */ Address::p2wsh(&script, None, &AddressParams::LIQUID),
             /* #17 */ Address::p2wsh(&script, None, &AddressParams::ELEMENTS),
-            /* #18 */ Address::p2wsh(&script, Some(blinder.clone()), &AddressParams::LIQUID),
+            /* #18 */ Address::p2wsh(&script, Some(blinder), &AddressParams::LIQUID),
             /* #19 */
-            Address::p2wsh(&script, Some(blinder.clone()), &AddressParams::ELEMENTS),
+            Address::p2wsh(&script, Some(blinder), &AddressParams::ELEMENTS),
             /* #20 */ Address::p2shwsh(&script, None, &AddressParams::LIQUID),
             /* #21 */ Address::p2shwsh(&script, None, &AddressParams::ELEMENTS),
             /* #22 */
-            Address::p2shwsh(&script, Some(blinder.clone()), &AddressParams::LIQUID),
+            Address::p2shwsh(&script, Some(blinder), &AddressParams::LIQUID),
             /* #23 */
-            Address::p2shwsh(&script, Some(blinder.clone()), &AddressParams::ELEMENTS),
+            Address::p2shwsh(&script, Some(blinder), &AddressParams::ELEMENTS),
         ];
 
         for addr in &vectors {

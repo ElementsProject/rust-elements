@@ -20,6 +20,8 @@ use std::{error, fmt, io, mem};
 
 use bitcoin::consensus::encode as btcenc;
 use bitcoin::hashes::sha256;
+use bitcoin::secp256k1;
+use secp256k1_zkp;
 
 use transaction::{Transaction, TxIn, TxOut};
 
@@ -41,8 +43,14 @@ pub enum Error {
     },
     /// Parsing error
     ParseFailed(&'static str),
+    /// We unexpectedly hit the end of the buffer
+    UnexpectedEOF,
     /// Invalid prefix for the confidential type.
     InvalidConfidentialPrefix(u8),
+    /// Parsing within libsecp256k1 failed
+    Secp256k1(secp256k1::Error),
+    /// Parsing within libsecp256k1-zkp failed
+    Secp256k1zkp(secp256k1_zkp::Error),
 }
 
 impl fmt::Display for Error {
@@ -55,7 +63,12 @@ impl fmt::Display for Error {
                 max: ref m,
             } => write!(f, "oversized vector allocation: requested {}, maximum {}", r, m),
             Error::ParseFailed(ref e) => write!(f, "parse failed: {}", e),
-            Error::InvalidConfidentialPrefix(p) => write!(f, "invalid confidential prefix: 0x{:02x}", p),
+            Error::UnexpectedEOF => write!(f, "unexpected EOF"),
+            Error::InvalidConfidentialPrefix(p) => {
+                write!(f, "invalid confidential prefix: 0x{:02x}", p)
+            }
+            Error::Secp256k1(ref e) => write!(f, "{}", e),
+            Error::Secp256k1zkp(ref e) => write!(f, "{}", e),
         }
     }
 }
@@ -64,6 +77,7 @@ impl error::Error for Error {
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
             Error::Bitcoin(ref e) => Some(e),
+            Error::Secp256k1zkp(ref e) => Some(e),
             _ => None,
         }
     }
@@ -83,6 +97,18 @@ impl From<io::Error> for Error {
     }
 }
 
+impl From<secp256k1::Error> for Error {
+    fn from(e: secp256k1::Error) -> Self {
+        Error::Secp256k1(e)
+    }
+}
+
+impl From<secp256k1_zkp::Error> for Error {
+    fn from(e: secp256k1_zkp::Error) -> Self {
+        Error::Secp256k1zkp(e)
+    }
+}
+
 /// Data which can be encoded in a consensus-consistent way
 pub trait Encodable {
     /// Encode an object with a well-defined format, should only ever error if
@@ -94,7 +120,7 @@ pub trait Encodable {
 /// Data which can be encoded in a consensus-consistent way
 pub trait Decodable: Sized {
     /// Decode an object with a well-defined format
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error>;
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error>;
 }
 
 /// Encode an object into a vector
@@ -111,7 +137,7 @@ pub fn serialize_hex<T: Encodable + ?Sized>(data: &T) -> String {
 
 /// Deserialize an object from a vector, will error if said deserialization
 /// doesn't consume the entire vector.
-pub fn deserialize<'a, T: Decodable>(data: &'a [u8]) -> Result<T, Error> {
+pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
     let (rv, consumed) = deserialize_partial(data)?;
 
     // Fail if data are not consumed entirely.
@@ -124,7 +150,7 @@ pub fn deserialize<'a, T: Decodable>(data: &'a [u8]) -> Result<T, Error> {
 
 /// Deserialize an object from a vector, but will not report an error if said deserialization
 /// doesn't consume the entire vector.
-pub fn deserialize_partial<'a, T: Decodable>(data: &'a [u8]) -> Result<(T, usize), Error> {
+pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Error> {
     let mut decoder = Cursor::new(data);
     let rv = Decodable::consensus_decode(&mut decoder)?;
     let consumed = decoder.position() as usize;
@@ -139,7 +165,7 @@ impl Encodable for sha256::Midstate {
 }
 
 impl Decodable for sha256::Midstate {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
         Ok(Self::from_inner(<[u8; 32]>::consensus_decode(d)?))
     }
 }
@@ -154,7 +180,7 @@ macro_rules! impl_upstream {
         }
 
         impl Decodable for $type {
-            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+            fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, Error> {
                 Ok(btcenc::Decodable::consensus_decode(&mut d)?)
             }
         }
@@ -163,9 +189,10 @@ macro_rules! impl_upstream {
 impl_upstream!(u8);
 impl_upstream!(u32);
 impl_upstream!(u64);
-impl_upstream!([u8;4]);
+impl_upstream!([u8; 4]);
 impl_upstream!([u8; 32]);
 impl_upstream!(Box<[u8]>);
+impl_upstream!([u8; 33]);
 impl_upstream!(Vec<u8>);
 impl_upstream!(Vec<Vec<u8>>);
 impl_upstream!(btcenc::VarInt);
@@ -188,7 +215,7 @@ macro_rules! impl_vec {
 
         impl Decodable for Vec<$type> {
             #[inline]
-            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+            fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, Error> {
                 let len = btcenc::VarInt::consensus_decode(&mut d)?.0;
                 let byte_size = (len as usize)
                     .checked_mul(mem::size_of::<$type>())

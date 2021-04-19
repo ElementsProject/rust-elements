@@ -21,6 +21,7 @@ use bitcoin::hashes::{self, hex, sha256, sha256d, Hash};
 
 use encode::{self, Encodable, Decodable};
 use fast_merkle_root::fast_merkle_root;
+use secp256k1_zkp::Tag;
 use transaction::OutPoint;
 
 /// The zero hash.
@@ -117,6 +118,10 @@ impl AssetId {
         };
         AssetId(fast_merkle_root(&[entropy.into_inner(), second]))
     }
+
+    pub(crate) fn into_tag(self) -> Tag {
+        self.0.into_inner().into()
+    }
 }
 
 impl hex::FromHex for AssetId {
@@ -147,10 +152,10 @@ impl ::std::fmt::LowerHex for AssetId {
 }
 
 impl FromStr for AssetId {
-	type Err = hex::Error;
-	fn from_str(s: &str) -> Result<Self, Self::Err> {
-		hex::FromHex::from_hex(s)
-	}
+    type Err = hex::Error;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        hex::FromHex::from_hex(s)
+    }
 }
 
 impl Encodable for AssetId {
@@ -160,7 +165,7 @@ impl Encodable for AssetId {
 }
 
 impl Decodable for AssetId {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
         Ok(Self::from_inner(sha256::Midstate::consensus_decode(d)?))
     }
 }
