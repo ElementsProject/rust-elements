@@ -16,11 +16,13 @@
 
 use std::io;
 
-use bitcoin::hashes::{Hash, sha256, sha256d};
-#[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(feature = "serde")] use std::fmt;
+use bitcoin::hashes::{sha256, sha256d, Hash};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde")]
+use std::fmt;
 
-use encode::{self, Encodable, Decodable};
+use encode::{self, Decodable, Encodable};
 use Script;
 
 /// Dynamic federations paramaters, as encoded in a block header
@@ -88,8 +90,14 @@ impl Params {
     pub fn signblockscript(&self) -> Option<&Script> {
         match *self {
             Params::Null => None,
-            Params::Compact { ref signblockscript, ..} => Some(signblockscript),
-            Params::Full { ref signblockscript, ..} => Some(signblockscript),
+            Params::Compact {
+                ref signblockscript,
+                ..
+            } => Some(signblockscript),
+            Params::Full {
+                ref signblockscript,
+                ..
+            } => Some(signblockscript),
         }
     }
 
@@ -97,8 +105,14 @@ impl Params {
     pub fn signblock_witness_limit(&self) -> Option<u32> {
         match *self {
             Params::Null => None,
-            Params::Compact { signblock_witness_limit, ..} => Some(signblock_witness_limit),
-            Params::Full { signblock_witness_limit, ..} => Some(signblock_witness_limit),
+            Params::Compact {
+                signblock_witness_limit,
+                ..
+            } => Some(signblock_witness_limit),
+            Params::Full {
+                signblock_witness_limit,
+                ..
+            } => Some(signblock_witness_limit),
         }
     }
 
@@ -107,7 +121,9 @@ impl Params {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
-            Params::Full { ref fedpeg_program, ..} => Some(fedpeg_program),
+            Params::Full {
+                ref fedpeg_program, ..
+            } => Some(fedpeg_program),
         }
     }
 
@@ -116,7 +132,9 @@ impl Params {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
-            Params::Full { ref fedpegscript, ..} => Some(fedpegscript),
+            Params::Full {
+                ref fedpegscript, ..
+            } => Some(fedpegscript),
         }
     }
 
@@ -125,7 +143,10 @@ impl Params {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
-            Params::Full { ref extension_space, ..} => Some(extension_space),
+            Params::Full {
+                ref extension_space,
+                ..
+            } => Some(extension_space),
         }
     }
 
@@ -133,7 +154,9 @@ impl Params {
     pub fn elided_root(&self) -> Option<&sha256::Midstate> {
         match *self {
             Params::Null => None,
-            Params::Compact { ref elided_root, ..} => Some(elided_root),
+            Params::Compact {
+                ref elided_root, ..
+            } => Some(elided_root),
             Params::Full { .. } => None,
         }
     }
@@ -144,21 +167,29 @@ impl Params {
     fn extra_root(&self) -> sha256::Midstate {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
             let mut engine = sha256d::Hash::engine();
-            obj.consensus_encode(&mut engine).expect("engines don't error");
+            obj.consensus_encode(&mut engine)
+                .expect("engines don't error");
             sha256d::Hash::from_engine(engine)
         }
 
         match *self {
             Params::Null => sha256::Midstate::from_inner([0u8; 32]),
-            Params::Compact { ref elided_root, .. } => *elided_root,
-            Params::Full { ref fedpeg_program, ref fedpegscript, ref extension_space, .. } => {
+            Params::Compact {
+                ref elided_root, ..
+            } => *elided_root,
+            Params::Full {
+                ref fedpeg_program,
+                ref fedpegscript,
+                ref extension_space,
+                ..
+            } => {
                 let leaves = [
                     serialize_hash(fedpeg_program).into_inner(),
                     serialize_hash(fedpegscript).into_inner(),
                     serialize_hash(extension_space).into_inner(),
                 ];
                 ::fast_merkle_root::fast_merkle_root(&leaves[..])
-            },
+            }
         }
     }
 
@@ -166,7 +197,8 @@ impl Params {
     pub fn calculate_root(&self) -> sha256::Midstate {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
             let mut engine = sha256d::Hash::engine();
-            obj.consensus_encode(&mut engine).expect("engines don't error");
+            obj.consensus_encode(&mut engine)
+                .expect("engines don't error");
             sha256d::Hash::from_engine(engine)
         }
 
@@ -180,10 +212,7 @@ impl Params {
         ];
         let compact_root = ::fast_merkle_root::fast_merkle_root(&leaves[..]);
 
-        let leaves = [
-            compact_root.into_inner(),
-            self.extra_root().into_inner(),
-        ];
+        let leaves = [compact_root.into_inner(), self.extra_root().into_inner()];
         ::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
 
@@ -198,20 +227,24 @@ impl Params {
 
         match self {
             Params::Null => None,
-            Params::Compact { signblockscript, signblock_witness_limit, elided_root } => {
-                Some(Params::Compact {
-                    signblockscript,
-                    signblock_witness_limit,
-                    elided_root,
-                })
-            }
-            Params::Full { signblockscript, signblock_witness_limit, ..} => {
-                Some(Params::Compact {
-                    signblockscript,
-                    signblock_witness_limit,
-                    elided_root: extra_root.unwrap(),
-                })
-            }
+            Params::Compact {
+                signblockscript,
+                signblock_witness_limit,
+                elided_root,
+            } => Some(Params::Compact {
+                signblockscript,
+                signblock_witness_limit,
+                elided_root,
+            }),
+            Params::Full {
+                signblockscript,
+                signblock_witness_limit,
+                ..
+            } => Some(Params::Compact {
+                signblockscript,
+                signblock_witness_limit,
+                elided_root: extra_root.unwrap(),
+            }),
         }
     }
 }
@@ -287,26 +320,28 @@ impl<'de> Deserialize<'de> for Params {
                     match map.next_key::<Enum>()? {
                         Some(Enum::Unknown) => {
                             map.next_value::<de::IgnoredAny>()?;
-                        },
+                        }
                         Some(Enum::SignblockScript) => {
                             signblockscript = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::SignblockWitnessLimit) => {
                             signblock_witness_limit = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::ElidedRoot) => {
                             elided_root = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::FedpegProgram) => {
                             fedpeg_program = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::FedpegScript) => {
                             fedpegscript = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::ExtSpace) => {
                             extension_space = Some(map.next_value()?);
-                        },
-                        None => { break; }
+                        }
+                        None => {
+                            break;
+                        }
                     }
                 }
 
@@ -338,7 +373,7 @@ impl<'de> Deserialize<'de> for Params {
                         Some(elided_root),
                         _,
                         _,
-                        _
+                        _,
                     ) => Ok(Params::Compact {
                         signblockscript,
                         signblock_witness_limit,
@@ -370,7 +405,7 @@ impl Serialize for Params {
             Params::Null => {
                 let st = s.serialize_struct("Params", 0)?;
                 st.end()
-            },
+            }
             Params::Compact {
                 ref signblockscript,
                 ref signblock_witness_limit,
@@ -381,7 +416,7 @@ impl Serialize for Params {
                 st.serialize_field("signblock_witness_limit", signblock_witness_limit)?;
                 st.serialize_field("elided_root", elided_root)?;
                 st.end()
-            },
+            }
             Params::Full {
                 ref signblockscript,
                 ref signblock_witness_limit,
@@ -396,7 +431,7 @@ impl Serialize for Params {
                 st.serialize_field("fedpegscript", fedpegscript)?;
                 st.serialize_field("extension_space", extension_space)?;
                 st.end()
-            },
+            }
         }
     }
 }
@@ -410,11 +445,11 @@ impl Encodable for Params {
                 ref signblock_witness_limit,
                 ref elided_root,
             } => {
-                Encodable::consensus_encode(&1u8, &mut s)? +
-                Encodable::consensus_encode(signblockscript, &mut s)? +
-                Encodable::consensus_encode(signblock_witness_limit, &mut s)? +
-                Encodable::consensus_encode(&elided_root.into_inner(), &mut s)?
-            },
+                Encodable::consensus_encode(&1u8, &mut s)?
+                    + Encodable::consensus_encode(signblockscript, &mut s)?
+                    + Encodable::consensus_encode(signblock_witness_limit, &mut s)?
+                    + Encodable::consensus_encode(&elided_root.into_inner(), &mut s)?
+            }
             Params::Full {
                 ref signblockscript,
                 ref signblock_witness_limit,
@@ -422,13 +457,13 @@ impl Encodable for Params {
                 ref fedpegscript,
                 ref extension_space,
             } => {
-                Encodable::consensus_encode(&2u8, &mut s)? +
-                Encodable::consensus_encode(signblockscript, &mut s)? +
-                Encodable::consensus_encode(signblock_witness_limit, &mut s)? +
-                Encodable::consensus_encode(fedpeg_program, &mut s)? +
-                Encodable::consensus_encode(fedpegscript, &mut s)? +
-                Encodable::consensus_encode(extension_space, &mut s)?
-            },
+                Encodable::consensus_encode(&2u8, &mut s)?
+                    + Encodable::consensus_encode(signblockscript, &mut s)?
+                    + Encodable::consensus_encode(signblock_witness_limit, &mut s)?
+                    + Encodable::consensus_encode(fedpeg_program, &mut s)?
+                    + Encodable::consensus_encode(fedpegscript, &mut s)?
+                    + Encodable::consensus_encode(extension_space, &mut s)?
+            }
         })
     }
 }
@@ -451,7 +486,7 @@ impl Decodable for Params {
                 extension_space: Decodable::consensus_decode(&mut d)?,
             }),
             _ => Err(encode::Error::ParseFailed(
-                "bad serialize type for dynafed parameters"
+                "bad serialize type for dynafed parameters",
             )),
         }
     }
@@ -521,7 +556,7 @@ mod tests {
             "8eb1b83cce69a3d8b0bfb7fbe77ae8f1d24b57a9cae047b8c0aba084ad878249"
         );
 
-        let header = ::block::BlockHeader{
+        let header = ::block::BlockHeader {
             ext: ::block::ExtData::Dynafed {
                 current: compact_entry,
                 proposed: full_entry,

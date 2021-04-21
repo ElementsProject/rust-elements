@@ -24,31 +24,78 @@ use bitcoin::{
 macro_rules! impl_hashencode {
     ($hashtype:ident) => {
         impl $crate::encode::Encodable for $hashtype {
-            fn consensus_encode<S: ::std::io::Write>(&self, s: S) -> Result<usize, $crate::encode::Error> {
+            fn consensus_encode<S: ::std::io::Write>(
+                &self,
+                s: S,
+            ) -> Result<usize, $crate::encode::Error> {
                 self.0.consensus_encode(s)
             }
         }
 
         impl $crate::encode::Decodable for $hashtype {
-            fn consensus_decode<D: ::std::io::BufRead>(d: D) -> Result<Self, $crate::encode::Error> {
+            fn consensus_decode<D: ::std::io::BufRead>(
+                d: D,
+            ) -> Result<Self, $crate::encode::Error> {
                 use $crate::bitcoin::hashes::Hash;
-                Ok(Self::from_inner(<<$hashtype as $crate::bitcoin::hashes::Hash>::Inner>::consensus_decode(d)?))
+                Ok(Self::from_inner(
+                    <<$hashtype as $crate::bitcoin::hashes::Hash>::Inner>::consensus_decode(d)?,
+                ))
             }
         }
-    }
+    };
 }
 
-hash_newtype!(Txid, sha256d::Hash, 32, doc="A bitcoin transaction hash/transaction ID.");
-hash_newtype!(Wtxid, sha256d::Hash, 32, doc="A bitcoin witness transaction ID.");
-hash_newtype!(BlockHash, sha256d::Hash, 32, doc="A bitcoin block hash.");
-hash_newtype!(SigHash, sha256d::Hash, 32, doc="Hash of the transaction according to the signature algorithm");
+hash_newtype!(
+    Txid,
+    sha256d::Hash,
+    32,
+    doc = "A bitcoin transaction hash/transaction ID."
+);
+hash_newtype!(
+    Wtxid,
+    sha256d::Hash,
+    32,
+    doc = "A bitcoin witness transaction ID."
+);
+hash_newtype!(BlockHash, sha256d::Hash, 32, doc = "A bitcoin block hash.");
+hash_newtype!(
+    SigHash,
+    sha256d::Hash,
+    32,
+    doc = "Hash of the transaction according to the signature algorithm"
+);
 
-hash_newtype!(PubkeyHash, hash160::Hash, 20, doc="A hash of a public key.");
-hash_newtype!(ScriptHash, hash160::Hash, 20, doc="A hash of Bitcoin Script bytecode.");
-hash_newtype!(WPubkeyHash, hash160::Hash, 20, doc="SegWit version of a public key hash.");
-hash_newtype!(WScriptHash, sha256::Hash, 32, doc="SegWit version of a Bitcoin Script bytecode hash.");
+hash_newtype!(
+    PubkeyHash,
+    hash160::Hash,
+    20,
+    doc = "A hash of a public key."
+);
+hash_newtype!(
+    ScriptHash,
+    hash160::Hash,
+    20,
+    doc = "A hash of Bitcoin Script bytecode."
+);
+hash_newtype!(
+    WPubkeyHash,
+    hash160::Hash,
+    20,
+    doc = "SegWit version of a public key hash."
+);
+hash_newtype!(
+    WScriptHash,
+    sha256::Hash,
+    32,
+    doc = "SegWit version of a Bitcoin Script bytecode hash."
+);
 
-hash_newtype!(TxMerkleNode, sha256d::Hash, 32, doc="A hash of the Merkle tree branch or root for transactions");
+hash_newtype!(
+    TxMerkleNode,
+    sha256d::Hash,
+    32,
+    doc = "A hash of the Merkle tree branch or root for transactions"
+);
 
 impl_hashencode!(Txid);
 impl_hashencode!(Wtxid);

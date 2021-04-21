@@ -19,7 +19,7 @@ use std::str::FromStr;
 
 use bitcoin::hashes::{self, hex, sha256, sha256d, Hash};
 
-use encode::{self, Encodable, Decodable};
+use encode::{self, Decodable, Encodable};
 use fast_merkle_root::fast_merkle_root;
 use secp256k1_zkp::Tag;
 use transaction::OutPoint;
@@ -37,7 +37,13 @@ const TWO32: [u8; 32] = [
     2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-hash_newtype!(ContractHash, sha256::Hash, 32, doc="The hash of an asset contract.", true);
+hash_newtype!(
+    ContractHash,
+    sha256::Hash,
+    32,
+    doc = "The hash of an asset contract.",
+    true
+);
 
 impl ContractHash {
     /// Calculate the contract hash of a JSON contract object.
@@ -265,40 +271,64 @@ mod test {
         let contract_hash = ContractHash::from_inner(ZERO32);
         let prevout = OutPoint::from_str(prevout_str).unwrap();
         let entropy = sha256::Midstate::from_hex(entropy_hex).unwrap();
-        assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
+        assert_eq!(
+            AssetId::generate_asset_entropy(prevout, contract_hash),
+            entropy
+        );
         let asset_id = AssetId::from_hex(asset_id_hex).unwrap();
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
         let token_id = AssetId::from_hex(token_id_hex).unwrap();
-        assert_eq!(AssetId::reissuance_token_from_entropy(entropy, false), token_id);
+        assert_eq!(
+            AssetId::reissuance_token_from_entropy(entropy, false),
+            token_id
+        );
     }
 
     #[cfg(feature = "json-contract")]
     #[test]
     fn test_json_contract() {
-        let tether = ContractHash::from_hex("3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82").unwrap();
+        let tether = ContractHash::from_hex(
+            "3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82",
+        )
+        .unwrap();
 
         let correct = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
         let expected = ContractHash::hash(correct.as_bytes());
         assert_eq!(tether, expected);
-        assert_eq!(expected, ContractHash::from_json_contract(&correct).unwrap());
+        assert_eq!(
+            expected,
+            ContractHash::from_json_contract(&correct).unwrap()
+        );
 
         let invalid_json = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey:"#;
         assert!(ContractHash::from_json_contract(&invalid_json).is_err());
 
         let unordered = r#"{"precision":8,"ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(&unordered).unwrap());
+        assert_eq!(
+            expected,
+            ContractHash::from_json_contract(&unordered).unwrap()
+        );
 
         let unordered = r#"{"precision":8,"name":"Tether USD","ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(&unordered).unwrap());
+        assert_eq!(
+            expected,
+            ContractHash::from_json_contract(&unordered).unwrap()
+        );
 
         let spaces = r#"{"precision":8, "name" : "Tether USD", "ticker":"USDt",  "entity":{"domain":"tether.to" }, "issuer_pubkey" :"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0} "#;
         assert_eq!(expected, ContractHash::from_json_contract(&spaces).unwrap());
 
         let nested_correct = r#"{"entity":{"author":"Tether Inc","copyright":2020,"domain":"tether.to","hq":"Mars"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
         let nested_expected = ContractHash::hash(nested_correct.as_bytes());
-        assert_eq!(nested_expected, ContractHash::from_json_contract(&nested_correct).unwrap());
+        assert_eq!(
+            nested_expected,
+            ContractHash::from_json_contract(&nested_correct).unwrap()
+        );
 
         let nested_unordered = r#"{"ticker":"USDt","entity":{"domain":"tether.to","hq":"Mars","author":"Tether Inc","copyright":2020},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"version":0}"#;
-        assert_eq!(nested_expected, ContractHash::from_json_contract(&nested_unordered).unwrap());
+        assert_eq!(
+            nested_expected,
+            ContractHash::from_json_contract(&nested_unordered).unwrap()
+        );
     }
 }

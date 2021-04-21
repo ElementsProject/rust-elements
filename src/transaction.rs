@@ -15,20 +15,24 @@
 //! # Transactions
 //!
 
-use std::{io, fmt, self};
 use std::collections::HashMap;
+use std::{self, fmt, io};
 
-use bitcoin::{self, VarInt};
 use bitcoin::hashes::Hash;
+use bitcoin::{self, VarInt};
 
-use confidential::{self, AssetBlindingFactor, ValueBlindingFactor, Asset, Nonce, Value};
-use encode::{self, Encodable, Decodable};
+use address::Address;
+use confidential::{self, Asset, AssetBlindingFactor, Nonce, Value, ValueBlindingFactor};
+use encode::{self, Decodable, Encodable};
 use issuance::AssetId;
 use opcodes;
 use script::Instruction;
+use secp256k1_zkp::{
+    self,
+    rand::{CryptoRng, RngCore},
+    Generator, RangeProof, Secp256k1, Signing, SurjectionProof,
+};
 use {Script, Txid, Wtxid};
-use address::Address;
-use secp256k1_zkp::{self, Generator, RangeProof, Secp256k1, Signing, SurjectionProof, rand::{RngCore, CryptoRng}};
 
 /// Description of an asset issuance in a transaction input
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq)]
@@ -42,8 +46,20 @@ pub struct AssetIssuance {
     /// Amount of inflation keys to issue
     pub inflation_keys: confidential::Value,
 }
-serde_struct_impl!(AssetIssuance, asset_blinding_nonce, asset_entropy, amount, inflation_keys);
-impl_consensus_encoding!(AssetIssuance, asset_blinding_nonce, asset_entropy, amount, inflation_keys);
+serde_struct_impl!(
+    AssetIssuance,
+    asset_blinding_nonce,
+    asset_entropy,
+    amount,
+    inflation_keys
+);
+impl_consensus_encoding!(
+    AssetIssuance,
+    asset_blinding_nonce,
+    asset_entropy,
+    amount,
+    inflation_keys
+);
 
 /// A reference to a transaction output
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -58,10 +74,7 @@ serde_struct_human_string_impl!(OutPoint, "an Elements OutPoint", txid, vout);
 impl OutPoint {
     /// Create a new outpoint.
     pub fn new(txid: Txid, vout: u32) -> OutPoint {
-        OutPoint {
-            txid,
-            vout,
-        }
+        OutPoint { txid, vout }
     }
 }
 
@@ -77,8 +90,7 @@ impl Default for OutPoint {
 
 impl Encodable for OutPoint {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
-        Ok(self.txid.consensus_encode(&mut s)? +
-        self.vout.consensus_encode(&mut s)?)
+        Ok(self.txid.consensus_encode(&mut s)? + self.vout.consensus_encode(&mut s)?)
     }
 }
 
@@ -86,10 +98,7 @@ impl Decodable for OutPoint {
     fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<OutPoint, encode::Error> {
         let txid = Txid::consensus_decode(&mut d)?;
         let vout = u32::consensus_decode(&mut d)?;
-        Ok(OutPoint {
-            txid,
-            vout,
-        })
+        Ok(OutPoint { txid, vout })
     }
 }
 
@@ -126,19 +135,30 @@ pub struct TxInWitness {
     /// Pegin witness, basically the same thing
     pub pegin_witness: Vec<Vec<u8>>,
 }
-serde_struct_impl!(TxInWitness, amount_rangeproof, inflation_keys_rangeproof, script_witness, pegin_witness);
-impl_consensus_encoding!(TxInWitness, amount_rangeproof, inflation_keys_rangeproof, script_witness, pegin_witness);
+serde_struct_impl!(
+    TxInWitness,
+    amount_rangeproof,
+    inflation_keys_rangeproof,
+    script_witness,
+    pegin_witness
+);
+impl_consensus_encoding!(
+    TxInWitness,
+    amount_rangeproof,
+    inflation_keys_rangeproof,
+    script_witness,
+    pegin_witness
+);
 
 impl TxInWitness {
     /// Whether this witness is null
     pub fn is_empty(&self) -> bool {
-        self.amount_rangeproof.is_empty() &&
-            self.inflation_keys_rangeproof.is_empty() &&
-            self.script_witness.is_empty() &&
-            self.pegin_witness.is_empty()
+        self.amount_rangeproof.is_empty()
+            && self.inflation_keys_rangeproof.is_empty()
+            && self.script_witness.is_empty()
+            && self.pegin_witness.is_empty()
     }
 }
-
 
 /// Parsed data from a transaction input's pegin witness
 #[derive(Copy, Clone, Default, PartialEq, Eq, Debug, Hash)]
@@ -191,7 +211,16 @@ pub struct TxIn {
     /// part of the txin.
     pub witness: TxInWitness,
 }
-serde_struct_impl!(TxIn, previous_output, is_pegin, has_issuance, script_sig, sequence, asset_issuance, witness);
+serde_struct_impl!(
+    TxIn,
+    previous_output,
+    is_pegin,
+    has_issuance,
+    script_sig,
+    sequence,
+    asset_issuance,
+    witness
+);
 
 impl Encodable for TxIn {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
@@ -249,7 +278,6 @@ impl Decodable for TxIn {
     }
 }
 
-
 impl TxIn {
     /// Whether the input is a coinbase
     pub fn is_coinbase(&self) -> bool {
@@ -266,11 +294,11 @@ impl TxIn {
     /// and `pegin_data()` returning `None` indicates an invalid transaction.
     pub fn pegin_data(&self) -> Option<PeginData> {
         if !self.is_pegin {
-            return None
+            return None;
         }
 
         if self.witness.pegin_witness.len() != 6 {
-            return None
+            return None;
         }
 
         macro_rules! opt_try(
@@ -283,17 +311,19 @@ impl TxIn {
                 txid: bitcoin::Txid::from(self.previous_output.txid.as_hash()),
                 vout: self.previous_output.vout,
             },
-            value: opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[0])),
-            asset: confidential::Asset::Explicit(
-                opt_try!(encode::deserialize(&self.witness.pegin_witness[1])),
-            ),
-            genesis_hash: opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[2])),
+            value: opt_try!(bitcoin::consensus::deserialize(
+                &self.witness.pegin_witness[0]
+            )),
+            asset: confidential::Asset::Explicit(opt_try!(encode::deserialize(
+                &self.witness.pegin_witness[1]
+            ))),
+            genesis_hash: opt_try!(bitcoin::consensus::deserialize(
+                &self.witness.pegin_witness[2]
+            )),
             claim_script: &self.witness.pegin_witness[3],
             tx: &self.witness.pegin_witness[4],
             merkle_proof: &self.witness.pegin_witness[5],
-            referenced_block: bitcoin::BlockHash::hash(
-                &self.witness.pegin_witness[5][0..80],
-            ),
+            referenced_block: bitcoin::BlockHash::hash(&self.witness.pegin_witness[5][0..80]),
         })
     }
 
@@ -356,10 +386,10 @@ serde_struct_impl!(TxOut, asset, value, nonce, script_pubkey, witness);
 
 impl Encodable for TxOut {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
-        Ok(self.asset.consensus_encode(&mut s)? +
-        self.value.consensus_encode(&mut s)? +
-        self.nonce.consensus_encode(&mut s)? +
-        self.script_pubkey.consensus_encode(&mut s)?)
+        Ok(self.asset.consensus_encode(&mut s)?
+            + self.value.consensus_encode(&mut s)?
+            + self.nonce.consensus_encode(&mut s)?
+            + self.script_pubkey.consensus_encode(&mut s)?)
     }
 }
 
@@ -583,7 +613,11 @@ impl TxOut {
         if iter.next() == Some(Ok(Instruction::Op(opcodes::all::OP_RETURN))) {
             for push in iter {
                 match push {
-                    Ok(Instruction::Op(op)) if op.into_u8() > opcodes::all::OP_PUSHNUM_16.into_u8() => return false,
+                    Ok(Instruction::Op(op))
+                        if op.into_u8() > opcodes::all::OP_PUSHNUM_16.into_u8() =>
+                    {
+                        return false
+                    }
                     Err(_) => return false,
                     _ => {}
                 }
@@ -646,11 +680,13 @@ impl TxOut {
         // Return everything
         let mut found_non_data_push = false;
         let remainder = iter
-            .filter_map(|x| if let Ok(Instruction::PushBytes(data)) = x {
-                Some(data)
-            } else {
-                found_non_data_push = true;
-                None
+            .filter_map(|x| {
+                if let Ok(Instruction::PushBytes(data)) = x {
+                    Some(data)
+                } else {
+                    found_non_data_push = true;
+                    None
+                }
             })
             .collect();
 
@@ -674,7 +710,11 @@ impl TxOut {
 
     /// Extracts the minimum value from the rangeproof, if there is one, or returns 0.
     pub fn minimum_value(&self) -> u64 {
-        let min_value = if self.script_pubkey.is_op_return() { 0 } else { 1 };
+        let min_value = if self.script_pubkey.is_op_return() {
+            0
+        } else {
+            1
+        };
 
         match self.value {
             confidential::Value::Null => min_value,
@@ -693,11 +733,11 @@ impl TxOut {
                     } else if has_nonzero_range {
                         bitcoin::consensus::deserialize::<u64>(&self.witness.rangeproof[2..10])
                             .expect("any 8 bytes is a u64")
-                            .swap_bytes()  // min-value is BE
+                            .swap_bytes() // min-value is BE
                     } else {
                         bitcoin::consensus::deserialize::<u64>(&self.witness.rangeproof[1..9])
                             .expect("any 8 bytes is a u64")
-                            .swap_bytes()  // min-value is BE
+                            .swap_bytes() // min-value is BE
                     }
                 }
             }
@@ -743,8 +783,8 @@ impl Transaction {
 
     /// Determines whether a transaction has any non-null witnesses
     pub fn has_witness(&self) -> bool {
-        self.input.iter().any(|i| !i.witness.is_empty()) ||
-            self.output.iter().any(|o| !o.witness.is_empty())
+        self.input.iter().any(|i| !i.witness.is_empty())
+            || self.output.iter().any(|o| !o.witness.is_empty())
     }
 
     /// Get the "weight" of this transaction; roughly equivalent to BIP141, in that witness data is
@@ -761,9 +801,12 @@ impl Transaction {
     fn get_scaled_size(&self, scale_factor: usize) -> usize {
         let witness_flag = self.has_witness();
 
-        let input_weight = self.input.iter().map(|input| {
-            scale_factor * (
-                32 + 4 + 4 + // output + nSequence
+        let input_weight = self
+            .input
+            .iter()
+            .map(|input| {
+                scale_factor
+                    * (32 + 4 + 4 + // output + nSequence
                 VarInt(input.script_sig.len() as u64).len() as usize +
                 input.script_sig.len() + if input.has_issuance() {
                     64 +
@@ -771,51 +814,64 @@ impl Transaction {
                     input.asset_issuance.inflation_keys.encoded_length()
                 } else {
                     0
+                }) + if witness_flag {
+                    VarInt(input.witness.amount_rangeproof.len() as u64).len() as usize
+                        + input.witness.amount_rangeproof.len()
+                        + VarInt(input.witness.inflation_keys_rangeproof.len() as u64).len()
+                            as usize
+                        + input.witness.inflation_keys_rangeproof.len()
+                        + VarInt(input.witness.script_witness.len() as u64).len() as usize
+                        + input
+                            .witness
+                            .script_witness
+                            .iter()
+                            .map(|wit| VarInt(wit.len() as u64).len() as usize + wit.len())
+                            .sum::<usize>()
+                        + VarInt(input.witness.pegin_witness.len() as u64).len() as usize
+                        + input
+                            .witness
+                            .pegin_witness
+                            .iter()
+                            .map(|wit| VarInt(wit.len() as u64).len() as usize + wit.len())
+                            .sum::<usize>()
+                } else {
+                    0
                 }
-            ) + if witness_flag {
-                VarInt(input.witness.amount_rangeproof.len() as u64).len() as usize +
-                input.witness.amount_rangeproof.len() +
-                VarInt(input.witness.inflation_keys_rangeproof.len() as u64).len() as usize +
-                input.witness.inflation_keys_rangeproof.len() +
-                VarInt(input.witness.script_witness.len() as u64).len() as usize +
-                input.witness.script_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).len() as usize +
-                    wit.len()
-                ).sum::<usize>() +
-                VarInt(input.witness.pegin_witness.len() as u64).len() as usize +
-                input.witness.pegin_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).len() as usize +
-                    wit.len()
-                ).sum::<usize>()
-            } else {
-                0
-            }
-        }).sum::<usize>();
+            })
+            .sum::<usize>();
 
-        let output_weight = self.output.iter().map(|output| {
-            scale_factor * (
-                output.asset.encoded_length() +
-                output.value.encoded_length() +
-                output.nonce.encoded_length() +
-                VarInt(output.script_pubkey.len() as u64).len() as usize +
-                output.script_pubkey.len()
-            ) + if witness_flag {
-                VarInt(output.witness.surjection_proof.len() as u64).len() as usize +
-                output.witness.surjection_proof.len() +
-                VarInt(output.witness.rangeproof.len() as u64).len() as usize +
-                output.witness.rangeproof.len()
-            } else {
-                0
-            }
-        }).sum::<usize>();
+        let output_weight = self
+            .output
+            .iter()
+            .map(|output| {
+                scale_factor
+                    * (output.asset.encoded_length()
+                        + output.value.encoded_length()
+                        + output.nonce.encoded_length()
+                        + VarInt(output.script_pubkey.len() as u64).len() as usize
+                        + output.script_pubkey.len())
+                    + if witness_flag {
+                        VarInt(output.witness.surjection_proof.len() as u64).len() as usize
+                            + output.witness.surjection_proof.len()
+                            + VarInt(output.witness.rangeproof.len() as u64).len() as usize
+                            + output.witness.rangeproof.len()
+                    } else {
+                        0
+                    }
+            })
+            .sum::<usize>();
 
-        scale_factor * (
-            4 + // version
+        scale_factor
+            * (
+                4 + // version
             4 + // locktime
             VarInt(self.input.len() as u64).len() as usize +
             VarInt(self.output.len() as u64).len() as usize +
-            1 // segwit flag byte (note this is *not* witness data in Elements)
-        ) + input_weight + output_weight
+            1
+                // segwit flag byte (note this is *not* witness data in Elements)
+            )
+            + input_weight
+            + output_weight
     }
 
     /// The txid of the transaction.
@@ -839,7 +895,8 @@ impl Transaction {
     /// Get the total transaction fee in the given asset.
     pub fn fee_in(&self, asset: AssetId) -> u64 {
         // is_fee checks for explicit asset and value, so we can unwrap them here.
-        self.output.iter()
+        self.output
+            .iter()
             .filter(|o| o.is_fee() && o.asset.explicit().expect("is_fee") == asset)
             .map(|o| o.value.explicit().expect("is_fee"))
             .sum()
@@ -907,9 +964,12 @@ impl Decodable for Transaction {
                 for o in &mut output {
                     o.witness = Decodable::consensus_decode(&mut d)?;
                 }
-                if input.iter().all(|input| input.witness.is_empty()) &&
-                    output.iter().all(|output| output.witness.is_empty()) {
-                    Err(encode::Error::ParseFailed("witness flag set but no witnesses were given"))
+                if input.iter().all(|input| input.witness.is_empty())
+                    && output.iter().all(|output| output.witness.is_empty())
+                {
+                    Err(encode::Error::ParseFailed(
+                        "witness flag set but no witnesses were given",
+                    ))
                 } else {
                     Ok(Transaction {
                         version,
@@ -984,9 +1044,9 @@ mod tests {
     use bitcoin;
     use bitcoin::hashes::hex::FromHex;
 
-    use encode::serialize;
-    use confidential;
     use super::*;
+    use confidential;
+    use encode::serialize;
 
     #[test]
     fn outpoint() {
@@ -1002,8 +1062,12 @@ mod tests {
 
     #[test]
     fn test_fees() {
-        let asset1: AssetId = "0000000000000000000000000000000000000000000000000000000000000011".parse().unwrap();
-        let asset2: AssetId = "0000000000000000000000000000000000000000000000000000000000000022".parse().unwrap();
+        let asset1: AssetId = "0000000000000000000000000000000000000000000000000000000000000011"
+            .parse()
+            .unwrap();
+        let asset2: AssetId = "0000000000000000000000000000000000000000000000000000000000000022"
+            .parse()
+            .unwrap();
 
         let fee1 = TxOut::new_fee(42, asset1);
         assert!(fee1.is_fee());
@@ -1051,11 +1115,16 @@ mod tests {
         assert_eq!(tx.get_weight(), tx.get_size() * 4);
         assert_eq!(tx.output[0].is_fee(), false);
         assert_eq!(tx.output[1].is_fee(), true);
-        assert_eq!(tx.output[0].value, confidential::Value::Explicit(9999996700));
-        assert_eq!(tx.output[1].value, confidential::Value::Explicit(      3300));
+        assert_eq!(
+            tx.output[0].value,
+            confidential::Value::Explicit(9999996700)
+        );
+        assert_eq!(tx.output[1].value, confidential::Value::Explicit(3300));
         assert_eq!(tx.output[0].minimum_value(), 9999996700);
-        assert_eq!(tx.output[1].minimum_value(),       3300);
-        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        assert_eq!(tx.output[1].minimum_value(), 3300);
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+            .parse()
+            .unwrap();
         assert_eq!(tx.fee_in(fee_asset), 3300);
         assert_eq!(tx.all_fees()[&fee_asset], 3300);
 
@@ -1276,7 +1345,9 @@ mod tests {
         assert_eq!(tx.output[1].is_null_data(), false);
         assert_eq!(tx.output[2].is_null_data(), false);
 
-        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+            .parse()
+            .unwrap();
         assert_eq!(tx.fee_in(fee_asset), 36480);
         assert_eq!(tx.all_fees()[&fee_asset], 36480);
 
@@ -1314,7 +1385,9 @@ mod tests {
         assert_eq!(tx.output[1].is_pegout(), false);
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
-        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+            .parse()
+            .unwrap();
         assert_eq!(tx.fee_in(fee_asset), 0);
         assert!(tx.all_fees().is_empty());
     }
@@ -1363,73 +1436,58 @@ mod tests {
                 outpoint: bitcoin::OutPoint {
                     txid: bitcoin::Txid::from_hex(
                         "c9d88eb5130365deed045eab11cfd3eea5ba32ad45fa2e156ae6ead5f1fce93f",
-                    ).unwrap(),
+                    )
+                    .unwrap(),
                     vout: 0,
                 },
                 value: 100000000,
                 asset: tx.output[0].asset,
                 genesis_hash: bitcoin::BlockHash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
-                ).unwrap(),
+                )
+                .unwrap(),
                 claim_script: &[
-                    0x00, 0x14, 0x1a, 0xb7, 0xf5, 0x99, 0x5c, 0xf0,
-                    0xdf, 0xcb, 0x90, 0xcb, 0xb0, 0x2b, 0x63, 0x39,
-                    0x7e, 0x53, 0x26, 0xea, 0xe6, 0xfe,
+                    0x00, 0x14, 0x1a, 0xb7, 0xf5, 0x99, 0x5c, 0xf0, 0xdf, 0xcb, 0x90, 0xcb, 0xb0,
+                    0x2b, 0x63, 0x39, 0x7e, 0x53, 0x26, 0xea, 0xe6, 0xfe,
                 ],
                 tx: &[
-                    0x02, 0x00, 0x00, 0x00, 0x01, 0x13, 0x24, 0x4f,
-                    0xa5, 0x9f, 0xcb, 0x40, 0x71, 0x24, 0x03, 0x8f,
-                    0xf9, 0x12, 0x1e, 0xd5, 0x46, 0xf6, 0xdc, 0x21,
-                    0x75, 0x71, 0xcb, 0x36, 0x6a, 0x50, 0xd3, 0x19,
-                    0x3f, 0x2c, 0x80, 0x29, 0x8c, 0x00, 0x00, 0x00,
-                    0x00, 0x49, 0x48, 0x30, 0x45, 0x02, 0x21, 0x00,
-                    0xd1, 0xe2, 0x12, 0x71, 0x5d, 0x2d, 0xcb, 0xc1,
-                    0xc6, 0x6d, 0x76, 0xf4, 0x3d, 0x9f, 0x32, 0x6f,
-                    0x54, 0xff, 0x33, 0x9b, 0x56, 0x5c, 0x68, 0xf0,
-                    0x46, 0xed, 0x74, 0x04, 0x07, 0x30, 0x43, 0x3b,
-                    0x02, 0x20, 0x1d, 0x9c, 0xcb, 0xad, 0x57, 0x56,
-                    0x61, 0x00, 0xa0, 0x6b, 0x4b, 0xe4, 0x7a, 0x4c,
-                    0x77, 0x7c, 0xbd, 0x7c, 0x99, 0xe0, 0xa0, 0x8e,
-                    0x17, 0xf7, 0xbf, 0x10, 0x45, 0x81, 0x17, 0x42,
-                    0x6c, 0xd8, 0x01, 0xfe, 0xff, 0xff, 0xff, 0x02,
-                    0x00, 0xe1, 0xf5, 0x05, 0x00, 0x00, 0x00, 0x00,
-                    0x17, 0xa9, 0x14, 0x77, 0x4b, 0x87, 0xbe, 0x1e,
-                    0xf8, 0x71, 0xd8, 0x2a, 0x01, 0xed, 0xbb, 0x89,
-                    0xa7, 0x0b, 0xf4, 0xbb, 0x59, 0x31, 0x03, 0x87,
-                    0xa8, 0x8c, 0x8b, 0x44, 0x00, 0x00, 0x00, 0x00,
-                    0x19, 0x76, 0xa9, 0x14, 0xb1, 0x4b, 0x73, 0x95,
-                    0x62, 0x39, 0x21, 0xdb, 0xbc, 0xe4, 0x38, 0xf4,
-                    0xfc, 0x1f, 0xc8, 0xf1, 0xa4, 0x95, 0xaf, 0xfa,
-                    0x88, 0xac, 0xf4, 0x01, 0x00, 0x00,
+                    0x02, 0x00, 0x00, 0x00, 0x01, 0x13, 0x24, 0x4f, 0xa5, 0x9f, 0xcb, 0x40, 0x71,
+                    0x24, 0x03, 0x8f, 0xf9, 0x12, 0x1e, 0xd5, 0x46, 0xf6, 0xdc, 0x21, 0x75, 0x71,
+                    0xcb, 0x36, 0x6a, 0x50, 0xd3, 0x19, 0x3f, 0x2c, 0x80, 0x29, 0x8c, 0x00, 0x00,
+                    0x00, 0x00, 0x49, 0x48, 0x30, 0x45, 0x02, 0x21, 0x00, 0xd1, 0xe2, 0x12, 0x71,
+                    0x5d, 0x2d, 0xcb, 0xc1, 0xc6, 0x6d, 0x76, 0xf4, 0x3d, 0x9f, 0x32, 0x6f, 0x54,
+                    0xff, 0x33, 0x9b, 0x56, 0x5c, 0x68, 0xf0, 0x46, 0xed, 0x74, 0x04, 0x07, 0x30,
+                    0x43, 0x3b, 0x02, 0x20, 0x1d, 0x9c, 0xcb, 0xad, 0x57, 0x56, 0x61, 0x00, 0xa0,
+                    0x6b, 0x4b, 0xe4, 0x7a, 0x4c, 0x77, 0x7c, 0xbd, 0x7c, 0x99, 0xe0, 0xa0, 0x8e,
+                    0x17, 0xf7, 0xbf, 0x10, 0x45, 0x81, 0x17, 0x42, 0x6c, 0xd8, 0x01, 0xfe, 0xff,
+                    0xff, 0xff, 0x02, 0x00, 0xe1, 0xf5, 0x05, 0x00, 0x00, 0x00, 0x00, 0x17, 0xa9,
+                    0x14, 0x77, 0x4b, 0x87, 0xbe, 0x1e, 0xf8, 0x71, 0xd8, 0x2a, 0x01, 0xed, 0xbb,
+                    0x89, 0xa7, 0x0b, 0xf4, 0xbb, 0x59, 0x31, 0x03, 0x87, 0xa8, 0x8c, 0x8b, 0x44,
+                    0x00, 0x00, 0x00, 0x00, 0x19, 0x76, 0xa9, 0x14, 0xb1, 0x4b, 0x73, 0x95, 0x62,
+                    0x39, 0x21, 0xdb, 0xbc, 0xe4, 0x38, 0xf4, 0xfc, 0x1f, 0xc8, 0xf1, 0xa4, 0x95,
+                    0xaf, 0xfa, 0x88, 0xac, 0xf4, 0x01, 0x00, 0x00,
                 ],
                 merkle_proof: &[
-                    0x00, 0x00, 0x00, 0x20, 0xa0, 0x60, 0x08, 0x6a,
-                    0xf9, 0x2a, 0xc3, 0x4d, 0xbb, 0xc8, 0xbd, 0x89,
-                    0xbb, 0xbe, 0x03, 0xef, 0x7e, 0x00, 0x16, 0x93,
-                    0x0f, 0x7f, 0xdc, 0x80, 0x6f, 0xf1, 0x5d, 0x16,
-                    0x3b, 0x5f, 0xda, 0x5e, 0x32, 0x10, 0x59, 0x49,
-                    0xc7, 0x48, 0x22, 0x2d, 0x3e, 0x1c, 0x5b, 0x6e,
-                    0x0a, 0x4d, 0x47, 0xf8, 0xde, 0x45, 0xb2, 0x5d,
-                    0x63, 0xf1, 0x45, 0xc4, 0x05, 0x66, 0x82, 0xa7,
-                    0xb1, 0x5c, 0xc3, 0xda, 0x56, 0xa2, 0x81, 0x5b,
-                    0xff, 0xff, 0x7f, 0x20, 0x00, 0x00, 0x00, 0x00,
-                    0x03, 0x00, 0x00, 0x00, 0x03, 0x94, 0x6c, 0x96,
-                    0x9d, 0x81, 0xa3, 0xb0, 0xca, 0x47, 0x3a, 0xb5,
-                    0x4c, 0x11, 0xfa, 0x66, 0x52, 0x34, 0xd6, 0xce,
-                    0x1a, 0xd0, 0x9e, 0x87, 0xa1, 0xdb, 0xc5, 0x6e,
-                    0xb6, 0xde, 0x40, 0x02, 0xb8, 0x3f, 0xe9, 0xfc,
-                    0xf1, 0xd5, 0xea, 0xe6, 0x6a, 0x15, 0x2e, 0xfa,
-                    0x45, 0xad, 0x32, 0xba, 0xa5, 0xee, 0xd3, 0xcf,
-                    0x11, 0xab, 0x5e, 0x04, 0xed, 0xde, 0x65, 0x03,
-                    0x13, 0xb5, 0x8e, 0xd8, 0xc9, 0xfc, 0xcd, 0xc0,
-                    0xd0, 0x7e, 0xaf, 0x48, 0xf9, 0x28, 0xfe, 0xcf,
-                    0xc0, 0x77, 0x07, 0xb9, 0x57, 0x69, 0x70, 0x4d,
-                    0x25, 0xf8, 0x55, 0x52, 0x97, 0x11, 0xed, 0x64,
-                    0x50, 0xcc, 0x9b, 0x3c, 0x95, 0x01, 0x0b,
+                    0x00, 0x00, 0x00, 0x20, 0xa0, 0x60, 0x08, 0x6a, 0xf9, 0x2a, 0xc3, 0x4d, 0xbb,
+                    0xc8, 0xbd, 0x89, 0xbb, 0xbe, 0x03, 0xef, 0x7e, 0x00, 0x16, 0x93, 0x0f, 0x7f,
+                    0xdc, 0x80, 0x6f, 0xf1, 0x5d, 0x16, 0x3b, 0x5f, 0xda, 0x5e, 0x32, 0x10, 0x59,
+                    0x49, 0xc7, 0x48, 0x22, 0x2d, 0x3e, 0x1c, 0x5b, 0x6e, 0x0a, 0x4d, 0x47, 0xf8,
+                    0xde, 0x45, 0xb2, 0x5d, 0x63, 0xf1, 0x45, 0xc4, 0x05, 0x66, 0x82, 0xa7, 0xb1,
+                    0x5c, 0xc3, 0xda, 0x56, 0xa2, 0x81, 0x5b, 0xff, 0xff, 0x7f, 0x20, 0x00, 0x00,
+                    0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x03, 0x94, 0x6c, 0x96, 0x9d, 0x81, 0xa3,
+                    0xb0, 0xca, 0x47, 0x3a, 0xb5, 0x4c, 0x11, 0xfa, 0x66, 0x52, 0x34, 0xd6, 0xce,
+                    0x1a, 0xd0, 0x9e, 0x87, 0xa1, 0xdb, 0xc5, 0x6e, 0xb6, 0xde, 0x40, 0x02, 0xb8,
+                    0x3f, 0xe9, 0xfc, 0xf1, 0xd5, 0xea, 0xe6, 0x6a, 0x15, 0x2e, 0xfa, 0x45, 0xad,
+                    0x32, 0xba, 0xa5, 0xee, 0xd3, 0xcf, 0x11, 0xab, 0x5e, 0x04, 0xed, 0xde, 0x65,
+                    0x03, 0x13, 0xb5, 0x8e, 0xd8, 0xc9, 0xfc, 0xcd, 0xc0, 0xd0, 0x7e, 0xaf, 0x48,
+                    0xf9, 0x28, 0xfe, 0xcf, 0xc0, 0x77, 0x07, 0xb9, 0x57, 0x69, 0x70, 0x4d, 0x25,
+                    0xf8, 0x55, 0x52, 0x97, 0x11, 0xed, 0x64, 0x50, 0xcc, 0x9b, 0x3c, 0x95, 0x01,
+                    0x0b,
                 ],
                 referenced_block: bitcoin::BlockHash::from_hex(
                     "297852caf43464d8f13a3847bd602184c21474cd06760dbf9fc5e87bade234f1"
-                ).unwrap(),
+                )
+                .unwrap(),
             })
         );
 
@@ -1440,7 +1498,9 @@ mod tests {
         assert_eq!(tx.output[1].is_pegout(), false);
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
-        let fee_asset = "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8".parse().unwrap();
+        let fee_asset = "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
+            .parse()
+            .unwrap();
         assert_eq!(tx.fee_in(fee_asset), 6260);
         assert_eq!(tx.all_fees()[&fee_asset], 6260);
     }
@@ -1470,7 +1530,9 @@ mod tests {
         assert_eq!(tx.output.len(), 1);
         assert_eq!(tx.output[0].is_null_data(), true);
         assert_eq!(tx.output[0].is_pegout(), true);
-        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+            .parse()
+            .unwrap();
         assert_eq!(tx.fee_in(fee_asset), 0);
         assert!(tx.all_fees().is_empty());
         assert_eq!(
@@ -1480,34 +1542,33 @@ mod tests {
                 value: 99993900,
                 genesis_hash: bitcoin::BlockHash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
-                ).unwrap(),
+                )
+                .unwrap(),
                 script_pubkey: bitcoin::Script::from_hex(
                     "76a914bedb324be05d1a1254afeb3e7ef40fea0368bc1e88ac"
-                ).unwrap(),
+                )
+                .unwrap(),
                 extra_data: vec![
                     &[
-                        0x02,
-                        0xe2, 0x5e, 0x58, 0x2a, 0xc1, 0xad, 0xc6, 0x9f,
-                        0x16, 0x8a, 0xa7, 0xdb, 0xf0, 0xa9, 0x73, 0x41,
-                        0x42, 0x1e, 0x10, 0xb2, 0x2c, 0x65, 0x99, 0x27,
-                        0xde, 0x24, 0xfd, 0xac, 0x6e, 0x9f, 0x1f, 0xae,
+                        0x02, 0xe2, 0x5e, 0x58, 0x2a, 0xc1, 0xad, 0xc6, 0x9f, 0x16, 0x8a, 0xa7,
+                        0xdb, 0xf0, 0xa9, 0x73, 0x41, 0x42, 0x1e, 0x10, 0xb2, 0x2c, 0x65, 0x99,
+                        0x27, 0xde, 0x24, 0xfd, 0xac, 0x6e, 0x9f, 0x1f, 0xae,
                     ],
                     &[
-                        0x01, 0xa4, 0x8f, 0xe5, 0x27, 0x75, 0x70, 0x15,
-                        0x56, 0xa4, 0xa2, 0xdb, 0xf3, 0xd9, 0x5c, 0x0c,
-                        0x13, 0x84, 0x5b, 0xbf, 0x87, 0x27, 0x1e, 0x74,
-                        0x5b, 0x1c, 0x45, 0x4f, 0x8e, 0xbc, 0xb5, 0xcd,
-                        0x47, 0x92, 0xa4, 0x13, 0x9f, 0x41, 0x9f, 0x19,
-                        0x2c, 0xa6, 0xe3, 0x89, 0x53, 0x1d, 0x46, 0xfa,
-                        0x58, 0x57, 0xf2, 0xc1, 0x09, 0xdf, 0xe4, 0x00,
-                        0x3a, 0xd8, 0xb2, 0xce, 0x50, 0x4b, 0x48, 0x8b,
-                        0xed,
+                        0x01, 0xa4, 0x8f, 0xe5, 0x27, 0x75, 0x70, 0x15, 0x56, 0xa4, 0xa2, 0xdb,
+                        0xf3, 0xd9, 0x5c, 0x0c, 0x13, 0x84, 0x5b, 0xbf, 0x87, 0x27, 0x1e, 0x74,
+                        0x5b, 0x1c, 0x45, 0x4f, 0x8e, 0xbc, 0xb5, 0xcd, 0x47, 0x92, 0xa4, 0x13,
+                        0x9f, 0x41, 0x9f, 0x19, 0x2c, 0xa6, 0xe3, 0x89, 0x53, 0x1d, 0x46, 0xfa,
+                        0x58, 0x57, 0xf2, 0xc1, 0x09, 0xdf, 0xe4, 0x00, 0x3a, 0xd8, 0xb2, 0xce,
+                        0x50, 0x4b, 0x48, 0x8b, 0xed,
                     ]
                 ],
             })
         );
 
-        let expected_asset_id = AssetId::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
+        let expected_asset_id =
+            AssetId::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8")
+                .unwrap();
         if let confidential::Asset::Explicit(asset_id) = tx.output[0].asset {
             assert_eq!(expected_asset_id, asset_id);
         } else {
@@ -1517,7 +1578,8 @@ mod tests {
 
     #[test]
     fn issuance() {
-        let tx: Transaction = hex_deserialize!("\
+        let tx: Transaction = hex_deserialize!(
+            "\
             02000000010173828cbc65fd68ab78dc86992b76ae50ae2bf8ceedbe8de048317\
             2f0886219f7000000806b483045022100a21a578a7f2f98ca65115488facb62d7\
             c196d2df14213aed986cfdbdfd05647402204197c1fd1d9e94a14535e0918cd3c\
@@ -1815,7 +1877,8 @@ mod tests {
             78fea170dc6956487744de0c263bd0c1847c5df09fad541b2be2d557896b566ae\
             50186f922528705e5d8e7785f8ef9568f5edbb36e2d46ffc89b1b83439ff07ba4\
             5c3d8f741d0000\
-        ");
+        "
+        );
 
         assert_eq!(
             tx.txid().to_string(),
@@ -1824,7 +1887,9 @@ mod tests {
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 3);
         assert_eq!(tx.input[0].has_issuance, true);
-        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
+        let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23"
+            .parse()
+            .unwrap();
         assert_eq!(tx.fee_in(fee_asset), 56400);
         assert_eq!(tx.all_fees()[&fee_asset], 56400);
         assert_eq!(
@@ -1832,14 +1897,12 @@ mod tests {
             AssetIssuance {
                 asset_blinding_nonce: [0; 32],
                 asset_entropy: [0; 32],
-                amount: confidential::Value::from_commitment(
-                    &[  0x09, 0x81, 0x65, 0x4e, 0xb5, 0xcc, 0xd9, 0x92,
-                        0x7b, 0x8b, 0xea, 0x94, 0x99, 0x7d, 0xce, 0x4a,
-                        0xe8, 0x5b, 0x3d, 0x95, 0xa2, 0x07, 0x00, 0x38,
-                        0x4f, 0x0b, 0x8c, 0x1f, 0xe9, 0x95, 0x18, 0x06,
-                        0x38
-                    ],
-                ).unwrap(),
+                amount: confidential::Value::from_commitment(&[
+                    0x09, 0x81, 0x65, 0x4e, 0xb5, 0xcc, 0xd9, 0x92, 0x7b, 0x8b, 0xea, 0x94, 0x99,
+                    0x7d, 0xce, 0x4a, 0xe8, 0x5b, 0x3d, 0x95, 0xa2, 0x07, 0x00, 0x38, 0x4f, 0x0b,
+                    0x8c, 0x1f, 0xe9, 0x95, 0x18, 0x06, 0x38
+                ],)
+                .unwrap(),
                 inflation_keys: confidential::Value::Null,
             }
         );
@@ -1848,7 +1911,8 @@ mod tests {
     #[test]
     fn txout_null_data() {
         // Output with high opcodes should not be considered nulldata
-        let output: TxOut = hex_deserialize!("\
+        let output: TxOut = hex_deserialize!(
+            "\
             0a319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
             101010101010101010101010101012e010101010101010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfdfdfdfdfdfdfdfd006a209f6a6a6a6a6a6a806a6afdfdfdfd17fdfdf\
@@ -1860,13 +1924,15 @@ mod tests {
             000000000000000000ff000000000000000000000000200000000000011c00000\
             000d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3d3f3d3d3d3d3d3d3d3d3d3d3d3d3\
             d3d3d3d3d3d3\
-        ");
+        "
+        );
 
         assert!(!output.is_null_data());
         assert!(!output.is_pegout());
 
         // Output with pushes that are e.g. OP_1 are nulldata but not pegouts
-        let output: TxOut = hex_deserialize!("\
+        let output: TxOut = hex_deserialize!(
+            "\
             0a319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
             1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfd3ca059fdfdfb6a2000002323232323232323232323232323232\
@@ -1878,18 +1944,21 @@ mod tests {
             23232324232123232323232323232423232323232323232323232323232323232\
             3232323232323232323232323232323232323232323232323232321230d000000\
             2323232323d3\
-        ");
+        "
+        );
 
         assert!(output.is_null_data());
         assert!(!output.is_pegout());
 
         // Output with just one push and nothing else should be nulldata but not pegout
-        let output: TxOut = hex_deserialize!("\
+        let output: TxOut = hex_deserialize!(
+            "\
             0a319c0000000000d3d3d3d3d3d3d3d3d3d3d3d3fdfdfd0101010101010101010\
             1010101010101010101010101010101010101016a01010101fdfdfdfdfdfdfdfd\
             fdfdfdfdfd3ca059fdf2226a20000000000000000000000000000000000000000\
             0000000000000000000000000\
-        ");
+        "
+        );
 
         assert!(output.is_null_data());
         assert!(!output.is_pegout());
@@ -1897,7 +1966,8 @@ mod tests {
 
     #[test]
     fn pegout_tx_vector_1() {
-        let tx: Transaction = hex_deserialize!("\
+        let tx: Transaction = hex_deserialize!(
+            "\
             0200000000021c39a226160dd8962eb273772950f0b603c319a8e4aa9912c9e8e\
             36b5bdf71a2000000006a473044022071212fcde89d1055d5b74f17a162b3dbe5\
             348ac8527a131dab5dcf8a97d67d2f02202edf12f3c69fed1fa0c23da608e6ade\
@@ -1929,7 +1999,8 @@ mod tests {
             2c2ea477a0bd14e670bccb42a0fb7009b41ee86a016d521c38ec1ea15734ae22b\
             7c46064412829c0d0579f0a713d1c04ede979026f0100000000000006fc000054\
             840300\
-        ");
+        "
+        );
 
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 3);
@@ -1948,14 +2019,17 @@ mod tests {
 
         assert_eq!(tx.output[0].asset, tx.output[1].asset);
         assert_eq!(tx.output[2].asset, tx.output[1].asset);
-        let fee_asset = "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d".parse().unwrap();
+        let fee_asset = "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d"
+            .parse()
+            .unwrap();
         assert_eq!(tx.fee_in(fee_asset), 1788);
         assert_eq!(tx.all_fees()[&fee_asset], 1788);
     }
 
     #[test]
     fn pegout_with_numeric_pak() {
-        let tx: Transaction = hex_deserialize!("\
+        let tx: Transaction = hex_deserialize!(
+            "\
             0200000000021c39a226160dd8962eb273772950f0b603c319a8e4aa9912c9e8\
             e36b5bdf71a2000000006a473044022071212fcde89d1055d5b74f17a162b3db\
             e5348ac8527a131dab5dcf8a97d67d2f02202edf12f3c69fed1fa0c23da608e6\
@@ -1974,7 +2048,8 @@ mod tests {
             f5dbac47d54c9ef5ccf49895a4dbac4759005a74375f66c480e6c08651016d52\
             1c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04ede979026f0100\
             000000000006fc000054840300\
-        ");
+        "
+        );
 
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 3);
@@ -1992,14 +2067,17 @@ mod tests {
 
         assert_eq!(tx.output[0].asset, tx.output[1].asset);
         assert_eq!(tx.output[2].asset, tx.output[1].asset);
-        let fee_asset = "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d".parse().unwrap();
+        let fee_asset = "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d"
+            .parse()
+            .unwrap();
         assert_eq!(tx.fee_in(fee_asset), 1788);
         assert_eq!(tx.all_fees()[&fee_asset], 1788);
     }
 
     #[test]
     fn pegout_with_null_scriptpubkey() {
-        let tx: Transaction = hex_deserialize!("\
+        let tx: Transaction = hex_deserialize!(
+            "\
             0200000000021c39a226160dd8962eb273772950f0b603c319a8e4aa9912c9e8\
             e36b5bdf71a2000000006a473044022071212fcde89d1055d5b74f17a162b3db\
             e5348ac8527a131dab5dcf8a97d67d2f02202edf12f3c69fed1fa0c23da608e6\
@@ -2017,7 +2095,8 @@ mod tests {
             0021025f756509f5dbac47d54c9ef5ccf49895a4dbac4759005a74375f66c480\
             e6c08600016d521c38ec1ea15734ae22b7c46064412829c0d0579f0a713d1c04\
             ede979026f0100000000000006fc000054840300\
-        ");
+        "
+        );
 
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 3);
@@ -2035,7 +2114,9 @@ mod tests {
 
         assert_eq!(tx.output[0].asset, tx.output[1].asset);
         assert_eq!(tx.output[2].asset, tx.output[1].asset);
-        let fee_asset = "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d".parse().unwrap();
+        let fee_asset = "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d"
+            .parse()
+            .unwrap();
         assert_eq!(tx.fee_in(fee_asset), 1788);
         assert_eq!(tx.all_fees()[&fee_asset], 1788);
     }

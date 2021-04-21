@@ -11,7 +11,7 @@ jobs:
         include:
           - rust: stable
             env:
-              DUMMY: true
+              DO_LINT: true
           - rust: beta
             env:
               DUMMY: true

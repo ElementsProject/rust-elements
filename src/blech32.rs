@@ -164,7 +164,8 @@ fn create_checksum(hrp: &[u8], data: &[u5]) -> Vec<u5> {
     let mut checksum: Vec<u5> = Vec::new();
     // ELEMENTS: 6->12
     for p in 0..12 {
-        checksum.push(u5::try_from_u8(((plm >> (5 * (11 - p))) & 0x1f) as u8).unwrap()); // ELEMENTS: 5->11
+        checksum.push(u5::try_from_u8(((plm >> (5 * (11 - p))) & 0x1f) as u8).unwrap());
+        // ELEMENTS: 5->11
     }
     checksum
 }
@@ -248,16 +249,16 @@ mod test {
 
         let data2 = data.to_vec();
         let mut data2_b32 = data2.to_base32();
-                data2_b32.extend(vec![u5::try_from_u8(0).unwrap(); 1023]);
+        data2_b32.extend(vec![u5::try_from_u8(0).unwrap(); 1023]);
         let polymod2 = polymod(&data2_b32);
         assert_eq!(polymod1, polymod2);
     }
 
     #[test]
     fn test_checksum() {
-        let data = vec![7,2,3,4,5,6,7,8,9,234,123,213,16];
+        let data = vec![7, 2, 3, 4, 5, 6, 7, 8, 9, 234, 123, 213, 16];
         let cs = create_checksum(b"lq", &data.to_base32());
-        let expected_cs = vec![22,13,13,5,4,4,23,7,28,21,30,12];
+        let expected_cs = vec![22, 13, 13, 5, 4, 4, 23, 7, 28, 21, 30, 12];
         for i in 0..expected_cs.len() {
             assert_eq!(expected_cs[i], *cs[i].as_ref());
         }

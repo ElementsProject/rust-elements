@@ -72,7 +72,7 @@ impl Value {
     pub fn is_null(&self) -> bool {
         match self {
             Value::Null => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -80,7 +80,7 @@ impl Value {
     pub fn is_explicit(&self) -> bool {
         match self {
             Value::Explicit(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -88,7 +88,7 @@ impl Value {
     pub fn is_confidential(&self) -> bool {
         match self {
             Value::Confidential(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -200,7 +200,7 @@ impl Serialize for Value {
 
         let seq_len = match *self {
             Value::Null => 1,
-            Value::Explicit(_) | Value::Confidential(_) => 2
+            Value::Explicit(_) | Value::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
@@ -236,18 +236,14 @@ impl<'de> Deserialize<'de> for Value {
                 let prefix = access.next_element()?;
                 match prefix {
                     Some(0) => Ok(Value::Null),
-                    Some(1) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Value::Explicit(u64::swap_bytes(x))),
-                            None => Err(A::Error::custom("missing explicit value")),
-                        }
-                    }
-                    Some(2) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Value::Confidential(x)),
-                            None => Err(A::Error::custom("missing pedersen commitment")),
-                        }
-                    }
+                    Some(1) => match access.next_element()? {
+                        Some(x) => Ok(Value::Explicit(u64::swap_bytes(x))),
+                        None => Err(A::Error::custom("missing explicit value")),
+                    },
+                    Some(2) => match access.next_element()? {
+                        Some(x) => Ok(Value::Confidential(x)),
+                        None => Err(A::Error::custom("missing pedersen commitment")),
+                    },
                     _ => Err(A::Error::custom("wrong or missing prefix")),
                 }
             }
@@ -300,7 +296,7 @@ impl Asset {
     pub fn is_null(&self) -> bool {
         match *self {
             Asset::Null => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -308,7 +304,7 @@ impl Asset {
     pub fn is_explicit(&self) -> bool {
         match *self {
             Asset::Explicit(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -316,7 +312,7 @@ impl Asset {
     pub fn is_confidential(&self) -> bool {
         match *self {
             Asset::Confidential(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -369,7 +365,7 @@ impl Encodable for Asset {
                 1u8.consensus_encode(&mut s)?;
                 Ok(1 + n.consensus_encode(&mut s)?)
             }
-            Asset::Confidential(generator) => generator.consensus_encode(&mut s)
+            Asset::Confidential(generator) => generator.consensus_encode(&mut s),
         }
     }
 }
@@ -421,7 +417,6 @@ impl Decodable for Generator {
     }
 }
 
-
 #[cfg(feature = "serde")]
 impl Serialize for Asset {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
@@ -429,7 +424,7 @@ impl Serialize for Asset {
 
         let seq_len = match *self {
             Asset::Null => 1,
-            Asset::Explicit(_) | Asset::Confidential(_) => 2
+            Asset::Explicit(_) | Asset::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
@@ -465,18 +460,14 @@ impl<'de> Deserialize<'de> for Asset {
                 let prefix = access.next_element()?;
                 match prefix {
                     Some(0) => Ok(Asset::Null),
-                    Some(1) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Asset::Explicit(x)),
-                            None => Err(A::Error::custom("missing explicit asset")),
-                        }
-                    }
-                    Some(2) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Asset::Confidential(x)),
-                            None => Err(A::Error::custom("missing generator")),
-                        }
-                    }
+                    Some(1) => match access.next_element()? {
+                        Some(x) => Ok(Asset::Explicit(x)),
+                        None => Err(A::Error::custom("missing explicit asset")),
+                    },
+                    Some(2) => match access.next_element()? {
+                        Some(x) => Ok(Asset::Confidential(x)),
+                        None => Err(A::Error::custom("missing generator")),
+                    },
                     _ => Err(A::Error::custom("wrong or missing prefix")),
                 }
             }
@@ -564,7 +555,7 @@ impl Nonce {
     pub fn is_null(&self) -> bool {
         match *self {
             Nonce::Null => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -572,7 +563,7 @@ impl Nonce {
     pub fn is_explicit(&self) -> bool {
         match *self {
             Nonce::Explicit(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -580,7 +571,7 @@ impl Nonce {
     pub fn is_confidential(&self) -> bool {
         match *self {
             Nonce::Confidential(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -697,7 +688,7 @@ impl Serialize for Nonce {
 
         let seq_len = match *self {
             Nonce::Null => 1,
-            Nonce::Explicit(_) | Nonce::Confidential(_) => 2
+            Nonce::Explicit(_) | Nonce::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
@@ -733,19 +724,15 @@ impl<'de> Deserialize<'de> for Nonce {
                 let prefix = access.next_element()?;
                 match prefix {
                     Some(0) => Ok(Nonce::Null),
-                    Some(1) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Nonce::Explicit(x)),
-                            None => Err(A::Error::custom("missing explicit nonce")),
-                        }
-                    }
-                    Some(2) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Nonce::Confidential(x)),
-                            None => Err(A::Error::custom("missing nonce")),
-                        }
-                    }
-                    _ => Err(A::Error::custom("wrong or missing prefix"))
+                    Some(1) => match access.next_element()? {
+                        Some(x) => Ok(Nonce::Explicit(x)),
+                        None => Err(A::Error::custom("missing explicit nonce")),
+                    },
+                    Some(2) => match access.next_element()? {
+                        Some(x) => Ok(Nonce::Confidential(x)),
+                        None => Err(A::Error::custom("missing nonce")),
+                    },
+                    _ => Err(A::Error::custom("wrong or missing prefix")),
                 }
             }
         }
@@ -917,50 +904,41 @@ mod tests {
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
                 Token::U64(63601271583539200),
-                Token::SeqEnd
-            ]
+                Token::SeqEnd,
+            ],
         );
 
         let value = Value::from_commitment(&[
-            0x08,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        ]).unwrap();
+            0x08, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
+        ])
+        .unwrap();
         assert_tokens(
             &value.readable(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Str(
-                    "080101010101010101010101010101010101010101010101010101010101010101"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("080101010101010101010101010101010101010101010101010101010101010101"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &value.compact(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Bytes(
-                    &[
-                        8,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-                    ]
-                ),
-                Token::SeqEnd
-            ]
+                Token::Bytes(&[
+                    8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1,
+                ]),
+                Token::SeqEnd,
+            ],
         );
 
         let value = Value::Null;
         assert_tokens(
             &value,
-            &[
-                Token::Seq { len: Some(1) },
-                Token::U8(0),
-                Token::SeqEnd
-            ]
+            &[Token::Seq { len: Some(1) }, Token::U8(0), Token::SeqEnd],
         );
     }
 
@@ -970,76 +948,63 @@ mod tests {
         use bitcoin::hashes::hex::FromHex;
         use serde_test::{assert_tokens, Configure, Token};
 
-        let asset_id = AssetId::from_hex(
-            "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
-        ).unwrap();
+        let asset_id =
+            AssetId::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8")
+                .unwrap();
         let asset = Asset::Explicit(asset_id);
         assert_tokens(
             &asset.readable(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
-                Token::Str(
-                    "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &asset.compact(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
-                Token::Bytes(
-                    &[
-                        248, 11, 176, 3, 143, 72, 34, 67, 32, 47, 11, 45, 207, 136, 217, 180,
-                        231, 249, 48, 164, 138, 63, 205, 192, 3, 175, 118, 177, 249, 214, 14, 99
-                    ]
-                ),
-                Token::SeqEnd
-            ]
+                Token::Bytes(&[
+                    248, 11, 176, 3, 143, 72, 34, 67, 32, 47, 11, 45, 207, 136, 217, 180, 231, 249,
+                    48, 164, 138, 63, 205, 192, 3, 175, 118, 177, 249, 214, 14, 99,
+                ]),
+                Token::SeqEnd,
+            ],
         );
 
         let asset = Asset::from_commitment(&[
-            0x0a,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        ]).unwrap();
+            0x0a, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
+        ])
+        .unwrap();
         assert_tokens(
             &asset.readable(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Str(
-                    "0a0101010101010101010101010101010101010101010101010101010101010101"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("0a0101010101010101010101010101010101010101010101010101010101010101"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &asset.compact(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Bytes(
-                    &[
-                        10,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-                    ]
-                ),
-                Token::SeqEnd
-            ]
+                Token::Bytes(&[
+                    10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1,
+                ]),
+                Token::SeqEnd,
+            ],
         );
 
         let asset = Asset::Null;
         assert_tokens(
             &asset,
-            &[
-                Token::Seq { len: Some(1) },
-                Token::U8(0),
-                Token::SeqEnd
-            ]
+            &[Token::Seq { len: Some(1) }, Token::U8(0), Token::SeqEnd],
         );
     }
 
@@ -1049,8 +1014,8 @@ mod tests {
         use serde_test::{assert_tokens, Configure, Token};
 
         let nonce = Nonce::Explicit([
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1,
         ]);
         assert_tokens(
             &nonce,
@@ -1058,59 +1023,74 @@ mod tests {
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
                 Token::Tuple { len: 32 },
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
                 Token::TupleEnd,
-                Token::SeqEnd
-            ]
+                Token::SeqEnd,
+            ],
         );
 
         let nonce = Nonce::from_commitment(&[
-            0x02,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        ]).unwrap();
+            0x02, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
+        ])
+        .unwrap();
         assert_tokens(
             &nonce.readable(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Str(
-                    "020101010101010101010101010101010101010101010101010101010101010101"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("020101010101010101010101010101010101010101010101010101010101010101"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &nonce.compact(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Bytes(
-                    &[
-                        2,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-                    ]
-                ),
-                Token::SeqEnd
-            ]
+                Token::Bytes(&[
+                    2, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1,
+                ]),
+                Token::SeqEnd,
+            ],
         );
 
         let nonce = Nonce::Null;
         assert_tokens(
             &nonce,
-            &[
-                Token::Seq { len: Some(1) },
-                Token::U8(0),
-                Token::SeqEnd
-            ]
+            &[Token::Seq { len: Some(1) }, Token::U8(0), Token::SeqEnd],
         );
     }
 }

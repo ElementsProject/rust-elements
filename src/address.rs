@@ -24,17 +24,17 @@ use std::str::FromStr;
 use std::ascii::AsciiExt;
 
 use bitcoin::bech32::{self, u5, FromBase32, ToBase32};
-use bitcoin::util::base58;
-use bitcoin::PublicKey;
 use bitcoin::hashes::Hash;
 use bitcoin::secp256k1;
+use bitcoin::util::base58;
+use bitcoin::PublicKey;
 #[cfg(feature = "serde")]
 use serde;
 
 use blech32;
 
-use {PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 use {opcodes, script};
+use {PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 
 /// Encoding error
 #[derive(Debug, PartialEq)]
@@ -178,7 +178,8 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = PubkeyHash::engine();
-        pk.write_into(&mut hash_engine).expect("engines don't error");
+        pk.write_into(&mut hash_engine)
+            .expect("engines don't error");
 
         Address {
             params,
@@ -210,7 +211,8 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = WPubkeyHash::engine();
-        pk.write_into(&mut hash_engine).expect("engines don't error");
+        pk.write_into(&mut hash_engine)
+            .expect("engines don't error");
 
         Address {
             params,
@@ -230,7 +232,8 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = ScriptHash::engine();
-        pk.write_into(&mut hash_engine).expect("engines don't error");
+        pk.write_into(&mut hash_engine)
+            .expect("engines don't error");
 
         let builder = script::Builder::new()
             .push_int(0)
@@ -323,7 +326,9 @@ impl Address {
             Payload::WitnessProgram {
                 version: witver,
                 program: ref witprog,
-            } => script::Builder::new().push_int(witver.to_u8() as i64).push_slice(&witprog),
+            } => script::Builder::new()
+                .push_int(witver.to_u8() as i64)
+                .push_slice(&witprog),
         }
         .into_script()
     }
@@ -401,10 +406,7 @@ impl Address {
 
         Ok(Address {
             params,
-            payload: Payload::WitnessProgram {
-                version,
-                program,
-            },
+            payload: Payload::WitnessProgram { version, program },
             blinding_pubkey,
         })
     }
@@ -671,11 +673,11 @@ impl serde::Serialize for Address {
 #[cfg(test)]
 mod test {
     use super::*;
-    use bitcoin::util::key;
     use bitcoin::secp256k1::{PublicKey, Secp256k1};
-    use Script;
+    use bitcoin::util::key;
     #[cfg(feature = "serde")]
     use serde_json;
+    use Script;
 
     fn roundtrips(addr: &Address) {
         assert_eq!(
@@ -692,7 +694,9 @@ mod test {
         );
         #[cfg(feature = "serde")]
         assert_eq!(
-            serde_json::from_value::<Address>(serde_json::to_value(&addr).unwrap()).ok().as_ref(),
+            serde_json::from_value::<Address>(serde_json::to_value(&addr).unwrap())
+                .ok()
+                .as_ref(),
             Some(addr)
         );
     }
@@ -761,7 +765,12 @@ mod test {
 
         for &(a, blinded, ref params) in &addresses {
             let result = a.parse();
-            assert!(result.is_ok(), "vector: {}, err: \"{}\"", a, result.unwrap_err());
+            assert!(
+                result.is_ok(),
+                "vector: {}, err: \"{}\"",
+                a,
+                result.unwrap_err()
+            );
             let addr: Address = result.unwrap();
             assert_eq!(a, &addr.to_string(), "vector: {}", a);
             assert_eq!(blinded, addr.is_blinded());

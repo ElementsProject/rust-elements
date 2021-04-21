@@ -61,7 +61,11 @@ impl fmt::Display for Error {
             Error::OversizedVectorAllocation {
                 requested: ref r,
                 max: ref m,
-            } => write!(f, "oversized vector allocation: requested {}, maximum {}", r, m),
+            } => write!(
+                f,
+                "oversized vector allocation: requested {}, maximum {}",
+                r, m
+            ),
             Error::ParseFailed(ref e) => write!(f, "parse failed: {}", e),
             Error::UnexpectedEOF => write!(f, "unexpected EOF"),
             Error::InvalidConfidentialPrefix(p) => {
@@ -144,7 +148,9 @@ pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
     if consumed == data.len() {
         Ok(rv)
     } else {
-        Err(Error::ParseFailed("data not consumed entirely when explicitly deserializing"))
+        Err(Error::ParseFailed(
+            "data not consumed entirely when explicitly deserializing",
+        ))
     }
 }
 

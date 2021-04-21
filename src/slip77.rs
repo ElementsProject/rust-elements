@@ -3,7 +3,7 @@
 //!
 //! Spec: https://github.com/satoshilabs/slips/blob/master/slip-0077.md
 
-use bitcoin::hashes::{Hash, HashEngine, hmac, sha256, sha256d};
+use bitcoin::hashes::{hmac, sha256, sha256d, Hash, HashEngine};
 use bitcoin::secp256k1;
 use slip21;
 
@@ -36,7 +36,8 @@ impl MasterBlindingKey {
 
     /// Derive a shared nonce for a given scriptPubkey and a blinding pubkey.
     /// This is the same as performing ECDH with the secret key that [derive_blinding_key] returns.
-    pub fn derive_shared_nonce(&self,
+    pub fn derive_shared_nonce(
+        &self,
         script_pubkey: &Script,
         other: &secp256k1::PublicKey,
     ) -> sha256d::Hash {
@@ -52,8 +53,8 @@ mod tests {
 
     use std::str::FromStr;
 
-    use bitcoin::secp256k1::SecretKey;
     use bitcoin::hashes::hex::FromHex;
+    use bitcoin::secp256k1::SecretKey;
 
     use address::Address;
 
@@ -72,7 +73,8 @@ mod tests {
         let scriptpk: Script = Vec::<u8>::from_hex(&scriptpk_hex).unwrap().into();
 
         let blindingkey_hex = "02b067c374bb56c54c016fae29218c000ada60f81ef45b4aeebbeb24931bb8bc";
-        let blindingkey = SecretKey::from_slice(&Vec::<u8>::from_hex(blindingkey_hex).unwrap()).unwrap();
+        let blindingkey =
+            SecretKey::from_slice(&Vec::<u8>::from_hex(blindingkey_hex).unwrap()).unwrap();
         assert_eq!(master.derive_blinding_key(&scriptpk), blindingkey);
     }
 
@@ -83,14 +85,17 @@ mod tests {
         let seed_hex = "c76c4ac4f4e4a00d6b274d5c39c700bb4a7ddc04fbc6f78e85ca75007b5b495f74a9043eeb77bdd53aa6fc3a0e31462270316fa04b8c19114c8798706cd02ac8";
         let master_blinding_key = MasterBlindingKey::new(&Vec::<u8>::from_hex(&seed_hex).unwrap());
 
-        let script: Script = Vec::<u8>::from_hex(
-            "76a914a579388225827d9f2fe9014add644487808c695d88ac").unwrap().into();
+        let script: Script =
+            Vec::<u8>::from_hex("76a914a579388225827d9f2fe9014add644487808c695d88ac")
+                .unwrap()
+                .into();
         let blinding_key = master_blinding_key.derive_blinding_key(&script);
         let secp = secp256k1::Secp256k1::new();
         let public_key = secp256k1::PublicKey::from_secret_key(&secp, &blinding_key);
         let unconfidential_addr = Address::from_str("2dpWh6jbhAowNsQ5agtFzi7j6nKscj6UnEr").unwrap();
         let conf_addr = unconfidential_addr.to_confidential(public_key);
-        assert_eq!(conf_addr.to_string(),
+        assert_eq!(
+            conf_addr.to_string(),
             "CTEkf75DFff5ReB7juTg2oehrj41aMj21kvvJaQdWsEAQohz1EDhu7Ayh6goxpz3GZRVKidTtaXaXYEJ"
         );
     }
