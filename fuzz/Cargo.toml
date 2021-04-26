@@ -31,4 +31,3 @@ path = "fuzz_targets/deserialize_block.rs"
 [[bin]]
 name = "deserialize_output"
 path = "fuzz_targets/deserialize_output.rs"
-

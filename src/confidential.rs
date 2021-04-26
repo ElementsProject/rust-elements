@@ -18,12 +18,7 @@
 //!
 
 use bitcoin::hashes::{sha256d, Hash};
-use secp256k1_zkp::{
-    self, compute_adaptive_blinding_factor,
-    ecdh::SharedSecret,
-    rand::{CryptoRng, Rng, RngCore},
-    CommitmentSecrets, Generator, PedersenCommitment, PublicKey, Secp256k1, SecretKey, Signing,
-};
+use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment, PublicKey, Secp256k1, SecretKey, Signing, Tweak, compute_adaptive_blinding_factor, ecdh::SharedSecret, rand::{CryptoRng, Rng, RngCore}};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -756,33 +751,33 @@ impl<'de> Deserialize<'de> for Nonce {
 
 /// Blinding factor used for asset commitments.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
-pub struct AssetBlindingFactor(pub(crate) SecretKey);
+pub struct AssetBlindingFactor(pub(crate) Tweak);
 
 impl AssetBlindingFactor {
     /// Generate random asset blinding factor.
     pub fn new<R: Rng>(rng: &mut R) -> Self {
-        AssetBlindingFactor(SecretKey::new(rng))
+        AssetBlindingFactor(Tweak::new(rng))
     }
 
     /// Create from bytes.
     pub fn from_slice(bytes: &[u8]) -> Result<Self, secp256k1_zkp::Error> {
-        Ok(AssetBlindingFactor(SecretKey::from_slice(bytes)?))
+        Ok(AssetBlindingFactor(Tweak::from_slice(bytes)?))
     }
 
     /// Returns the inner value.
-    pub fn into_inner(self) -> SecretKey {
+    pub fn into_inner(self) -> Tweak {
         self.0
     }
 }
 
 /// Blinding factor used for value commitments.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct ValueBlindingFactor(pub(crate) SecretKey);
+pub struct ValueBlindingFactor(pub(crate) Tweak);
 
 impl ValueBlindingFactor {
     /// Generate random value blinding factor.
     pub fn new<R: Rng>(rng: &mut R) -> Self {
-        ValueBlindingFactor(SecretKey::new(rng))
+        ValueBlindingFactor(Tweak::new(rng))
     }
 
     /// Create the value blinding factor of the last output of a transaction.
@@ -813,6 +808,16 @@ impl ValueBlindingFactor {
         ValueBlindingFactor(compute_adaptive_blinding_factor(
             secp, value, abf.0, &set_a, &set_b,
         ))
+    }
+
+    /// Create from bytes.
+    pub fn from_slice(bytes: &[u8]) -> Result<Self, secp256k1_zkp::Error> {
+        Ok(ValueBlindingFactor(Tweak::from_slice(bytes)?))
+    }
+
+    /// Returns the inner value.
+    pub fn into_inner(self) -> Tweak {
+        self.0
     }
 }
 
