@@ -25,12 +25,12 @@
 //!
 
 use std::default::Default;
-use std::{fmt, io, ops};
+use std::{fmt, io, ops, str};
 
 #[cfg(feature = "serde")] use serde;
 
 use encode::{self, Decodable, Encodable};
-use bitcoin::hashes::Hash;
+use bitcoin::hashes::{Hash, hex};
 use {opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
 
 use bitcoin::PublicKey;
@@ -68,6 +68,22 @@ impl fmt::UpperHex for Script {
             write!(f, "{:02X}", ch)?;
         }
         Ok(())
+    }
+}
+
+impl hex::FromHex for Script {
+    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
+        where I: Iterator<Item=Result<u8, hex::Error>> +
+            ExactSizeIterator +
+            DoubleEndedIterator,
+    {
+        Vec::from_byte_iter(iter).map(|v| Script(Box::<[u8]>::from(v)))
+    }
+}
+impl str::FromStr for Script {
+    type Err = hex::Error;
+    fn from_str(s: &str) -> Result<Self, hex::Error> {
+        hex::FromHex::from_hex(s)
     }
 }
 
