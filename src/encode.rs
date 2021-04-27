@@ -313,7 +313,7 @@ impl Encodable for RangeProof {
 
 impl Decodable for RangeProof {
     fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
-        Ok(RangeProof::from_slice(&<Vec::<u8>>::consensus_decode(d)?)?)
+        Ok(RangeProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
     }
 }
 
@@ -325,7 +325,7 @@ impl Encodable for SurjectionProof {
 
 impl Decodable for SurjectionProof {
     fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
-        Ok(SurjectionProof::from_slice(&<Vec::<u8>>::consensus_decode(d)?)?)
+        Ok(SurjectionProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
     }
 }
 
