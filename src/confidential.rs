@@ -347,6 +347,26 @@ impl Asset {
             _ => None,
         }
     }
+
+    /// Internally used function for getting the generator from asset
+    /// Used in the amount verification check
+    /// Returns [`None`] is the asset is [`Asset::Null`]
+    /// Converts a explicit asset into a generator and returns the confidential
+    /// generator as is.
+    pub fn into_asset_gen<C: secp256k1_zkp::Signing> (
+        self,
+        secp: &Secp256k1<C>,
+    ) -> Option<Generator> {
+        match self {
+            // Only error is Null error which is dealt with later
+            // when we have more context information about it.
+            Asset::Null => return None,
+            Asset::Explicit(x) => {
+                Some(Generator::new_unblinded(secp, x.into_tag()))
+            }
+            Asset::Confidential(gen) => Some(gen),
+        }
+    }
 }
 
 impl From<Generator> for Asset {
