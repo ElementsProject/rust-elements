@@ -28,13 +28,13 @@ use opcodes;
 use script::Instruction;
 use {Script, Txid, Wtxid};
 use address::Address;
-use secp256k1_zkp::{self, Generator, RangeProof, Secp256k1, Signing, SurjectionProof, rand::{RngCore, CryptoRng}};
+use secp256k1_zkp::{self, Generator, RangeProof, Secp256k1, Signing, SurjectionProof, Tweak, rand::{RngCore, CryptoRng}};
 
 /// Description of an asset issuance in a transaction input
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq)]
 pub struct AssetIssuance {
     /// Zero for a new asset issuance; otherwise a blinding factor for the input
-    pub asset_blinding_nonce: [u8; 32],
+    pub asset_blinding_nonce: Tweak,
     /// Freeform entropy field
     pub asset_entropy: [u8; 32],
     /// Amount of asset to issue
@@ -118,9 +118,9 @@ impl ::std::str::FromStr for OutPoint {
 #[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
 pub struct TxInWitness {
     /// Amount rangeproof
-    pub amount_rangeproof: Vec<u8>,
+    pub amount_rangeproof: Option<RangeProof>,
     /// Rangeproof for inflation keys
-    pub inflation_keys_rangeproof: Vec<u8>,
+    pub inflation_keys_rangeproof: Option<RangeProof>,
     /// Traditional script witness
     pub script_witness: Vec<Vec<u8>>,
     /// Pegin witness, basically the same thing
@@ -132,8 +132,8 @@ impl_consensus_encoding!(TxInWitness, amount_rangeproof, inflation_keys_rangepro
 impl TxInWitness {
     /// Whether this witness is null
     pub fn is_empty(&self) -> bool {
-        self.amount_rangeproof.is_empty() &&
-            self.inflation_keys_rangeproof.is_empty() &&
+        self.amount_rangeproof.is_none() &&
+            self.inflation_keys_rangeproof.is_none() &&
             self.script_witness.is_empty() &&
             self.pegin_witness.is_empty()
     }
@@ -307,9 +307,9 @@ impl TxIn {
 #[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
 pub struct TxOutWitness {
     /// Surjection proof showing that the asset commitment is legitimate
-    pub surjection_proof: Vec<u8>,
+    pub surjection_proof: Option<SurjectionProof>,
     /// Rangeproof showing that the value commitment is legitimate
-    pub rangeproof: Vec<u8>,
+    pub rangeproof: Option<RangeProof>,
 }
 serde_struct_impl!(TxOutWitness, surjection_proof, rangeproof);
 impl_consensus_encoding!(TxOutWitness, surjection_proof, rangeproof);
@@ -317,7 +317,17 @@ impl_consensus_encoding!(TxOutWitness, surjection_proof, rangeproof);
 impl TxOutWitness {
     /// Whether this witness is null
     pub fn is_empty(&self) -> bool {
-        self.surjection_proof.is_empty() && self.rangeproof.is_empty()
+        self.surjection_proof.is_none() && self.rangeproof.is_none()
+    }
+
+    /// The rangeproof len if is present, otherwise 0
+    pub fn rangeproof_len(&self) -> usize {
+        self.rangeproof.as_ref().map(|prf| prf.len()).unwrap_or(0)
+    }
+
+    /// The surjection proof len if is present, otherwise 0
+    pub fn surjectionproof_len(&self) -> usize {
+        self.surjection_proof.as_ref().map(|prf| prf.len()).unwrap_or(0)
     }
 }
 
@@ -480,8 +490,8 @@ impl TxOut {
             nonce,
             script_pubkey: address.script_pubkey(),
             witness: TxOutWitness {
-                surjection_proof: surjection_proof.serialize(),
-                rangeproof: rangeproof.serialize(),
+                surjection_proof: Some(surjection_proof),
+                rangeproof: Some(rangeproof),
             },
         };
 
@@ -557,8 +567,8 @@ impl TxOut {
             nonce,
             script_pubkey: address.script_pubkey(),
             witness: TxOutWitness {
-                surjection_proof: surjection_proof.serialize(),
-                rangeproof: rangeproof.serialize(),
+                surjection_proof: Some(surjection_proof),
+                rangeproof: Some(rangeproof),
             },
         };
 
@@ -680,24 +690,27 @@ impl TxOut {
             confidential::Value::Null => min_value,
             confidential::Value::Explicit(n) => n,
             confidential::Value::Confidential(..) => {
-                if self.witness.rangeproof.is_empty() {
-                    min_value
-                } else {
-                    debug_assert!(self.witness.rangeproof.len() > 10);
+                match &self.witness.rangeproof {
+                    None => min_value,
+                    Some(prf) => {
+                        // inefficient, consider implementing index on rangeproof
+                        let prf = prf.serialize();
+                        debug_assert!(prf.len() > 10);
 
-                    let has_nonzero_range = self.witness.rangeproof[0] & 64 == 64;
-                    let has_min = self.witness.rangeproof[0] & 32 == 32;
+                        let has_nonzero_range = prf[0] & 64 == 64;
+                        let has_min = prf[0] & 32 == 32;
 
-                    if !has_min {
-                        min_value
-                    } else if has_nonzero_range {
-                        bitcoin::consensus::deserialize::<u64>(&self.witness.rangeproof[2..10])
-                            .expect("any 8 bytes is a u64")
-                            .swap_bytes()  // min-value is BE
-                    } else {
-                        bitcoin::consensus::deserialize::<u64>(&self.witness.rangeproof[1..9])
-                            .expect("any 8 bytes is a u64")
-                            .swap_bytes()  // min-value is BE
+                        if !has_min {
+                            min_value
+                        } else if has_nonzero_range {
+                            bitcoin::consensus::deserialize::<u64>(&prf[2..10])
+                                .expect("any 8 bytes is a u64")
+                                .swap_bytes()  // min-value is BE
+                        } else {
+                            bitcoin::consensus::deserialize::<u64>(&prf[1..9])
+                                .expect("any 8 bytes is a u64")
+                                .swap_bytes()  // min-value is BE
+                        }
                     }
                 }
             }
@@ -773,10 +786,15 @@ impl Transaction {
                     0
                 }
             ) + if witness_flag {
-                VarInt(input.witness.amount_rangeproof.len() as u64).len() as usize +
-                input.witness.amount_rangeproof.len() +
-                VarInt(input.witness.inflation_keys_rangeproof.len() as u64).len() as usize +
-                input.witness.inflation_keys_rangeproof.len() +
+                let amt_prf_len = input.witness.amount_rangeproof.as_ref()
+                    .map(|x| x.len()).unwrap_or(0);
+                let keys_prf_len = input.witness.inflation_keys_rangeproof.as_ref()
+                    .map(|x| x.len()).unwrap_or(0);
+
+                VarInt(amt_prf_len as u64).len() as usize +
+                amt_prf_len +
+                VarInt(keys_prf_len as u64).len() as usize +
+                keys_prf_len +
                 VarInt(input.witness.script_witness.len() as u64).len() as usize +
                 input.witness.script_witness.iter().map(|wit|
                     VarInt(wit.len() as u64).len() as usize +
@@ -800,10 +818,12 @@ impl Transaction {
                 VarInt(output.script_pubkey.len() as u64).len() as usize +
                 output.script_pubkey.len()
             ) + if witness_flag {
-                VarInt(output.witness.surjection_proof.len() as u64).len() as usize +
-                output.witness.surjection_proof.len() +
-                VarInt(output.witness.rangeproof.len() as u64).len() as usize +
-                output.witness.rangeproof.len()
+                let range_prf_len = output.witness.rangeproof_len();
+                let surj_prf_len = output.witness.surjectionproof_len();
+                VarInt(surj_prf_len as u64).len() as usize +
+                surj_prf_len +
+                VarInt(range_prf_len as u64).len() as usize +
+                range_prf_len
             } else {
                 0
             }
@@ -986,6 +1006,7 @@ mod tests {
 
     use encode::serialize;
     use confidential;
+    use secp256k1_zkp::ZERO_TWEAK;
     use super::*;
 
     #[test]
@@ -1830,7 +1851,7 @@ mod tests {
         assert_eq!(
             tx.input[0].asset_issuance,
             AssetIssuance {
-                asset_blinding_nonce: [0; 32],
+                asset_blinding_nonce: ZERO_TWEAK,
                 asset_entropy: [0; 32],
                 amount: confidential::Value::from_commitment(
                     &[  0x09, 0x81, 0x65, 0x4e, 0xb5, 0xcc, 0xd9, 0x92,

@@ -20,13 +20,14 @@ use std::{error, fmt, io, mem};
 
 use bitcoin::consensus::encode as btcenc;
 use bitcoin::hashes::sha256;
-use bitcoin::secp256k1;
-use secp256k1_zkp;
+use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use transaction::{Transaction, TxIn, TxOut};
 
-pub use bitcoin::consensus::encode::MAX_VEC_SIZE;
+pub use bitcoin::{self, consensus::encode::MAX_VEC_SIZE};
 
+// Use the ReadExt/WriteExt traits as is from upstream
+pub use bitcoin::consensus::encode::{ReadExt, WriteExt};
 /// Encoding error
 #[derive(Debug)]
 pub enum Error {
@@ -48,7 +49,7 @@ pub enum Error {
     /// Invalid prefix for the confidential type.
     InvalidConfidentialPrefix(u8),
     /// Parsing within libsecp256k1 failed
-    Secp256k1(secp256k1::Error),
+    Secp256k1(secp256k1_zkp::UpstreamError),
     /// Parsing within libsecp256k1-zkp failed
     Secp256k1zkp(secp256k1_zkp::Error),
 }
@@ -97,8 +98,9 @@ impl From<io::Error> for Error {
     }
 }
 
-impl From<secp256k1::Error> for Error {
-    fn from(e: secp256k1::Error) -> Self {
+#[doc(hidden)]
+impl From<secp256k1_zkp::UpstreamError> for Error {
+    fn from(e: secp256k1_zkp::UpstreamError) -> Self {
         Error::Secp256k1(e)
     }
 }
@@ -238,3 +240,69 @@ macro_rules! impl_vec {
 impl_vec!(TxIn);
 impl_vec!(TxOut);
 impl_vec!(Transaction);
+
+
+macro_rules! impl_option {
+    ($type: ty) => {
+        impl Encodable for Option<$type> {
+            #[inline]
+            fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+                match self {
+                    None => Vec::<u8>::new().consensus_encode(e),
+                    Some(v) => v.serialize().consensus_encode(e),
+                }
+            }
+        }
+
+        impl Decodable for Option<$type> {
+            #[inline]
+            fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, Error> {
+                let v : Vec<u8> = Decodable::consensus_decode(&mut d)?;
+                if v.is_empty() {
+                    Ok(None)
+                } else {
+                    Ok(Some(<$type>::from_slice(&v)?))
+                }
+            }
+        }
+    }
+}
+// special implementations for elements only fields
+impl Encodable for Tweak {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+        self.as_ref().consensus_encode(e)
+    }
+}
+
+impl Decodable for Tweak {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+        Ok(Tweak::from_inner(<[u8; 32]>::consensus_decode(d)?)?)
+    }
+}
+
+impl Encodable for RangeProof {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+        self.serialize().consensus_encode(e)
+    }
+}
+
+impl Decodable for RangeProof {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+        Ok(RangeProof::from_slice(&<Vec::<u8>>::consensus_decode(d)?)?)
+    }
+}
+
+impl Encodable for SurjectionProof {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+        self.serialize().consensus_encode(e)
+    }
+}
+
+impl Decodable for SurjectionProof {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+        Ok(SurjectionProof::from_slice(&<Vec::<u8>>::consensus_decode(d)?)?)
+    }
+}
+
+impl_option!(RangeProof);
+impl_option!(SurjectionProof);
