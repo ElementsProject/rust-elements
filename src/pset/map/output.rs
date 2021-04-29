@@ -112,6 +112,8 @@ impl Output{
             key: pk,
             compressed: true, // always serialize none as compressed pk
         });
+        rv.value_rangeproof = txout.witness.rangeproof;
+        rv.asset_surjection_proof = txout.witness.surjection_proof;
         rv
     }
 }
