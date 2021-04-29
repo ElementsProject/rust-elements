@@ -18,7 +18,11 @@
 //!
 
 use hashes::{sha256d, Hash, hex, hex::FromHex};
-use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment, PublicKey, Secp256k1, SecretKey, Signing, Tweak, compute_adaptive_blinding_factor, ecdh::SharedSecret, rand::{CryptoRng, Rng, RngCore}};
+use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
+    PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
+    compute_adaptive_blinding_factor, ecdh::SharedSecret,
+    rand::{CryptoRng, Rng, RngCore}
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -803,6 +807,11 @@ impl AssetBlindingFactor {
     pub fn into_inner(self) -> Tweak {
         self.0
     }
+
+    /// Get a unblinded/zero AssetBlinding factor
+    pub fn zero() -> Self {
+        AssetBlindingFactor(ZERO_TWEAK)
+    }
 }
 
 impl hex::FromHex for AssetBlindingFactor {
@@ -836,8 +845,7 @@ impl str::FromStr for AssetBlindingFactor {
     type Err = encode::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let slice = <[u8; 32]>::from_hex(s)?;
-        Ok(Self::from_slice(&slice)?)
+        Ok(hex::FromHex::from_hex(s)?)
     }
 }
 
@@ -890,6 +898,11 @@ impl ValueBlindingFactor {
     pub fn into_inner(self) -> Tweak {
         self.0
     }
+
+    /// Get a unblinded/zero AssetBlinding factor
+    pub fn zero() -> Self {
+        ValueBlindingFactor(ZERO_TWEAK)
+    }
 }
 
 impl hex::FromHex for ValueBlindingFactor {
@@ -923,8 +936,7 @@ impl str::FromStr for ValueBlindingFactor {
     type Err = encode::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let slice = <[u8; 32]>::from_hex(s)?;
-        Ok(Self::from_slice(&slice)?)
+        Ok(hex::FromHex::from_hex(s)?)
     }
 }
 
