@@ -119,7 +119,8 @@ impl AssetId {
         AssetId(fast_merkle_root(&[entropy.into_inner(), second]))
     }
 
-    pub(crate) fn into_tag(self) -> Tag {
+    /// Convert an asset into [Tag]
+    pub fn into_tag(self) -> Tag {
         self.0.into_inner().into()
     }
 }
