@@ -49,6 +49,7 @@ pub mod issuance;
 pub mod opcodes;
 pub mod script;
 mod transaction;
+mod blind;
 pub mod slip77;
 pub mod sighash;
 pub mod pset;
