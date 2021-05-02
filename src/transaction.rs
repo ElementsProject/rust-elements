@@ -15,7 +15,7 @@
 //! # Transactions
 //!
 
-use std::{io, fmt, str, self};
+use std::{io, fmt, str};
 use std::collections::HashMap;
 
 use bitcoin::{self, VarInt};
@@ -28,7 +28,7 @@ use opcodes;
 use script::Instruction;
 use {Script, Txid, Wtxid};
 use secp256k1_zkp::{
-    self, RangeProof, SurjectionProof, Tweak,
+    RangeProof, SurjectionProof, Tweak,
 };
 
 /// Description of an asset issuance in a transaction input
@@ -383,41 +383,6 @@ impl Decodable for TxOut {
             script_pubkey: Decodable::consensus_decode(&mut d)?,
             witness: TxOutWitness::default(),
         })
-    }
-}
-
-/// Errors encountered when constructing confidential transaction outputs.
-#[derive(Debug, Clone, Copy)]
-pub enum ConfidentialTxOutError {
-    /// The address provided does not have a blinding key.
-    NoBlindingKeyInAddress,
-    /// Error originated in `secp256k1_zkp`.
-    Upstream(secp256k1_zkp::Error),
-}
-
-impl fmt::Display for ConfidentialTxOutError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        match self {
-            ConfidentialTxOutError::NoBlindingKeyInAddress => {
-                write!(f, "address does not include a blinding key")
-            }
-            ConfidentialTxOutError::Upstream(e) => write!(f, "{}", e),
-        }
-    }
-}
-
-impl std::error::Error for ConfidentialTxOutError {
-    fn cause(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ConfidentialTxOutError::NoBlindingKeyInAddress => None,
-            ConfidentialTxOutError::Upstream(e) => Some(e),
-        }
-    }
-}
-
-impl From<secp256k1_zkp::Error> for ConfidentialTxOutError {
-    fn from(from: secp256k1_zkp::Error) -> Self {
-        ConfidentialTxOutError::Upstream(from)
     }
 }
 
@@ -870,7 +835,7 @@ mod tests {
 
     use encode::serialize;
     use confidential;
-    use secp256k1_zkp::ZERO_TWEAK;
+    use secp256k1_zkp::{self, ZERO_TWEAK};
     use script;
 
     use super::*;
