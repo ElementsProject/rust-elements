@@ -61,7 +61,8 @@ mod endian;
 pub use bitcoin::{bech32, hashes};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use address::{Address, AddressParams, AddressError};
-pub use transaction::{OutPoint, PeginData, PegoutData, SigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance, ConfidentialTxOutError};
+pub use transaction::{OutPoint, PeginData, PegoutData, SigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
+pub use blind::{ConfidentialTxOutError, TxOutSecrets, TxOutError, VerificationError};
 pub use block::{BlockHeader, Block};
 pub use block::ExtData as BlockExtData;
 pub use ::bitcoin::consensus::encode::VarInt;

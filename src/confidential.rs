@@ -789,7 +789,7 @@ impl<'de> Deserialize<'de> for Nonce {
 }
 
 /// Blinding factor used for asset commitments.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct AssetBlindingFactor(pub(crate) Tweak);
 
 impl AssetBlindingFactor {
@@ -850,7 +850,7 @@ impl str::FromStr for AssetBlindingFactor {
 }
 
 /// Blinding factor used for value commitments.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct ValueBlindingFactor(pub(crate) Tweak);
 
 impl ValueBlindingFactor {
