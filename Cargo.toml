@@ -21,7 +21,7 @@ json-contract = [ "serde_json" ]
 
 [dependencies]
 bitcoin = "0.26"
-secp256k1-zkp = { version = "0.2", features = [ "global-context", "hashes" ] }
+secp256k1-zkp = { version = "0.4.0", features = [ "global-context", "hashes" ] }
 slip21 = "0.2.0"
 
 # While this dependency is included in bitcoin, we need this to use the macros.
@@ -32,7 +32,7 @@ bitcoin_hashes = "0.9.0"
 # Used for ContractHash::from_json_contract.
 serde_json = { version = "<=1.0.44", optional = true }
 
-serde = { version = "1.0", optional = true }
+serde = { version = "1.0", features=["derive"], optional = true }
 
 [dev-dependencies]
 rand = "0.6.5"
