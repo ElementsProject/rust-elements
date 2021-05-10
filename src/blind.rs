@@ -710,3 +710,38 @@ impl From<ConfidentialTxOutError> for BlindError {
         BlindError::ConfidentialTxOutError(from)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use hashes::hex::FromHex;
+    use rand::thread_rng;
+    use super::*;
+    use encode::deserialize;
+    use Script;
+    use bitcoin;
+
+    #[test]
+    fn test_blind_tx() {
+        // tested with elements 0.20 rebase branch
+        let tx_hex = "020000000001741498f6da8f47eb438d0fb9de099b7e29c0e011b9ab64c3e0eb097a09a6a9220100000000fdffffff0301230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201000775f04dedb2d102a11e47fd7a0edfb424a43b2d3cf29d700d4b168c92e115709ff7d15070e201dd16001483641e58db3de6067f010d71c9782874572af9fb01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100000000000f42400206a1039b0fe0d110d2108f2cc49d637f95b6ac18045af5b302b3c14bf8457994160014ad65ebbed8416659141cc788c1b917d6ff3e059901230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100000000000000f9000000000000";
+        let mut tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx_hex).unwrap()[..]).unwrap();
+        let spent_utxo_secrets = TxOutSecrets {
+            asset: AssetId::from_hex("b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23").unwrap(),
+            asset_bf: AssetBlindingFactor::from_hex("a5b3d111cdaa5fc111e2723df4caf315864f25fb4610cc737f10d5a55cd4096f").unwrap(),
+            value: bitcoin::Amount::from_str_in("20999997.97999114", bitcoin::Denomination::Bitcoin).unwrap().as_sat(),
+            value_bf: ValueBlindingFactor::from_hex("e36a4de359469f547571d117bc5509fb74fba73c84b0cdd6f4edfa7ff7fa457d").unwrap(),
+        };
+        let secp = secp256k1_zkp::Secp256k1::new();
+        let spent_asset = Asset::from_commitment(&Vec::<u8>::from_hex("0baf634b18e1880c96dcf9947b0e0fd2d38d66d723339174df3fd980148c2f0bb3").unwrap()).unwrap();
+        let _bfs = tx.blind(&mut thread_rng(), &secp, &[(spent_asset, &spent_utxo_secrets)]).unwrap();
+
+        let spent_utxo = TxOut {
+            asset: Asset::from_commitment(&Vec::<u8>::from_hex("0baf634b18e1880c96dcf9947b0e0fd2d38d66d723339174df3fd980148c2f0bb3").unwrap()).unwrap(),
+            value: Value::from_commitment(&Vec::<u8>::from_hex("093baba9076190867fbc5e43132cb2f82245caf603b493d7c0da8b7eda7912fa2c").unwrap()).unwrap(),
+            nonce: Nonce::from_commitment(&Vec::<u8>::from_hex("02a96a456f4936dcf0afbc325ac3798c4464e7b66dd460d564f3f91882d6089a3b").unwrap()).unwrap(),
+            script_pubkey: Script::from_hex("0014d2bcde17e7744f6377466ca1bd35d212954674c8").unwrap(),
+            witness: TxOutWitness::default(),
+        };
+        tx.verify_tx_amt_proofs(&secp, &[spent_utxo]).unwrap();
+    }
+}
