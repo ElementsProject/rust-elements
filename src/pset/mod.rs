@@ -29,13 +29,12 @@ mod map;
 pub mod raw;
 pub mod serialize;
 
-use {Transaction, Txid, TxIn, OutPoint, AssetIssuance, TxInWitness, TxOut, TxOutWitness};
+use {Transaction, Txid, TxIn, OutPoint, TxInWitness, TxOut, TxOutWitness};
 use encode::{self, Encodable, Decodable};
 use confidential;
 pub use self::error::Error;
 pub use self::map::{Global, GlobalTxData, Input, Output};
 use self::map::Map;
-use secp256k1_zkp::ZERO_TWEAK;
 
 /// A Partially Signed Transaction.
 #[derive(Debug, Clone, PartialEq)]
@@ -188,17 +187,11 @@ impl PartiallySignedTransaction {
         for psetin in self.inputs.iter() {
             let txin = TxIn {
                 previous_output: OutPoint::new(psetin.previous_txid, psetin.previous_output_index),
-                is_pegin: psetin.previous_output_index & (1 << 30) != 0,
-                has_issuance: psetin.previous_output_index & (1 << 31) != 0,
+                is_pegin: psetin.is_pegin(),
+                has_issuance: psetin.has_issuance(),
                 script_sig: psetin.final_script_sig.clone().unwrap_or_default(),
                 sequence: psetin.sequence.unwrap_or(0xffffffff),
-                asset_issuance: AssetIssuance {
-                    asset_blinding_nonce: *psetin.issuance_blinding_nonce.as_ref()
-                        .unwrap_or(&ZERO_TWEAK),
-                    asset_entropy: psetin.issuance_asset_entropy.unwrap_or_default(),
-                    amount: psetin.issuance_value.unwrap_or_default(),
-                    inflation_keys: psetin.issuance_inflation_keys.unwrap_or_default(),
-                },
+                asset_issuance: psetin.asset_issuance(),
                 witness: TxInWitness {
                     amount_rangeproof: psetin.issuance_value_rangeproof.clone(),
                     inflation_keys_rangeproof: psetin.issuance_keys_rangeproof.clone(),
