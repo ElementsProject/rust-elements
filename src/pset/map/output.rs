@@ -152,19 +152,19 @@ impl Map for Output {
                         PSBT_ELEMENTS_OUT_ASSET |
                         PSBT_ELEMENTS_OUT_ASSET_COMMITMENT => return Err(Error::DuplicateKey(raw_key).into()),
                         PSBT_ELEMENTS_OUT_VALUE_RANGEPROOF => {
-                            impl_pset_insert_pair!(self.value_rangeproof <= <raw_key: _> | <raw_value : RangeProof>)
+                            impl_pset_prop_insert_pair!(self.value_rangeproof <= <raw_key: _> | <raw_value : RangeProof>)
                         }
                         PSBT_ELEMENTS_OUT_ASSET_SURJECTION_PROOF => {
-                            impl_pset_insert_pair!(self.asset_surjection_proof <= <raw_key: _> | <raw_value : SurjectionProof>)
+                            impl_pset_prop_insert_pair!(self.asset_surjection_proof <= <raw_key: _> | <raw_value : SurjectionProof>)
                         }
                         PSBT_ELEMENTS_OUT_BLINDING_PUBKEY => {
-                            impl_pset_insert_pair!(self.blinding_key <= <raw_key: _> | <raw_value : bitcoin::PublicKey>)
+                            impl_pset_prop_insert_pair!(self.blinding_key <= <raw_key: _> | <raw_value : bitcoin::PublicKey>)
                         }
                         PSBT_ELEMENTS_OUT_ECDH_PUBKEY => {
-                            impl_pset_insert_pair!(self.ecdh_pubkey <= <raw_key: _> | <raw_value : bitcoin::PublicKey>)
+                            impl_pset_prop_insert_pair!(self.ecdh_pubkey <= <raw_key: _> | <raw_value : bitcoin::PublicKey>)
                         }
                         PSBT_ELEMENTS_OUT_BLINDER_INDEX => {
-                            impl_pset_insert_pair!(self.blinder_index <= <raw_key: _> | <raw_value : u32>)
+                            impl_pset_prop_insert_pair!(self.blinder_index <= <raw_key: _> | <raw_value : u32>)
                         }
                         _ => {
                             match self.proprietary.entry(prop_key) {
