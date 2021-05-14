@@ -24,7 +24,7 @@ use encode::{self, Encodable, Decodable};
 use Script;
 
 /// Dynamic federations paramaters, as encoded in a block header
-#[derive(Clone, Eq, Hash, PartialEq)]
+#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Params {
     /// Null entry, used to signal "no vote" as a proposal
     Null,
