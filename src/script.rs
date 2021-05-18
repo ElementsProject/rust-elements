@@ -25,15 +25,17 @@
 //!
 
 use std::default::Default;
-use std::{fmt, io, ops};
+use std::{fmt, io, ops, str};
 
 #[cfg(feature = "serde")] use serde;
 
 use encode::{self, Decodable, Encodable};
-use bitcoin::hashes::Hash;
+use bitcoin::hashes::{Hash, hex};
 use {opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
 
 use bitcoin::PublicKey;
+
+const MAX_SCRIPT_SIZE : usize = 10_000;
 
 #[derive(Clone, Default, PartialOrd, Ord, PartialEq, Eq, Hash)]
 /// A Bitcoin script
@@ -68,6 +70,22 @@ impl fmt::UpperHex for Script {
             write!(f, "{:02X}", ch)?;
         }
         Ok(())
+    }
+}
+
+impl hex::FromHex for Script {
+    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
+        where I: Iterator<Item=Result<u8, hex::Error>> +
+            ExactSizeIterator +
+            DoubleEndedIterator,
+    {
+        Vec::from_byte_iter(iter).map(|v| Script(Box::<[u8]>::from(v)))
+    }
+}
+impl str::FromStr for Script {
+    type Err = hex::Error;
+    fn from_str(s: &str) -> Result<Self, hex::Error> {
+        hex::FromHex::from_hex(s)
     }
 }
 
@@ -382,9 +400,12 @@ impl Script {
     }
 
     /// Whether a script can be proven to have no satisfying input
+    /// In elements, is_provably_unspendable is consensus critical
+    /// matches the implementation of CScript::IsUnspendable()
     pub fn is_provably_unspendable(&self) -> bool {
-        !self.0.is_empty() && (opcodes::All::from(self.0[0]).classify() == opcodes::Class::ReturnOp ||
-                               opcodes::All::from(self.0[0]).classify() == opcodes::Class::IllegalOp)
+        !self.0.is_empty() && opcodes::All::from(self.0[0]) == opcodes::all::OP_RETURN
+        || self.len() > MAX_SCRIPT_SIZE
+        || self.is_empty() // elements special rule for fee outputs
     }
 
     /// Iterate over the script in the form of `Instruction`s, which are an enum covering

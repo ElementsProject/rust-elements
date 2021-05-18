@@ -29,7 +29,7 @@ pub extern crate bitcoin;
 #[macro_use]
 extern crate bitcoin_hashes as just_imported_for_the_macros;
 extern crate slip21;
-extern crate secp256k1_zkp;
+pub extern crate secp256k1_zkp;
 #[cfg(feature = "serde")] #[macro_use] extern crate serde;
 #[cfg(all(test, feature = "serde"))] extern crate serde_test;
 
@@ -49,6 +49,7 @@ pub mod issuance;
 pub mod opcodes;
 pub mod script;
 mod transaction;
+mod blind;
 pub mod slip77;
 pub mod sighash;
 pub mod pset;
@@ -57,10 +58,11 @@ mod serde_utils;
 // consider making upstream public
 mod endian;
 // re-export bitcoin deps which we re-use
-pub use bitcoin::{bech32, hashes, secp256k1};
+pub use bitcoin::{bech32, hashes};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use address::{Address, AddressParams, AddressError};
-pub use transaction::{OutPoint, PeginData, PegoutData, SigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance, ConfidentialTxOutError};
+pub use transaction::{OutPoint, PeginData, PegoutData, SigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
+pub use blind::{ConfidentialTxOutError, TxOutSecrets, TxOutError, VerificationError};
 pub use block::{BlockHeader, Block};
 pub use block::ExtData as BlockExtData;
 pub use ::bitcoin::consensus::encode::VarInt;

@@ -4,7 +4,7 @@
 //! Spec: https://github.com/satoshilabs/slips/blob/master/slip-0077.md
 
 use bitcoin::hashes::{Hash, HashEngine, hmac, sha256, sha256d};
-use bitcoin::secp256k1;
+use secp256k1_zkp;
 use slip21;
 
 use Script;
@@ -13,7 +13,7 @@ const SLIP77_DERIVATION: &str = "SLIP-0077";
 
 /// A SLIP-77 master blinding key used to derive shared blinding keys.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct MasterBlindingKey(pub secp256k1::SecretKey);
+pub struct MasterBlindingKey(pub secp256k1_zkp::SecretKey);
 
 impl MasterBlindingKey {
     /// Create a new master blinding key from a seed.
@@ -22,26 +22,26 @@ impl MasterBlindingKey {
         let child = master.derive_child(&SLIP77_DERIVATION.as_bytes());
         let key = child.key();
         assert_eq!(key.len(), 32);
-        MasterBlindingKey(secp256k1::SecretKey::from_slice(key).expect("len is 32"))
+        MasterBlindingKey(secp256k1_zkp::SecretKey::from_slice(key).expect("len is 32"))
     }
 
     /// Derive a blinding private key for a given scriptPubkey.
-    pub fn derive_blinding_key(&self, script_pubkey: &Script) -> secp256k1::SecretKey {
+    pub fn derive_blinding_key(&self, script_pubkey: &Script) -> secp256k1_zkp::SecretKey {
         let mut engine: hmac::HmacEngine<sha256::Hash> = hmac::HmacEngine::new(&self.0[..]);
         engine.input(script_pubkey.as_bytes());
 
         let bytes = hmac::Hmac::<sha256::Hash>::from_engine(engine).into_inner();
-        secp256k1::SecretKey::from_slice(&bytes[..]).expect("len is 32")
+        secp256k1_zkp::SecretKey::from_slice(&bytes[..]).expect("len is 32")
     }
 
     /// Derive a shared nonce for a given scriptPubkey and a blinding pubkey.
     /// This is the same as performing ECDH with the secret key that [derive_blinding_key] returns.
     pub fn derive_shared_nonce(&self,
         script_pubkey: &Script,
-        other: &secp256k1::PublicKey,
+        other: &secp256k1_zkp::PublicKey,
     ) -> sha256d::Hash {
         let blinding_private_key = self.derive_blinding_key(script_pubkey);
-        let shared_secret = secp256k1::ecdh::SharedSecret::new(&other, &blinding_private_key);
+        let shared_secret = secp256k1_zkp::ecdh::SharedSecret::new(&other, &blinding_private_key);
         sha256d::Hash::hash(&shared_secret[..])
     }
 }
@@ -52,7 +52,7 @@ mod tests {
 
     use std::str::FromStr;
 
-    use bitcoin::secp256k1::SecretKey;
+    use secp256k1_zkp::SecretKey;
     use bitcoin::hashes::hex::FromHex;
 
     use address::Address;
@@ -86,8 +86,8 @@ mod tests {
         let script: Script = Vec::<u8>::from_hex(
             "76a914a579388225827d9f2fe9014add644487808c695d88ac").unwrap().into();
         let blinding_key = master_blinding_key.derive_blinding_key(&script);
-        let secp = secp256k1::Secp256k1::new();
-        let public_key = secp256k1::PublicKey::from_secret_key(&secp, &blinding_key);
+        let secp = secp256k1_zkp::Secp256k1::new();
+        let public_key = secp256k1_zkp::PublicKey::from_secret_key(&secp, &blinding_key);
         let unconfidential_addr = Address::from_str("2dpWh6jbhAowNsQ5agtFzi7j6nKscj6UnEr").unwrap();
         let conf_addr = unconfidential_addr.to_confidential(public_key);
         assert_eq!(conf_addr.to_string(),

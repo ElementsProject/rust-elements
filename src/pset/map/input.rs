@@ -14,7 +14,7 @@
 
 use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io};
 
-use {Script, SigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
+use {Script, AssetIssuance, SigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
 use encode::{self, Decodable};
 use confidential;
 use bitcoin::util::bip32::KeySource;
@@ -24,7 +24,7 @@ use pset::map::Map;
 use pset::raw;
 use pset::serialize;
 use pset::{self, Error, error};
-use secp256k1_zkp::{RangeProof, Tweak};
+use secp256k1_zkp::{RangeProof, Tweak, ZERO_TWEAK};
 
 
 use OutPoint;
@@ -244,6 +244,27 @@ impl Input{
             ret.issuance_value_rangeproof = txin.witness.amount_rangeproof;
         }
         ret
+    }
+
+    /// If the pset input has issuance
+    pub fn has_issuance(&self) -> bool {
+        self.previous_output_index & (1 << 31) != 0
+    }
+
+    /// If the Pset Input is pegin
+    pub fn is_pegin(&self) -> bool {
+        self.previous_output_index & (1 << 30) != 0
+    }
+
+    /// Get the issuance for this tx input
+    pub fn asset_issuance(&self) -> AssetIssuance {
+        AssetIssuance {
+            asset_blinding_nonce: *self.issuance_blinding_nonce.as_ref()
+                .unwrap_or(&ZERO_TWEAK),
+            asset_entropy: self.issuance_asset_entropy.unwrap_or_default(),
+            amount: self.issuance_value.unwrap_or_default(),
+            inflation_keys: self.issuance_inflation_keys.unwrap_or_default(),
+        }
     }
 }
 

@@ -17,6 +17,7 @@
 
 use std::io::Cursor;
 use std::{error, fmt, io, mem};
+use hashes;
 
 use bitcoin::consensus::encode as btcenc;
 use bitcoin::hashes::sha256;
@@ -55,6 +56,8 @@ pub enum Error {
     Secp256k1zkp(secp256k1_zkp::Error),
     /// Pset related Errors
     PsetError(pset::Error),
+    /// Hex parsing errors
+    HexError(hashes::hex::Error),
 }
 
 impl fmt::Display for Error {
@@ -74,6 +77,7 @@ impl fmt::Display for Error {
             Error::Secp256k1(ref e) => write!(f, "{}", e),
             Error::Secp256k1zkp(ref e) => write!(f, "{}", e),
             Error::PsetError(ref e) => write!(f, "Pset Error: {}", e),
+            Error::HexError(ref e) => write!(f, "Hex error {}", e),
         }
     }
 }
@@ -103,12 +107,20 @@ impl From<io::Error> for Error {
 }
 
 #[doc(hidden)]
+impl From<pset::Error> for Error {
+    fn from(e: pset::Error) -> Error {
+        Error::PsetError(e)
+    }
+}
+
+#[doc(hidden)]
 impl From<secp256k1_zkp::UpstreamError> for Error {
     fn from(e: secp256k1_zkp::UpstreamError) -> Self {
         Error::Secp256k1(e)
     }
 }
 
+#[doc(hidden)]
 impl From<secp256k1_zkp::Error> for Error {
     fn from(e: secp256k1_zkp::Error) -> Self {
         Error::Secp256k1zkp(e)
@@ -116,9 +128,9 @@ impl From<secp256k1_zkp::Error> for Error {
 }
 
 #[doc(hidden)]
-impl From<pset::Error> for Error {
-    fn from(e: pset::Error) -> Error {
-        Error::PsetError(e)
+impl From<hashes::hex::Error> for Error {
+    fn from(e: hashes::hex::Error) -> Self {
+        Error::HexError(e)
     }
 }
 
@@ -301,7 +313,7 @@ impl Encodable for RangeProof {
 
 impl Decodable for RangeProof {
     fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
-        Ok(RangeProof::from_slice(&<Vec::<u8>>::consensus_decode(d)?)?)
+        Ok(RangeProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
     }
 }
 
@@ -313,7 +325,7 @@ impl Encodable for SurjectionProof {
 
 impl Decodable for SurjectionProof {
     fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
-        Ok(SurjectionProof::from_slice(&<Vec::<u8>>::consensus_decode(d)?)?)
+        Ok(SurjectionProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
     }
 }
 

@@ -17,12 +17,16 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
-use bitcoin::hashes::{sha256d, Hash};
-use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment, PublicKey, Secp256k1, SecretKey, Signing, Tweak, compute_adaptive_blinding_factor, ecdh::SharedSecret, rand::{CryptoRng, Rng, RngCore}};
+use hashes::{sha256d, Hash, hex};
+use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
+    PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
+    compute_adaptive_blinding_factor, ecdh::SharedSecret,
+    rand::{CryptoRng, Rng, RngCore}
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use std::{fmt, io};
+use std::{fmt, io, str};
 
 use encode::{self, Decodable, Encodable};
 use issuance::AssetId;
@@ -47,6 +51,21 @@ impl Value {
         bf: ValueBlindingFactor,
     ) -> Self {
         Value::Confidential(PedersenCommitment::new(secp, value, bf.0, asset))
+    }
+
+    /// Create value commitment from assetID, asset blinding factor,
+    /// value and value blinding factor
+    pub fn new_confidential_from_assetid<C: Signing>(
+        secp: &Secp256k1<C>,
+        value: u64,
+        asset: AssetId,
+        v_bf: ValueBlindingFactor,
+        a_bf: AssetBlindingFactor,
+    ) -> Self {
+        let generator = Generator::new_blinded(secp, asset.into_tag(), a_bf.0);
+        let comm = PedersenCommitment::new(secp, value, v_bf.0, generator);
+
+        Value::Confidential(comm)
     }
 
     /// Serialized length, in bytes
@@ -330,6 +349,26 @@ impl Asset {
         match *self {
             Asset::Confidential(i) => Some(i),
             _ => None,
+        }
+    }
+
+    /// Internally used function for getting the generator from asset
+    /// Used in the amount verification check
+    /// Returns [`None`] is the asset is [`Asset::Null`]
+    /// Converts a explicit asset into a generator and returns the confidential
+    /// generator as is.
+    pub fn into_asset_gen<C: secp256k1_zkp::Signing> (
+        self,
+        secp: &Secp256k1<C>,
+    ) -> Option<Generator> {
+        match self {
+            // Only error is Null error which is dealt with later
+            // when we have more context information about it.
+            Asset::Null => return None,
+            Asset::Explicit(x) => {
+                Some(Generator::new_unblinded(secp, x.into_tag()))
+            }
+            Asset::Confidential(gen) => Some(gen),
         }
     }
 }
@@ -750,7 +789,7 @@ impl<'de> Deserialize<'de> for Nonce {
 }
 
 /// Blinding factor used for asset commitments.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct AssetBlindingFactor(pub(crate) Tweak);
 
 impl AssetBlindingFactor {
@@ -768,10 +807,50 @@ impl AssetBlindingFactor {
     pub fn into_inner(self) -> Tweak {
         self.0
     }
+
+    /// Get a unblinded/zero AssetBlinding factor
+    pub fn zero() -> Self {
+        AssetBlindingFactor(ZERO_TWEAK)
+    }
+}
+
+impl hex::FromHex for AssetBlindingFactor {
+    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
+        where I: Iterator<Item=Result<u8, hex::Error>> +
+            ExactSizeIterator +
+            DoubleEndedIterator
+    {
+        let slice = <[u8; 32]>::from_byte_iter(iter.rev())?;
+        // Incorrect Return Error
+        // See: https://github.com/rust-bitcoin/bitcoin_hashes/issues/124
+        let inner = Tweak::from_inner(slice)
+            .map_err(|_e| hex::Error::InvalidChar(0))?;
+        Ok(AssetBlindingFactor(inner))
+    }
+}
+
+impl fmt::Display for AssetBlindingFactor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        hex::format_hex_reverse(self.0.as_ref(), f)
+    }
+}
+
+impl fmt::LowerHex for AssetBlindingFactor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        hex::format_hex_reverse(self.0.as_ref(), f)
+    }
+}
+
+impl str::FromStr for AssetBlindingFactor {
+    type Err = encode::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(hex::FromHex::from_hex(s)?)
+    }
 }
 
 /// Blinding factor used for value commitments.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct ValueBlindingFactor(pub(crate) Tweak);
 
 impl ValueBlindingFactor {
@@ -818,6 +897,46 @@ impl ValueBlindingFactor {
     /// Returns the inner value.
     pub fn into_inner(self) -> Tweak {
         self.0
+    }
+
+    /// Get a unblinded/zero AssetBlinding factor
+    pub fn zero() -> Self {
+        ValueBlindingFactor(ZERO_TWEAK)
+    }
+}
+
+impl hex::FromHex for ValueBlindingFactor {
+    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
+        where I: Iterator<Item=Result<u8, hex::Error>> +
+            ExactSizeIterator +
+            DoubleEndedIterator
+    {
+        let slice = <[u8; 32]>::from_byte_iter(iter.rev())?;
+        // Incorrect Return Error
+        // See: https://github.com/rust-bitcoin/bitcoin_hashes/issues/124
+        let inner = Tweak::from_inner(slice)
+            .map_err(|_e| hex::Error::InvalidChar(0))?;
+        Ok(ValueBlindingFactor(inner))
+    }
+}
+
+impl fmt::Display for ValueBlindingFactor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        hex::format_hex_reverse(self.0.as_ref(), f)
+    }
+}
+
+impl fmt::LowerHex for ValueBlindingFactor {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        hex::format_hex_reverse(self.0.as_ref(), f)
+    }
+}
+
+impl str::FromStr for ValueBlindingFactor {
+    type Err = encode::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(hex::FromHex::from_hex(s)?)
     }
 }
 
