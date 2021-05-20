@@ -17,7 +17,7 @@
 
 use std::{self, fmt};
 
-use secp256k1_zkp::{self, PedersenCommitment, Tag, Tweak, ZERO_TWEAK, rand::{CryptoRng, RngCore}};
+use secp256k1_zkp::{self, PedersenCommitment, SecretKey, Tag, Tweak, Verification, ZERO_TWEAK, rand::{CryptoRng, RngCore}};
 use secp256k1_zkp::{Generator, RangeProof, Secp256k1, Signing, SurjectionProof};
 
 use AddressParams;
@@ -27,6 +27,7 @@ use {Address, AssetId, Transaction, TxOut, TxOutWitness,
     ValueBlindingFactor
 }};
 
+use hashes;
 
 /// Transaction Output related errors
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -447,10 +448,106 @@ impl TxOut {
 
         Ok((txout, out_abf, out_vbf))
     }
+
+    /// Unblinds a transaction output, if it is confidential.
+    ///
+    /// It returns the secret elements of the value and asset Pedersen commitments.
+    pub fn unblind<C: Verification>(
+        &self,
+        secp: &Secp256k1<C>,
+        blinding_key: SecretKey,
+    ) -> Result<TxOutSecrets, UnblindError> {
+        let (commitment, additional_generator) = match (self.value, self.asset) {
+            (Value::Confidential(com), Asset::Confidential(gen)) => (com, gen),
+            _ => return Err(UnblindError::NotConfidential),
+        };
+
+        let shared_secret = self
+            .nonce
+            .shared_secret(&blinding_key)
+            .ok_or(UnblindError::MissingNonce)?;
+        let rangeproof = self
+            .witness
+            .rangeproof
+            .as_ref()
+            .ok_or(UnblindError::MissingRangeproof)?;
+
+        let (opening, _) = rangeproof.rewind(
+            secp,
+            commitment,
+            shared_secret,
+            self.script_pubkey.as_bytes(),
+            additional_generator,
+        )?;
+
+        let (asset, asset_bf) = opening.message.as_ref().split_at(32);
+        let asset = AssetId::from_slice(asset)?;
+        let asset_bf = AssetBlindingFactor::from_slice(&asset_bf[..32])?;
+
+        let value = opening.value;
+        let value_bf = ValueBlindingFactor(opening.blinding_factor);
+
+        Ok(TxOutSecrets {
+            asset,
+            asset_bf,
+            value,
+            value_bf,
+        })
+    }
+}
+
+/// Errors encountered when unblinding `TxOut`s.
+#[derive(Debug)]
+pub enum UnblindError {
+    /// The `TxOut` is not fully confidential.
+    NotConfidential,
+    /// Transaction output does not have a nonce commitment.
+    MissingNonce,
+    /// Transaction output does not have a rangeproof.
+    MissingRangeproof,
+    /// Malformed asset ID.
+    MalformedAssetId(hashes::Error),
+    /// Error originated in `secp256k1_zkp`.
+    Upstream(secp256k1_zkp::Error),
+}
+
+impl fmt::Display for UnblindError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
+        match self {
+            UnblindError::MissingNonce => write!(f, "missing nonce in txout"),
+            UnblindError::MalformedAssetId(_) => write!(f, "malformed asset id"),
+            UnblindError::Upstream(e) => write!(f, "{}", e),
+            UnblindError::NotConfidential => write!(f, "cannot unblind non-confidential txout"),
+            UnblindError::MissingRangeproof => write!(f, "missing rangeproof in txout"),
+        }
+    }
+}
+
+impl std::error::Error for UnblindError {
+    fn cause(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            UnblindError::MissingNonce => None,
+            UnblindError::MalformedAssetId(e) => Some(e),
+            UnblindError::Upstream(e) => Some(e),
+            UnblindError::NotConfidential => None,
+            UnblindError::MissingRangeproof => None,
+        }
+    }
+}
+
+impl From<secp256k1_zkp::Error> for UnblindError {
+    fn from(from: secp256k1_zkp::Error) -> Self {
+        UnblindError::Upstream(from)
+    }
+}
+
+impl From<hashes::Error> for UnblindError {
+    fn from(from: hashes::Error) -> Self {
+        UnblindError::MalformedAssetId(from)
+    }
 }
 
 impl Transaction {
-
     /// Verify that the transaction has correctly calculated blinding
     /// factors and they CT verification equation holds.
     /// This is *NOT* a complete Transaction verification check
@@ -715,10 +812,11 @@ impl From<ConfidentialTxOutError> for BlindError {
 mod tests {
     use hashes::hex::FromHex;
     use rand::thread_rng;
+    use secp256k1_zkp::SECP256K1;
     use super::*;
     use encode::deserialize;
     use Script;
-    use bitcoin;
+    use bitcoin::{self, Network, PrivateKey, PublicKey};
 
     #[test]
     fn test_blind_tx() {
@@ -743,5 +841,64 @@ mod tests {
             witness: TxOutWitness::default(),
         };
         tx.verify_tx_amt_proofs(&secp, &[spent_utxo]).unwrap();
+    }
+
+    #[test]
+    fn unblind_txout() {
+        let value = 10;
+
+        let (address, blinding_sk) = {
+            let sk = SecretKey::new(&mut thread_rng());
+            let pk = PublicKey::from_private_key(
+                &SECP256K1,
+                &PrivateKey {
+                    compressed: true,
+                    network: Network::Regtest,
+                    key: sk,
+                },
+            );
+            let blinding_sk = SecretKey::new(&mut thread_rng());
+            let blinding_pk = PublicKey::from_private_key(
+                &SECP256K1,
+                &PrivateKey {
+                    compressed: true,
+                    network: Network::Regtest,
+                    key: blinding_sk,
+                },
+            );
+            (
+                Address::p2wpkh(&pk, Some(blinding_pk.key), &AddressParams::ELEMENTS),
+                blinding_sk,
+            )
+        };
+        let asset = AssetId::default();
+
+        let asset_bf = AssetBlindingFactor::new(&mut thread_rng());
+        let asset_commitment = Asset::new_confidential(SECP256K1, asset, asset_bf);
+        let value_bf = ValueBlindingFactor::new(&mut thread_rng());
+        /*let spent_utxo_secrets = &[(
+            asset,
+            value,
+            input_asset_commitment.commitment().unwrap(),
+            input_abf,
+            input_vbf,
+        )]; */
+        let txout_secrets = TxOutSecrets { asset, asset_bf, value, value_bf};
+        let spent_utxo_secrets = [(asset_commitment, Some(&txout_secrets))];
+
+        let (txout, _, _) = TxOut::new_not_last_confidential(
+            &mut thread_rng(),
+            SECP256K1,
+            value,
+            address,
+            asset,
+            &spent_utxo_secrets,
+        )
+        .unwrap();
+
+        let txout_secrets = txout.unblind(SECP256K1, blinding_sk).unwrap();
+
+        assert_eq!(txout_secrets.asset, asset);
+        assert_eq!(txout_secrets.value, value);
     }
 }
