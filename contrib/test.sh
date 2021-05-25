@@ -26,6 +26,11 @@ cargo test --verbose --no-default-features
 # Then test with the default features
 cargo test --verbose
 
+# Also build and run each example to catch regressions
+cargo build --examples
+# run all examples
+run-parts ./target/debug/examples
+
 # Test each feature
 for feature in ${FEATURES}
 do
