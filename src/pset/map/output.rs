@@ -15,7 +15,7 @@
 use std::{collections::BTreeMap, io};
 use std::collections::btree_map::Entry;
 
-use {Script, encode};
+use {Script, encode, TxOutWitness};
 use bitcoin::util::bip32::KeySource;
 use bitcoin::{self, PublicKey};
 use {pset, confidential};
@@ -115,6 +115,23 @@ impl Output{
         rv.value_rangeproof = txout.witness.rangeproof;
         rv.asset_surjection_proof = txout.witness.surjection_proof;
         rv
+    }
+
+    /// Create a txout from self
+    pub fn to_txout(&self) -> TxOut {
+        TxOut {
+            asset: self.asset,
+            value: self.amount,
+            nonce: self
+                .ecdh_pubkey
+                .map(|pk| confidential::Nonce::from(pk.key))
+                .unwrap_or_default(),
+            script_pubkey: self.script_pubkey.clone(),
+            witness: TxOutWitness {
+                surjection_proof: self.asset_surjection_proof.clone(),
+                rangeproof: self.value_rangeproof.clone(),
+            },
+        }
     }
 }
 
