@@ -789,6 +789,7 @@ impl<'de> Deserialize<'de> for Nonce {
 }
 
 /// Blinding factor used for asset commitments.
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct AssetBlindingFactor(pub(crate) Tweak);
 
@@ -850,6 +851,7 @@ impl str::FromStr for AssetBlindingFactor {
 }
 
 /// Blinding factor used for value commitments.
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct ValueBlindingFactor(pub(crate) Tweak);
 
