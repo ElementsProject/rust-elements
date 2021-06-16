@@ -32,9 +32,16 @@ pub mod serialize;
 use {Transaction, Txid, TxIn, OutPoint, TxInWitness, TxOut, TxOutWitness};
 use encode::{self, Encodable, Decodable};
 use confidential;
+use secp256k1_zkp::rand::{CryptoRng, RngCore};
+use secp256k1_zkp::{self, RangeProof, SurjectionProof};
+use {TxOutSecrets, blind::RangeProofMessage, confidential::{AssetBlindingFactor, ValueBlindingFactor}};
+use bitcoin;
+
+use blind::ConfidentialTxOutError;
+
 pub use self::error::Error;
 pub use self::map::{Global, GlobalTxData, Input, Output};
-use self::map::Map;
+use self::{error::PsetBlindError, map::Map};
 
 /// A Partially Signed Transaction.
 #[derive(Debug, Clone, PartialEq)]
@@ -248,13 +255,272 @@ impl PartiallySignedTransaction {
 
         Ok(())
     }
+
+    // Common pset blinding checks
+    fn blind_checks(
+        &self,
+        inp_txout_sec: &[Option<&TxOutSecrets>],
+    ) -> Result<
+        (
+            Vec<(u64, AssetBlindingFactor, ValueBlindingFactor)>,
+            Vec<usize>,
+        ),
+        PsetBlindError,
+    > {
+        if inp_txout_sec.len() != self.inputs.len() {
+            return Err(PsetBlindError::InputTxOutSecretLen);
+        }
+
+        let mut blind_out_indices = Vec::new();
+        for (i, out) in self.outputs.iter().enumerate() {
+            if out.blinding_key.is_none() {
+                // skip checks on non-blinding outputs
+                continue;
+            }
+            if let Some(blind_index) = self.outputs[i].blinder_index {
+                if blind_index as usize >= self.inputs.len() {
+                    return Err(PsetBlindError::BlinderIndexOutOfBounds(
+                        i,
+                        blind_index as usize,
+                    ));
+                } else if inp_txout_sec[blind_index as usize].is_none() {
+                    //nothing
+                } else {
+                    // Output has corresponding input blinders
+                    blind_out_indices.push(i);
+                }
+            }
+        }
+
+        // collect input factors
+        let inp_secrets = inp_txout_sec
+            .iter()
+            .filter(|o| o.is_some())
+            .map(|o| o.unwrap())
+            .map(|o| (o.value, o.asset_bf, o.value_bf))
+            .collect::<Vec<_>>();
+
+        Ok((inp_secrets, blind_out_indices))
+    }
+
+    /// Blind the pset as the non-last blinder role. The last blinder of pset
+    /// should call the `blind_last` function which balances the blinding factors
+    /// `inp_secrets` and must be consistent by [`Output`] `blinder_index` field
+    /// For each output that is to be blinded, the following must be true
+    /// 1. The blinder_index must be set in pset output field
+    /// 2. the corresponding inp_secrets\[out.blinder_index\] must be present
+    /// # Parameters
+    ///
+    /// * `inp_secrets`: [`TxOutSecrets`] corresponding to owned inputs. Use [`None`] for non-owned outputs
+    ///
+    pub fn blind_non_last<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
+        &mut self,
+        rng: &mut R,
+        secp: &secp256k1_zkp::Secp256k1<C>,
+        inp_txout_sec: &[Option<&TxOutSecrets>],
+    ) -> Result<Vec<(AssetBlindingFactor, ValueBlindingFactor)>, PsetBlindError> {
+        let (inp_secrets, outs_to_blind) = self.blind_checks(inp_txout_sec)?;
+
+        if outs_to_blind.is_empty() {
+            // Return empty values if no outputs are marked for blinding
+            return Ok(Vec::new());
+        }
+        // Blind each output as non-last and save the secrets
+        let spent_utxos = self
+            .inputs
+            .iter()
+            .enumerate()
+            .map(|(i, x)| x.witness_utxo.as_ref().ok_or(PsetBlindError::MissingWitnessUtxo(i)))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let spent_utxo_secrets = spent_utxos
+            .iter()
+            .map(|x| x.asset)
+            .zip(inp_txout_sec.iter().map(|x| *x))
+            .collect::<Vec<(_, _)>>();
+        let mut out_secrets = vec![];
+        let mut ret = vec![]; // return all the random values used
+        for i in outs_to_blind {
+            let mut txout = self.outputs[i].to_txout();
+            let (abf, vbf) = txout
+                .to_non_last_confidential(
+                    rng,
+                    secp,
+                    self.outputs[i]
+                        .blinding_key
+                        .map(|x| x.key)
+                        .ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?,
+                    &spent_utxo_secrets,
+                )
+                .map_err(|e| PsetBlindError::ConfidentialTxOutError(i, e))?;
+            let value = self.outputs[i].amount.explicit().ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
+            out_secrets.push((value, abf, vbf));
+
+            // mutate the pset
+            {
+                self.outputs[i].value_rangeproof = txout.witness.rangeproof;
+                self.outputs[i].asset_surjection_proof = txout.witness.surjection_proof;
+                self.outputs[i].amount = txout.value;
+                self.outputs[i].asset = txout.asset;
+                self.outputs[i].ecdh_pubkey = txout.nonce.commitment().map(|pk| bitcoin::PublicKey{
+                    key: pk,
+                    compressed: true
+                });
+            }
+            // return blinding factors used
+            ret.push((abf, vbf));
+        }
+
+        // safe to unwrap because we have checked that there is atleast one output to blind
+        let (value, abf, vbf) = out_secrets.pop().unwrap();
+
+        // Calculate what should have been the last vbf if the txout
+        // had to be balanced
+        let mut vbf2 = ValueBlindingFactor::last(
+            secp,
+            value,
+            abf,
+            &inp_secrets,
+            &out_secrets[..out_secrets.len()],
+        );
+
+        // Since the txout is not balanced, calculate the last scalar
+        vbf2 += -vbf;
+        // Push the scalar
+        // BUG in pset
+        // Bug in Pset, scalars can be the same value, but there is no place
+        // in pset to place them as it would break the uniqueness constriant.
+        self.global.scalars.push(vbf2.into_inner());
+        Ok(ret)
+    }
+
+    /// Blind the pset as the last blinder role. The non-last blinder of pset
+    /// should call the [`Self::blind_non_last`] function.
+    /// This function balances the blinding factors with partial information about
+    /// blinding inputs and scalars from [`Global`] scalars field.
+    /// `inp_secrets` and `out_secrets` must be consistent by [`Output`] `blinder_index` field
+    /// For each output, the corresponding inp_secrets\[out.blinder_index\] must be present
+    /// # Parameters
+    ///
+    /// * `inp_secrets`: [`TxOutSecrets`] corresponding to owned inputs. Use [`None`] for non-owned outputs
+    ///
+    pub fn blind_last<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
+        &mut self,
+        rng: &mut R,
+        secp: &secp256k1_zkp::Secp256k1<C>,
+        inp_txout_sec: &[Option<&TxOutSecrets>],
+    ) -> Result<(), PsetBlindError> {
+        let (_inp_secrets, mut outs_to_blind) = self.blind_checks(inp_txout_sec)?;
+
+        if outs_to_blind.is_empty() {
+            // Atleast one output must be marked for blinding for pset blind_last
+            return Err(PsetBlindError::AtleastOneOutputBlind);
+        }
+        // If there are more than 1 outs to blind
+        // blind all outs but the last one
+        let last_out_index = outs_to_blind.pop().unwrap();
+        if !outs_to_blind.is_empty() {
+            // Don't blind the last output
+            self.outputs[last_out_index].blinder_index = None;
+            self.blind_non_last(rng, secp, inp_txout_sec)?;
+        }
+        // blind the last txout
+        let asset = self.outputs[last_out_index].asset.explicit().ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
+        let value = self.outputs[last_out_index].amount.explicit().ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
+        let out_abf = AssetBlindingFactor::new(rng);
+        let out_asset = confidential::Asset::new_confidential(secp, asset, out_abf);
+        let out_asset_commitment = out_asset.commitment().expect("confidential asset");
+
+        // Get all the explicit outputs
+        let mut exp_out_secrets = vec![];
+        for (i, out) in self.outputs.iter().enumerate() {
+            if out.blinding_key.is_none() {
+                let amt = out.amount.explicit().ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
+                exp_out_secrets.push((amt, AssetBlindingFactor::zero(), ValueBlindingFactor::zero()));
+            }
+        }
+        let mut final_vbf = ValueBlindingFactor::last(
+            secp,
+            value,
+            out_abf,
+            &[],
+            &exp_out_secrets,
+        );
+
+        // Add all the scalars
+        for value_diff in self.global.scalars.iter() {
+            final_vbf += ValueBlindingFactor(*value_diff);
+        }
+        let value_commitment = confidential::Value::new_confidential(secp, value, out_asset_commitment, final_vbf);
+
+        let receiver_blinding_pk = &self.outputs[last_out_index]
+            .blinding_key
+            .ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
+        let (nonce, shared_secret) = confidential::Nonce::new_confidential(rng, secp, &receiver_blinding_pk.key);
+
+        let message = RangeProofMessage { asset, bf: out_abf };
+        let rangeproof = RangeProof::new(
+            secp,
+            TxOut::RANGEPROOF_MIN_VALUE,
+            value_commitment.commitment().expect("confidential value"),
+            value,
+            final_vbf.0,
+            &message.to_bytes(),
+            self.outputs[last_out_index].script_pubkey.as_bytes().as_ref(),
+            shared_secret,
+            TxOut::RANGEPROOF_EXP_SHIFT,
+            TxOut::RANGEPROOF_MIN_PRIV_BITS,
+            out_asset_commitment,
+        ).map_err(|e| PsetBlindError::ConfidentialTxOutError(last_out_index,  ConfidentialTxOutError::Upstream(e)))?;
+
+        // Blind each output as non-last and save the secrets
+        let spent_utxos = self
+            .inputs
+            .iter()
+            .enumerate()
+            .map(|(i, x)| x.witness_utxo.as_ref().ok_or(PsetBlindError::MissingWitnessUtxo(i)))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let spent_utxo_secrets = spent_utxos
+            .iter()
+            .map(|x| x.asset)
+            .zip(inp_txout_sec.iter().map(|x| *x))
+            .collect::<Vec<(_, _)>>();
+
+        let inputs = spent_utxo_secrets
+            .iter()
+            .enumerate()
+            .map(|(i, (asset, sec))| {
+                TxOutSecrets::surjection_inputs(*sec, secp, *asset)
+                    .map_err(|_e| PsetBlindError::MissingInputBlinds(last_out_index, i))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let surjection_proof = SurjectionProof::new(
+            secp,
+            rng,
+            asset.into_tag(),
+            out_abf.into_inner(),
+            inputs.as_ref(),
+        ).map_err(|e| PsetBlindError::ConfidentialTxOutError(last_out_index,  ConfidentialTxOutError::Upstream(e)))?;
+
+        // mutate the pset
+        {
+            self.outputs[last_out_index].value_rangeproof = Some(rangeproof);
+            self.outputs[last_out_index].asset_surjection_proof = Some(surjection_proof);
+            self.outputs[last_out_index].amount = value_commitment;
+            self.outputs[last_out_index].asset = out_asset;
+            self.outputs[last_out_index].ecdh_pubkey = nonce.commitment().map(|pk| bitcoin::PublicKey{
+                key: pk,
+                compressed: true
+            });
+        }
+        Ok(())
+    }
 }
 
 impl Encodable for PartiallySignedTransaction {
-    fn consensus_encode<S: io::Write>(
-        &self,
-        mut s: S,
-    ) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
         let mut len = 0;
         len += b"pset".consensus_encode(&mut s)?;
 

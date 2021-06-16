@@ -135,7 +135,7 @@ impl fmt::Display for VerificationError {
 impl std::error::Error for VerificationError {}
 
 /// Errors encountered when constructing confidential transaction outputs.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ConfidentialTxOutError {
     /// The script pubkey does not represent a valid address
     /// This is not a fundamental limitation, just a limitation of how
