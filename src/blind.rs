@@ -137,12 +137,20 @@ impl std::error::Error for VerificationError {}
 /// Errors encountered when constructing confidential transaction outputs.
 #[derive(Debug, Clone, Copy)]
 pub enum ConfidentialTxOutError {
+    /// The script pubkey does not represent a valid address
+    /// This is not a fundamental limitation, just a limitation of how
+    /// the code API is structured
+    InvalidAddress,
     /// The address provided does not have a blinding key.
     NoBlindingKeyInAddress,
     /// Error originated in `secp256k1_zkp`.
     Upstream(secp256k1_zkp::Error),
     /// General TxOut errors
     TxOutError(usize, TxOutError),
+    /// Expected Explicit Asset for blinding
+    ExpectedExplicitAsset,
+    /// Expected Explicit Value for blinding
+    ExpectedExplicitValue,
 }
 
 impl fmt::Display for ConfidentialTxOutError {
@@ -154,6 +162,19 @@ impl fmt::Display for ConfidentialTxOutError {
             ConfidentialTxOutError::Upstream(e) => write!(f, "{}", e),
             ConfidentialTxOutError::TxOutError(i, e) => {
                 write!(f, "Txout error {} at index: {}", e, i)
+            }
+            ConfidentialTxOutError::ExpectedExplicitAsset => {
+                write!(f, "Expected explicit asset for blinding")
+            }
+            ConfidentialTxOutError::ExpectedExplicitValue => {
+                write!(f, "Expected explicit value for blinding")
+            }
+            ConfidentialTxOutError::InvalidAddress => {
+                write!(
+                    f,
+                    "Only sending to valid addresses is supported as of now. \
+                Manually construct transactions to send to custom script pubkeys"
+                )
             }
         }
     }
@@ -321,6 +342,38 @@ impl TxOut {
         };
 
         Ok((txout, out_abf, out_vbf))
+    }
+
+    /// Convert a explicit TxOut into a Confidential TxOut.
+    /// The blinding key is provided by the blinder paramter.
+    /// The initial value of nonce is ignored and is set to the ECDH pubkey
+    /// sampled by the sender.
+    pub fn to_non_last_confidential<R, C>(
+        &mut self,
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        blinder: secp256k1_zkp::PublicKey,
+        spent_utxo_secrets: &[(Asset, Option<&TxOutSecrets>)],
+    ) -> Result<(AssetBlindingFactor, ValueBlindingFactor), ConfidentialTxOutError>
+    where
+        R: RngCore + CryptoRng,
+        C: Signing,
+    {
+        let (txout, abf, vbf) = Self::new_not_last_confidential(
+            rng,
+            secp,
+            self.value
+                .explicit()
+                .ok_or(ConfidentialTxOutError::ExpectedExplicitValue)?,
+            Address::from_script(&self.script_pubkey, Some(blinder), &AddressParams::ELEMENTS)
+                .ok_or(ConfidentialTxOutError::InvalidAddress)?,
+            self.asset
+                .explicit()
+                .ok_or(ConfidentialTxOutError::ExpectedExplicitAsset)?,
+            spent_utxo_secrets,
+        )?;
+        *self = txout;
+        Ok((abf, vbf))
     }
 
     // Internally used function for getting the generator from asset
