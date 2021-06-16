@@ -167,13 +167,13 @@ impl From<secp256k1_zkp::Error> for ConfidentialTxOutError {
     }
 }
 /// The Rangeproof message
-struct RangeProofMessage {
-    asset: AssetId,
-    bf: AssetBlindingFactor,
+pub(crate) struct RangeProofMessage {
+    pub(crate) asset: AssetId,
+    pub(crate) bf: AssetBlindingFactor,
 }
 
 impl RangeProofMessage {
-    fn to_bytes(&self) -> [u8; 64] {
+    pub(crate) fn to_bytes(&self) -> [u8; 64] {
         let mut message = [0u8; 64];
 
         message[..32].copy_from_slice(self.asset.into_tag().as_ref());
@@ -238,17 +238,16 @@ impl TxOutSecrets {
     }
 
     /// Gets the required fields for last value blinding factor calculation from [`TxOutSecrets`]
-    pub(crate) fn value_blind_inputs(&self)
-        -> (u64, AssetBlindingFactor, ValueBlindingFactor) {
-        return (self.value, self.asset_bf, self.value_bf)
+    pub(crate) fn value_blind_inputs(&self) -> (u64, AssetBlindingFactor, ValueBlindingFactor) {
+        return (self.value, self.asset_bf, self.value_bf);
     }
 }
 
 impl TxOut {
-    const RANGEPROOF_MIN_VALUE: u64 = 1;
-    const RANGEPROOF_EXP_SHIFT: i32 = 0;
-    const RANGEPROOF_MIN_PRIV_BITS: u8 = 52;
-    const MAX_MONEY: u64 = 21_000_000 * 100_000_000;
+    pub(crate) const RANGEPROOF_MIN_VALUE: u64 = 1;
+    pub(crate) const RANGEPROOF_EXP_SHIFT: i32 = 0;
+    pub(crate) const RANGEPROOF_MIN_PRIV_BITS: u8 = 52;
+    pub(crate) const MAX_MONEY: u64 = 21_000_000 * 100_000_000;
 
     /// Creates a new confidential output that is **not** the last one in the transaction.
     /// Provide input secret information by creating [`TxOutSecrets`] type.
