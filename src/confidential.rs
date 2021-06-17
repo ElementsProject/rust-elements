@@ -26,7 +26,7 @@ use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use std::{fmt, io, str};
+use std::{fmt, io, ops::{AddAssign, Neg}, str};
 
 use encode::{self, Decodable, Encodable};
 use issuance::AssetId;
@@ -904,6 +904,44 @@ impl ValueBlindingFactor {
     /// Get a unblinded/zero AssetBlinding factor
     pub fn zero() -> Self {
         ValueBlindingFactor(ZERO_TWEAK)
+    }
+}
+
+impl AddAssign for ValueBlindingFactor {
+    fn add_assign(&mut self, other: Self) {
+        if self.0.as_ref() == &[0u8; 32] {
+            *self = other;
+        } else if other.0.as_ref() == &[0u8; 32] {
+            // nothing to do
+        } else {
+            // Since libsecp does not expose low level APIs
+            // for scalar arethematic, we need to abuse secret key
+            // operations for this
+            let sk2 = SecretKey::from_slice(self.into_inner().as_ref()).expect("Valid key");
+            let mut sk = SecretKey::from_slice(other.into_inner().as_ref()).expect("Valid key");
+            // The only reason that secret key addition can fail
+            // is when the keys add up to zero since we have already checked
+            // keys are in valid secret keys
+            if sk.add_assign(sk2.as_ref()).is_err() {
+                *self = Self::zero();
+            } else {
+                *self = ValueBlindingFactor::from_slice(sk.as_ref()).expect("Valid Tweak")
+            }
+        }
+    }
+}
+
+impl Neg for ValueBlindingFactor {
+    type Output = Self;
+
+    fn neg(self) -> Self::Output {
+        if self.0.as_ref() == &[0u8; 32] {
+            self
+        } else {
+            let mut sk = SecretKey::from_slice(self.into_inner().as_ref()).expect("Valid key");
+            sk.negate_assign();
+            ValueBlindingFactor::from_slice(sk.as_ref()).expect("Valid Tweak")
+        }
     }
 }
 

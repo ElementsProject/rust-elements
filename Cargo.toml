@@ -39,3 +39,13 @@ rand = "0.6.5"
 serde_test = "1.0"
 serde_json = "<=1.0.44"
 ryu = "<1.0.5"
+
+
+[[example]]
+name = "coinjoin"
+
+[[example]]
+name = "pset"
+
+[[example]]
+name = "tx"

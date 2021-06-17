@@ -16,9 +16,11 @@ use std::{error, fmt};
 
 use Txid;
 use encode;
+
 use super::raw;
 
 use hashes;
+use blind::ConfidentialTxOutError;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 /// Enum for marking pset hash error
@@ -176,3 +178,57 @@ impl From<encode::Error> for Error {
         }
     }
 }
+
+/// Ways that blinding a Partially Signed Transaction might fail.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum PsetBlindError {
+    /// Input TxOut len mismatch
+    InputTxOutSecretLen,
+    /// Output TxOut len mismatch
+    OutputTxOutSecretLen,
+    /// Blinder index out of range
+    BlinderIndexOutOfBounds(usize, usize),
+    /// Missing Input Blind Secrets
+    MissingInputBlinds(usize, usize),
+    /// Atleast one output should be blinded
+    AtleastOneOutputBlind,
+    /// must have explicit asset/values for blinding
+    MustHaveExplicitTxOut(usize),
+    /// Missing witness utxo
+    MissingWitnessUtxo(usize),
+    /// Confidential txout error
+    ConfidentialTxOutError(usize, ConfidentialTxOutError),
+}
+
+impl fmt::Display for PsetBlindError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            PsetBlindError::InputTxOutSecretLen => {
+                write!(f, "Input Secret Count must match pset input count")
+            }
+            PsetBlindError::OutputTxOutSecretLen => {
+                write!(f, "Output Secret Count must match pset output count")
+            }
+            PsetBlindError::AtleastOneOutputBlind => {
+                write!(f, "Atleast one output secrets should be provided")
+            }
+            PsetBlindError::BlinderIndexOutOfBounds(i, bl) => {
+                write!(f, "Blinder index {} for output index {} must be less \
+                    than total input count", bl, i)
+            }
+            PsetBlindError::MissingInputBlinds(i, bl) => {
+                write!(f, "Output index {} expects blinding input index {}", i, bl)
+            }
+            PsetBlindError::MustHaveExplicitTxOut(i) => {
+                write!(f, "Output index {} must be a explicit txout", i)
+            }
+            PsetBlindError::MissingWitnessUtxo(i) => {
+                write!(f, "Input index {} must have witness utxo", i)
+            }
+            PsetBlindError::ConfidentialTxOutError(i, e) => {
+                write!(f, "Blinding error {} at output index {}", e, i)
+            }
+        }
+    }
+}
+impl error::Error for PsetBlindError {}
