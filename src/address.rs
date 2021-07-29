@@ -447,7 +447,7 @@ impl Address {
         } else if prefix == params.p2sh_prefix {
             Payload::ScriptHash(ScriptHash::from_slice(payload_data).unwrap())
         } else {
-            return Err(base58::Error::InvalidVersion(vec![prefix]).into());
+            return Err(base58::Error::InvalidAddressVersion(prefix).into());
         };
 
         Ok(Address {
@@ -532,7 +532,7 @@ impl fmt::Display for Address {
                     b32_data.extend_from_slice(&data.to_base32());
                     blech32::encode_to_fmt(fmt, &hrp, &b32_data)
                 } else {
-                    let mut bech32_writer = bech32::Bech32Writer::new(hrp, fmt)?;
+                    let mut bech32_writer = bech32::Bech32Writer::new(hrp, bech32::Variant::Bech32, fmt)?;
                     bech32::WriteBase32::write_u5(&mut bech32_writer, witver)?;
                     bech32::ToBase32::write_base32(&witprog, &mut bech32_writer)
                 }
