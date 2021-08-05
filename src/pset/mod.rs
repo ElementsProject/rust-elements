@@ -39,9 +39,9 @@ use bitcoin;
 
 use blind::ConfidentialTxOutError;
 
-pub use self::error::Error;
+pub use self::error::{Error, PsetBlindError};
 pub use self::map::{Global, GlobalTxData, Input, Output};
-use self::{error::PsetBlindError, map::Map};
+use self::map::Map;
 
 /// A Partially Signed Transaction.
 #[derive(Debug, Clone, PartialEq)]
