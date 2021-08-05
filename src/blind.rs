@@ -810,7 +810,7 @@ impl Transaction {
     }
 }
 
-/// Errors encountered when constructing confidential transaction outputs.
+/// Errors encountered when blinding transaction outputs.
 #[derive(Debug, Clone, Copy)]
 pub enum BlindError {
     /// The script pubkey does not represent a valid address
