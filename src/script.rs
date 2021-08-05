@@ -386,6 +386,16 @@ impl Script {
         self.0[1] == opcodes::all::OP_PUSHBYTES_32.into_u8()
     }
 
+    /// Checks whether a script pubkey is a p2wsh output
+    #[inline]
+    pub fn is_v1plus_p2witprog(&self) -> bool {
+        self.0.len() > 1 &&
+        self.0.len() == self.0[1] as usize + 2 &&
+        self.0[0] >= opcodes::all::OP_PUSHNUM_1.into_u8() &&
+        self.0[0] <= opcodes::all::OP_PUSHNUM_16.into_u8() &&
+        self.0[1] <= opcodes::all::OP_PUSHBYTES_40.into_u8()
+    }
+
     /// Checks whether a script pubkey is a p2wpkh output
     #[inline]
     pub fn is_v0_p2wpkh(&self) -> bool {

@@ -48,10 +48,45 @@ use std::ascii::AsciiExt;
 
 use bitcoin::bech32::{u5, Error};
 
+/// Used for encode/decode operations for the two variants of Blech32
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Variant {
+    /// The original Blech32
+    Blech32,
+    /// The improved Blech32m
+    Blech32m,
+}
+
+const BLECH32_CONST: u64 = 1;
+const BLECH32M_CONST: u64 = 0x455972a3350f7a1;
+
+impl Variant {
+    // Produce the variant based on the remainder of the polymod operation
+    fn from_remainder(c: u64) -> Option<Self> {
+        match c {
+            BLECH32_CONST => Some(Variant::Blech32),
+            BLECH32M_CONST => Some(Variant::Blech32m),
+            _ => None,
+        }
+    }
+
+    fn constant(self) -> u64 {
+        match self {
+            Variant::Blech32 => BLECH32_CONST,
+            Variant::Blech32m => BLECH32M_CONST,
+        }
+    }
+}
+
 /// Encode a bech32 payload to an [fmt::Formatter].
-pub fn encode_to_fmt<T: AsRef<[u5]>>(fmt: &mut fmt::Formatter, hrp: &str, data: T) -> fmt::Result {
+pub fn encode_to_fmt<T: AsRef<[u5]>>(
+    fmt: &mut dyn fmt::Write,
+    hrp: &str,
+    data: T,
+    variant: Variant,
+) -> fmt::Result {
     let hrp_bytes: &[u8] = hrp.as_bytes();
-    let checksum = create_checksum(hrp_bytes, data.as_ref());
+    let checksum = create_checksum(hrp_bytes, data.as_ref(), variant);
     let data_part = data.as_ref().iter().chain(checksum.iter());
 
     write!(
@@ -68,7 +103,7 @@ pub fn encode_to_fmt<T: AsRef<[u5]>>(fmt: &mut fmt::Formatter, hrp: &str, data: 
 /// Decode a bech32 string into the raw HRP and the data bytes.
 /// The HRP is returned as it was found in the original string,
 /// so it can be either lower or upper case.
-pub fn decode(s: &str) -> Result<(&str, Vec<u5>), Error> {
+pub fn decode(s: &str) -> Result<(&str, Vec<u5>, Variant), Error> {
     // Ensure overall length is within bounds
     let len: usize = s.len();
     // ELEMENTS: 8->14
@@ -144,23 +179,24 @@ pub fn decode(s: &str) -> Result<(&str, Vec<u5>), Error> {
     }
 
     // Ensure checksum
-    if !verify_checksum(&hrp_bytes, &data) {
-        return Err(Error::InvalidChecksum);
+    match verify_checksum(&raw_hrp.as_bytes(), &data) {
+        Some(variant) => {
+            // Remove checksum from data payload
+            let dbl: usize = data.len();
+            data.truncate(dbl - 12);
+
+            Ok((raw_hrp, data, variant))
+        }
+        None => Err(Error::InvalidChecksum),
     }
-
-    // Remove checksum from data payload
-    let dbl: usize = data.len();
-    data.truncate(dbl - 12); // ELEMENTS: 6->12
-
-    Ok((raw_hrp, data))
 }
 
-fn create_checksum(hrp: &[u8], data: &[u5]) -> Vec<u5> {
+fn create_checksum(hrp: &[u8], data: &[u5], variant: Variant) -> Vec<u5> {
     let mut values: Vec<u5> = hrp_expand(hrp);
     values.extend_from_slice(data);
     // Pad with 12 zeros
     values.extend_from_slice(&[u5::try_from_u8(0).unwrap(); 12]); // ELEMENTS: 6->12
-    let plm: u64 = polymod(&values) ^ 1;
+    let plm: u64 = polymod(&values) ^ variant.constant();
     let mut checksum: Vec<u5> = Vec::new();
     // ELEMENTS: 6->12
     for p in 0..12 {
@@ -169,10 +205,10 @@ fn create_checksum(hrp: &[u8], data: &[u5]) -> Vec<u5> {
     checksum
 }
 
-fn verify_checksum(hrp: &[u8], data: &[u5]) -> bool {
+fn verify_checksum(hrp: &[u8], data: &[u5]) -> Option<Variant> {
     let mut exp = hrp_expand(hrp);
     exp.extend_from_slice(data);
-    polymod(&exp) == 1u64
+    Variant::from_remainder(polymod(&exp))
 }
 
 fn hrp_expand(hrp: &[u8]) -> Vec<u5> {
@@ -256,7 +292,7 @@ mod test {
     #[test]
     fn test_checksum() {
         let data = vec![7,2,3,4,5,6,7,8,9,234,123,213,16];
-        let cs = create_checksum(b"lq", &data.to_base32());
+        let cs = create_checksum(b"lq", &data.to_base32(), Variant::Blech32);
         let expected_cs = vec![22,13,13,5,4,4,23,7,28,21,30,12];
         for i in 0..expected_cs.len() {
             assert_eq!(expected_cs[i], *cs[i].as_ref());

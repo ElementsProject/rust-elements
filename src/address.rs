@@ -48,15 +48,18 @@ pub enum AddressError {
     /// Was unable to parse the address.
     InvalidAddress(String),
     /// Script version must be 0 to 16 inclusive
-    InvalidWitnessVersion,
-    /// Unsupported witness version
-    UnsupportedWitnessVersion(u8),
+    InvalidWitnessVersion(u8),
+    /// The witness program must be between 2 and 40 bytes in length.
+    InvalidWitnessProgramLength(usize),
+    /// A v0 witness program must be either of length 20 or 32.
+    InvalidSegwitV0ProgramLength(usize),
+    /// A v1+ witness program must use b(l)ech32m not b(l)ech32
+    InvalidWitnessEncoding,
+    /// A v0 witness program must use b(l)ech32 not b(l)ech32m
+    InvalidSegwitV0Encoding,
+
     /// An invalid blinding pubkey was encountered.
     InvalidBlindingPubKey(secp256k1_zkp::UpstreamError),
-    /// Given the program version, the length is invalid
-    ///
-    /// Version 0 scripts must be either 20 or 32 bytes
-    InvalidWitnessProgramLength,
 }
 
 impl fmt::Display for AddressError {
@@ -68,16 +71,24 @@ impl fmt::Display for AddressError {
             AddressError::InvalidAddress(ref a) => {
                 write!(f, "was unable to parse the address: {}", a)
             }
-            AddressError::UnsupportedWitnessVersion(ref wver) => {
-                write!(f, "unsupported witness version: {}", wver)
+            AddressError::InvalidWitnessVersion(ref wver) => {
+                write!(f, "invalid witness script version: {}", wver)
+            }
+            AddressError::InvalidWitnessProgramLength(ref len) => {
+                write!(f, "the witness program must be between 2 and 40 bytes in length, not {}", len)
+            }
+            AddressError::InvalidSegwitV0ProgramLength(ref len) => {
+                write!(f, "a v0 witness program must be length 20 or 32, not {}", len)
             }
             AddressError::InvalidBlindingPubKey(ref e) => {
                 write!(f, "an invalid blinding pubkey was encountered: {}", e)
             }
-            AddressError::InvalidWitnessProgramLength => {
-                write!(f, "program length incompatible with version")
+            AddressError::InvalidWitnessEncoding => {
+                write!(f, "v1+ witness program must use b(l)ech32m not b(l)ech32")
             }
-            AddressError::InvalidWitnessVersion => write!(f, "invalid witness script version"),
+            AddressError::InvalidSegwitV0Encoding => {
+                write!(f, "v0 witness program must use b(l)ech32 not b(l)ech32m")
+            }
         }
     }
 }
@@ -299,6 +310,11 @@ impl Address {
                     version: u5::try_from_u8(0).expect("0<32"),
                     program: script.as_bytes()[2..34].to_vec(),
                 }
+            } else if script.is_v1plus_p2witprog() {
+                Payload::WitnessProgram {
+                    version: u5::try_from_u8(script.as_bytes()[0] - 0x50).expect("0<32"),
+                    program: script.as_bytes()[2..].to_vec(),
+                }
             } else {
                 return None;
             },
@@ -351,10 +367,12 @@ impl Address {
         blinded: bool,
         params: &'static AddressParams,
     ) -> Result<Address, AddressError> {
-        let payload = if !blinded {
-            bech32::decode(s).map_err(AddressError::Bech32)?.1
+        let (payload, is_bech32m) = if !blinded {
+            let (_, payload, variant) = bech32::decode(s).map_err(AddressError::Bech32)?;
+            (payload, variant == bech32::Variant::Bech32m)
         } else {
-            blech32::decode(s).map_err(AddressError::Blech32)?.1
+            let (_, payload, variant) = blech32::decode(s).map_err(AddressError::Blech32)?;
+            (payload, variant == blech32::Variant::Blech32m)
         };
 
         if payload.is_empty() {
@@ -373,19 +391,27 @@ impl Address {
             }
             (v[0], data_res.unwrap())
         };
-        if version.to_u8() > 16 {
-            return Err(AddressError::InvalidWitnessVersion);
-        }
 
-        // Segwit version specific checks.
-        if version.to_u8() != 0 {
-            return Err(AddressError::UnsupportedWitnessVersion(version.to_u8()));
+        // Generic segwit checks.
+        if version.to_u8() > 16 {
+            return Err(AddressError::InvalidWitnessVersion(version.to_u8()));
         }
+        if data.len() < 2 || data.len() > 40 + if blinded { 33 } else { 0 } {
+            return Err(AddressError::InvalidWitnessProgramLength(data.len() - if blinded { 33 } else { 0 }));
+        }
+ 
+        // Specific segwit v0 check.
         if !blinded && version.to_u8() == 0 && data.len() != 20 && data.len() != 32 {
-            return Err(AddressError::InvalidWitnessProgramLength);
+            return Err(AddressError::InvalidSegwitV0ProgramLength(data.len()));
         }
         if blinded && version.to_u8() == 0 && data.len() != 53 && data.len() != 65 {
-            return Err(AddressError::InvalidWitnessProgramLength);
+            return Err(AddressError::InvalidSegwitV0ProgramLength(data.len() - 33));
+        }
+
+        if version.to_u8() == 0 && is_bech32m {
+            return Err(AddressError::InvalidSegwitV0Encoding);
+        } else if version.to_u8() > 0 && !is_bech32m {
+            return Err(AddressError::InvalidWitnessEncoding);
         }
 
         let (blinding_pubkey, program) = match blinded {
@@ -530,9 +556,14 @@ impl fmt::Display for Address {
                     data.extend_from_slice(&witprog);
                     let mut b32_data = vec![witver];
                     b32_data.extend_from_slice(&data.to_base32());
-                    blech32::encode_to_fmt(fmt, &hrp, &b32_data)
+                    if witver.to_u8() == 0 {
+                        blech32::encode_to_fmt(fmt, &hrp, &b32_data, blech32::Variant::Blech32)
+                    } else {
+                        blech32::encode_to_fmt(fmt, &hrp, &b32_data, blech32::Variant::Blech32m)
+                    }
                 } else {
-                    let mut bech32_writer = bech32::Bech32Writer::new(hrp, bech32::Variant::Bech32, fmt)?;
+                    let var = if witver.to_u8() == 0 { bech32::Variant::Bech32 } else { bech32::Variant::Bech32m };
+                    let mut bech32_writer = bech32::Bech32Writer::new(hrp, var, fmt)?;
                     bech32::WriteBase32::write_u5(&mut bech32_writer, witver)?;
                     bech32::ToBase32::write_base32(&witprog, &mut bech32_writer)
                 }
@@ -768,5 +799,44 @@ mod test {
             assert_eq!(params, addr.params);
             roundtrips(&addr);
         }
+    }
+
+    #[test]
+    fn test_blech32_vectors() {
+        // taken from Elements test/functional/rpc_invalid_address_message.py
+        let address: Result<Address, _> = "el1qq0umk3pez693jrrlxz9ndlkuwne93gdu9g83mhhzuyf46e3mdzfpva0w48gqgzgrklncnm0k5zeyw8my2ypfsmxh4xcjh2rse".parse();
+        assert!(address.is_ok());
+
+        let address: Result<Address, _> = "el1pq0umk3pez693jrrlxz9ndlkuwne93gdu9g83mhhzuyf46e3mdzfpva0w48gqgzgrklncnm0k5zeyw8my2ypfsxguu9nrdg2pc".parse();
+        assert_eq!(
+            address.err().unwrap().to_string(),
+            "v1+ witness program must use b(l)ech32m not b(l)ech32",
+        );
+
+        let address: Result<Address, _> = "el1qq0umk3pez693jrrlxz9ndlkuwne93gdu9g83mhhzuyf46e3mdzfpva0w48gqgzgrklncnm0k5zeyw8my2ypfsnnmzrstzt7de".parse();
+        assert_eq!(
+            address.err().unwrap().to_string(),
+            "v0 witness program must use b(l)ech32 not b(l)ech32m",
+        );
+
+        let address: Result<Address, _> = "ert130xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqqu2tys".parse();
+        assert_eq!(
+            address.err().unwrap().to_string(),
+            "invalid witness script version: 17",
+        );
+
+        let address: Result<Address, _> = "el1pq0umk3pez693jrrlxz9ndlkuwne93gdu9g83mhhzuyf46e3mdzfpva0w48gqgzgrklncnm0k5zeyw8my2ypfsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpe9jfn0gypaj".parse();
+        assert_eq!(
+            address.err().unwrap().to_string(),
+            "the witness program must be between 2 and 40 bytes in length, not 41",
+        );
+
+        // "invalid prefix" gives a weird error message because we do
+        // a dumb prefix check before even attempting bech32 decoding
+        let address: Result<Address, _> = "rrr1qq0umk3pez693jrrlxz9ndlkuwne93gdu9g83mhhzuyf46e3mdzfpva0w48gqgzgrklncnm0k5zeyw8my2ypfs2d9rp7meq4kg".parse();
+        assert_eq!(
+            address.err().unwrap().to_string(),
+            "base58 error: invalid base58 character 0x30",
+        );
     }
 }
