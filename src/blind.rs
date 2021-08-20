@@ -206,6 +206,7 @@ impl RangeProofMessage {
 }
 
 /// Information about Transaction Input Asset
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct TxOutSecrets {
     /// Asset
@@ -881,6 +882,20 @@ mod tests {
             value: bitcoin::Amount::from_str_in("20999997.97999114", bitcoin::Denomination::Bitcoin).unwrap().as_sat(),
             value_bf: ValueBlindingFactor::from_hex("e36a4de359469f547571d117bc5509fb74fba73c84b0cdd6f4edfa7ff7fa457d").unwrap(),
         };
+
+        #[cfg(feature = "serde")]
+        {
+            use serde_json;
+            let spent_utxo_secrets_serde: TxOutSecrets = serde_json::from_str(r#"
+            {
+                "asset": "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23",
+                "asset_bf": "a5b3d111cdaa5fc111e2723df4caf315864f25fb4610cc737f10d5a55cd4096f",
+                "value": 2099999797999114,
+                "value_bf": "e36a4de359469f547571d117bc5509fb74fba73c84b0cdd6f4edfa7ff7fa457d"
+            }"#).unwrap();
+            assert_eq!(spent_utxo_secrets, spent_utxo_secrets_serde);
+        }
+
         let secp = secp256k1_zkp::Secp256k1::new();
         let spent_asset = Asset::from_commitment(&Vec::<u8>::from_hex("0baf634b18e1880c96dcf9947b0e0fd2d38d66d723339174df3fd980148c2f0bb3").unwrap()).unwrap();
         let _bfs = tx.blind(&mut thread_rng(), &secp, &[(spent_asset, &spent_utxo_secrets)]).unwrap();
