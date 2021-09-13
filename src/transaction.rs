@@ -58,21 +58,37 @@ serde_struct_human_string_impl!(OutPoint, "an Elements OutPoint", txid, vout);
 
 impl OutPoint {
     /// Create a new outpoint.
+    #[inline]
     pub fn new(txid: Txid, vout: u32) -> OutPoint {
         OutPoint {
             txid,
             vout,
         }
     }
+
+    /// Creates a "null" `OutPoint`.
+    ///
+    /// This value is used for coinbase transactions because they don't have
+    /// any previous outputs.
+    #[inline]
+    pub fn null() -> OutPoint {
+        OutPoint {
+            txid: Default::default(),
+            vout: u32::max_value(),
+        }
+    }
+
+    /// Checks if an `OutPoint` is "null".
+    #[inline]
+    pub fn is_null(&self) -> bool {
+        *self == OutPoint::null()
+    }
 }
 
 impl Default for OutPoint {
     /// Coinbase outpoint
     fn default() -> OutPoint {
-        OutPoint {
-            txid: Txid::default(),
-            vout: 0xffffffff,
-        }
+        OutPoint::null()
     }
 }
 
@@ -1914,5 +1930,17 @@ mod tests {
         };
 
         tx.verify_tx_amt_proofs(&secp, &[txout]).expect("Verification");
+    }
+
+    #[test]
+    fn genesis_tx() {
+        let tx: Transaction = hex_deserialize!("\
+            0100000000010000000000000000000000000000000000000000000000000000\
+            000000000000ffffffff2120961454ea0955421873d61bab197d814b3386fde2\
+            433c90bc1621ca1ef5462fc2ffffffff01010000000000000000000000000000\
+            00000000000000000000000000000000000001000000000000000000016a0000\
+            0000\
+        ");
+        assert!(tx.input[0].previous_output.is_null());
     }
 }
