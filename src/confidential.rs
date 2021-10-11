@@ -247,7 +247,7 @@ impl<'de> Deserialize<'de> for Value {
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Self::Value, A::Error> {
-                let prefix = access.next_element()?;
+                let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Value::Null),
                     Some(1) => {
@@ -496,7 +496,7 @@ impl<'de> Deserialize<'de> for Asset {
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Asset, A::Error> {
-                let prefix = access.next_element()?;
+                let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Asset::Null),
                     Some(1) => {
@@ -764,7 +764,7 @@ impl<'de> Deserialize<'de> for Nonce {
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Nonce, A::Error> {
-                let prefix = access.next_element()?;
+                let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Nonce::Null),
                     Some(1) => {
