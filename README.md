@@ -16,3 +16,8 @@ compile with 1.29.0 you will need to run the following version-pinning command:
 ```
 cargo update -p cc --precise "1.0.41" --verbose
 ```
+In order to have serde support, the following versions also need to be pinned:
+```
+cargo update --package "serde" --precise "1.0.98"
+cargo update --package "serde_derive" --precise "1.0.98"
+```
