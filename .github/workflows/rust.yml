@@ -11,13 +11,13 @@ jobs:
         include:
           - rust: stable
             env:
-              DUMMY: true
+              DO_FUZZ: true
           - rust: beta
             env:
               DUMMY: true
           - rust: nightly
             env:
-              DO_FUZZ: true
+              DUMMY: true
           - rust: 1.29.0
             env:
               PIN_VERSIONS: true
