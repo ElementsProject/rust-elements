@@ -75,7 +75,7 @@ impl fmt::Debug for Params {
                 write!(f, "[")?;
                 for (i, e) in self.0.iter().enumerate() {
                     if i != 0 {
-                        write!(f, " ")?;
+                        write!(f, ", ")?;
                     }
                     bitcoin::hashes::hex::format_hex(&e[..], f)?;
                 }
@@ -609,7 +609,7 @@ mod tests {
         };
         assert_eq!(
             to_debug_string(&full),
-            "Full { signblockscript: 0102, signblock_witness_limit: 3, fedpeg_program: 0405, fedpegscript: 0607, extension_space: [0809 0a] }",
+            "Full { signblockscript: 0102, signblock_witness_limit: 3, fedpeg_program: 0405, fedpegscript: 0607, extension_space: [0809, 0a] }",
         );
         let extra_root = full.extra_root();
 
