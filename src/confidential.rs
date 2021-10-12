@@ -789,7 +789,6 @@ impl<'de> Deserialize<'de> for Nonce {
 }
 
 /// Blinding factor used for asset commitments.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct AssetBlindingFactor(pub(crate) Tweak);
 
@@ -850,8 +849,83 @@ impl str::FromStr for AssetBlindingFactor {
     }
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for AssetBlindingFactor {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        if s.is_human_readable() {
+            s.collect_str(&self)
+        } else {
+            s.serialize_bytes(&self.0[..])
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for AssetBlindingFactor {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<AssetBlindingFactor, D::Error> {
+        use bitcoin::hashes::hex::FromHex;
+
+        if d.is_human_readable() {
+            struct HexVisitor;
+
+            impl<'de> ::serde::de::Visitor<'de> for HexVisitor {
+                type Value = AssetBlindingFactor;
+
+                fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                    formatter.write_str("an ASCII hex string")
+                }
+
+                fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+                where
+                    E: ::serde::de::Error,
+                {
+                    if let Ok(hex) = ::std::str::from_utf8(v) {
+                        AssetBlindingFactor::from_hex(hex).map_err(E::custom)
+                    } else {
+                        return Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self));
+                    }
+                }
+
+                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where
+                    E: ::serde::de::Error,
+                {
+                    AssetBlindingFactor::from_hex(v).map_err(E::custom)
+                }
+            }
+
+            d.deserialize_str(HexVisitor)
+        } else {
+            struct BytesVisitor;
+
+            impl<'de> ::serde::de::Visitor<'de> for BytesVisitor {
+                type Value = AssetBlindingFactor;
+
+                fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                    formatter.write_str("a bytestring")
+                }
+
+                fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+                where
+                    E: ::serde::de::Error,
+                {
+                    if v.len() != 32 {
+                        Err(E::invalid_length(v.len(), &stringify!($len)))
+                    } else {
+                        let mut ret = [0; 32];
+                        ret.copy_from_slice(v);
+                        let inner = Tweak::from_inner(ret).map_err(E::custom)?;
+                        Ok(AssetBlindingFactor(inner))
+                    }
+                }
+            }
+
+            d.deserialize_bytes(BytesVisitor)
+        }
+    }
+}
+
 /// Blinding factor used for value commitments.
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct ValueBlindingFactor(pub(crate) Tweak);
 
@@ -977,6 +1051,82 @@ impl str::FromStr for ValueBlindingFactor {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Ok(hex::FromHex::from_hex(s)?)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for ValueBlindingFactor {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        if s.is_human_readable() {
+            s.collect_str(&self)
+        } else {
+            s.serialize_bytes(&self.0[..])
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for ValueBlindingFactor {
+    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<ValueBlindingFactor, D::Error> {
+        use bitcoin::hashes::hex::FromHex;
+
+        if d.is_human_readable() {
+            struct HexVisitor;
+
+            impl<'de> ::serde::de::Visitor<'de> for HexVisitor {
+                type Value = ValueBlindingFactor;
+
+                fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                    formatter.write_str("an ASCII hex string")
+                }
+
+                fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+                where
+                    E: ::serde::de::Error,
+                {
+                    if let Ok(hex) = ::std::str::from_utf8(v) {
+                        ValueBlindingFactor::from_hex(hex).map_err(E::custom)
+                    } else {
+                        return Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self));
+                    }
+                }
+
+                fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+                where
+                    E: ::serde::de::Error,
+                {
+                    ValueBlindingFactor::from_hex(v).map_err(E::custom)
+                }
+            }
+
+            d.deserialize_str(HexVisitor)
+        } else {
+            struct BytesVisitor;
+
+            impl<'de> ::serde::de::Visitor<'de> for BytesVisitor {
+                type Value = ValueBlindingFactor;
+
+                fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                    formatter.write_str("a bytestring")
+                }
+
+                fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
+                where
+                    E: ::serde::de::Error,
+                {
+                    if v.len() != 32 {
+                        Err(E::invalid_length(v.len(), &stringify!($len)))
+                    } else {
+                        let mut ret = [0; 32];
+                        ret.copy_from_slice(v);
+                        let inner = Tweak::from_inner(ret).map_err(E::custom)?;
+                        Ok(ValueBlindingFactor(inner))
+                    }
+                }
+            }
+
+            d.deserialize_bytes(BytesVisitor)
+        }
     }
 }
 
@@ -1277,4 +1427,26 @@ mod tests {
             ]
         );
     }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn bf_serde() {
+        use serde_json;
+        use std::str::FromStr;
+
+        let abf_str = "a5b3d111cdaa5fc111e2723df4caf315864f25fb4610cc737f10d5a55cd4096f";
+        let abf_str_quoted = format!("\"{}\"", abf_str);
+        let abf_from_serde: AssetBlindingFactor = serde_json::from_str(&abf_str_quoted).unwrap();
+        let abf_from_str = AssetBlindingFactor::from_str(abf_str).unwrap();
+        assert_eq!(abf_from_serde, abf_from_str);
+        assert_eq!(abf_str_quoted, serde_json::to_string(&abf_from_serde).unwrap());
+
+        let vbf_str = "e36a4de359469f547571d117bc5509fb74fba73c84b0cdd6f4edfa7ff7fa457d";
+        let vbf_str_quoted = format!("\"{}\"", vbf_str);
+        let vbf_from_serde: ValueBlindingFactor = serde_json::from_str(&vbf_str_quoted).unwrap();
+        let vbf_from_str = ValueBlindingFactor::from_str(vbf_str).unwrap();
+        assert_eq!(vbf_from_serde, vbf_from_str);
+        assert_eq!(vbf_str_quoted, serde_json::to_string(&vbf_from_serde).unwrap());
+    }
+
 }
