@@ -331,12 +331,54 @@ impl<'de> Deserialize<'de> for Params {
             where
                 A: de::MapAccess<'de>,
             {
+                /// Utility type to parse bytes from either hex or array notation.
+                struct HexBytes(Vec<u8>);
+                impl<'de> Deserialize<'de> for HexBytes {
+                    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+                        struct Visitor;
+                        impl<'de> de::Visitor<'de> for Visitor {
+                            type Value = HexBytes;
+
+                            fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                                f.write_str("bytes in either hex or array format")
+                            }
+
+                            fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
+                                use bitcoin::hashes::hex::FromHex;
+
+                                Ok(HexBytes(FromHex::from_hex(v).map_err(E::custom)?))
+                            }
+
+                            fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {
+                                Ok(HexBytes(v.to_vec()))
+                            }
+
+                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where
+                                A: de::SeqAccess<'de>,
+                            {
+                                let mut ret = if let Some(l) = seq.size_hint() {
+                                    Vec::with_capacity(l)
+                                } else {
+                                    Vec::new()
+                                };
+
+                                while let Some(e) = seq.next_element()? {
+                                    ret.push(e);
+                                }
+                                Ok(HexBytes(ret))
+                            }
+                        }
+
+                        d.deserialize_any(Visitor)
+                    }
+                }
+
                 let mut signblockscript = None;
                 let mut signblock_witness_limit = None;
                 let mut elided_root = None;
                 let mut fedpeg_program = None;
-                let mut fedpegscript = None;
-                let mut extension_space = None;
+                let mut fedpegscript: Option<HexBytes> = None;
+                let mut extension_space: Option<Vec<HexBytes>> = None;
 
                 loop {
                     match map.next_key::<Enum>()? {
@@ -378,14 +420,14 @@ impl<'de> Deserialize<'de> for Params {
                         Some(signblock_witness_limit),
                         _,
                         Some(fedpeg_program),
-                        Some(fedpegscript),
+                        Some(HexBytes(fedpegscript)),
                         Some(extension_space),
                     ) => Ok(Params::Full {
                         signblockscript,
                         signblock_witness_limit,
                         fedpeg_program,
                         fedpegscript,
-                        extension_space,
+                        extension_space: extension_space.into_iter().map(|h| h.0).collect(),
                     }),
                     (
                         Some(signblockscript),
@@ -419,7 +461,35 @@ impl<'de> Deserialize<'de> for Params {
 #[cfg(feature = "serde")]
 impl Serialize for Params {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::SerializeStruct;
+        use serde::ser::{SerializeSeq, SerializeStruct};
+
+        // ad-hoc struct to fmt in hex
+        struct HexBytes<'a>(&'a [u8]);
+        impl<'a> fmt::Display for HexBytes<'a> {
+            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+                bitcoin::hashes::hex::format_hex(&self.0[..], f)
+            }
+        }
+        impl<'a> Serialize for HexBytes<'a> {
+            fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+                if s.is_human_readable() {
+                    s.collect_str(self)
+                } else {
+                    s.serialize_bytes(&self.0[..])
+                }
+            }
+        }
+        // ad-hoc struct to fmt in hex
+        struct HexBytesArray<'a>(&'a [Vec<u8>]);
+        impl<'a> Serialize for HexBytesArray<'a> {
+            fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+                let mut seq = s.serialize_seq(Some(self.0.len()))?;
+                for b in self.0 {
+                    seq.serialize_element(&HexBytes(&b[..]))?;
+                }
+                seq.end()
+            }
+        }
 
         match *self {
             Params::Null => {
@@ -448,8 +518,8 @@ impl Serialize for Params {
                 st.serialize_field("signblockscript", signblockscript)?;
                 st.serialize_field("signblock_witness_limit", signblock_witness_limit)?;
                 st.serialize_field("fedpeg_program", fedpeg_program)?;
-                st.serialize_field("fedpegscript", fedpegscript)?;
-                st.serialize_field("extension_space", extension_space)?;
+                st.serialize_field("fedpegscript", &HexBytes(&fedpegscript))?;
+                st.serialize_field("extension_space", &HexBytesArray(&extension_space))?;
                 st.end()
             },
         }
@@ -620,5 +690,34 @@ mod tests {
         );
         assert_eq!(compact.elided_root(), Some(&extra_root));
         assert_eq!(compact.extra_root(), extra_root);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_serde_roundtrip() {
+        use serde_json;
+
+        let full = Params::Full {
+            signblockscript: vec![0x01, 0x02].into(),
+            signblock_witness_limit: 3,
+            fedpeg_program: vec![0x04, 0x05].into(),
+            fedpegscript: vec![0x06, 0x07],
+            extension_space: vec![vec![0x08, 0x09], vec![0x0a]],
+        };
+        let encoded = serde_json::to_string(&full).unwrap();
+        let decoded: Params = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(full, decoded);
+
+        // test old encoded format
+        let old_encoded = {
+            let s1 = encoded.replace("\"0607\"", "[6,7]");
+            assert_ne!(s1, encoded);
+            let s2 = s1.replace("\"0809\",\"0a\"", "[8,9],[10]");
+            assert_ne!(s2, s1);
+            s2
+        };
+        assert_ne!(old_encoded, encoded);
+        let decoded: Params = serde_json::from_str(&old_encoded).unwrap();
+        assert_eq!(full, decoded);
     }
 }
