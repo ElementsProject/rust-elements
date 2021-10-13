@@ -247,7 +247,7 @@ impl<'de> Deserialize<'de> for Value {
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Self::Value, A::Error> {
-                let prefix = access.next_element()?;
+                let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Value::Null),
                     Some(1) => {
@@ -496,7 +496,7 @@ impl<'de> Deserialize<'de> for Asset {
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Asset, A::Error> {
-                let prefix = access.next_element()?;
+                let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Asset::Null),
                     Some(1) => {
@@ -764,7 +764,7 @@ impl<'de> Deserialize<'de> for Nonce {
             }
 
             fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Nonce, A::Error> {
-                let prefix = access.next_element()?;
+                let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Nonce::Null),
                     Some(1) => {
@@ -1135,6 +1135,9 @@ mod tests {
     use super::*;
     use bitcoin::hashes::sha256;
 
+    #[cfg(feature = "serde")]
+    use bincode;
+
     #[test]
     fn encode_length() {
         let vals = [
@@ -1449,4 +1452,27 @@ mod tests {
         assert_eq!(vbf_str_quoted, serde_json::to_string(&vbf_from_serde).unwrap());
     }
 
+    #[cfg(feature = "serde")]
+    fn test_value_bincode_be() {
+        let value = Value::Explicit(500);
+        let bytes = bincode::serialize(&value).unwrap();
+        let decoded: Value = bincode::deserialize(&bytes).unwrap();
+        assert_eq!(value, decoded);
+    }
+
+    #[cfg(feature = "serde")]
+    #[test]
+    fn test_value_bincode_le() {
+        use bincode::Options;
+        let value = Value::Explicit(500);
+        let bytes = bincode::DefaultOptions::default()
+            .with_little_endian()
+            .serialize(&value)
+            .unwrap();
+        let decoded: Value = bincode::DefaultOptions::default()
+            .with_little_endian()
+            .deserialize(&bytes)
+            .unwrap();
+        assert_eq!(value, decoded);
+    }
 }

@@ -34,6 +34,7 @@ pub extern crate secp256k1_zkp;
 #[cfg(all(test, feature = "serde"))] extern crate serde_test;
 
 #[cfg(test)] extern crate rand;
+#[cfg(test)] extern crate bincode;
 #[cfg(any(test, feature = "serde_json"))] extern crate serde_json;
 
 #[macro_use] mod internal_macros;

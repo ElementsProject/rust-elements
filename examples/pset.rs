@@ -26,7 +26,7 @@ static PARAMS: AddressParams = AddressParams::ELEMENTS;
 // confidential txouts
 #[derive(Debug, Clone)]
 struct Secrets {
-    sk: bitcoin::PrivateKey,
+    _sk: bitcoin::PrivateKey,
     sec: TxOutSecrets,
 }
 
@@ -52,7 +52,7 @@ fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
     };
 
     let txoutsecrets = Secrets {
-        sk: bitcoin::PrivateKey::from_wif(&v["skwif"].as_str().unwrap()).unwrap(),
+        _sk: bitcoin::PrivateKey::from_wif(&v["skwif"].as_str().unwrap()).unwrap(),
         sec: TxOutSecrets {
             asset_bf: AssetBlindingFactor::from_str(&v["assetblinder"].as_str().unwrap()).unwrap(),
             value_bf: ValueBlindingFactor::from_str(&v["amountblinder"].as_str().unwrap()).unwrap(),
