@@ -213,8 +213,16 @@ impl PartiallySignedTransaction {
 
         for out in self.outputs.iter() {
             let txout = TxOut {
-                asset: out.asset,
-                value: out.amount,
+                asset: match (out.asset_comm, out.asset) {
+                    (Some(gen), _) => confidential::Asset::Confidential(gen),
+                    (None, Some(asset)) => confidential::Asset::Explicit(asset),
+                    (None, None) => return Err(Error::MissingOutputValue),
+                },
+                value: match (out.amount_comm, out.amount) {
+                    (Some(comm), _) => confidential::Value::Confidential(comm),
+                    (None, Some(x)) => confidential::Value::Explicit(x),
+                    (None, None) => return Err(Error::MissingOutputAsset),
+                },
                 nonce: out.ecdh_pubkey
                     .map(|x| confidential::Nonce::from(x.key))
                     .unwrap_or_default(),
@@ -353,15 +361,15 @@ impl PartiallySignedTransaction {
                     &spent_utxo_secrets,
                 )
                 .map_err(|e| PsetBlindError::ConfidentialTxOutError(i, e))?;
-            let value = self.outputs[i].amount.explicit().ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
+            let value = self.outputs[i].amount.ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
             out_secrets.push((value, abf, vbf));
 
             // mutate the pset
             {
                 self.outputs[i].value_rangeproof = txout.witness.rangeproof;
                 self.outputs[i].asset_surjection_proof = txout.witness.surjection_proof;
-                self.outputs[i].amount = txout.value;
-                self.outputs[i].asset = txout.asset;
+                self.outputs[i].amount_comm = txout.value.commitment();
+                self.outputs[i].asset_comm = txout.asset.commitment();
                 self.outputs[i].ecdh_pubkey = txout.nonce.commitment().map(|pk| bitcoin::PublicKey{
                     key: pk,
                     compressed: true
@@ -421,15 +429,19 @@ impl PartiallySignedTransaction {
         let last_out_index = outs_to_blind.pop().unwrap();
         if !outs_to_blind.is_empty() {
             // Don't blind the last output
+            let ind = self.outputs[last_out_index].blinder_index;
             self.outputs[last_out_index].blinder_index = None;
+            // Blind normally without the last index
             self.blind_non_last(rng, secp, inp_txout_sec)?;
+            // Restore who blinded the last output
+            self.outputs[last_out_index].blinder_index = ind;
             // inp_secrets contributed to self.global.scalars, unset it so we don't count them
             // twice when computing the last vbf.
             inp_secrets = vec![];
         }
         // blind the last txout
-        let asset = self.outputs[last_out_index].asset.explicit().ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
-        let value = self.outputs[last_out_index].amount.explicit().ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
+        let asset = self.outputs[last_out_index].asset.ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
+        let value = self.outputs[last_out_index].amount.ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
         let out_abf = AssetBlindingFactor::new(rng);
         let out_asset = confidential::Asset::new_confidential(secp, asset, out_abf);
         let out_asset_commitment = out_asset.commitment().expect("confidential asset");
@@ -438,7 +450,7 @@ impl PartiallySignedTransaction {
         let mut exp_out_secrets = vec![];
         for (i, out) in self.outputs.iter().enumerate() {
             if out.blinding_key.is_none() {
-                let amt = out.amount.explicit().ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
+                let amt = out.amount.ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
                 exp_out_secrets.push((amt, AssetBlindingFactor::zero(), ValueBlindingFactor::zero()));
             }
         }
@@ -456,6 +468,8 @@ impl PartiallySignedTransaction {
         }
         let value_commitment = confidential::Value::new_confidential(secp, value, out_asset_commitment, final_vbf);
 
+        let value_commitment = value_commitment.commitment().expect("confidential value");
+
         let receiver_blinding_pk = &self.outputs[last_out_index]
             .blinding_key
             .ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
@@ -465,7 +479,7 @@ impl PartiallySignedTransaction {
         let rangeproof = RangeProof::new(
             secp,
             TxOut::RANGEPROOF_MIN_VALUE,
-            value_commitment.commitment().expect("confidential value"),
+            value_commitment,
             value,
             final_vbf.0,
             &message.to_bytes(),
@@ -511,12 +525,13 @@ impl PartiallySignedTransaction {
         {
             self.outputs[last_out_index].value_rangeproof = Some(rangeproof);
             self.outputs[last_out_index].asset_surjection_proof = Some(surjection_proof);
-            self.outputs[last_out_index].amount = value_commitment;
-            self.outputs[last_out_index].asset = out_asset;
+            self.outputs[last_out_index].amount_comm = Some(value_commitment);
+            self.outputs[last_out_index].asset_comm = Some(out_asset_commitment);
             self.outputs[last_out_index].ecdh_pubkey = nonce.commitment().map(|pk| bitcoin::PublicKey{
                 key: pk,
                 compressed: true
             });
+            self.global.scalars.clear()
         }
         Ok(())
     }
@@ -608,7 +623,7 @@ mod tests {
 
     fn tx_pset_rtt(tx_hex: &str) {
         let tx: Transaction = encode::deserialize(&Vec::<u8>::from_hex(tx_hex).unwrap()[..]).unwrap();
-        let pset= PartiallySignedTransaction::from_tx(tx);
+        let pset = PartiallySignedTransaction::from_tx(tx);
         let rtt_tx_hex = encode::serialize_hex(&pset.extract_tx().unwrap());
         assert_eq!(tx_hex, rtt_tx_hex);
         let pset_rtt_hex = encode::serialize_hex(&pset);
@@ -688,7 +703,8 @@ mod tests {
     }
 
     #[test]
-    fn invalid_pset() {
+    fn basic_pset() {
+        // Invalid psets
         // Check Global mandatory field
         let pset_str = "70736574ff010401000105010001fb040200000000";
         let pset = encode::deserialize::<PartiallySignedTransaction>(&Vec::<u8>::from_hex(pset_str).unwrap()[..]);
@@ -716,20 +732,22 @@ mod tests {
         let pset = encode::deserialize::<PartiallySignedTransaction>(&Vec::<u8>::from_hex(pset_str).unwrap()[..]);
         pset.expect_err("Input mandatory field prevtxid");
 
-        // output mandatory field
+        // output mandatory amount field
         let pset_str = "70736574ff01020402000000010401000105010101fb04020000000007fc04707365740220010101010101010101010101010101010101010101010101010101010101010101040000";
         let pset = encode::deserialize::<PartiallySignedTransaction>(&Vec::<u8>::from_hex(pset_str).unwrap()[..]);
-        pset.expect_err("Output mandatory field");
+        pset.expect_err("Output non-mandatory field");
 
         let pset_str = "70736574ff01020402000000010401000105010101fb040200000000010308170000000000000007fc0470736574022009090909090909090909090909090909090909090909090909090909090909090100";
         let pset = encode::deserialize::<PartiallySignedTransaction>(&Vec::<u8>::from_hex(pset_str).unwrap()[..]);
         pset.expect_err("Output mandatory field script pubkey");
 
 
-        // Check only one possible value for pset conf/value
+        // Valid Psets
+
+        // Check both possible conf/explicit values are allowed for pset
         let pset_str = "70736574ff01020402000000010401000105010101fb040200000000010308170000000000000007fc0470736574012109090909090909090909090909090909090909090909090909090909090909090907fc04707365740220090909090909090909090909090909090909090909090909090909090909090901040000";
         let pset = encode::deserialize::<PartiallySignedTransaction>(&Vec::<u8>::from_hex(pset_str).unwrap()[..]);
-        pset.expect_err("Only one type of conf/explicit value should be present in map");
+        pset.expect("Both conf/explicit value are allowed be present in map");
 
         // Commented code for quick test vector generation
         // let mut pset = PartiallySignedTransaction::new_v2();

@@ -18,7 +18,8 @@ use elements::{confidential, AssetId, TxOut};
 use rand::SeedableRng;
 /// Pset example workflow:
 /// Simple transaction spending a confidential asset
-/// with external signer and an external blinder
+/// with external signer and blinding done by rust-elements using raw APIs
+/// See also coinjoin example for external blinding example
 static PARAMS: AddressParams = AddressParams::ELEMENTS;
 
 // Assume txouts are simple pay to wpkh
@@ -28,6 +29,10 @@ static PARAMS: AddressParams = AddressParams::ELEMENTS;
 struct Secrets {
     _sk: bitcoin::PrivateKey,
     sec: TxOutSecrets,
+}
+
+fn deser_pset(psbt_hex: &str) -> Pset {
+    deserialize::<Pset>(&Vec::<u8>::from_hex(psbt_hex).unwrap()).unwrap()
 }
 
 fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
@@ -139,7 +144,7 @@ fn main() {
     let (asset_txout, asset_txout_secrets, asset_inp) = txouts[1].clone();
 
     let mut pset = Pset::new_v2();
-    assert_eq!(serialize_hex(&pset), tests["empty"]);
+    assert_eq!(pset, deser_pset(&tests["empty"]));
 
     // Add the btc asset input
     let mut btc_inp = btc_inp;
@@ -148,12 +153,12 @@ fn main() {
 
     // pset after adding the information about the bitcoin input
     // Pset with 1 input and 0 outputs
-    assert_eq!(serialize_hex(&pset), tests["one_inp_zero_out"]);
+    assert_eq!(pset, deser_pset(&tests["one_inp_zero_out"]));
     // Add the asset input
     let mut asset_inp = asset_inp;
     asset_inp.witness_utxo = Some(asset_txout.clone());
     pset.add_input(asset_inp);
-    assert_eq!(serialize_hex(&pset), tests["two_inp_zero_out"]);
+    assert_eq!(pset, deser_pset(&tests["two_inp_zero_out"]));
 
     // Add outputs
     // Send 5_000 worth of asset units to new address
@@ -206,10 +211,16 @@ fn main() {
         .expect("Asset Change txOut creation failure");
 
     // Add both assets to pset. 5_000 dest address, 15_000 change address
-    pset.add_output(pset::Output::from_txout(dest_asset_txout));
-    pset.add_output(pset::Output::from_txout(change_asset_txout));
+    pset.add_output(pset::Output::from_blinded_txout(dest_asset_txout));
+    pset.add_output(pset::Output::from_blinded_txout(change_asset_txout));
 
-    assert_eq!(serialize_hex(&pset), tests["two_inp_two_out"]);
+    // Add information about which input index blinded the outputs
+    // Spec mandates that blinded inputs must have this information
+    // pset.outputs[0].blinding_key = Some(dest_blind_pk);
+    // pset.outputs[1].blinding_key = Some(change_blind_pk);
+    // pset.outputs[0].blinder_index = Some(0);
+    // pset.outputs[1].blinder_index = Some(0);
+    assert_eq!(pset, deser_pset(&tests["two_inp_two_out"]));
 
     // Add two more outputs: btc change amount and btc fees
     let btc_fees_amt = 500; // sat
@@ -260,10 +271,10 @@ fn main() {
     )
     .expect("Asset Change txOut creation failure");
     // Add both pset outputs to btc transaction
-    pset.add_output(pset::Output::from_txout(btc_fees_txout));
-    pset.add_output(pset::Output::from_txout(btc_change_txout));
+    pset.add_output(pset::Output::from_blinded_txout(btc_fees_txout));
+    pset.add_output(pset::Output::from_blinded_txout(btc_change_txout));
 
-    assert_eq!(serialize_hex(&pset), tests["blinded_unsigned"]);
+    assert_eq!(pset, deser_pset(&tests["blinded_unsigned"]));
 
     // Verify the balance checks
     let tx = pset.extract_tx().unwrap();
@@ -287,12 +298,12 @@ fn main() {
     pset.inputs[0]
         .partial_sigs
         .insert(inp0_pk, inp0_sig.clone());
-    assert_eq!(serialize_hex(&pset), tests["blinded_one_inp_signed"]);
+    assert_eq!(pset, deser_pset(&tests["blinded_one_inp_signed"]));
     // Input one adds signatures
     pset.inputs[1]
         .partial_sigs
         .insert(inp1_pk, inp1_sig.clone());
-    assert_eq!(serialize_hex(&pset), tests["blinded_signed"]);
+    assert_eq!(pset, deser_pset(&tests["blinded_signed"]));
 
     // Finalize(TODO in miniscript)
     pset.inputs[0].partial_sigs.clear();
@@ -305,7 +316,7 @@ fn main() {
         inp1_sig,
         inp1_pk.to_bytes(),
     ]);
-    assert_eq!(serialize_hex(&pset), tests["finalized"]);
+    assert_eq!(pset, deser_pset(&tests["finalized"]));
 
     // Extracted tx
     let tx = pset.extract_tx().unwrap();

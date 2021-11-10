@@ -104,6 +104,10 @@ pub enum Error {
     MissingOutputAsset,
     /// Missing output Script Pubkey
     MissingOutputSpk,
+    /// Blinded Output requires Blinded index
+    MissingBlinderIndex,
+    /// Output marked for blinding, but missing blinding information
+    MissingBlindingInfo,
     /// Input Count Mismatch
     InputCountMismatch,
     /// Output Count Mismatch
@@ -148,9 +152,12 @@ impl fmt::Display for Error {
                 write!(f, "PSET blinding scalars must be 32 bytes. Found {} bytes", actual)
             }
             Error::MissingOutputValue => f.write_str("PSET output missing value. Must have \
-                exactly one of explicit/confidential value set"),
+                at least one of explicit/confidential value set"),
             Error::MissingOutputAsset => f.write_str("PSET output missing asset. Must have \
-                exactly one of explicit/confidential asset set"),
+                at least one of explicit/confidential asset set"),
+            Error::MissingBlinderIndex => f.write_str("Output is blinded but does not have a blinder index"),
+            Error::MissingBlindingInfo => f.write_str("Output marked for blinding, but missing \
+                some blinding information"),
             Error::MissingOutputSpk => f.write_str("PSET output missing script pubkey. Must have \
                 exactly one of explicit/confidential script pubkey set"),
             Error::InputCountMismatch => f.write_str("PSET input count global field must \

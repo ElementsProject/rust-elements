@@ -252,7 +252,7 @@ impl Map for Global {
             let key = raw::ProprietaryKey::from_pset_pair(PSBT_ELEMENTS_GLOBAL_SCALAR, scalar.as_ref().to_vec());
             rv.push(raw::Pair {
                 key: key.to_key(),
-                value: vec![],
+                value: vec![], // This is a bug in elements core c++, parses this value as vec![0]
             })
         }
 

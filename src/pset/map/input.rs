@@ -117,6 +117,16 @@ const PSBT_ELEMENTS_IN_ISSUANCE_ASSET_ENTROPY: u8 = 0x0d;
 /// However the rangeproof is needed in order for stateless blinders to learn
 /// the blinding factors for the UTXOs that they are involved in.
 const PSBT_ELEMENTS_IN_UTXO_RANGEPROOF: u8 = 0x0e;
+/// An explicit value rangeproof that proves that the value commitment in
+/// PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT matches the explicit value in
+/// PSBT_ELEMENTS_IN_ISSUANCE_VALUE. If provided, PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT
+/// must be provided too.
+const PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF: u8 = 0x0f;
+/// An explicit value rangeproof that proves that the value commitment in
+/// PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT matches the explicit value
+/// in PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS. If provided,
+/// PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT must be provided too.
+const PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF: u8 = 0x10;
 /// A key-value map for an input of the corresponding index in the unsigned
 /// transaction.
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -176,7 +186,9 @@ pub struct Input {
     pub required_height_locktime: Option<u32>,
     // Proprietary key-value pairs for this input.
     /// The issuance value
-    pub issuance_value: Option<confidential::Value>,
+    pub issuance_value_amount: Option<u64>,
+    /// The issuance value commitment
+    pub issuance_value_comm: Option<secp256k1_zkp::PedersenCommitment>,
     /// Issuance value rangeproof
     pub issuance_value_rangeproof: Option<RangeProof>,
     /// Issuance keys rangeproof
@@ -195,13 +207,19 @@ pub struct Input {
     /// Pegin Witness
     pub pegin_witness: Option<Vec<Vec<u8>>>,
     /// Issuance inflation keys
-    pub issuance_inflation_keys: Option<confidential::Value>,
+    pub issuance_inflation_keys: Option<u64>,
+    /// Issuance inflation keys commitment
+    pub issuance_inflation_keys_comm: Option<secp256k1_zkp::PedersenCommitment>,
     /// Issuance blinding nonce
     pub issuance_blinding_nonce: Option<Tweak>,
     /// Issuance asset entropy
     pub issuance_asset_entropy: Option<[u8; 32]>,
     /// input utxo rangeproof
     pub in_utxo_rangeproof: Option<RangeProof>,
+    /// Proof that blinded issuance matches the commitment
+    pub in_issuance_blind_value_proof: Option<RangeProof>,
+    /// Proof that blinded inflation keys matches the corresponding commitment
+    pub in_issuance_blind_inflation_keys_proof: Option<RangeProof>,
     /// Other fields
     #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
@@ -236,8 +254,17 @@ impl Input{
             ret.previous_output_index |= 1 << 31;
             ret.issuance_blinding_nonce = Some(txin.asset_issuance.asset_blinding_nonce);
             ret.issuance_asset_entropy = Some(txin.asset_issuance.asset_entropy);
-            ret.issuance_value = Some(txin.asset_issuance.amount);
-            ret.issuance_inflation_keys = Some(txin.asset_issuance.inflation_keys);
+            match txin.asset_issuance.amount {
+                confidential::Value::Null => { },
+                confidential::Value::Explicit(x) => ret.issuance_value_amount = Some(x),
+                confidential::Value::Confidential(comm) => ret.issuance_value_comm = Some(comm),
+            }
+            match txin.asset_issuance.inflation_keys {
+                confidential::Value::Null => { },
+                confidential::Value::Explicit(x) => ret.issuance_inflation_keys = Some(x),
+                confidential::Value::Confidential(comm) =>
+                    ret.issuance_inflation_keys_comm = Some(comm),
+            }
 
             // Witness
             ret.issuance_keys_rangeproof = txin.witness.inflation_keys_rangeproof;
@@ -262,8 +289,16 @@ impl Input{
             asset_blinding_nonce: *self.issuance_blinding_nonce.as_ref()
                 .unwrap_or(&ZERO_TWEAK),
             asset_entropy: self.issuance_asset_entropy.unwrap_or_default(),
-            amount: self.issuance_value.unwrap_or_default(),
-            inflation_keys: self.issuance_inflation_keys.unwrap_or_default(),
+            amount: match (self.issuance_value_amount, self.issuance_value_comm) {
+                (None, None) => confidential::Value::Null,
+                (_, Some(comm)) => confidential::Value::Confidential(comm),
+                (Some(x), None) => confidential::Value::Explicit(x),
+            },
+            inflation_keys: match (self.issuance_inflation_keys, self.issuance_inflation_keys_comm) {
+                (None, None) => confidential::Value::Null,
+                (_, Some(comm)) => confidential::Value::Confidential(comm),
+                (Some(x), None) => confidential::Value::Explicit(x),
+            },
         }
     }
 }
@@ -356,10 +391,10 @@ impl Map for Input {
                 if prop_key.is_pset_key() {
                     match prop_key.subtype {
                         PSBT_ELEMENTS_IN_ISSUANCE_VALUE => {
-                            impl_pset_prop_insert_pair!(self.issuance_value <= <raw_key: _> | <raw_value : confidential::Value>)
+                            impl_pset_prop_insert_pair!(self.issuance_value_amount <= <raw_key: _> | <raw_value : u64>)
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT => {
-                            impl_pset_prop_insert_pair!(self.issuance_value <= <raw_key: _> | <raw_value : confidential::Value>)
+                            impl_pset_prop_insert_pair!(self.issuance_value_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>)
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_VALUE_RANGEPROOF => {
                             impl_pset_prop_insert_pair!(self.issuance_value_rangeproof <= <raw_key: _> | <raw_value : RangeProof>)
@@ -387,10 +422,10 @@ impl Map for Input {
                             impl_pset_prop_insert_pair!(self.pegin_witness <= <raw_key: _> | <raw_value : Vec<Vec<u8>>>)
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS => {
-                            impl_pset_prop_insert_pair!(self.issuance_inflation_keys <= <raw_key: _> | <raw_value : confidential::Value>)
+                            impl_pset_prop_insert_pair!(self.issuance_inflation_keys <= <raw_key: _> | <raw_value : u64>)
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT => {
-                            impl_pset_prop_insert_pair!(self.issuance_inflation_keys <= <raw_key: _> | <raw_value : confidential::Value>)
+                            impl_pset_prop_insert_pair!(self.issuance_inflation_keys_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>)
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_BLINDING_NONCE => {
                             impl_pset_prop_insert_pair!(self.issuance_blinding_nonce <= <raw_key: _> | <raw_value : Tweak>)
@@ -400,6 +435,12 @@ impl Map for Input {
                         }
                         PSBT_ELEMENTS_IN_UTXO_RANGEPROOF => {
                             impl_pset_prop_insert_pair!(self.in_utxo_rangeproof <= <raw_key: _> | <raw_value : RangeProof>)
+                        }
+                        PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF => {
+                            impl_pset_prop_insert_pair!(self.in_issuance_blind_value_proof <= <raw_key: _> | <raw_value : RangeProof>)
+                        }
+                        PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF => {
+                            impl_pset_prop_insert_pair!(self.in_issuance_blind_inflation_keys_proof <= <raw_key: _> | <raw_value : RangeProof>)
                         }
                         _ => match self.proprietary.entry(prop_key) {
                                 Entry::Vacant(empty_key) => {
@@ -502,18 +543,12 @@ impl Map for Input {
             rv.push(self.required_height_locktime as <PSET_IN_REQUIRED_HEIGHT_LOCKTIME, _>)
         }
 
-        // Elements Prop feilds
-        if let Some(v) = self.issuance_value {
-            match v.encoded_length() {
-                9 => impl_pset_get_pair! {
-                    rv.push_prop(self.issuance_value as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE, _>)
-                },
-                33 => impl_pset_get_pair! {
-                    rv.push_prop(self.issuance_value as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT, _>)
-                },
-                1 => {},
-                _ => unreachable!()
-            }
+        impl_pset_get_pair! {
+            rv.push_prop(self.issuance_value_amount as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push_prop(self.issuance_value_comm as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT, _>)
         }
 
         impl_pset_get_pair! {
@@ -548,17 +583,12 @@ impl Map for Input {
             rv.push_prop(self.pegin_witness as <PSBT_ELEMENTS_IN_PEG_IN_WITNESS, _>)
         }
 
-        if let Some(v) = self.issuance_inflation_keys {
-            match v.encoded_length() {
-                9 => impl_pset_get_pair! {
-                    rv.push_prop(self.issuance_inflation_keys as <PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS, _>)
-                },
-                33 => impl_pset_get_pair! {
-                    rv.push_prop(self.issuance_inflation_keys as <PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT, _>)
-                },
-                1 => {},
-                _ => unreachable!()
-            }
+        impl_pset_get_pair! {
+            rv.push_prop(self.issuance_inflation_keys as <PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push_prop(self.issuance_inflation_keys_comm as <PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT, _>)
         }
 
         impl_pset_get_pair! {
@@ -571,6 +601,14 @@ impl Map for Input {
 
         impl_pset_get_pair! {
             rv.push_prop(self.in_utxo_rangeproof as <PSBT_ELEMENTS_IN_UTXO_RANGEPROOF, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push_prop(self.in_issuance_blind_value_proof as <PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push_prop(self.in_issuance_blind_inflation_keys_proof as <PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF, _>)
         }
 
         for (key, value) in self.proprietary.iter() {
@@ -620,7 +658,8 @@ impl Map for Input {
         self.required_height_locktime = cmp::max(self.required_height_locktime, other.required_height_locktime);
 
         // elements
-        merge!(issuance_value, self, other);
+        merge!(issuance_value_amount, self, other);
+        merge!(issuance_value_comm, self, other);
         merge!(issuance_value_rangeproof, self, other);
         merge!(issuance_keys_rangeproof, self, other);
         merge!(pegin_tx, self, other);
@@ -630,9 +669,12 @@ impl Map for Input {
         merge!(pegin_value, self, other);
         merge!(pegin_witness, self, other);
         merge!(issuance_inflation_keys, self, other);
+        merge!(issuance_inflation_keys_comm, self, other);
         merge!(issuance_blinding_nonce, self, other);
         merge!(issuance_asset_entropy, self, other);
         merge!(in_utxo_rangeproof, self, other);
+        merge!(in_issuance_blind_value_proof, self, other);
+        merge!(in_issuance_blind_inflation_keys_proof, self, other);
         Ok(())
     }
 }
