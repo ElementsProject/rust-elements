@@ -39,6 +39,8 @@ use bitcoin;
 
 use blind::ConfidentialTxOutError;
 
+use blind::{BlindAssetProofs, BlindValueProofs};
+
 pub use self::error::{Error, PsetBlindError};
 pub use self::map::{Global, GlobalTxData, Input, Output};
 use self::map::Map;
@@ -374,6 +376,14 @@ impl PartiallySignedTransaction {
                     key: pk,
                     compressed: true
                 });
+                let asset_id = self.outputs[i].asset.ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
+                self.outputs[i].blind_asset_proof = Some(SurjectionProof::blind_asset_proof(rng, secp, asset_id, abf)
+                    .map_err(|e| PsetBlindError::BlindingProofsCreationError(i, e))?);
+
+                let asset_gen = self.outputs[i].asset_comm.expect("Blinding proof creation error");
+                let value_comm = self.outputs[i].amount_comm.expect("Blinding proof successful");
+                self.outputs[i].blind_value_proof = Some(RangeProof::blind_value_proof(rng, secp, value, value_comm, asset_gen, vbf)
+                    .map_err(|e| PsetBlindError::BlindingProofsCreationError(i, e))?);
             }
             // return blinding factors used
             ret.push((abf, vbf));
@@ -531,6 +541,15 @@ impl PartiallySignedTransaction {
                 key: pk,
                 compressed: true
             });
+            let asset_id = self.outputs[last_out_index].asset.ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
+            self.outputs[last_out_index].blind_asset_proof = Some(SurjectionProof::blind_asset_proof(rng, secp, asset_id, out_abf)
+                .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?);
+
+            let asset_gen = self.outputs[last_out_index].asset_comm.expect("Blinding proof creation error");
+            let value_comm = self.outputs[last_out_index].amount_comm.expect("Blinding proof successful");
+            self.outputs[last_out_index].blind_value_proof = Some(RangeProof::blind_value_proof(rng, secp, value, value_comm, asset_gen, final_vbf)
+                .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?);
+
             self.global.scalars.clear()
         }
         Ok(())

@@ -206,6 +206,8 @@ pub enum PsetBlindError {
     MissingWitnessUtxo(usize),
     /// Confidential txout error
     ConfidentialTxOutError(usize, ConfidentialTxOutError),
+    /// Blinding proof creation error
+    BlindingProofsCreationError(usize, secp256k1_zkp::Error),
 }
 
 impl fmt::Display for PsetBlindError {
@@ -235,6 +237,9 @@ impl fmt::Display for PsetBlindError {
             }
             PsetBlindError::ConfidentialTxOutError(i, e) => {
                 write!(f, "Blinding error {} at output index {}", e, i)
+            }
+            PsetBlindError::BlindingProofsCreationError(i, e) => {
+                write!(f, "Blinding proof creation error {} at output index {}", e, i)
             }
         }
     }
