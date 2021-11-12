@@ -21,6 +21,7 @@ use super::raw;
 
 use hashes;
 use blind::ConfidentialTxOutError;
+use secp256k1_zkp;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 /// Enum for marking pset hash error

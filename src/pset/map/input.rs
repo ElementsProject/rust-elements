@@ -24,7 +24,7 @@ use pset::map::Map;
 use pset::raw;
 use pset::serialize;
 use pset::{self, Error, error};
-use secp256k1_zkp::{RangeProof, Tweak, ZERO_TWEAK};
+use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
 
 
 use OutPoint;

@@ -28,8 +28,7 @@ use secp256k1_zkp::{self, Generator, RangeProof, SurjectionProof};
 use issuance;
 
 use TxOut;
-
-use crate::AssetId;
+use AssetId;
 
 /// Type: Redeem Script PSET_OUT_REDEEM_SCRIPT = 0x00
 const PSET_OUT_REDEEM_SCRIPT: u8 = 0x00;

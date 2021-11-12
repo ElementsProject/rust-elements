@@ -861,6 +861,124 @@ impl From<ConfidentialTxOutError> for BlindError {
     }
 }
 
+pub trait BlindValueProofs: Sized {
+    /// Outputs a `[RangeProof]` that blinded value
+    /// corresponfs to unblinded explicit value
+    fn blind_value_proof<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        explicit_val: u64,
+        value_commit: PedersenCommitment,
+        asset_gen: Generator,
+        vbf: ValueBlindingFactor,
+    ) -> Result<Self, secp256k1_zkp::Error>;
+
+    /// Verify that the Rangeproof proves that commitment
+    /// is actually bound to the explicit value
+    fn blind_value_proof_verify<C: secp256k1_zkp::Verification>(
+        &self,
+        secp: &Secp256k1<C>,
+        explicit_val: u64,
+        asset_gen: Generator,
+        value_commit: PedersenCommitment,
+    ) -> bool;
+}
+
+
+impl BlindValueProofs for RangeProof {
+
+    /// Outputs a `[RangeProof]` that blinded value_commit
+    /// corresponds to explicit value
+    fn blind_value_proof<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        explicit_val: u64,
+        value_commit: PedersenCommitment,
+        asset_gen: Generator,
+        vbf: ValueBlindingFactor,
+    ) -> Result<Self, secp256k1_zkp::Error>{
+        RangeProof::new(
+            secp,
+            explicit_val, // min_value
+            value_commit, // value_commit
+            explicit_val, // value
+            vbf.into_inner(), // blinding factor
+            &[], // message
+            &[], // add commitment
+            SecretKey::new(rng), // nonce
+            -1, // exp
+            0, // min bits
+            asset_gen, // additional gen
+        )
+    }
+
+    /// Verify that the Rangeproof proves that commitment
+    /// is actually bound to the explicit value
+    fn blind_value_proof_verify<C: secp256k1_zkp::Verification>(
+        &self,
+        secp: &Secp256k1<C>,
+        explicit_val: u64,
+        asset_gen: Generator,
+        value_commit: PedersenCommitment,
+    ) -> bool {
+        let r = self.verify(secp, value_commit, &[], asset_gen);
+        match r {
+            Ok(e) => {
+                e.start == explicit_val && e.end - 1 == explicit_val
+            }
+            Err(..) => return false,
+        }
+    }
+}
+
+pub trait BlindAssetProofs: Sized {
+    /// Outputs a `[SurjectionProof]` that blinded asset
+    /// corresponfs to unblinded explicit asset
+    fn blind_asset_proof<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        asset: AssetId,
+        abf: AssetBlindingFactor,
+    ) -> Result<Self, secp256k1_zkp::Error>;
+
+    /// Verify that the Surjection proves that asset commitment
+    /// is actually bound to the explicit asset
+    fn blind_asset_proof_verify(
+        &self,
+        secp: &Secp256k1<secp256k1_zkp::All>,
+        asset: AssetId,
+        asset_commit: Generator,
+    ) -> bool;
+}
+
+impl BlindAssetProofs for SurjectionProof {
+    fn blind_asset_proof<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        asset: AssetId,
+        abf: AssetBlindingFactor,
+    ) -> Result<Self, secp256k1_zkp::Error> {
+        let gen = Generator::new_unblinded(secp, asset.into_tag());
+        SurjectionProof::new(
+            secp,
+            rng,
+            asset.into_tag(),
+            abf.into_inner(),
+            &[(gen, asset.into_tag(), ZERO_TWEAK)]
+        )
+    }
+
+    fn blind_asset_proof_verify(
+        &self,
+        secp: &Secp256k1<secp256k1_zkp::All>,
+        asset: AssetId,
+        asset_commit: Generator,
+    ) -> bool {
+        let gen = Generator::new_unblinded(secp, asset.into_tag());
+        self.verify(secp, asset_commit, &[gen])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use hashes::hex::FromHex;
@@ -868,6 +986,7 @@ mod tests {
     use secp256k1_zkp::SECP256K1;
     use super::*;
     use encode::deserialize;
+    use confidential;
     use Script;
     use bitcoin::{self, Network, PrivateKey, PublicKey};
 
@@ -967,5 +1086,50 @@ mod tests {
 
         assert_eq!(txout_secrets.asset, asset);
         assert_eq!(txout_secrets.value, value);
+    }
+
+    #[test]
+    fn blind_value_proof_test() {
+
+        let id = AssetId::from_slice(&[1u8; 32]).unwrap();
+        let abf = AssetBlindingFactor::new(&mut thread_rng());
+        let asset = confidential::Asset::new_confidential(SECP256K1, id, abf);
+
+        let asset_gen = asset.commitment().unwrap();
+        // Create a value commitment
+        let explicit_val = 10;
+        let vbf = ValueBlindingFactor::new(&mut thread_rng());
+        let v = confidential::Value::new_confidential(SECP256K1, explicit_val, asset_gen, vbf);
+        let value_comm = v.commitment().unwrap();
+        let proof = RangeProof::blind_value_proof(
+            &mut thread_rng(),
+            SECP256K1,
+            explicit_val,
+            value_comm,
+            asset_gen,
+            vbf
+        ).unwrap();
+
+        let res = proof.blind_value_proof_verify(SECP256K1, explicit_val, asset_gen, value_comm);
+        assert!(res);
+    }
+
+    #[test]
+    fn blind_asset_proof_test() {
+        let id = AssetId::from_slice(&[1u8; 32]).unwrap();
+        let abf = AssetBlindingFactor::new(&mut thread_rng());
+        let asset = confidential::Asset::new_confidential(SECP256K1, id, abf);
+
+        let asset_comm = asset.commitment().unwrap();
+        // Create the proof
+        let proof = SurjectionProof::blind_asset_proof(
+            &mut thread_rng(),
+            SECP256K1,
+            id,
+            abf,
+        ).unwrap();
+
+        let res = proof.blind_asset_proof_verify(SECP256K1, id, asset_comm);
+        assert!(res);
     }
 }

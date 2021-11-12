@@ -27,7 +27,7 @@ use hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use pset;
 use bitcoin::hashes::hex::ToHex;
 use confidential;
-use secp256k1_zkp::{RangeProof, SurjectionProof, Tweak};
+use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 /// A trait for serializing a value as raw data for insertion into PSET
 /// key-value pairs.
@@ -72,7 +72,6 @@ impl Serialize for Tweak {
     fn serialize(&self) -> Vec<u8> {
         println!("{}", &self);
         let x = encode::serialize(&self.as_ref().to_vec());
-        dbg!(&x, x.len());
         x
     }
 }
