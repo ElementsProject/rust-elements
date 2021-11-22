@@ -55,6 +55,7 @@ pub mod slip77;
 pub mod sighash;
 pub mod pset;
 pub mod taproot;
+pub mod schnorr;
 #[cfg(feature = "serde")]
 mod serde_utils;
 // consider making upstream public
@@ -72,3 +73,5 @@ pub use fast_merkle_root::fast_merkle_root;
 pub use hash_types::*;
 pub use issuance::{AssetId, ContractHash};
 pub use script::Script;
+pub use sighash::SchnorrSigHashType;
+pub use schnorr::{SchnorrSig, SchnorrSigError};

@@ -326,6 +326,62 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     }
 }
 
+/// Hashtype of an input's signature, encoded in the last byte of the signature
+/// Fixed values so they can be casted as integer types for encoding
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum SchnorrSigHashType {
+    /// 0x0: Used when not explicitly specified, defaulting to [`SchnorrSigHashType::All`]
+    Default = 0x00,
+    /// 0x1: Sign all outputs
+    All = 0x01,
+    /// 0x2: Sign no outputs --- anyone can choose the destination
+    None = 0x02,
+    /// 0x3: Sign the output whose index matches this input's index. If none exists,
+    /// sign the hash `0000000000000000000000000000000000000000000000000000000000000001`.
+    /// (This rule is probably an unintentional C++ism, but it's consensus so we have
+    /// to follow it.)
+    Single = 0x03,
+    /// 0x81: Sign all outputs but only this input
+    AllPlusAnyoneCanPay = 0x81,
+    /// 0x82: Sign no outputs and only this input
+    NonePlusAnyoneCanPay = 0x82,
+    /// 0x83: Sign one output and only this input (see `Single` for what "one output" means)
+    SinglePlusAnyoneCanPay = 0x83,
+
+    /// Reserved for future use, `#[non_exhaustive]` is not available with current MSRV
+    Reserved = 0xFF,
+}
+
+impl SchnorrSigHashType {
+    /// Break the sighash flag into the "real" sighash flag and the ANYONECANPAY boolean
+    pub fn split_anyonecanpay_flag(self) -> (SchnorrSigHashType, bool) {
+        match self {
+            SchnorrSigHashType::Default => (SchnorrSigHashType::Default, false),
+            SchnorrSigHashType::All => (SchnorrSigHashType::All, false),
+            SchnorrSigHashType::None => (SchnorrSigHashType::None, false),
+            SchnorrSigHashType::Single => (SchnorrSigHashType::Single, false),
+            SchnorrSigHashType::AllPlusAnyoneCanPay => (SchnorrSigHashType::All, true),
+            SchnorrSigHashType::NonePlusAnyoneCanPay => (SchnorrSigHashType::None, true),
+            SchnorrSigHashType::SinglePlusAnyoneCanPay => (SchnorrSigHashType::Single, true),
+            SchnorrSigHashType::Reserved => (SchnorrSigHashType::Reserved, false),
+        }
+    }
+
+    /// Create a [`SchnorrSigHashType`] from raw u8
+    pub fn from_u8(hash_ty: u8) -> Option<Self> {
+        match hash_ty {
+            0x00 => Some(SchnorrSigHashType::Default),
+            0x01 => Some(SchnorrSigHashType::All),
+            0x02 => Some(SchnorrSigHashType::None),
+            0x03 => Some(SchnorrSigHashType::Single),
+            0x81 => Some(SchnorrSigHashType::AllPlusAnyoneCanPay),
+            0x82 => Some(SchnorrSigHashType::NonePlusAnyoneCanPay),
+            0x83 => Some(SchnorrSigHashType::SinglePlusAnyoneCanPay),
+            _x => None,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests{
     use super::*;
