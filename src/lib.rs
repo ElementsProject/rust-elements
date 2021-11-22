@@ -54,6 +54,7 @@ mod blind;
 pub mod slip77;
 pub mod sighash;
 pub mod pset;
+pub mod taproot;
 #[cfg(feature = "serde")]
 mod serde_utils;
 // consider making upstream public
