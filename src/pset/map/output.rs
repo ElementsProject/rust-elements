@@ -88,11 +88,11 @@ pub struct Output {
     /// corresponding master key fingerprints and derivation paths.
     #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
     pub bip32_derivation: BTreeMap<PublicKey, KeySource>,
-    /// (PSET2) The explicit amount of the output
+    /// (PSET) The explicit amount of the output
     pub amount: Option<u64>,
-    /// (PSET2) The out amount commitment
+    /// (PSET) The out amount commitment
     pub amount_comm: Option<secp256k1_zkp::PedersenCommitment>,
-    /// (PSET2) The script pubkey of the output
+    /// (PSET) The script pubkey of the output
     pub script_pubkey: Script,
     /// The output explicit asset
     pub asset: Option<issuance::AssetId>,

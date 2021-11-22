@@ -174,15 +174,15 @@ pub struct Input {
     /// HAS256 hash to preimage map
     #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_byte_values"))]
     pub hash256_preimages: BTreeMap<sha256d::Hash, Vec<u8>>,
-    /// (PSET2) Prevout TXID of the input
+    /// (PSET) Prevout TXID of the input
     pub previous_txid: Txid,
-    /// (PSET2) Prevout vout of the input
+    /// (PSET) Prevout vout of the input
     pub previous_output_index: u32,
-    /// (PSET2) Sequence number. If omitted, defaults to 0xffffffff
+    /// (PSET) Sequence number. If omitted, defaults to 0xffffffff
     pub sequence: Option<u32>,
-    /// (PSET2) Minimum required locktime, as a UNIX timestamp. If present, must be greater than or equal to 500000000
+    /// (PSET) Minimum required locktime, as a UNIX timestamp. If present, must be greater than or equal to 500000000
     pub required_time_locktime: Option<u32>,
-    /// (PSET2) Minimum required locktime, as a blockheight. If present, must be less than 500000000
+    /// (PSET) Minimum required locktime, as a blockheight. If present, must be less than 500000000
     pub required_height_locktime: Option<u32>,
     // Proprietary key-value pairs for this input.
     /// The issuance value
