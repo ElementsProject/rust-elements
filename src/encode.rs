@@ -17,7 +17,7 @@
 
 use std::io::Cursor;
 use std::{error, fmt, io, mem};
-use hashes;
+use hashes::{self, Hash};
 
 use bitcoin::consensus::encode as btcenc;
 use bitcoin::hashes::sha256;
@@ -195,6 +195,12 @@ impl Decodable for sha256::Midstate {
     }
 }
 
+pub(crate) fn consensus_encode_with_size<S: io::Write>(data: &[u8], mut s: S) -> Result<usize, Error> {
+    let vi_len = bitcoin::VarInt(data.len() as u64).consensus_encode(&mut s)?;
+    s.emit_slice(&data)?;
+    Ok(vi_len + data.len())
+}
+
 /// Implement Elements encodable traits for Bitcoin encodable types.
 macro_rules! impl_upstream {
     ($type: ty) => {
@@ -326,6 +332,19 @@ impl Encodable for SurjectionProof {
 impl Decodable for SurjectionProof {
     fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
         Ok(SurjectionProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
+    }
+}
+
+
+impl Encodable for sha256::Hash {
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+        self.into_inner().consensus_encode(s)
+    }
+}
+
+impl Decodable for sha256::Hash {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+        Ok(Self::from_inner(<<Self as Hash>::Inner>::consensus_decode(d)?))
     }
 }
 
