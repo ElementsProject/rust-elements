@@ -512,6 +512,13 @@ impl From<Vec<u8>> for Script {
     fn from(v: Vec<u8>) -> Script { Script(v.into_boxed_slice()) }
 }
 
+impl ops::Index<usize> for Script {
+    type Output = u8;
+    fn index(&self, index: usize) -> &u8 {
+        &self.0[index]
+    }
+}
+
 impl ops::Index<ops::Range<usize>> for Script {
     type Output = [u8];
     fn index(&self, index: ops::Range<usize>) -> &[u8] {
