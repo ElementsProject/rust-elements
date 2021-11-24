@@ -197,10 +197,10 @@ fn main() {
     // This tells that person that controls input zero is responsible for
     // blinding outputs 0, 1
     // Output 2 is the fees output
-    pset.outputs[0].blinding_key = Some(dest_btc_blind_pk);
-    pset.outputs[0].blinder_index = Some(0);
-    pset.outputs[1].blinding_key = Some(change_btc_blind_pk);
-    pset.outputs[1].blinder_index = Some(0);
+    pset.outputs_mut()[0].blinding_key = Some(dest_btc_blind_pk);
+    pset.outputs_mut()[0].blinder_index = Some(0);
+    pset.outputs_mut()[1].blinding_key = Some(change_btc_blind_pk);
+    pset.outputs_mut()[1].blinder_index = Some(0);
 
     // pset after adding the information about the bitcoin input from A
     // Pset with 2 input and 3 outputs
@@ -253,10 +253,10 @@ fn main() {
 
     // This tells that person that controls input index one is responsible for
     // blinding outputs 3, 4.
-    pset.outputs[3].blinding_key = Some(dest_asset_blind_pk);
-    pset.outputs[3].blinder_index = Some(1);
-    pset.outputs[4].blinding_key = Some(change_asset_blind_pk);
-    pset.outputs[4].blinder_index = Some(1);
+    pset.outputs_mut()[3].blinding_key = Some(dest_asset_blind_pk);
+    pset.outputs_mut()[3].blinder_index = Some(1);
+    pset.outputs_mut()[4].blinding_key = Some(change_asset_blind_pk);
+    pset.outputs_mut()[4].blinder_index = Some(1);
 
     // pset after adding the information about the bitcoin input from A
     // and adding B's input. Two inputs and 5 outputs

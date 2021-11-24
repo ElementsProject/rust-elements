@@ -53,10 +53,10 @@ pub struct PartiallySignedTransaction {
     pub global: Global,
     /// The corresponding key-value map for each input in the unsigned
     /// transaction.
-    pub inputs: Vec<Input>,
+    inputs: Vec<Input>,
     /// The corresponding key-value map for each output in the unsigned
     /// transaction.
-    pub outputs: Vec<Output>,
+    outputs: Vec<Output>,
 }
 
 impl PartiallySignedTransaction {
@@ -96,11 +96,51 @@ impl PartiallySignedTransaction {
         self.inputs.push(inp);
     }
 
+    /// Read accessor to inputs
+    pub fn inputs(&self) -> &[Input] {
+        &self.inputs
+    }
+
+    /// Mutable accessor to inputs
+    pub fn inputs_mut(&mut self) -> &mut [Input] {
+        &mut self.inputs
+    }
+
+    /// Remove the input at `index` and return it if any, otherwise returns None
+    /// This also updates the pset global input count
+    pub fn remove_input(&mut self, index: usize) -> Option<Input> {
+        if self.inputs.get(index).is_some() {
+            self.global.tx_data.input_count -= 1;
+            return Some(self.inputs.remove(index))
+        }
+        None
+    }
+
     /// Add an output to pset. This also updates the
     /// pset global output count
     pub fn add_output(&mut self, out: Output) {
         self.global.tx_data.output_count += 1;
         self.outputs.push(out);
+    }
+
+    /// read accessor to outputs
+    pub fn outputs(&self) -> &[Output] {
+        &self.outputs
+    }
+
+    /// mutable accessor to outputs
+    pub fn outputs_mut(&mut self) -> &mut [Output] {
+        &mut self.outputs
+    }
+
+    /// Remove the output at `index` and return it if any, otherwise returns None
+    /// This also updates the pset global output count
+    pub fn remove_output(&mut self, index: usize) -> Option<Output> {
+        if self.inputs.get(index).is_some() {
+            self.global.tx_data.output_count -= 1;
+            return Some(self.outputs.remove(index))
+        }
+        None
     }
 
     /// Accessor for the number of inputs currently in the PSET

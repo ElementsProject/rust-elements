@@ -293,24 +293,24 @@ fn main() {
     .unwrap();
     // Sign the raw transactions
     // Input zero adds signatures
-    pset.inputs[0]
+    pset.inputs_mut()[0]
         .partial_sigs
         .insert(inp0_pk, inp0_sig.clone());
     assert_eq!(pset, deser_pset(&tests["blinded_one_inp_signed"]));
     // Input one adds signatures
-    pset.inputs[1]
+    pset.inputs_mut()[1]
         .partial_sigs
         .insert(inp1_pk, inp1_sig.clone());
     assert_eq!(pset, deser_pset(&tests["blinded_signed"]));
 
     // Finalize(TODO in miniscript)
-    pset.inputs[0].partial_sigs.clear();
-    pset.inputs[0].final_script_witness = Some(vec![
+    pset.inputs_mut()[0].partial_sigs.clear();
+    pset.inputs_mut()[0].final_script_witness = Some(vec![
         inp0_sig,
         inp0_pk.to_bytes(),
     ]);
-    pset.inputs[1].partial_sigs.clear();
-    pset.inputs[1].final_script_witness = Some(vec![
+    pset.inputs_mut()[1].partial_sigs.clear();
+    pset.inputs_mut()[1].final_script_witness = Some(vec![
         inp1_sig,
         inp1_pk.to_bytes(),
     ]);
