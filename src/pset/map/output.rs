@@ -203,9 +203,8 @@ impl Output{
                 (None, Some(x)) => confidential::Value::Explicit(x),
                 (None, None) => confidential::Value::Null,
             },
-            nonce: self
-                .blinding_key
-                .map(|pk| confidential::Nonce::from(pk.key))
+            nonce: self.ecdh_pubkey.map(|pk| confidential::Nonce::from(pk.key))
+                .or(self.blinding_key.map(|pk| confidential::Nonce::from(pk.key)))
                 .unwrap_or_default(),
             script_pubkey: self.script_pubkey.clone(),
             witness: TxOutWitness {

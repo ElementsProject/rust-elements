@@ -70,7 +70,13 @@ impl PartiallySignedTransaction {
         global.tx_data.version = tx.version;
 
         let inputs = tx.input.into_iter().map(Input::from_txin).collect();
-        let outputs = tx.output.into_iter().map(Output::from_txout).collect();
+        let outputs = tx.output.into_iter().map(|o| {
+            if o.is_partially_confidential() {
+                Output::from_blinded_txout(o)
+            } else {
+                Output::from_txout(o)
+            }
+        }).collect();
         Self {
             global: global,
             inputs: inputs,
