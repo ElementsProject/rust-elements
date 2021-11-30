@@ -55,8 +55,6 @@ impl_pset_de_serialize!(u32);
 impl_pset_de_serialize!(u64);
 impl_pset_de_serialize!([u8; 32]);
 impl_pset_de_serialize!(VarInt);
-impl_pset_de_serialize!(RangeProof);
-impl_pset_de_serialize!(SurjectionProof);
 impl_pset_de_serialize!(Vec<Vec<u8>>); // scriptWitness
 impl_pset_hash_de_serialize!(Txid);
 impl_pset_hash_de_serialize!(ripemd160::Hash);
@@ -239,5 +237,31 @@ impl Deserialize for confidential::Asset {
             32 => Ok(confidential::Asset::Explicit(encode::deserialize(bytes)?)),
             _ => Ok(encode::deserialize(bytes)?),
         }
+    }
+}
+
+impl Serialize for RangeProof {
+    fn serialize(&self) -> Vec<u8> {
+        self.serialize()
+    }
+}
+
+impl Deserialize for RangeProof {
+    fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
+        RangeProof::from_slice(&bytes)
+            .map_err(|_| encode::Error::ParseFailed("invalid Rangeproof"))
+    }
+}
+
+impl Serialize for SurjectionProof {
+    fn serialize(&self) -> Vec<u8> {
+        self.serialize()
+    }
+}
+
+impl Deserialize for SurjectionProof {
+    fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
+        SurjectionProof::from_slice(&bytes)
+            .map_err(|_| encode::Error::ParseFailed("invalid Rangeproof"))
     }
 }
