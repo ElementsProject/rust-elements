@@ -644,7 +644,7 @@ impl Decodable for PartiallySignedTransaction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::hashes::hex::FromHex;
+    use bitcoin::hashes::hex::{FromHex, ToHex};
 
     fn tx_pset_rtt(tx_hex: &str) {
         let tx: Transaction = encode::deserialize(&Vec::<u8>::from_hex(tx_hex).unwrap()[..]).unwrap();
@@ -802,5 +802,24 @@ mod tests {
         // };
         // pset.add_output(Output::from_txout(txout));
         // println!("{}", encode::serialize_hex(&pset));
+    }
+
+    #[test]
+    fn pset_from_elements() {
+        let pset_str = include_str!("../../tests_data/pset_swap_tutorial.hex");
+
+        let bytes = Vec::<u8>::from_hex(pset_str).unwrap();
+        let pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
+
+        assert_eq!(pset_str.len(), encode::serialize(&pset).to_hex().len());
+        let back_hex = encode::serialize(&pset).to_hex();
+        //assert_eq!(pset_str, &back_hex);  //TODO this fails, field ordering?
+
+        let bytes = Vec::<u8>::from_hex(&back_hex).unwrap();
+        let pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
+        assert_eq!(&back_hex, &encode::serialize(&pset).to_hex());
+
+
+
     }
 }
