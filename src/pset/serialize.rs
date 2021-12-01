@@ -249,7 +249,7 @@ impl Serialize for RangeProof {
 impl Deserialize for RangeProof {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         RangeProof::from_slice(&bytes)
-            .map_err(|_| encode::Error::ParseFailed("invalid Rangeproof"))
+            .map_err(|_| encode::Error::ParseFailed("Invalid Rangeproof"))
     }
 }
 
@@ -262,6 +262,6 @@ impl Serialize for SurjectionProof {
 impl Deserialize for SurjectionProof {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         SurjectionProof::from_slice(&bytes)
-            .map_err(|_| encode::Error::ParseFailed("invalid Rangeproof"))
+            .map_err(|_| encode::Error::ParseFailed("Invalid SurjectionProof"))
     }
 }
