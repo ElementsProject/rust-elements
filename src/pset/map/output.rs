@@ -140,32 +140,10 @@ impl Output{
         res
     }
 
-    /// Create a output from already blinded txout
-    /// This is same as from_txout, but sets the ecdh pubkey
-    /// from nonce instead of the blinding key
-    pub fn from_blinded_txout(txout: TxOut) -> Self {
-        let mut rv = Self::default();
-        match txout.value {
-            confidential::Value::Null => { },
-            confidential::Value::Explicit(x) => rv.amount = Some(x),
-            confidential::Value::Confidential(comm) => rv.amount_comm = Some(comm),
-        }
-        rv.script_pubkey = txout.script_pubkey;
-        match txout.asset {
-            confidential::Asset::Null => { },
-            confidential::Asset::Explicit(x) => rv.asset = Some(x),
-            confidential::Asset::Confidential(comm) => rv.asset_comm = Some(comm),
-        }
-        rv.ecdh_pubkey = txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
-            key: pk,
-            compressed: true, // always serialize none as compressed pk
-        });
-        rv.value_rangeproof = txout.witness.rangeproof;
-        rv.asset_surjection_proof = txout.witness.surjection_proof;
-        rv
-    }
-
-    /// Create a output from unblinded txout
+    /// Create a output from txout
+    /// If the txout it [TxOut::is_partially_blinded], then nonce of the txout
+    /// is treated as ecdh pubkey, otherwise the nonce of the txout is assumed to
+    /// be receiver blinding key.
     /// This is to be used when the txout is not blinded. This sets
     /// the blinding key from the txout nonce
     pub fn from_txout(txout: TxOut) -> Self {
@@ -175,16 +153,23 @@ impl Output{
             confidential::Value::Explicit(x) => rv.amount = Some(x),
             confidential::Value::Confidential(comm) => rv.amount_comm = Some(comm),
         }
-        rv.script_pubkey = txout.script_pubkey;
         match txout.asset {
             confidential::Asset::Null => { },
             confidential::Asset::Explicit(x) => rv.asset = Some(x),
             confidential::Asset::Confidential(comm) => rv.asset_comm = Some(comm),
         }
-        rv.blinding_key = txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
-            key: pk,
-            compressed: true, // always serialize none as compressed pk
-        });
+        if txout.is_partially_blinded() {
+            rv.ecdh_pubkey = txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
+                key: pk,
+                compressed: true, // always serialize none as compressed pk
+            });
+        } else {
+            rv.blinding_key = txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
+                key: pk,
+                compressed: true, // always serialize none as compressed pk
+            });
+        }
+        rv.script_pubkey = txout.script_pubkey;
         rv.value_rangeproof = txout.witness.rangeproof;
         rv.asset_surjection_proof = txout.witness.surjection_proof;
         rv
@@ -203,9 +188,11 @@ impl Output{
                 (None, Some(x)) => confidential::Value::Explicit(x),
                 (None, None) => confidential::Value::Null,
             },
-            nonce: self.ecdh_pubkey.map(|pk| confidential::Nonce::from(pk.key))
-                .or(self.blinding_key.map(|pk| confidential::Nonce::from(pk.key)))
-                .unwrap_or_default(),
+            nonce: if self.is_partially_blinded() {
+                self.ecdh_pubkey.map(|pk| confidential::Nonce::from(pk.key))
+            } else {
+                self.blinding_key.map(|pk| confidential::Nonce::from(pk.key))
+            }.unwrap_or_default(),
             script_pubkey: self.script_pubkey.clone(),
             witness: TxOutWitness {
                 surjection_proof: self.asset_surjection_proof.clone(),
@@ -215,13 +202,14 @@ impl Output{
     }
 
     /// IsBlinded from elements core
-    pub fn is_blinded(&self) -> bool {
+    /// This indicates whether the output is marked for blinding
+    pub fn is_marked_for_blinding(&self) -> bool {
         self.blinding_key.is_some()
     }
 
     /// IsPartiallyBlinded from elements core
     pub fn is_partially_blinded(&self) -> bool {
-        self.is_blinded() && (
+        self.is_marked_for_blinding() && (
             self.amount_comm.is_some() ||
             self.asset_comm.is_some() ||
             self.value_rangeproof.is_some() ||
@@ -232,7 +220,7 @@ impl Output{
 
     /// IsFullyBlinded from elements core
     pub fn is_fully_blinded(&self) -> bool {
-        self.is_blinded() &&
+        self.is_marked_for_blinding() &&
         self.amount_comm.is_some() &&
         self.asset_comm.is_some() &&
         self.value_rangeproof.is_some() &&
@@ -480,7 +468,7 @@ impl Decodable for Output {
         if let (Some(_), None) = (rv.blinding_key, rv.blinder_index) {
             return Err(encode::Error::PsetError(Error::MissingBlinderIndex))
         }
-        if rv.is_blinded() && rv.is_partially_blinded() && !rv.is_fully_blinded() {
+        if rv.is_marked_for_blinding() && rv.is_partially_blinded() && !rv.is_fully_blinded() {
             return Err(encode::Error::PsetError(Error::MissingBlindingInfo))
         }
         Ok(rv)

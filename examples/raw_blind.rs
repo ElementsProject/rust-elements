@@ -213,8 +213,8 @@ fn main() {
         .expect("Asset Change txOut creation failure");
 
     // Add both assets to pset. 5_000 dest address, 15_000 change address
-    pset.add_output(pset::Output::from_blinded_txout(dest_asset_txout));
-    pset.add_output(pset::Output::from_blinded_txout(change_asset_txout));
+    pset.add_output(pset::Output::from_txout(dest_asset_txout));
+    pset.add_output(pset::Output::from_txout(change_asset_txout));
 
     // Add information about which input index blinded the outputs
     // Spec mandates that blinded inputs must have this information
@@ -269,8 +269,8 @@ fn main() {
     )
     .expect("Asset Change txOut creation failure");
     // Add both pset outputs to btc transaction
-    pset.add_output(pset::Output::from_blinded_txout(btc_fees_txout));
-    pset.add_output(pset::Output::from_blinded_txout(btc_change_txout));
+    pset.add_output(pset::Output::from_txout(btc_fees_txout));
+    pset.add_output(pset::Output::from_txout(btc_change_txout));
 
     assert_eq!(pset, deser_pset(&tests["blinded_unsigned"]));
 
