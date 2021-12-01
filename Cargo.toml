@@ -43,10 +43,10 @@ bincode = "1.3"
 
 
 [[example]]
-name = "coinjoin"
+name = "pset_blind_coinjoin"
 
 [[example]]
-name = "pset"
+name = "raw_blind"
 
 [[example]]
 name = "tx"
