@@ -654,7 +654,6 @@ mod tests {
 
     fn pset_rtt(pset_hex: &str) {
         let pset: PartiallySignedTransaction = encode::deserialize(&Vec::<u8>::from_hex(pset_hex).unwrap()[..]).unwrap();
-
         assert_eq!(encode::serialize_hex(&pset), pset_hex);
     }
 
@@ -800,7 +799,7 @@ mod tests {
 
     #[test]
     fn pset_from_elements() {
-        let pset_str = include_str!("../../tests_data/pset_swap_tutorial.hex");
+        let pset_str = include_str!("../../tests/data/pset_swap_tutorial.hex");
 
         let bytes = Vec::<u8>::from_hex(pset_str).unwrap();
         let pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
