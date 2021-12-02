@@ -335,6 +335,7 @@ impl Map for Global {
 
         // TODO: Use hashset for efficiency
         self.scalars.extend(other.scalars);
+        self.scalars.sort();
         self.scalars.dedup();
         merge!(elements_tx_modifiable_flag, self, other);
         self.proprietary.extend(other.proprietary);
