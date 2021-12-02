@@ -7,11 +7,13 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - rust: stable
             env:
               DO_FUZZ: true
+              DO_INTEGRATION: true
           - rust: beta
             env:
               DUMMY: true
