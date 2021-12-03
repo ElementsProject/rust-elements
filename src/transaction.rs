@@ -545,6 +545,11 @@ impl TxOut {
             }
         }
     }
+
+    /// Returns if at least some part of this output are blinded
+    pub fn is_partially_blinded(&self) -> bool {
+        self.asset.is_confidential() || self.value.is_confidential() || !self.witness.is_empty()
+    }
 }
 
 /// Elements transaction
