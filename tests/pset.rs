@@ -5,8 +5,12 @@ extern crate elementsd;
 
 #[cfg(all(test, feature = "integration"))]
 mod tests {
+    use elements::bitcoin::hashes::hex::FromHex;
+    use elements::bitcoin::hashes::Hash;
     use elements::encode::{deserialize, serialize};
     use elements::pset::PartiallySignedTransaction;
+    use elements::Txid;
+    use elements::{AssetId, ContractHash, OutPoint};
     use elementsd::bitcoincore_rpc::jsonrpc::serde_json::{json, Value};
     use elementsd::bitcoincore_rpc::RpcApi;
     use elementsd::bitcoind::BitcoinD;
@@ -15,15 +19,16 @@ mod tests {
     trait Call {
         fn call(&self, cmd: &str, args: &[Value]) -> Value;
         fn decode_psbt(&self, psbt: &str) -> Option<Value>;
+        fn analyze_psbt(&self, psbt: &str) -> Value;
         fn get_new_address(&self) -> String;
         fn wallet_create_funded_psbt(&self, address: &str) -> String;
         fn expected_next(&self, psbt: &str) -> String;
         fn wallet_process_psbt(&self, psbt: &str) -> String;
+        fn finalize_psbt(&self, psbt: &str) -> String;
+        fn get_first_prevout(&self) -> OutPoint;
     }
 
     /*
-    issuance
-    reissueance
     pegin
     */
 
@@ -44,6 +49,51 @@ mod tests {
         let address = elementsd.get_new_address();
         let psbt_base64 = elementsd.wallet_create_funded_psbt(&address);
         assert_eq!(elementsd.expected_next(&psbt_base64), "blinder");
+        let psbt_base64 = elementsd.wallet_process_psbt(&psbt_base64);
+        assert_eq!(elementsd.expected_next(&psbt_base64), "finalizer");
+        psbt_rtt(&elementsd, &psbt_base64);
+    }
+
+    #[cfg_attr(feature = "integration", test)]
+    fn tx_issuance() {
+        let (elementsd, _bitcoind) = setup(false);
+
+        let address_asset = elementsd.get_new_address();
+        let address_reissuance = elementsd.get_new_address();
+        let address_lbtc = elementsd.get_new_address();
+        let prevout = elementsd.get_first_prevout();
+
+        let contract_hash = ContractHash::from_inner([0u8; 32]);
+        let entropy = AssetId::generate_asset_entropy(prevout, contract_hash);
+        let asset_id = AssetId::from_entropy(entropy.clone());
+        assert_eq!(
+            asset_id.to_string(),
+            "78b4920005fa0156ae3779129338bc2707e4d07cf8a0c2593583e3c1da3bb58c"
+        );
+        let reissuance_id = AssetId::reissuance_token_from_entropy(entropy, true);
+        assert_eq!(
+            reissuance_id.to_string(),
+            "78b4920005fa0156ae3779129338bc2707e4d07cf8a0c2593583e3c1da3bb58c"
+        );
+
+        let value = elementsd.call(
+            "createpsbt",
+            &[
+                json!([{ "txid": prevout.txid, "vout": prevout.vout, "issuance_amount": 1000, "issuance_tokens": 1}]),
+                json!([
+                    {address_asset: "1000", "asset": asset_id.to_string(), "blinder_index": 0},
+                    {address_reissuance: "1", "asset": reissuance_id.to_string(), "blinder_index": 0},
+                    {address_lbtc: "20.9", "blinder_index": 0},
+                    {"fee": "0.1" }
+                ]),
+                0.into(),
+                false.into(),
+            ],
+        );
+        let psbt_base64 = value.as_str().unwrap().to_string();
+        let value = elementsd.analyze_psbt(&psbt_base64);
+
+        assert_eq!(elementsd.expected_next(&psbt_base64), "updater");
         let psbt_base64 = elementsd.wallet_process_psbt(&psbt_base64);
         assert_eq!(elementsd.expected_next(&psbt_base64), "finalizer");
         psbt_rtt(&elementsd, &psbt_base64);
@@ -80,7 +130,13 @@ mod tests {
         }
 
         fn decode_psbt(&self, psbt: &str) -> Option<Value> {
-            self.client().call::<Value>("decodepsbt", &[psbt.into()]).ok()
+            self.client()
+                .call::<Value>("decodepsbt", &[psbt.into()])
+                .ok()
+        }
+
+        fn analyze_psbt(&self, psbt: &str) -> Value {
+            self.call("decodepsbt", &[psbt.into()])
         }
 
         fn get_new_address(&self) -> String {
@@ -106,6 +162,20 @@ mod tests {
         fn wallet_process_psbt(&self, base64: &str) -> String {
             let value = self.call("walletprocesspsbt", &[base64.into()]);
             value.get("psbt").unwrap().as_str().unwrap().to_string()
+        }
+
+        fn finalize_psbt(&self, base64: &str) -> String {
+            let value = self.call("finalizepsbt", &[base64.into()]);
+            value.get("hex").unwrap().as_str().unwrap().to_string()
+        }
+
+        fn get_first_prevout(&self) -> OutPoint {
+            let value = self.call("listunspent", &[]);
+            let first = value.get(0).unwrap();
+            let txid = first.get("txid").unwrap().as_str().unwrap();
+            let vout = first.get("vout").unwrap().as_u64().unwrap();
+
+            OutPoint::new(Txid::from_hex(txid).unwrap(), vout as u32)
         }
     }
 
