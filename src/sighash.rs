@@ -30,6 +30,8 @@ use transaction::{SigHashType, Transaction, TxIn, TxOut, TxInWitness};
 use confidential;
 use std::fmt;
 use taproot::{TapSighashHash, TapLeafHash};
+
+use BlockHash;
 /// Efficiently calculates signature hash message for legacy, segwit and taproot inputs.
 #[derive(Debug)]
 pub struct SigHashCache<T: Deref<Target = Transaction>> {
@@ -57,6 +59,7 @@ struct CommonCache {
     /// in theory, `outputs` could be `Option` since `NONE` and `SINGLE` doesn't need it, but since
     /// `ALL` is the mostly used variant by large, we don't bother
     outputs: sha256::Hash,
+    issuances: sha256::Hash,
 }
 
 /// Values cached for segwit inputs, it's equal to [`CommonCache`] plus another round of `sha256`
@@ -71,8 +74,11 @@ struct SegwitCache {
 /// Values cached for taproot inputs
 #[derive(Debug)]
 struct TaprootCache {
-    amounts: sha256::Hash,
     script_pubkeys: sha256::Hash,
+    outpoint_flags: sha256::Hash,
+    asset_amounts: sha256::Hash,
+    issuance_rangeproofs: sha256::Hash,
+    output_witnesses: sha256::Hash,
 }
 
 /// Contains outputs of previous transactions.
@@ -228,13 +234,17 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         annex: Option<Annex>,
         script_path: Option<ScriptPath>,
         sighash_type: SchnorrSigHashType,
+        genesis_hash: BlockHash,
     ) -> Result<(), Error> {
         prevouts.check_all(&self.tx)?;
 
         let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
 
-        // epoch
-        0u8.consensus_encode(&mut writer)?;
+        // Genesis hash twice
+        genesis_hash.consensus_encode(&mut writer)?;
+        genesis_hash.consensus_encode(&mut writer)?;
+
+        // No epoch in elements
 
         // * Control:
         // hash_type (1).
@@ -248,14 +258,20 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         self.tx.lock_time.consensus_encode(&mut writer)?;
 
         // If the hash_type & 0x80 does not equal SIGHASH_ANYONECANPAY:
+        //     sha_outpoint_flags (32): (ELEMENTS) the SHA256 of outpoint flags
         //     sha_prevouts (32): the SHA256 of the serialization of all input outpoints.
-        //     sha_amounts (32): the SHA256 of the serialization of all spent output amounts.
+        //     sha_asset_amounts (32): (ELEMENTS) the SHA256 of the serialization of all spent output asset followed by amounts.
         //     sha_scriptpubkeys (32): the SHA256 of the serialization of all spent output scriptPubKeys.
         //     sha_sequences (32): the SHA256 of the serialization of all input nSequence.
+        //     sha_issuances (32): (ELEMENTS) the SHA256 of the serialization of the concatenation of asset issuance data
+        //     sha_issuance_rangeproofs (32): (ELEMENTS) the sha256 of issuance amount rangeproof followed by inflation keys rangeproof
         if !anyone_can_pay {
+            self.taproot_cache(prevouts.get_all()?)
+                .outpoint_flags
+                .consensus_encode(&mut writer)?;
             self.common_cache().prevouts.consensus_encode(&mut writer)?;
             self.taproot_cache(prevouts.get_all()?)
-                .amounts
+                .asset_amounts
                 .consensus_encode(&mut writer)?;
             self.taproot_cache(prevouts.get_all()?)
                 .script_pubkeys
@@ -263,12 +279,22 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             self.common_cache()
                 .sequences
                 .consensus_encode(&mut writer)?;
+            self.common_cache()
+                .issuances
+                .consensus_encode(&mut writer)?;
+            self.taproot_cache(prevouts.get_all()?)
+                .issuance_rangeproofs
+                .consensus_encode(&mut writer)?;
         }
 
         // If hash_type & 3 does not equal SIGHASH_NONE or SIGHASH_SINGLE:
         //     sha_outputs (32): the SHA256 of the serialization of all outputs in CTxOut format.
+        //     sha_output_witnesses (32): (ELEMENTS) the SHA256 of the serialization of all output witnesses
         if sighash != SchnorrSigHashType::None && sighash != SchnorrSigHashType::Single {
             self.common_cache().outputs.consensus_encode(&mut writer)?;
+            self.taproot_cache(prevouts.get_all()?)
+                .output_witnesses
+                .consensus_encode(&mut writer)?;
         }
 
         // * Data about this input:
@@ -284,10 +310,14 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         spend_type.consensus_encode(&mut writer)?;
 
         // If hash_type & 0x80 equals SIGHASH_ANYONECANPAY:
+        //      outpoint_flag(1) : (ELEMENTS) the outpoint flag of this input
         //      outpoint (36): the COutPoint of this input (32-byte hash + 4-byte little-endian).
-        //      amount (8): value of the previous output spent by this input.
+        //      asset (33): (ELEMENTS) the asset of the previous output
+        //      value (9-33): (modified in ELEMENTS) value of the previous output spent by this input.
         //      scriptPubKey (35): scriptPubKey of the previous output spent by this input, serialized as script inside CTxOut. Its size is always 35 bytes.
         //      nSequence (4): nSequence of this input.
+        //      asset_issuance (1-130): (ELEMENTS) asset issuance data if present; otherwise 0x00
+        //      asset_issuance_rangeproofs (0-32) : (ELEMENTS) the sha256 of serialization of issuance proofs for this input
         if anyone_can_pay {
             let txin =
                 &self
@@ -299,12 +329,24 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
                         inputs_size: self.tx.input.len(),
                     })?;
             let previous_output = prevouts.get(input_index)?;
+            txin.outpoint_flag().consensus_encode(&mut writer)?;
             txin.previous_output.consensus_encode(&mut writer)?;
+            previous_output.asset.consensus_encode(&mut writer)?;
             previous_output.value.consensus_encode(&mut writer)?;
             previous_output
                 .script_pubkey
                 .consensus_encode(&mut writer)?;
             txin.sequence.consensus_encode(&mut writer)?;
+            if txin.has_issuance(){
+                txin.asset_issuance.consensus_encode(&mut writer)?;
+                let mut eng = sha256::Hash::engine();
+                txin.witness.amount_rangeproof.consensus_encode(&mut eng)?;
+                txin.witness.inflation_keys_rangeproof.consensus_encode(&mut eng)?;
+                let sha_single_issuance_rangeproofs = sha256::Hash::from_engine(eng);
+                sha_single_issuance_rangeproofs.consensus_encode(&mut writer)?;
+            } else {
+                0u8.consensus_encode(&mut writer)?;
+            }
         } else {
             (input_index as u32).consensus_encode(&mut writer)?;
         }
@@ -322,18 +364,25 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         // * Data about this output:
         // If hash_type & 3 equals SIGHASH_SINGLE:
         //      sha_single_output (32): the SHA256 of the corresponding output in CTxOut format.
+        //      sha_single_output_witness (32): the sha256 serialization of output witnesses
         if sighash == SchnorrSigHashType::Single {
             let mut enc = sha256::Hash::engine();
-            self.tx
+            let out = self.tx
                 .output
                 .get(input_index)
                 .ok_or_else(|| Error::SingleWithoutCorrespondingOutput {
                     index: input_index,
                     outputs_size: self.tx.output.len(),
-                })?
-                .consensus_encode(&mut enc)?;
+                })?;
+            out.consensus_encode(&mut enc)?;
             let hash = sha256::Hash::from_engine(enc);
             hash.consensus_encode(&mut writer)?;
+
+            // Witness serialization
+            let mut eng = sha256::Hash::engine();
+            out.witness.consensus_encode(&mut eng)?;
+            let sha_single_output_witness = sha256::Hash::from_engine(eng);
+            sha_single_output_witness.consensus_encode(&mut writer)?;
         }
 
         //     if (scriptpath):
@@ -367,6 +416,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         annex: Option<Annex>,
         script_path: Option<ScriptPath>,
         sighash_type: SchnorrSigHashType,
+        genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
         let mut enc = TapSighashHash::engine();
         self.taproot_encode_signing_data_to(
@@ -376,6 +426,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             annex,
             script_path,
             sighash_type,
+            genesis_hash,
         )?;
         Ok(TapSighashHash::from_engine(enc))
     }
@@ -619,6 +670,17 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
                     }
                     sha256::Hash::from_engine(enc)
                 },
+                issuances: {
+                    let mut enc = sha256::Hash::engine();
+                    for txin in tx.input.iter() {
+                        if txin.has_issuance() {
+                            txin.asset_issuance.consensus_encode(&mut enc).unwrap();
+                        } else {
+                            0u8.consensus_encode(&mut enc).unwrap();
+                        }
+                    }
+                    sha256::Hash::from_engine(enc)
+                },
             }
         })
     }
@@ -638,35 +700,56 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
                 outputs: sha256d::Hash::from_inner(
                     sha256::Hash::hash(&common_cache.outputs).into_inner(),
                 ),
-                issuances: {
-                    let mut enc = sha256d::Hash::engine();
-                    for txin in tx.input.iter() {
-                        if txin.has_issuance() {
-                            txin.asset_issuance.consensus_encode(&mut enc).unwrap();
-                        } else {
-                            0u8.consensus_encode(&mut enc).unwrap();
-                        }
-                    }
-                    sha256d::Hash::from_engine(enc)
-                }
+                issuances: sha256d::Hash::from_inner(
+                    sha256::Hash::hash(&common_cache.issuances).into_inner(),
+                ),
             }
         })
     }
 
+    #[inline]
     fn taproot_cache(&mut self, prevouts: &[TxOut]) -> &TaprootCache {
-        self.taproot_cache.get_or_insert_with(|| {
-            let mut enc_amounts = sha256::Hash::engine();
+        Self::taproot_cache_minimal_borrow(&mut self.taproot_cache, &self.tx, prevouts)
+    }
+
+    fn taproot_cache_minimal_borrow<'a>(
+        taproot_cache: &'a mut Option<TaprootCache>,
+        tx: &R,
+        prevouts: &[TxOut],
+    ) -> &'a TaprootCache {
+        taproot_cache.get_or_insert_with(|| {
+            let mut enc_asset_amounts = sha256::Hash::engine();
             let mut enc_script_pubkeys = sha256::Hash::engine();
+            let mut enc_outpoint_flags = sha256::Hash::engine();
+            let mut enc_issuance_rangeproofs = sha256::Hash::engine();
+            let mut enc_output_witnesses = sha256::Hash::engine();
             for prevout in prevouts {
-                prevout.value.consensus_encode(&mut enc_amounts).unwrap();
+                prevout.asset.consensus_encode(&mut enc_asset_amounts).unwrap();
+                prevout.value.consensus_encode(&mut enc_asset_amounts).unwrap();
                 prevout
                     .script_pubkey
                     .consensus_encode(&mut enc_script_pubkeys)
                     .unwrap();
             }
+            for inp in tx.input.iter() {
+                inp.outpoint_flag()
+                    .consensus_encode(&mut enc_outpoint_flags).unwrap();
+                inp.witness.amount_rangeproof
+                    .consensus_encode(&mut enc_issuance_rangeproofs).unwrap();
+                inp.witness.inflation_keys_rangeproof
+                    .consensus_encode(&mut enc_issuance_rangeproofs).unwrap();
+            }
+
+            for out in tx.output.iter() {
+                out.witness.surjection_proof.consensus_encode(&mut enc_output_witnesses).unwrap();
+                out.witness.rangeproof.consensus_encode(&mut enc_output_witnesses).unwrap();
+            }
             TaprootCache {
-                amounts: sha256::Hash::from_engine(enc_amounts),
+                asset_amounts: sha256::Hash::from_engine(enc_asset_amounts),
                 script_pubkeys: sha256::Hash::from_engine(enc_script_pubkeys),
+                outpoint_flags: sha256::Hash::from_engine(enc_outpoint_flags),
+                issuance_rangeproofs: sha256::Hash::from_engine(enc_issuance_rangeproofs),
+                output_witnesses: sha256::Hash::from_engine(enc_output_witnesses),
             }
         })
     }

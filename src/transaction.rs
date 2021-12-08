@@ -318,6 +318,11 @@ impl TxIn {
     pub fn has_issuance(&self) -> bool {
         self.has_issuance
     }
+
+    /// Obtain the outpoint flag corresponding to this input
+    pub fn outpoint_flag(&self) -> u8 {
+        ((self.is_pegin as u8) << 6 ) | ((self.has_issuance as u8) << 7)
+    }
 }
 
 /// Transaction output witness
