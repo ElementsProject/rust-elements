@@ -42,10 +42,6 @@
 
 use std::fmt;
 
-// AsciiExt is needed until for Rust 1.26 but not for newer versions
-#[allow(unused_imports, deprecated)]
-use std::ascii::AsciiExt;
-
 use bitcoin::bech32::{u5, Error};
 
 /// Encode a bech32 payload to an [fmt::Formatter].

@@ -19,10 +19,6 @@ use std::error;
 use std::fmt;
 use std::str::FromStr;
 
-// AsciiExt is needed until for Rust 1.26 but not for newer versions
-#[allow(unused_imports, deprecated)]
-use std::ascii::AsciiExt;
-
 use bitcoin::bech32::{self, u5, FromBase32, ToBase32};
 use bitcoin::util::base58;
 use bitcoin::PublicKey;
