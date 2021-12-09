@@ -2,19 +2,6 @@
 
 FEATURES="serde-feature"
 
-pin_common_verions() {
-    cargo generate-lockfile --verbose
-    cargo update -p cc --precise "1.0.41" --verbose
-    cargo update -p serde --precise "1.0.98" --verbose
-    cargo update -p serde_derive --precise "1.0.98" --verbose
-}
-
-# Pin `cc` for Rust 1.29
-if [ -n "$PIN_VERSIONS" ]; then
-    pin_common_verions
-fi
-
-
 # Use toolchain if explicitly specified
 if [ -n "$TOOLCHAIN" ]
 then
