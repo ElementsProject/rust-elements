@@ -25,7 +25,6 @@ use std::str::FromStr;
 trait Call {
     fn call(&self, cmd: &str, args: &[Value]) -> Value;
     fn decode_psbt(&self, psbt: &str) -> Option<Value>;
-    fn analyze_psbt(&self, psbt: &str) -> Value;
     fn get_new_address(&self) -> String;
     fn get_pegin_address(&self) -> (String, String);
     fn wallet_create_funded_psbt(&self, address: &str) -> String;
@@ -208,10 +207,6 @@ impl Call for ElementsD {
         self.client()
             .call::<Value>("decodepsbt", &[psbt.into()])
             .ok()
-    }
-
-    fn analyze_psbt(&self, psbt: &str) -> Value {
-        self.call("decodepsbt", &[psbt.into()])
     }
 
     fn get_new_address(&self) -> String {
