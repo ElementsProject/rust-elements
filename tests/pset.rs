@@ -102,6 +102,7 @@ fn tx_issuance() {
 }
 
 #[test]
+#[ignore]  // TODO this fails because elements decodepsbt is not printing TxOut::asset (PSET_IN_WITNESS_UTXO)
 fn tx_pegin() {
     let (elementsd, bitcoind) = setup(true);
     let bitcoind = bitcoind.unwrap();
@@ -162,8 +163,7 @@ fn tx_pegin() {
     let psbt_base64 = elementsd.wallet_process_psbt(&psbt_base64);
     assert_eq!(elementsd.expected_next(&psbt_base64), "extractor");
 
-    // TODO this fails because elements decodepsbt is not printing TxOut::asset (PSET_IN_WITNESS_UTXO)
-    //psbt_rtt(&elementsd, &psbt_base64);
+    psbt_rtt(&elementsd, &psbt_base64);
 
     let tx_hex = elementsd.finalize_psbt(&rtt(&psbt_base64));
     assert!(elementsd.test_mempool_accept(&tx_hex));
