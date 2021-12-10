@@ -102,29 +102,19 @@ fn tx_issuance() {
 }
 
 #[test]
-#[ignore]  // TODO this fails because elements decodepsbt is not printing TxOut::asset (PSET_IN_WITNESS_UTXO)
+#[ignore] // TODO this fails because elements decodepsbt is not printing TxOut::asset (PSET_IN_WITNESS_UTXO)
 fn tx_pegin() {
     let (elementsd, bitcoind) = setup(true);
     let bitcoind = bitcoind.unwrap();
-    let mainchain_address = bitcoind.client.get_new_address(None, None).unwrap();
+    let btc_addr = bitcoind.client.get_new_address(None, None).unwrap();
     let address_lbtc = elementsd.get_new_address();
-    bitcoind
-        .client
-        .generate_to_address(101, &mainchain_address)
-        .unwrap();
+    bitcoind.client.generate_to_address(101, &btc_addr).unwrap();
     let (pegin_address, claim_script) = elementsd.get_pegin_address();
+    let address = Address::from_str(&pegin_address).unwrap();
+    let amount = Amount::from_sat(100_000_000);
     let txid = bitcoind
         .client
-        .send_to_address(
-            &Address::from_str(&pegin_address).unwrap(),
-            Amount::from_sat(100_000_000),
-            None,
-            None,
-            None,
-            None,
-            None,
-            None,
-        )
+        .send_to_address(&address, amount, None, None, None, None, None, None)
         .unwrap();
     let tx = bitcoind.client.get_raw_transaction(&txid, None).unwrap();
     let tx_bytes = serialize(&tx);
@@ -132,32 +122,20 @@ fn tx_pegin() {
         .output
         .iter()
         .position(|o| {
-            Address::from_script(&o.script_pubkey, bitcoin::Network::Regtest)
-                .unwrap()
-                .to_string()
-                == pegin_address
+            let addr = Address::from_script(&o.script_pubkey, bitcoin::Network::Regtest);
+            addr.unwrap().to_string() == pegin_address
         })
         .unwrap();
 
-    bitcoind
-        .client
-        .generate_to_address(101, &mainchain_address)
-        .unwrap();
+    bitcoind.client.generate_to_address(101, &btc_addr).unwrap();
     let proof = bitcoind.client.get_tx_out_proof(&[txid], None).unwrap();
     elementsd.generate(2);
     let inputs = json!([ {"txid":txid, "vout": vout,"pegin_bitcoin_tx": tx_bytes.to_hex(), "pegin_txout_proof": proof.to_hex(), "pegin_claim_script": claim_script } ]);
-    let value = elementsd.call(
-        "createpsbt",
-        &[
-            inputs,
-            json!([
-                {address_lbtc: "0.9", "blinder_index": 0},
-                {"fee": "0.1" }
-            ]),
-            0.into(),
-            false.into(),
-        ],
-    );
+    let outputs = json!([
+        {address_lbtc: "0.9", "blinder_index": 0},
+        {"fee": "0.1" }
+    ]);
+    let value = elementsd.call("createpsbt", &[inputs, outputs, 0.into(), false.into()]);
     let psbt_base64 = value.as_str().unwrap().to_string();
     assert_eq!(elementsd.expected_next(&psbt_base64), "updater");
     let psbt_base64 = elementsd.wallet_process_psbt(&psbt_base64);
@@ -218,20 +196,11 @@ impl Call for ElementsD {
 
     fn get_pegin_address(&self) -> (String, String) {
         let value = self.call("getpeginaddress", &[]);
-        (
-            value
-                .get("mainchain_address")
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .to_string(),
-            value
-                .get("claim_script")
-                .unwrap()
-                .as_str()
-                .unwrap()
-                .to_string(),
-        )
+        let mainchain_address = value.get("mainchain_address").unwrap();
+        let mainchain_address = mainchain_address.as_str().unwrap().to_string();
+        let claim_script = value.get("claim_script").unwrap();
+        let claim_script = claim_script.as_str().unwrap().to_string();
+        (mainchain_address, claim_script)
     }
 
     fn generate(&self, blocks: u32) {
@@ -276,13 +245,8 @@ impl Call for ElementsD {
 
     fn test_mempool_accept(&self, hex: &str) -> bool {
         let result = self.call("testmempoolaccept", &[json!([hex])]);
-        result
-            .get(0)
-            .unwrap()
-            .get("allowed")
-            .unwrap()
-            .as_bool()
-            .unwrap()
+        let allowed = result.get(0).unwrap().get("allowed");
+        allowed.unwrap().as_bool().unwrap()
     }
 }
 
