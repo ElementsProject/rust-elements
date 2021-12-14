@@ -77,16 +77,16 @@ macro_rules! sha256t_hash_newtype {
 
 // Taproot test vectors from BIP-341 state the hashes without any reversing
 sha256t_hash_newtype!(TapLeafHash, TapLeafTag, MIDSTATE_TAPLEAF, 64,
-    doc="Taproot-tagged hash for tapscript Merkle tree leafs", false
+    doc="Taproot-tagged hash for elements tapscript Merkle tree leafs", false
 );
 sha256t_hash_newtype!(TapBranchHash, TapBranchTag, MIDSTATE_TAPBRANCH, 64,
-    doc="Taproot-tagged hash for tapscript Merkle tree branches", false
+    doc="Taproot-tagged hash for elements tapscript Merkle tree branches", false
 );
 sha256t_hash_newtype!(TapTweakHash, TapTweakTag, MIDSTATE_TAPTWEAK, 64,
-    doc="Taproot-tagged hash for public key tweaks", false
+    doc="Taproot-tagged hash for elements public key tweaks", false
 );
 sha256t_hash_newtype!(TapSighashHash, TapSighashTag, MIDSTATE_TAPSIGHASH, 64,
-    doc="Taproot-tagged hash for the taproot signature hash", false
+    doc="Taproot-tagged hash for the elements taproot signature hash", false
 );
 
 impl TapTweakHash {
@@ -124,22 +124,16 @@ impl TapLeafHash {
 }
 
 /// Maximum depth of a Taproot Tree Script spend path
-// https://github.com/bitcoin/bitcoin/blob/e826b22da252e0599c61d21c98ff89f366b3120f/src/script/interpreter.h#L229
 pub const TAPROOT_CONTROL_MAX_NODE_COUNT: usize = 128;
 /// Size of a taproot control node
-// https://github.com/bitcoin/bitcoin/blob/e826b22da252e0599c61d21c98ff89f366b3120f/src/script/interpreter.h#L228
 pub const TAPROOT_CONTROL_NODE_SIZE: usize = 32;
 /// Tapleaf mask for getting the leaf version from first byte of control block
-// https://github.com/bitcoin/bitcoin/blob/e826b22da252e0599c61d21c98ff89f366b3120f/src/script/interpreter.h#L225
 pub const TAPROOT_LEAF_MASK: u8 = 0xfe;
-/// Tapscript leaf version
-// https://github.com/bitcoin/bitcoin/blob/e826b22da252e0599c61d21c98ff89f366b3120f/src/script/interpreter.h#L226
-pub const TAPROOT_LEAF_TAPSCRIPT: u8 = 0xc0;
+/// Tapscript leaf version (Note that this is different from bitcoin's 0xc0)
+pub const TAPROOT_LEAF_TAPSCRIPT: u8 = 0xc4;
 /// Tapscript control base size
-// https://github.com/bitcoin/bitcoin/blob/e826b22da252e0599c61d21c98ff89f366b3120f/src/script/interpreter.h#L227
 pub const TAPROOT_CONTROL_BASE_SIZE: usize = 33;
 /// Tapscript control max size
-// https://github.com/bitcoin/bitcoin/blob/e826b22da252e0599c61d21c98ff89f366b3120f/src/script/interpreter.h#L230
 pub const TAPROOT_CONTROL_MAX_SIZE: usize =
     TAPROOT_CONTROL_BASE_SIZE + TAPROOT_CONTROL_NODE_SIZE * TAPROOT_CONTROL_MAX_NODE_COUNT;
 
@@ -157,7 +151,7 @@ type ScriptMerkleProofMap = BTreeMap<(Script, LeafVersion), BTreeSet<TaprootMerk
 ///
 /// If one or more of the spending conditions consist of just a single key (after aggregation),
 /// the most likely one should be made the internal key.
-/// See [BIP341](https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki) for more details
+/// See [BIP341 for elements](https://github.com/ElementsProject/elements/blob/master/doc/taproot-sighash.mediawiki) for more details
 /// on choosing internal keys for a taproot application
 ///
 /// Note: This library currently does not support [annex](https://github.com/bitcoin/bips/blob/master/bip-0341.mediawiki#cite_note-5)
