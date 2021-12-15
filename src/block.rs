@@ -287,6 +287,22 @@ impl BlockHeader {
             }
         }
     }
+
+    /// Get the current dynafed parameters if it's a dynafed header.
+    pub fn dynafed_current(&self) -> Option<&dynafed::Params> {
+        match self.ext {
+            ExtData::Dynafed { ref current, .. } => Some(current),
+            ExtData::Proof { .. } => None,
+        }
+    }
+
+    /// Get the proposed dynafed parameters if it's a dynafed header.
+    pub fn dynafed_proposed(&self) -> Option<&dynafed::Params> {
+        match self.ext {
+            ExtData::Dynafed { ref proposed, .. } => Some(proposed),
+            ExtData::Proof { .. } => None,
+        }
+    }
 }
 
 impl Encodable for BlockHeader {
