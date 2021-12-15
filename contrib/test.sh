@@ -33,3 +33,11 @@ then
         ./travis-fuzz.sh
     )
 fi
+
+# Do integration test if told to
+if [ "$DO_INTEGRATION" = true ]
+then
+    (
+        cargo test --features integration
+    )
+fi
