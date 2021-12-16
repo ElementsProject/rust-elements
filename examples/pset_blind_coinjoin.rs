@@ -19,8 +19,8 @@ use std::{collections::HashMap, str::FromStr};
 
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::{
-    bitcoin::PublicKey, pset::PartiallySignedTransaction as Pset, OutPoint,
-    Script, TxOutSecrets, TxOutWitness, Txid, WScriptHash,
+    bitcoin::PublicKey, pset::PartiallySignedTransaction as Pset, OutPoint, Script, TxOutSecrets,
+    TxOutWitness, Txid, WScriptHash,
 };
 use elements::{pset, secp256k1_zkp};
 
@@ -264,19 +264,14 @@ fn main() {
     // ----------------------------------------------------------
     // B Adds it's own outputs. Step 2 completed
     // ----- Step 3: B to blind it's own outputs
-    let inp_txout_sec = [
-        None,
-        Some(&asset_txout_secrets.sec),
-    ];
+    let inp_txout_sec = [None, Some(&asset_txout_secrets.sec)];
 
-    pset.blind_non_last(&mut rng, &secp, &inp_txout_sec).unwrap();
+    pset.blind_non_last(&mut rng, &secp, &inp_txout_sec)
+        .unwrap();
     assert_eq!(pset, deser_pset(&tests["pset_coinjoined_B_blinded"]));
 
     // Step 4: A blinds it's own inputs
-    let inp_txout_sec = [
-        Some(&btc_txout_secrets.sec),
-        None,
-    ];
+    let inp_txout_sec = [Some(&btc_txout_secrets.sec), None];
     pset.blind_last(&mut rng, &secp, &inp_txout_sec).unwrap();
     assert_eq!(pset, deser_pset(&tests["pset_coinjoined_blinded"]));
 

@@ -115,9 +115,21 @@ mod tests {
         let mut leaves = vec![];
         for i in 0..4 {
             let root = fast_merkle_root(&leaves);
-            assert_eq!(root, FromHex::from_hex(&test_roots[i]).unwrap(), "root #{}", i);
-            leaves.push(sha256::Midstate::from_hex(&test_leaves[i]).unwrap().into_inner());
+            assert_eq!(
+                root,
+                FromHex::from_hex(&test_roots[i]).unwrap(),
+                "root #{}",
+                i
+            );
+            leaves.push(
+                sha256::Midstate::from_hex(&test_leaves[i])
+                    .unwrap()
+                    .into_inner(),
+            );
         }
-        assert_eq!(fast_merkle_root(&leaves), FromHex::from_hex(test_roots[4]).unwrap());
+        assert_eq!(
+            fast_merkle_root(&leaves),
+            FromHex::from_hex(test_roots[4]).unwrap()
+        );
     }
 }

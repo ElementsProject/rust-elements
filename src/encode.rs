@@ -15,16 +15,16 @@
 //! Consensus-encodable types
 //!
 
+use hashes;
 use std::io::Cursor;
 use std::{error, fmt, io, mem};
-use hashes;
 
 use bitcoin::consensus::encode as btcenc;
 use bitcoin::hashes::sha256;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
-use transaction::{Transaction, TxIn, TxOut};
 use pset;
+use transaction::{Transaction, TxIn, TxOut};
 
 pub use bitcoin::{self, consensus::encode::MAX_VEC_SIZE};
 
@@ -68,7 +68,11 @@ impl fmt::Display for Error {
             Error::OversizedVectorAllocation {
                 requested: ref r,
                 max: ref m,
-            } => write!(f, "oversized vector allocation: requested {}, maximum {}", r, m),
+            } => write!(
+                f,
+                "oversized vector allocation: requested {}, maximum {}",
+                r, m
+            ),
             Error::ParseFailed(ref e) => write!(f, "parse failed: {}", e),
             Error::UnexpectedEOF => write!(f, "unexpected EOF"),
             Error::InvalidConfidentialPrefix(p) => {
@@ -169,7 +173,9 @@ pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
     if consumed == data.len() {
         Ok(rv)
     } else {
-        Err(Error::ParseFailed("data not consumed entirely when explicitly deserializing"))
+        Err(Error::ParseFailed(
+            "data not consumed entirely when explicitly deserializing",
+        ))
     }
 }
 
@@ -266,7 +272,6 @@ impl_vec!(TxIn);
 impl_vec!(TxOut);
 impl_vec!(Transaction);
 
-
 macro_rules! impl_option {
     ($type: ty) => {
         impl Encodable for Option<$type> {
@@ -282,7 +287,7 @@ macro_rules! impl_option {
         impl Decodable for Option<$type> {
             #[inline]
             fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, Error> {
-                let v : Vec<u8> = Decodable::consensus_decode(&mut d)?;
+                let v: Vec<u8> = Decodable::consensus_decode(&mut d)?;
                 if v.is_empty() {
                     Ok(None)
                 } else {
@@ -290,7 +295,7 @@ macro_rules! impl_option {
                 }
             }
         }
-    }
+    };
 }
 // special implementations for elements only fields
 impl Encodable for Tweak {
@@ -325,7 +330,9 @@ impl Encodable for SurjectionProof {
 
 impl Decodable for SurjectionProof {
     fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
-        Ok(SurjectionProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
+        Ok(SurjectionProof::from_slice(&<Vec<u8>>::consensus_decode(
+            d,
+        )?)?)
     }
 }
 

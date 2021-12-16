@@ -12,20 +12,23 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io};
+use std::{
+    cmp,
+    collections::btree_map::{BTreeMap, Entry},
+    io,
+};
 
-use {Script, AssetIssuance, SigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
-use encode::{self, Decodable};
-use confidential;
 use bitcoin::util::bip32::KeySource;
 use bitcoin::{self, PublicKey};
+use confidential;
+use encode::{self, Decodable};
 use hashes::{self, hash160, ripemd160, sha256, sha256d};
 use pset::map::Map;
 use pset::raw;
 use pset::serialize;
-use pset::{self, Error, error};
+use pset::{self, error, Error};
 use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
-
+use {AssetIssuance, BlockHash, Script, SigHashType, Transaction, TxIn, TxOut, Txid};
 
 use OutPoint;
 
@@ -221,15 +224,20 @@ pub struct Input {
     /// Proof that blinded inflation keys matches the corresponding commitment
     pub in_issuance_blind_inflation_keys_proof: Option<RangeProof>,
     /// Other fields
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "::serde_utils::btreemap_as_seq_byte_values")
+    )]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
     /// Unknown key-value pairs for this input.
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "::serde_utils::btreemap_as_seq_byte_values")
+    )]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
-impl Input{
-
+impl Input {
     /// Create a psbt input from prevout
     /// without any issuance or pegins
     pub fn from_prevout(outpoint: OutPoint) -> Self {
@@ -255,15 +263,16 @@ impl Input{
             ret.issuance_blinding_nonce = Some(txin.asset_issuance.asset_blinding_nonce);
             ret.issuance_asset_entropy = Some(txin.asset_issuance.asset_entropy);
             match txin.asset_issuance.amount {
-                confidential::Value::Null => { },
+                confidential::Value::Null => {}
                 confidential::Value::Explicit(x) => ret.issuance_value_amount = Some(x),
                 confidential::Value::Confidential(comm) => ret.issuance_value_comm = Some(comm),
             }
             match txin.asset_issuance.inflation_keys {
-                confidential::Value::Null => { },
+                confidential::Value::Null => {}
                 confidential::Value::Explicit(x) => ret.issuance_inflation_keys = Some(x),
-                confidential::Value::Confidential(comm) =>
-                    ret.issuance_inflation_keys_comm = Some(comm),
+                confidential::Value::Confidential(comm) => {
+                    ret.issuance_inflation_keys_comm = Some(comm)
+                }
             }
 
             // Witness
@@ -286,15 +295,17 @@ impl Input{
     /// Get the issuance for this tx input
     pub fn asset_issuance(&self) -> AssetIssuance {
         AssetIssuance {
-            asset_blinding_nonce: *self.issuance_blinding_nonce.as_ref()
-                .unwrap_or(&ZERO_TWEAK),
+            asset_blinding_nonce: *self.issuance_blinding_nonce.as_ref().unwrap_or(&ZERO_TWEAK),
             asset_entropy: self.issuance_asset_entropy.unwrap_or_default(),
             amount: match (self.issuance_value_amount, self.issuance_value_comm) {
                 (None, None) => confidential::Value::Null,
                 (_, Some(comm)) => confidential::Value::Confidential(comm),
                 (Some(x), None) => confidential::Value::Explicit(x),
             },
-            inflation_keys: match (self.issuance_inflation_keys, self.issuance_inflation_keys_comm) {
+            inflation_keys: match (
+                self.issuance_inflation_keys,
+                self.issuance_inflation_keys_comm,
+            ) {
                 (None, None) => confidential::Value::Null,
                 (_, Some(comm)) => confidential::Value::Confidential(comm),
                 (Some(x), None) => confidential::Value::Explicit(x),
@@ -357,18 +368,38 @@ impl Map for Input {
                 }
             }
             PSET_IN_RIPEMD160 => {
-                pset_insert_hash_pair(&mut self.ripemd160_preimages, raw_key, raw_value, error::PsetHash::Ripemd)?;
+                pset_insert_hash_pair(
+                    &mut self.ripemd160_preimages,
+                    raw_key,
+                    raw_value,
+                    error::PsetHash::Ripemd,
+                )?;
             }
             PSET_IN_SHA256 => {
-                pset_insert_hash_pair(&mut self.sha256_preimages, raw_key, raw_value, error::PsetHash::Sha256)?;
+                pset_insert_hash_pair(
+                    &mut self.sha256_preimages,
+                    raw_key,
+                    raw_value,
+                    error::PsetHash::Sha256,
+                )?;
             }
             PSET_IN_HASH160 => {
-                pset_insert_hash_pair(&mut self.hash160_preimages, raw_key, raw_value, error::PsetHash::Hash160)?;
+                pset_insert_hash_pair(
+                    &mut self.hash160_preimages,
+                    raw_key,
+                    raw_value,
+                    error::PsetHash::Hash160,
+                )?;
             }
             PSET_IN_HASH256 => {
-                pset_insert_hash_pair(&mut self.hash256_preimages, raw_key, raw_value, error::PsetHash::Hash256)?;
+                pset_insert_hash_pair(
+                    &mut self.hash256_preimages,
+                    raw_key,
+                    raw_value,
+                    error::PsetHash::Hash256,
+                )?;
             }
-            PSET_IN_PREVIOUS_TXID| PSET_IN_OUTPUT_INDEX => {
+            PSET_IN_PREVIOUS_TXID | PSET_IN_OUTPUT_INDEX => {
                 return Err(Error::DuplicateKey(raw_key))?;
             }
             PSET_IN_SEQUENCE => {
@@ -443,11 +474,11 @@ impl Map for Input {
                             impl_pset_prop_insert_pair!(self.in_issuance_blind_inflation_keys_proof <= <raw_key: _> | <raw_value : RangeProof>)
                         }
                         _ => match self.proprietary.entry(prop_key) {
-                                Entry::Vacant(empty_key) => {
-                                    empty_key.insert(raw_value);
-                                }
-                                Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
-                        }
+                            Entry::Vacant(empty_key) => {
+                                empty_key.insert(raw_value);
+                            }
+                            Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
+                        },
                     }
                 }
             }
@@ -455,9 +486,7 @@ impl Map for Input {
                 Entry::Vacant(empty_key) => {
                     empty_key.insert(raw_value);
                 }
-                Entry::Occupied(k) => {
-                    return Err(Error::DuplicateKey(k.key().clone()).into())
-                }
+                Entry::Occupied(k) => return Err(Error::DuplicateKey(k.key().clone()).into()),
             },
         }
 
@@ -521,14 +550,20 @@ impl Map for Input {
 
         // Mandatory field: Prev Txid
         rv.push(raw::Pair {
-            key: raw::Key { type_value: PSET_IN_PREVIOUS_TXID, key: vec![]},
-            value: serialize::Serialize::serialize(&self.previous_txid)
+            key: raw::Key {
+                type_value: PSET_IN_PREVIOUS_TXID,
+                key: vec![],
+            },
+            value: serialize::Serialize::serialize(&self.previous_txid),
         });
 
         // Mandatory field: prev out index
         rv.push(raw::Pair {
-            key: raw::Key { type_value: PSET_IN_OUTPUT_INDEX, key: vec![]},
-            value: serialize::Serialize::serialize(&self.previous_output_index)
+            key: raw::Key {
+                type_value: PSET_IN_OUTPUT_INDEX,
+                key: vec![],
+            },
+            value: serialize::Serialize::serialize(&self.previous_output_index),
         });
 
         impl_pset_get_pair! {
@@ -654,8 +689,12 @@ impl Map for Input {
         merge!(final_script_witness, self, other);
 
         // Should we do this?
-        self.required_time_locktime = cmp::max(self.required_time_locktime, other.required_time_locktime);
-        self.required_height_locktime = cmp::max(self.required_height_locktime, other.required_height_locktime);
+        self.required_time_locktime =
+            cmp::max(self.required_time_locktime, other.required_time_locktime);
+        self.required_height_locktime = cmp::max(
+            self.required_height_locktime,
+            other.required_height_locktime,
+        );
 
         // elements
         merge!(issuance_value_amount, self, other);
@@ -686,7 +725,6 @@ impl_psetmap_consensus_encoding!(Input);
 // not optional and cannot by set by insert_pair
 impl Decodable for Input {
     fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
-
         // Sets the default to [0;32] and [0;4]
         let mut rv = Self::default();
         let mut prev_vout: Option<u32> = None;
@@ -710,7 +748,10 @@ impl Decodable for Input {
                                 prev_vout <= <raw_key: _>|<raw_value: u32>
                             }
                         }
-                        _ =>  rv.insert_pair(raw::Pair { key: raw_key, value: raw_value })?,
+                        _ => rv.insert_pair(raw::Pair {
+                            key: raw_key,
+                            value: raw_value,
+                        })?,
                     }
                 }
                 Err(::encode::Error::PsetError(::pset::Error::NoMorePairs)) => break,

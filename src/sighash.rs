@@ -19,15 +19,15 @@
 //! signatures, which are placed in the scriptSig.
 //!
 
+use confidential;
 use encode::{self, Encodable};
+use endian;
 use hash_types::SigHash;
 use hashes::{sha256d, Hash};
 use script::Script;
-use std::ops::Deref;
 use std::io;
-use endian;
-use transaction::{SigHashType, Transaction, TxIn, TxOut, TxInWitness};
-use confidential;
+use std::ops::Deref;
+use transaction::{SigHashType, Transaction, TxIn, TxInWitness, TxOut};
 
 /// A replacement for SigHashComponents which supports all sighash modes
 pub struct SigHashCache<T> {
@@ -76,16 +76,16 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         script_pubkey: &Script,
         sighash_type: SigHashType,
     ) -> Result<(), encode::Error> {
-        assert!(input_index < self.tx.input.len());  // Panic on OOB
+        assert!(input_index < self.tx.input.len()); // Panic on OOB
 
         let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
 
         // Special-case sighash_single bug because this is easy enough.
         if sighash == SigHashType::Single && input_index >= self.tx.output.len() {
-            writer.write_all(&[1, 0, 0, 0, 0, 0, 0, 0,
-                               0, 0, 0, 0, 0, 0, 0, 0,
-                               0, 0, 0, 0, 0, 0, 0, 0,
-                               0, 0, 0, 0, 0, 0, 0, 0])?;
+            writer.write_all(&[
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0,
+            ])?;
             return Ok(());
         }
 
@@ -114,8 +114,18 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
                     previous_output: input.previous_output,
                     is_pegin: input.is_pegin,
                     has_issuance: input.has_issuance,
-                    script_sig: if n == input_index { script_pubkey.clone() } else { Script::new() },
-                    sequence: if n != input_index && (sighash == SigHashType::Single || sighash == SigHashType::None) { 0 } else { input.sequence },
+                    script_sig: if n == input_index {
+                        script_pubkey.clone()
+                    } else {
+                        Script::new()
+                    },
+                    sequence: if n != input_index
+                        && (sighash == SigHashType::Single || sighash == SigHashType::None)
+                    {
+                        0
+                    } else {
+                        input.sequence
+                    },
                     asset_issuance: input.asset_issuance,
                     witness: TxInWitness::default(),
                 });
@@ -125,14 +135,23 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         tx.output = match sighash {
             SigHashType::All => self.tx.output.clone(),
             SigHashType::Single => {
-                let output_iter = self.tx.output.iter()
-                                      .take(input_index + 1)  // sign all outputs up to and including this one, but erase
-                                      .enumerate()            // all of them except for this one
-                                      .map(|(n, out)| if n == input_index { out.clone() } else { TxOut::default() });
+                let output_iter = self
+                    .tx
+                    .output
+                    .iter()
+                    .take(input_index + 1) // sign all outputs up to and including this one, but erase
+                    .enumerate() // all of them except for this one
+                    .map(|(n, out)| {
+                        if n == input_index {
+                            out.clone()
+                        } else {
+                            TxOut::default()
+                        }
+                    });
                 output_iter.collect()
             }
             SigHashType::None => vec![],
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         // hash the result
         // cannot encode tx directly because of different consensus encoding
@@ -282,7 +301,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             script_code.consensus_encode(&mut writer)?;
             value.consensus_encode(&mut writer)?;
             txin.sequence.consensus_encode(&mut writer)?;
-            if txin.has_issuance(){
+            if txin.has_issuance() {
                 txin.asset_issuance.consensus_encode(&mut writer)?;
             }
         }
@@ -317,23 +336,36 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         input_index: usize,
         script_code: &Script,
         value: confidential::Value,
-        sighash_type: SigHashType
+        sighash_type: SigHashType,
     ) -> SigHash {
         let mut enc = SigHash::engine();
-        self.encode_segwitv0_signing_data_to(&mut enc, input_index, script_code, value, sighash_type)
-            .expect("engines don't error");
+        self.encode_segwitv0_signing_data_to(
+            &mut enc,
+            input_index,
+            script_code,
+            value,
+            sighash_type,
+        )
+        .expect("engines don't error");
         SigHash::from_engine(enc)
     }
 }
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
-    use encode::deserialize;
-    use bitcoin::hashes::hex::FromHex;
     use bitcoin;
+    use bitcoin::hashes::hex::FromHex;
+    use encode::deserialize;
 
-    fn test_segwit_sighash(tx: &str, script: &str, input_index: usize, value: &str, hash_type: SigHashType, expected_result: &str) {
+    fn test_segwit_sighash(
+        tx: &str,
+        script: &str,
+        input_index: usize,
+        value: &str,
+        hash_type: SigHashType,
+        expected_result: &str,
+    ) {
         let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
@@ -341,13 +373,14 @@ mod tests{
         let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
 
         let mut cache = SigHashCache::new(&tx);
-        let value : confidential::Value = deserialize(&Vec::<u8>::from_hex(value).unwrap()[..]).unwrap();
+        let value: confidential::Value =
+            deserialize(&Vec::<u8>::from_hex(value).unwrap()[..]).unwrap();
         let actual_result = cache.segwitv0_sighash(input_index, &script, value, hash_type);
         assert_eq!(actual_result, expected_result);
     }
 
     #[test]
-    fn test_segwit_sighashes(){
+    fn test_segwit_sighashes() {
         // generated by script(example_test.py) at https://github.com/sanket1729/elements/commit/8fb4eb9e6020adaf20f3ec25055ffa905ba5b5c4
         test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", SigHashType::All, "e201b4019129a03ca0304989731c6dccde232c854d86fce999b7411da1e90048");
         test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", SigHashType::None, "bfc6599816673083334ae82ac3459a2d0fef478d3e580e3ae203a28347502cb4");
@@ -366,8 +399,13 @@ mod tests{
         test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003e801000000000000000a0201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", SigHashType::All, "ea946ee417d5a16a1038b2c3b54d1b7b12a9f98c0dcb4684bf005eb1c27d0c92");
     }
 
-
-    fn test_legacy_sighash(tx: &str, script: &str, input_index: usize, hash_type: SigHashType, expected_result: &str) {
+    fn test_legacy_sighash(
+        tx: &str,
+        script: &str,
+        input_index: usize,
+        hash_type: SigHashType,
+        expected_result: &str,
+    ) {
         let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
@@ -379,7 +417,7 @@ mod tests{
     }
 
     #[test]
-    fn test_legacy_sighashes(){
+    fn test_legacy_sighashes() {
         // generated by script(example_test.py) at https://github.com/sanket1729/elements/commit/5ddfb5a749e85b71c961d29d5689d692ef7cee4b
         test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, SigHashType::All, "769ad754a77282712895475eb17251bcb8f3cc35dc13406fa1188ef2707556cf");
         test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, SigHashType::None, "b399ca018b4fec7d94e47092b72d25983db2d0d16eaa6a672050add66077ef40");
