@@ -20,17 +20,17 @@ use std::fmt;
 use std::str::FromStr;
 
 use bitcoin::bech32::{self, u5, FromBase32, ToBase32};
+use bitcoin::hashes::Hash;
 use bitcoin::util::base58;
 use bitcoin::PublicKey;
-use bitcoin::hashes::Hash;
 use secp256k1_zkp;
 #[cfg(feature = "serde")]
 use serde;
 
 use blech32;
 
-use {PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 use {opcodes, script};
+use {PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 
 /// Encoding error
 #[derive(Debug, PartialEq)]
@@ -71,10 +71,18 @@ impl fmt::Display for AddressError {
                 write!(f, "invalid witness script version: {}", wver)
             }
             AddressError::InvalidWitnessProgramLength(ref len) => {
-                write!(f, "the witness program must be between 2 and 40 bytes in length, not {}", len)
+                write!(
+                    f,
+                    "the witness program must be between 2 and 40 bytes in length, not {}",
+                    len
+                )
             }
             AddressError::InvalidSegwitV0ProgramLength(ref len) => {
-                write!(f, "a v0 witness program must be length 20 or 32, not {}", len)
+                write!(
+                    f,
+                    "a v0 witness program must be length 20 or 32, not {}",
+                    len
+                )
             }
             AddressError::InvalidBlindingPubKey(ref e) => {
                 write!(f, "an invalid blinding pubkey was encountered: {}", e)
@@ -185,7 +193,8 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = PubkeyHash::engine();
-        pk.write_into(&mut hash_engine).expect("engines don't error");
+        pk.write_into(&mut hash_engine)
+            .expect("engines don't error");
 
         Address {
             params,
@@ -217,7 +226,8 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = WPubkeyHash::engine();
-        pk.write_into(&mut hash_engine).expect("engines don't error");
+        pk.write_into(&mut hash_engine)
+            .expect("engines don't error");
 
         Address {
             params,
@@ -237,7 +247,8 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = ScriptHash::engine();
-        pk.write_into(&mut hash_engine).expect("engines don't error");
+        pk.write_into(&mut hash_engine)
+            .expect("engines don't error");
 
         let builder = script::Builder::new()
             .push_int(0)
@@ -335,7 +346,9 @@ impl Address {
             Payload::WitnessProgram {
                 version: witver,
                 program: ref witprog,
-            } => script::Builder::new().push_int(witver.to_u8() as i64).push_slice(&witprog),
+            } => script::Builder::new()
+                .push_int(witver.to_u8() as i64)
+                .push_slice(&witprog),
         }
         .into_script()
     }
@@ -393,9 +406,11 @@ impl Address {
             return Err(AddressError::InvalidWitnessVersion(version.to_u8()));
         }
         if data.len() < 2 || data.len() > 40 + if blinded { 33 } else { 0 } {
-            return Err(AddressError::InvalidWitnessProgramLength(data.len() - if blinded { 33 } else { 0 }));
+            return Err(AddressError::InvalidWitnessProgramLength(
+                data.len() - if blinded { 33 } else { 0 },
+            ));
         }
- 
+
         // Specific segwit v0 check.
         if !blinded && version.to_u8() == 0 && data.len() != 20 && data.len() != 32 {
             return Err(AddressError::InvalidSegwitV0ProgramLength(data.len()));
@@ -423,10 +438,7 @@ impl Address {
 
         Ok(Address {
             params,
-            payload: Payload::WitnessProgram {
-                version,
-                program,
-            },
+            payload: Payload::WitnessProgram { version, program },
             blinding_pubkey,
         })
     }
@@ -558,7 +570,11 @@ impl fmt::Display for Address {
                         blech32::encode_to_fmt(fmt, &hrp, &b32_data, blech32::Variant::Blech32m)
                     }
                 } else {
-                    let var = if witver.to_u8() == 0 { bech32::Variant::Bech32 } else { bech32::Variant::Bech32m };
+                    let var = if witver.to_u8() == 0 {
+                        bech32::Variant::Bech32
+                    } else {
+                        bech32::Variant::Bech32m
+                    };
                     let mut bech32_writer = bech32::Bech32Writer::new(hrp, var, fmt)?;
                     bech32::WriteBase32::write_u5(&mut bech32_writer, witver)?;
                     bech32::ToBase32::write_base32(&witprog, &mut bech32_writer)
@@ -700,9 +716,9 @@ mod test {
     use super::*;
     use bitcoin::util::key;
     use secp256k1_zkp::{PublicKey, Secp256k1};
-    use Script;
     #[cfg(feature = "serde")]
     use serde_json;
+    use Script;
 
     fn roundtrips(addr: &Address) {
         assert_eq!(
@@ -719,7 +735,9 @@ mod test {
         );
         #[cfg(feature = "serde")]
         assert_eq!(
-            serde_json::from_value::<Address>(serde_json::to_value(&addr).unwrap()).ok().as_ref(),
+            serde_json::from_value::<Address>(serde_json::to_value(&addr).unwrap())
+                .ok()
+                .as_ref(),
             Some(addr)
         );
     }
@@ -788,7 +806,12 @@ mod test {
 
         for &(a, blinded, ref params) in &addresses {
             let result = a.parse();
-            assert!(result.is_ok(), "vector: {}, err: \"{}\"", a, result.unwrap_err());
+            assert!(
+                result.is_ok(),
+                "vector: {}, err: \"{}\"",
+                a,
+                result.unwrap_err()
+            );
             let addr: Address = result.unwrap();
             assert_eq!(a, &addr.to_string(), "vector: {}", a);
             assert_eq!(blinded, addr.is_blinded());
@@ -815,7 +838,8 @@ mod test {
             "v0 witness program must use b(l)ech32 not b(l)ech32m",
         );
 
-        let address: Result<Address, _> = "ert130xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqqu2tys".parse();
+        let address: Result<Address, _> =
+            "ert130xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqqu2tys".parse();
         assert_eq!(
             address.err().unwrap().to_string(),
             "invalid witness script version: 17",

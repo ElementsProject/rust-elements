@@ -305,15 +305,9 @@ fn main() {
 
     // Finalize(TODO in miniscript)
     pset.inputs_mut()[0].partial_sigs.clear();
-    pset.inputs_mut()[0].final_script_witness = Some(vec![
-        inp0_sig,
-        inp0_pk.to_bytes(),
-    ]);
+    pset.inputs_mut()[0].final_script_witness = Some(vec![inp0_sig, inp0_pk.to_bytes()]);
     pset.inputs_mut()[1].partial_sigs.clear();
-    pset.inputs_mut()[1].final_script_witness = Some(vec![
-        inp1_sig,
-        inp1_pk.to_bytes(),
-    ]);
+    pset.inputs_mut()[1].final_script_witness = Some(vec![inp1_sig, inp1_pk.to_bytes()]);
     assert_eq!(pset, deser_pset(&tests["finalized"]));
 
     // Extracted tx

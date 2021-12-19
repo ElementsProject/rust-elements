@@ -12,23 +12,23 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use std::{collections::BTreeMap, io};
 use std::collections::btree_map::Entry;
+use std::{collections::BTreeMap, io};
 
-use {Script, encode, TxOutWitness};
 use bitcoin::util::bip32::KeySource;
 use bitcoin::{self, PublicKey};
-use {pset, confidential};
 use encode::Decodable;
 use pset::map::Map;
 use pset::raw;
 use pset::Error;
 use secp256k1_zkp::{self, Generator, RangeProof, SurjectionProof};
+use {confidential, pset};
+use {encode, Script, TxOutWitness};
 
 use issuance;
 
-use TxOut;
 use AssetId;
+use TxOut;
 
 /// Type: Redeem Script PSET_OUT_REDEEM_SCRIPT = 0x00
 const PSET_OUT_REDEEM_SCRIPT: u8 = 0x00;
@@ -115,15 +115,20 @@ pub struct Output {
     pub blind_asset_proof: Option<SurjectionProof>,
     /// Pset
     /// Other fields
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "::serde_utils::btreemap_as_seq_byte_values")
+    )]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
     /// Unknown key-value pairs for this output.
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "::serde_utils::btreemap_as_seq_byte_values")
+    )]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
-impl Output{
-
+impl Output {
     /// Create a new explicit pset output
     pub fn new_explicit(
         script: Script,
@@ -149,12 +154,12 @@ impl Output{
     pub fn from_txout(txout: TxOut) -> Self {
         let mut rv = Self::default();
         match txout.value {
-            confidential::Value::Null => { },
+            confidential::Value::Null => {}
             confidential::Value::Explicit(x) => rv.amount = Some(x),
             confidential::Value::Confidential(comm) => rv.amount_comm = Some(comm),
         }
         match txout.asset {
-            confidential::Asset::Null => { },
+            confidential::Asset::Null => {}
             confidential::Asset::Explicit(x) => rv.asset = Some(x),
             confidential::Asset::Confidential(comm) => rv.asset_comm = Some(comm),
         }
@@ -191,8 +196,10 @@ impl Output{
             nonce: if self.is_partially_blinded() {
                 self.ecdh_pubkey.map(|pk| confidential::Nonce::from(pk.key))
             } else {
-                self.blinding_key.map(|pk| confidential::Nonce::from(pk.key))
-            }.unwrap_or_default(),
+                self.blinding_key
+                    .map(|pk| confidential::Nonce::from(pk.key))
+            }
+            .unwrap_or_default(),
             script_pubkey: self.script_pubkey.clone(),
             witness: TxOutWitness {
                 surjection_proof: self.asset_surjection_proof.clone(),
@@ -209,23 +216,22 @@ impl Output{
 
     /// IsPartiallyBlinded from elements core
     pub fn is_partially_blinded(&self) -> bool {
-        self.is_marked_for_blinding() && (
-            self.amount_comm.is_some() ||
-            self.asset_comm.is_some() ||
-            self.value_rangeproof.is_some() ||
-            self.asset_surjection_proof.is_some() ||
-            self.ecdh_pubkey.is_some()
-        )
+        self.is_marked_for_blinding()
+            && (self.amount_comm.is_some()
+                || self.asset_comm.is_some()
+                || self.value_rangeproof.is_some()
+                || self.asset_surjection_proof.is_some()
+                || self.ecdh_pubkey.is_some())
     }
 
     /// IsFullyBlinded from elements core
     pub fn is_fully_blinded(&self) -> bool {
-        self.is_marked_for_blinding() &&
-        self.amount_comm.is_some() &&
-        self.asset_comm.is_some() &&
-        self.value_rangeproof.is_some() &&
-        self.asset_surjection_proof.is_some() &&
-        self.ecdh_pubkey.is_some()
+        self.is_marked_for_blinding()
+            && self.amount_comm.is_some()
+            && self.asset_comm.is_some()
+            && self.value_rangeproof.is_some()
+            && self.asset_surjection_proof.is_some()
+            && self.ecdh_pubkey.is_some()
     }
 }
 
@@ -293,25 +299,33 @@ impl Map for Output {
                         PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF => {
                             impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : SurjectionProof>)
                         }
-                        _ => {
-                            match self.proprietary.entry(prop_key) {
-                                Entry::Vacant(empty_key) => {empty_key.insert(raw_value);},
-                                Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key.clone()).into()),
+                        _ => match self.proprietary.entry(prop_key) {
+                            Entry::Vacant(empty_key) => {
+                                empty_key.insert(raw_value);
                             }
-                        }
+                            Entry::Occupied(_) => {
+                                return Err(Error::DuplicateKey(raw_key.clone()).into())
+                            }
+                        },
                     }
                 } else {
                     match self.proprietary.entry(prop_key) {
-                        Entry::Vacant(empty_key) => {empty_key.insert(raw_value);},
-                        Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key.clone()).into()),
+                        Entry::Vacant(empty_key) => {
+                            empty_key.insert(raw_value);
+                        }
+                        Entry::Occupied(_) => {
+                            return Err(Error::DuplicateKey(raw_key.clone()).into())
+                        }
                     }
                 }
             }
 
             _ => match self.unknown.entry(raw_key) {
-                    Entry::Vacant(empty_key) => {empty_key.insert(raw_value);},
-                    Entry::Occupied(k) => return Err(Error::DuplicateKey(k.key().clone()).into()),
-            }
+                Entry::Vacant(empty_key) => {
+                    empty_key.insert(raw_value);
+                }
+                Entry::Occupied(k) => return Err(Error::DuplicateKey(k.key().clone()).into()),
+            },
         }
 
         Ok(())
@@ -350,8 +364,11 @@ impl Map for Output {
 
         // Mandatory field: Script
         rv.push(raw::Pair {
-            key: raw::Key { type_value: PSET_OUT_SCRIPT, key: vec![]},
-            value: pset::serialize::Serialize::serialize(&self.script_pubkey)
+            key: raw::Key {
+                type_value: PSET_OUT_SCRIPT,
+                key: vec![],
+            },
+            value: pset::serialize::Serialize::serialize(&self.script_pubkey),
         });
 
         // Prop Output fields
@@ -427,7 +444,6 @@ impl_psetmap_consensus_encoding!(Output);
 // not optional and cannot by set by insert_pair
 impl Decodable for Output {
     fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
-
         // Sets the default to [0;32] and [0;4]
         let mut rv = Self::default();
         // let mut out_value: Option<confidential::Value> = None;
@@ -447,7 +463,10 @@ impl Decodable for Output {
                                 out_spk <= <raw_key: _>|<raw_value: Script>
                             }
                         }
-                        _ =>  rv.insert_pair(raw::Pair { key: raw_key, value: raw_value })?,
+                        _ => rv.insert_pair(raw::Pair {
+                            key: raw_key,
+                            value: raw_value,
+                        })?,
                     }
                 }
                 Err(::encode::Error::PsetError(::pset::Error::NoMorePairs)) => break,
@@ -460,16 +479,16 @@ impl Decodable for Output {
 
         rv.script_pubkey = spk;
         if let (None, None) = (rv.amount, rv.amount_comm) {
-            return Err(encode::Error::PsetError(Error::MissingOutputValue))
+            return Err(encode::Error::PsetError(Error::MissingOutputValue));
         }
         if let (None, None) = (rv.asset, rv.asset_comm) {
-            return Err(encode::Error::PsetError(Error::MissingOutputAsset))
+            return Err(encode::Error::PsetError(Error::MissingOutputAsset));
         }
         if let (Some(_), None) = (rv.blinding_key, rv.blinder_index) {
-            return Err(encode::Error::PsetError(Error::MissingBlinderIndex))
+            return Err(encode::Error::PsetError(Error::MissingBlinderIndex));
         }
         if rv.is_marked_for_blinding() && rv.is_partially_blinded() && !rv.is_fully_blinded() {
-            return Err(encode::Error::PsetError(Error::MissingBlindingInfo))
+            return Err(encode::Error::PsetError(Error::MissingBlindingInfo));
         }
         Ok(rv)
     }

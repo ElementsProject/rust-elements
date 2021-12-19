@@ -162,8 +162,8 @@ macro_rules! serde_string_impl {
             where
                 D: $crate::serde::de::Deserializer<'de>,
             {
-                use ::std::fmt::{self, Formatter};
-                use ::std::str::FromStr;
+                use std::fmt::{self, Formatter};
+                use std::str::FromStr;
 
                 struct Visitor;
                 impl<'de> $crate::serde::de::Visitor<'de> for Visitor {

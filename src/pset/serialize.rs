@@ -19,15 +19,15 @@
 
 use std::io;
 
-use bitcoin::{self, PublicKey, VarInt};
-use {Script, SigHashType, Transaction, TxOut, Txid, BlockHash, AssetId};
-use encode::{self, serialize, deserialize, Decodable};
+use bitcoin::hashes::hex::ToHex;
 use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
+use bitcoin::{self, PublicKey, VarInt};
+use confidential;
+use encode::{self, deserialize, serialize, Decodable};
 use hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use pset;
-use bitcoin::hashes::hex::ToHex;
-use confidential;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
+use {AssetId, BlockHash, Script, SigHashType, Transaction, TxOut, Txid};
 
 /// A trait for serializing a value as raw data for insertion into PSET
 /// key-value pairs.
@@ -77,8 +77,7 @@ impl Serialize for Tweak {
 impl Deserialize for Tweak {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         let x = deserialize::<Vec<u8>>(&bytes)?;
-        Tweak::from_slice(&x)
-            .map_err(|_| encode::Error::ParseFailed("invalid Tweak"))
+        Tweak::from_slice(&x).map_err(|_| encode::Error::ParseFailed("invalid Tweak"))
     }
 }
 
@@ -104,8 +103,7 @@ impl Serialize for PublicKey {
 
 impl Deserialize for PublicKey {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        PublicKey::from_slice(bytes)
-            .map_err(|_| encode::Error::ParseFailed("invalid public key"))
+        PublicKey::from_slice(bytes).map_err(|_| encode::Error::ParseFailed("invalid public key"))
     }
 }
 
@@ -126,7 +124,7 @@ impl Serialize for KeySource {
 impl Deserialize for KeySource {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         if bytes.len() < 4 {
-            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into())
+            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
         }
 
         let fprint: Fingerprint = Fingerprint::from(&bytes[0..4]);
@@ -178,10 +176,10 @@ impl Deserialize for SigHashType {
 
 impl Serialize for confidential::Value {
     fn serialize(&self) -> Vec<u8> {
-        match self{
+        match self {
             confidential::Value::Null => vec![], // should never be invoked
             confidential::Value::Explicit(x) => Serialize::serialize(x),
-            y => encode::serialize(y) // confidential can serialized as is
+            y => encode::serialize(y), // confidential can serialized as is
         }
     }
 }
@@ -223,10 +221,10 @@ impl Deserialize for secp256k1_zkp::Generator {
 
 impl Serialize for confidential::Asset {
     fn serialize(&self) -> Vec<u8> {
-        match self{
+        match self {
             confidential::Asset::Null => vec![], // should never be invoked
             confidential::Asset::Explicit(x) => Serialize::serialize(x),
-            y => encode::serialize(y) // confidential can serialized as is
+            y => encode::serialize(y), // confidential can serialized as is
         }
     }
 }
@@ -248,8 +246,7 @@ impl Serialize for RangeProof {
 
 impl Deserialize for RangeProof {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        RangeProof::from_slice(&bytes)
-            .map_err(|_| encode::Error::ParseFailed("Invalid Rangeproof"))
+        RangeProof::from_slice(&bytes).map_err(|_| encode::Error::ParseFailed("Invalid Rangeproof"))
     }
 }
 

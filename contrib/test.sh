@@ -41,3 +41,11 @@ then
         cargo test --features integration
     )
 fi
+# Lint if told to
+if [ "$DO_LINT" = true ]
+then
+    (
+        rustup component add rustfmt
+        cargo fmt --all -- --check
+    )
+fi

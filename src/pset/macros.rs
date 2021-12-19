@@ -14,7 +14,11 @@
 
 #[allow(unused_macros)]
 macro_rules! hex_pset {
-    ($s:expr) => { $crate::encode::deserialize(&<Vec<u8> as $crate::hashes::hex::FromHex>::from_hex($s).unwrap()) };
+    ($s:expr) => {
+        $crate::encode::deserialize(
+            &<Vec<u8> as $crate::hashes::hex::FromHex>::from_hex($s).unwrap(),
+        )
+    };
 }
 
 macro_rules! merge {
@@ -61,10 +65,7 @@ macro_rules! impl_psetmap_consensus_encoding {
             ) -> Result<usize, $crate::encode::Error> {
                 let mut len = 0;
                 for pair in $crate::pset::Map::get_pairs(self)? {
-                    len += $crate::encode::Encodable::consensus_encode(
-                        &pair,
-                        &mut s,
-                    )?;
+                    len += $crate::encode::Encodable::consensus_encode(&pair, &mut s)?;
                 }
 
                 Ok(len + $crate::encode::Encodable::consensus_encode(&0x00_u8, s)?)
@@ -143,7 +144,6 @@ macro_rules! impl_pset_insert_pair {
     };
 }
 
-
 #[cfg_attr(rustfmt, rustfmt_skip)]
 macro_rules! impl_pset_get_pair {
     ($rv:ident.push($slf:ident.$unkeyed_name:ident as <$unkeyed_typeval:expr, _>)) => {
@@ -211,9 +211,8 @@ macro_rules! impl_pset_hash_deserialize {
     ($hash_type:ty) => {
         impl $crate::pset::serialize::Deserialize for $hash_type {
             fn deserialize(bytes: &[u8]) -> Result<Self, $crate::encode::Error> {
-                <$hash_type>::from_slice(&bytes[..]).map_err(|e| {
-                    $crate::pset::Error::from(e).into()
-                })
+                <$hash_type>::from_slice(&bytes[..])
+                    .map_err(|e| $crate::pset::Error::from(e).into())
             }
         }
     };

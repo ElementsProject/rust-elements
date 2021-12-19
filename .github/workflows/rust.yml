@@ -14,6 +14,7 @@ jobs:
             env:
               DO_FUZZ: true
               DO_INTEGRATION: true
+              DO_LINT: true
           - rust: beta
             env:
               DUMMY: true
