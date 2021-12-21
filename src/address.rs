@@ -24,10 +24,15 @@ use bitcoin::util::base58;
 use bitcoin::PublicKey;
 use bitcoin::hashes::Hash;
 use secp256k1_zkp;
+use secp256k1_zkp::Secp256k1;
+use secp256k1_zkp::Verification;
 #[cfg(feature = "serde")]
 use serde;
 
 use blech32;
+
+use schnorr::{TapTweak, TweakedPublicKey, UntweakedPublicKey};
+use taproot::TapBranchHash;
 
 use {PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 use {opcodes, script};
@@ -281,6 +286,45 @@ impl Address {
         Address {
             params,
             payload: Payload::ScriptHash(ScriptHash::hash(&ws[..])),
+            blinding_pubkey: blinder,
+        }
+    }
+
+    /// Creates a pay to taproot address from an untweaked key.
+    pub fn p2tr<C: Verification>(
+        secp: &Secp256k1<C>,
+        internal_key: UntweakedPublicKey,
+        merkle_root: Option<TapBranchHash>,
+        blinder: Option<secp256k1_zkp::PublicKey>,
+        params: &'static AddressParams,
+    ) -> Address {
+        Address {
+            params,
+            payload: {
+                let (output_key, _parity) = internal_key.tap_tweak(secp, merkle_root);
+                Payload::WitnessProgram {
+                    version: u5::try_from_u8(1).expect("0<32"),
+                    program: output_key.into_inner().serialize().to_vec(),
+                }
+            },
+            blinding_pubkey: blinder,
+        }
+    }
+
+    /// Creates a pay to taproot address from a pre-tweaked output key.
+    ///
+    /// This method is not recommended for use, [`Address::p2tr()`] should be used where possible.
+    pub fn p2tr_tweaked(
+        output_key: TweakedPublicKey,
+        blinder: Option<secp256k1_zkp::PublicKey>,
+        params: &'static AddressParams,
+    ) -> Address {
+        Address {
+            params,
+            payload: Payload::WitnessProgram {
+                version: u5::try_from_u8(1).expect("0<32"),
+                program: output_key.into_inner().serialize().to_vec(),
+            },
             blinding_pubkey: blinder,
         }
     }
