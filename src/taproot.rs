@@ -876,6 +876,8 @@ mod tests{
     use super::*;
     use hashes::HashEngine;
     use hashes::sha256t::Tag;
+    use hashes::hex::FromHex;
+    use std::str::FromStr;
 
     fn tag_engine(tag_name: &str) -> sha256::HashEngine {
         let mut engine = sha256::Hash::engine();
@@ -909,5 +911,91 @@ mod tests{
         assert_eq!(empty_hash("TapBranch/elements"), TapBranchHash::hash(&[]).into_inner());
         assert_eq!(empty_hash("TapTweak/elements"), TapTweakHash::hash(&[]).into_inner());
         assert_eq!(empty_hash("TapSighash/elements"), TapSighashHash::hash(&[]).into_inner());
+    }
+
+    #[test]
+    fn build_huffman_tree() {
+        let secp = Secp256k1::verification_only();
+        let internal_key = UntweakedPublicKey::from_str("93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51").unwrap();
+
+        let script_weights = vec![
+            (10, Script::from_hex("51").unwrap()), // semantics of script don't matter for this test
+            (20, Script::from_hex("52").unwrap()),
+            (20, Script::from_hex("53").unwrap()),
+            (30, Script::from_hex("54").unwrap()),
+            (19, Script::from_hex("55").unwrap()),
+        ];
+        let tree_info = TaprootSpendInfo::with_huffman_tree(&secp, internal_key, script_weights.clone()).unwrap();
+
+        /* The resulting tree should put the scripts into a tree similar
+         * to the following:
+         *
+         *   1      __/\__
+         *         /      \
+         *        /\     / \
+         *   2   54 52  53 /\
+         *   3            55 51
+         */
+
+        for (script, length) in vec![("51", 3), ("52", 2), ("53", 2), ("54", 2), ("55", 3)] {
+            assert_eq!(
+                length,
+                tree_info
+                    .script_map
+                    .get(&(Script::from_hex(script).unwrap(), LeafVersion::default()))
+                    .expect("Present Key")
+                    .iter()
+                    .next()
+                    .expect("Present Path")
+                    .0
+                    .len()
+            );
+        }
+
+        // Obtain the output key
+        let output_key = tree_info.output_key();
+
+        // Try to create and verify a control block from each path
+        for (_weights, script) in script_weights {
+            let ver_script = (script, LeafVersion::default());
+            let ctrl_block = tree_info.control_block(&ver_script).unwrap();
+            assert!(ctrl_block.verify_taproot_commitment(&secp, &output_key, &ver_script.0))
+        }
+    }
+
+    #[test]
+    fn taptree_builder() {
+        let secp = Secp256k1::verification_only();
+        let internal_key = UntweakedPublicKey::from_str("93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51").unwrap();
+
+        let builder = TaprootBuilder::new();
+        // Create a tree as shown below
+        // For example, imagine this tree:
+        // A, B , C are at depth 2 and D,E are at 3
+        //                                       ....
+        //                                     /      \
+        //                                    /\      /\
+        //                                   /  \    /  \
+        //                                  A    B  C  / \
+        //                                            D   E
+        let a = Script::from_hex("51").unwrap();
+        let b = Script::from_hex("52").unwrap();
+        let c = Script::from_hex("53").unwrap();
+        let d = Script::from_hex("54").unwrap();
+        let e = Script::from_hex("55").unwrap();
+        let builder = builder.add_leaf(2, a.clone()).unwrap();
+        let builder = builder.add_leaf(2, b.clone()).unwrap();
+        let builder = builder.add_leaf(2, c.clone()).unwrap();
+        let builder = builder.add_leaf(3, d.clone()).unwrap();
+        let builder = builder.add_leaf(3, e.clone()).unwrap();
+
+        let tree_info = builder.finalize(&secp, internal_key).unwrap();
+        let output_key = tree_info.output_key();
+
+        for script in vec![a, b, c, d, e] {
+            let ver_script = (script, LeafVersion::default());
+            let ctrl_block = tree_info.control_block(&ver_script).unwrap();
+            assert!(ctrl_block.verify_taproot_commitment(&secp, &output_key, &ver_script.0))
+        }
     }
 }
