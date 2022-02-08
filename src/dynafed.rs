@@ -453,6 +453,7 @@ impl<'de> Deserialize<'de> for Params {
             "fedpeg_program",
             "fedpegscript",
             "extension_space",
+            "elided_root",
         ];
         d.deserialize_struct("Params", FIELDS, Visitor)
     }
@@ -501,7 +502,7 @@ impl Serialize for Params {
                 ref signblock_witness_limit,
                 ref elided_root,
             } => {
-                let mut st = s.serialize_struct("Params", 2)?;
+                let mut st = s.serialize_struct("Params", 3)?;
                 st.serialize_field("signblockscript", signblockscript)?;
                 st.serialize_field("signblock_witness_limit", signblock_witness_limit)?;
                 st.serialize_field("elided_root", elided_root)?;
