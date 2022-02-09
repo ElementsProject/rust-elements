@@ -393,11 +393,8 @@ mod tests {
 
     use super::*;
 
-    #[test]
-    fn block() {
-        // Simple block with only coinbase output
-        let block: Block = hex_deserialize!(
-            "00000020a66e4a4baff69735267346d12e59e8a0da848b593813554deb16a6f3\
+    const SIMPLE_BLOCK: &'static str = "\
+             00000020a66e4a4baff69735267346d12e59e8a0da848b593813554deb16a6f3\
              6cd035e9aab0e2451724598471dd4e45f0dca40ca5f4ac62e61957e50925af08\
              59891fcc8842805b020000000151000102000000010100000000000000000000\
              00000000000000000000000000000000000000000000ffffffff03520101ffff\
@@ -406,8 +403,55 @@ mod tests {
              459e1b69e8e60fcee2e4940c7a0d5de1b201000000000000000000266a24aa21\
              a9ed94f15ed3a62165e4a0b99699cc28b48e19cb5bc1b1f47155db62d63f1e04\
              7d45000000000000012000000000000000000000000000000000000000000000\
-             000000000000000000000000000000"
-        );
+             000000000000000000000000000000\
+             ";
+    const DYNAFED_BLOCK: &'static str = "\
+            000000a0da9d569617d1d65c3390a01c18c4fa7c4d0f4738b6fc2b5c5faf2e8a\
+            463abbaa46eb9123808e1e2ff75e9472fa0f0589b53b7518a69d3d6fcb9228ed\
+            345734ea06b9c45d070000000122002057c555a91edf9552282d88624d1473c2\
+            75e64b7218870eb8fb0335b442976b8d02010000fbee9cea00d8efdc49cfbec3\
+            28537e0d7032194de6ebf3cf42e5c05bb89a08b100040047304402206f55bc87\
+            1387a9840489d47624b02995e774e3b70fed56d1eb43a9a53d4fd3e102201e1c\
+            bfbbd1079f5bea3bc216882d3fefbf6f27aa761820d3a88f12e5a5ea7ff00148\
+            3045022100c072816f6561e73ee6c0ae32d55c3eec4da73b035425e4eb05ab50\
+            772591b4360220311bf295010094a489d9b280d9dafb724d776a1d99b9ede31c\
+            4b59bc2095c5c30169522103cadff18e928133df2e670a3715c4e7a81d357de3\
+            6ddaa5016628e70a3e6a452f21021f0d8638c413ef7769cd711ce84c8f192f5a\
+            85f0fd6d8e63ddb4d2cf6740b23b210296db75c11ea3a292a372f6c94f5013ea\
+            eb379f701857a702f3b83f88da21be6f53ae0102000000010100000000000000\
+            00000000000000000000000000000000000000000000000000ffffffff035701\
+            01ffffffff020137c495f58d698979ff9124e8c7455fe79b13ddb96afa25c458\
+            94eb059868a8c001000000000000000000016a0137c495f58d698979ff9124e8\
+            c7455fe79b13ddb96afa25c45894eb059868a8c001000000000000000000266a\
+            24aa21a9ed94f15ed3a62165e4a0b99699cc28b48e19cb5bc1b1f47155db62d6\
+            3f1e047d45000000000000012000000000000000000000000000000000000000\
+            000000000000000000000000000000000000\
+            ";
+
+    #[cfg(feature = "serde-feature")]
+    #[test]
+    fn blockheader_serde() {
+        let block: Block = hex_deserialize!(&SIMPLE_BLOCK);
+        roundtrip_header(&block.header);
+        let block: Block = hex_deserialize!(&DYNAFED_BLOCK);
+        roundtrip_header(&block.header);
+    }
+    #[cfg(feature = "serde-feature")]
+    fn roundtrip_header(header: &BlockHeader) {
+        let header_ser = serde_json::to_string(header).unwrap();
+        let header_deser: BlockHeader = serde_json::from_str(&header_ser).unwrap();
+
+        assert_eq!(&header_deser, header);
+        let header_ser = serde_cbor::to_vec(header).unwrap();
+        let header_deser: BlockHeader = serde_cbor::from_slice(&header_ser).unwrap();
+
+        assert_eq!(&header_deser, header);
+    }
+
+    #[test]
+    fn block() {
+        // Simple block with only coinbase output
+        let block: Block = hex_deserialize!(SIMPLE_BLOCK);
 
         assert_eq!(
             block.block_hash().to_string(),
@@ -668,28 +712,7 @@ mod tests {
     #[test]
     fn dynafed_block() {
         // Copied from elements RPC during a functionary integration test run
-        let block: Block = hex_deserialize!("\
-            000000a0da9d569617d1d65c3390a01c18c4fa7c4d0f4738b6fc2b5c5faf2e8a\
-            463abbaa46eb9123808e1e2ff75e9472fa0f0589b53b7518a69d3d6fcb9228ed\
-            345734ea06b9c45d070000000122002057c555a91edf9552282d88624d1473c2\
-            75e64b7218870eb8fb0335b442976b8d02010000fbee9cea00d8efdc49cfbec3\
-            28537e0d7032194de6ebf3cf42e5c05bb89a08b100040047304402206f55bc87\
-            1387a9840489d47624b02995e774e3b70fed56d1eb43a9a53d4fd3e102201e1c\
-            bfbbd1079f5bea3bc216882d3fefbf6f27aa761820d3a88f12e5a5ea7ff00148\
-            3045022100c072816f6561e73ee6c0ae32d55c3eec4da73b035425e4eb05ab50\
-            772591b4360220311bf295010094a489d9b280d9dafb724d776a1d99b9ede31c\
-            4b59bc2095c5c30169522103cadff18e928133df2e670a3715c4e7a81d357de3\
-            6ddaa5016628e70a3e6a452f21021f0d8638c413ef7769cd711ce84c8f192f5a\
-            85f0fd6d8e63ddb4d2cf6740b23b210296db75c11ea3a292a372f6c94f5013ea\
-            eb379f701857a702f3b83f88da21be6f53ae0102000000010100000000000000\
-            00000000000000000000000000000000000000000000000000ffffffff035701\
-            01ffffffff020137c495f58d698979ff9124e8c7455fe79b13ddb96afa25c458\
-            94eb059868a8c001000000000000000000016a0137c495f58d698979ff9124e8\
-            c7455fe79b13ddb96afa25c45894eb059868a8c001000000000000000000266a\
-            24aa21a9ed94f15ed3a62165e4a0b99699cc28b48e19cb5bc1b1f47155db62d6\
-            3f1e047d45000000000000012000000000000000000000000000000000000000\
-            000000000000000000000000000000000000\
-        ");
+        let block: Block = hex_deserialize!(DYNAFED_BLOCK);
 
         // Test that this is a block with compact current params and null proposed params
         if let ExtData::Dynafed { current, proposed, .. } = block.clone().header.ext {
