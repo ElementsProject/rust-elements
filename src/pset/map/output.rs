@@ -160,12 +160,12 @@ impl Output{
         }
         if txout.is_partially_blinded() {
             rv.ecdh_pubkey = txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
-                key: pk,
+                inner: pk,
                 compressed: true, // always serialize none as compressed pk
             });
         } else {
             rv.blinding_key = txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
-                key: pk,
+                inner: pk,
                 compressed: true, // always serialize none as compressed pk
             });
         }
@@ -189,9 +189,9 @@ impl Output{
                 (None, None) => confidential::Value::Null,
             },
             nonce: if self.is_partially_blinded() {
-                self.ecdh_pubkey.map(|pk| confidential::Nonce::from(pk.key))
+                self.ecdh_pubkey.map(|pk| confidential::Nonce::from(pk.inner))
             } else {
-                self.blinding_key.map(|pk| confidential::Nonce::from(pk.key))
+                self.blinding_key.map(|pk| confidential::Nonce::from(pk.inner))
             }.unwrap_or_default(),
             script_pubkey: self.script_pubkey.clone(),
             witness: TxOutWitness {

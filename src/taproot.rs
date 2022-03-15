@@ -162,7 +162,7 @@ pub struct TaprootSpendInfo {
     /// The Merkle root of the script tree (None if there are no scripts)
     merkle_root: Option<TapBranchHash>,
     /// The sign final output pubkey as per BIP 341
-    output_key_parity: bool,
+    output_key_parity: secp256k1_zkp::Parity,
     /// The tweaked output key
     output_key: TweakedPublicKey,
     /// Map from (script, leaf_version) to (sets of) [`TaprootMerkleBranch`].
@@ -275,7 +275,7 @@ impl TaprootSpendInfo {
     }
 
     /// Parity of the output key. See also [`TaprootSpendInfo::output_key`]
-    pub fn output_key_parity(&self) -> bool {
+    pub fn output_key_parity(&self) -> secp256k1_zkp::Parity {
         self.output_key_parity
     }
 
@@ -630,7 +630,7 @@ pub struct ControlBlock {
     /// The tapleaf version,
     pub leaf_version: LeafVersion,
     /// The parity of the output key (NOT THE INTERNAL KEY WHICH IS ALWAYS XONLY)
-    pub output_key_parity: bool,
+    pub output_key_parity: secp256k1_zkp::Parity,
     /// The internal key
     pub internal_key: UntweakedPublicKey,
     /// The merkle proof of a script associated with this leaf
@@ -652,7 +652,8 @@ impl ControlBlock {
         {
             return Err(TaprootError::InvalidControlBlockSize(sl.len()));
         }
-        let output_key_parity = (sl[0] & 1) == 1;
+        let output_key_parity = secp256k1_zkp::Parity::from_u8(sl[0] & 1)
+            .expect("Parity is a single bit because it is masked by 0x01");
         let leaf_version = LeafVersion::from_u8(sl[0] & TAPROOT_LEAF_MASK)?;
         let internal_key = UntweakedPublicKey::from_slice(&sl[1..TAPROOT_CONTROL_BASE_SIZE])
             .map_err(TaprootError::InvalidInternalKey)?;
@@ -673,8 +674,7 @@ impl ControlBlock {
 
     /// Serialize to a writer. Returns the number of bytes written
     pub fn encode<Write: io::Write>(&self, mut writer: Write) -> io::Result<usize> {
-        let first_byte: u8 =
-            (if self.output_key_parity { 1 } else { 0 }) | self.leaf_version.as_u8();
+        let first_byte: u8 = self.output_key_parity.to_u8() | self.leaf_version.as_u8();
         let mut bytes_written = 0;
         bytes_written += writer.write(&[first_byte])?;
         bytes_written += writer.write(&self.internal_key.serialize())?;

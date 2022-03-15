@@ -268,7 +268,7 @@ impl PartiallySignedTransaction {
                     (None, None) => return Err(Error::MissingOutputAsset),
                 },
                 nonce: out.ecdh_pubkey
-                    .map(|x| confidential::Nonce::from(x.key))
+                    .map(|x| confidential::Nonce::from(x.inner))
                     .unwrap_or_default(),
                 script_pubkey: out.script_pubkey.clone(),
                 witness: TxOutWitness {
@@ -400,7 +400,7 @@ impl PartiallySignedTransaction {
                     secp,
                     self.outputs[i]
                         .blinding_key
-                        .map(|x| x.key)
+                        .map(|x| x.inner)
                         .ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?,
                     &spent_utxo_secrets,
                 )
@@ -415,7 +415,7 @@ impl PartiallySignedTransaction {
                 self.outputs[i].amount_comm = txout.value.commitment();
                 self.outputs[i].asset_comm = txout.asset.commitment();
                 self.outputs[i].ecdh_pubkey = txout.nonce.commitment().map(|pk| bitcoin::PublicKey{
-                    key: pk,
+                    inner: pk,
                     compressed: true
                 });
                 let asset_id = self.outputs[i].asset.ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
@@ -525,7 +525,7 @@ impl PartiallySignedTransaction {
         let receiver_blinding_pk = &self.outputs[last_out_index]
             .blinding_key
             .ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
-        let (nonce, shared_secret) = confidential::Nonce::new_confidential(rng, secp, &receiver_blinding_pk.key);
+        let (nonce, shared_secret) = confidential::Nonce::new_confidential(rng, secp, &receiver_blinding_pk.inner);
 
         let message = RangeProofMessage { asset, bf: out_abf };
         let rangeproof = RangeProof::new(
@@ -580,7 +580,7 @@ impl PartiallySignedTransaction {
             self.outputs[last_out_index].amount_comm = Some(value_commitment);
             self.outputs[last_out_index].asset_comm = Some(out_asset_commitment);
             self.outputs[last_out_index].ecdh_pubkey = nonce.commitment().map(|pk| bitcoin::PublicKey{
-                key: pk,
+                inner: pk,
                 compressed: true
             });
             let asset_id = self.outputs[last_out_index].asset.ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;

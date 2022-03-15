@@ -7,12 +7,12 @@ extern crate bitcoin;
 extern crate elementsd;
 extern crate rand;
 
-use bitcoin::Amount;
+use bitcoin::{Amount, XOnlyPublicKey, KeyPair};
 use elements::bitcoin::hashes::hex::FromHex;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::encode::{deserialize, serialize_hex};
 use elements::script::Builder;
-use elements::secp256k1_zkp::{self, schnorrsig};
+use elements::secp256k1_zkp;
 use elements::sighash::{self, SigHashCache};
 use elements::taproot::{LeafVersion, TapTweakHash, TaprootBuilder, TaprootSpendInfo};
 use elements::OutPoint;
@@ -46,22 +46,22 @@ trait Call {
 fn gen_keypair(
     secp: &secp256k1_zkp::Secp256k1<secp256k1_zkp::All>,
     rng: &mut rngs::ThreadRng,
-) -> (schnorrsig::PublicKey, schnorrsig::KeyPair) {
-    let keypair = schnorrsig::KeyPair::new(secp, rng);
-    let pk = schnorrsig::PublicKey::from_keypair(secp, &keypair);
+) -> (XOnlyPublicKey, KeyPair) {
+    let keypair = KeyPair::new(secp, rng);
+    let pk = XOnlyPublicKey::from_keypair(&keypair);
     (pk, keypair)
 }
 
 // Spend data for txout with 2 leaves
 #[derive(Debug)]
 struct TapTxOutData {
-    blind_sk: Option<secp256k1_zkp::SecretKey>,
-    blind_pk: Option<secp256k1_zkp::PublicKey>,
-    leaf1_keypair: schnorrsig::KeyPair,
-    leaf1_pk: schnorrsig::PublicKey,
+    _blind_sk: Option<secp256k1_zkp::SecretKey>,
+    _blind_pk: Option<secp256k1_zkp::PublicKey>,
+    leaf1_keypair: KeyPair,
+    _leaf1_pk: XOnlyPublicKey,
     leaf1_script: Script,
-    internal_keypair: schnorrsig::KeyPair,
-    internal_pk: schnorrsig::PublicKey,
+    internal_keypair: KeyPair,
+    internal_pk: XOnlyPublicKey,
     spend_info: TaprootSpendInfo,
     utxo: TxOut,
     prevout: OutPoint,
@@ -142,10 +142,10 @@ fn funded_tap_txout(
         }
     };
     TapTxOutData {
-        blind_sk,
-        blind_pk,
+        _blind_sk: blind_sk,
+        _blind_pk: blind_pk,
         leaf1_keypair,
-        leaf1_pk,
+        _leaf1_pk: leaf1_pk,
         leaf1_script,
         internal_keypair,
         internal_pk,
@@ -226,7 +226,7 @@ fn taproot_spend_test(
             test_data.spend_info.merkle_root(),
         );
         output_keypair.tweak_add_assign(&secp, &tweak).unwrap();
-        let sig = secp.schnorrsig_sign(
+        let sig = secp.sign_schnorr(
             &secp256k1_zkp::Message::from_slice(&sighash_msg[..]).unwrap(),
             &output_keypair,
         );
@@ -251,7 +251,7 @@ fn taproot_spend_test(
             )
             .unwrap();
 
-        let sig = secp.schnorrsig_sign(
+        let sig = secp.sign_schnorr(
             &secp256k1_zkp::Message::from_slice(&sighash_msg[..]).unwrap(),
             &test_data.leaf1_keypair,
         );

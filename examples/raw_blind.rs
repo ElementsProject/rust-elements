@@ -182,7 +182,7 @@ fn main() {
         dest_amt,
         Address::p2wsh(
             &Script::new_v0_wsh(&dest_wsh),
-            Some(dest_blind_pk.key),
+            Some(dest_blind_pk.inner),
             &PARAMS,
         ),
         asset_txout_secrets.sec.asset,
@@ -204,7 +204,7 @@ fn main() {
             change_amt,
             Address::p2wsh(
                 &Script::new_v0_wsh(&change_wsh),
-                Some(change_blind_pk.key),
+                Some(change_blind_pk.inner),
                 &PARAMS,
             ),
             asset_txout_secrets.sec.asset,
@@ -260,7 +260,7 @@ fn main() {
         change_amt,
         Address::p2wsh(
             &Script::new_v0_wsh(&change_wsh),
-            Some(change_blind_pk.key),
+            Some(change_blind_pk.inner),
             &PARAMS,
         ),
         btc_txout_secrets.sec.asset,
