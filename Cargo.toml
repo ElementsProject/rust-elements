@@ -22,9 +22,8 @@ json-contract = [ "serde_json" ]
 
 [dependencies]
 bitcoin = "0.27"
-secp256k1-zkp = { version = "0.4.0", features = [ "global-context", "hashes" ] }
+secp256k1-zkp = { version = "0.6.0", features = [ "global-context", "hashes" ] }
 slip21 = "0.2.0"
-secp256k1-sys = "=0.4.1"
 
 # While this dependency is included in bitcoin, we need this to use the macros.
 # We should probably try keep this one in sync with the bitcoin version,
