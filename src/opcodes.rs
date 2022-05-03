@@ -416,7 +416,7 @@ pub mod all {
     pub const OP_NOP10: All = All {code: 0xb9};
     // Every other opcode acts as OP_RETURN
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_186: All = All {code: 0xba};
+    pub const OP_CHECKSIGADD: All = All {code: 0xba};
     /// Synonym for OP_RETURN
     pub const OP_RETURN_187: All = All {code: 0xbb};
     /// Synonym for OP_RETURN
@@ -435,72 +435,126 @@ pub mod all {
     pub const OP_CHECKSIGFROMSTACKVERIFY: All = All {code: 0xc2};
     /// Same as `OP_SUBSTR` but clamps start and length rather than erroring if they are out of bounds
     pub const OP_SUBSTR_LAZY: All = All {code: 0xc3};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_196: All = All {code: 0xc4};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_197: All = All {code: 0xc5};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_198: All = All {code: 0xc6};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_199: All = All {code: 0xc7};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_200: All = All {code: 0xc8};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_201: All = All {code: 0xc9};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_202: All = All {code: 0xca};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_203: All = All {code: 0xcb};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_204: All = All {code: 0xcc};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_205: All = All {code: 0xcd};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_206: All = All {code: 0xce};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_207: All = All {code: 0xcf};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_208: All = All {code: 0xd0};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_209: All = All {code: 0xd1};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_210: All = All {code: 0xd2};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_211: All = All {code: 0xd3};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_212: All = All {code: 0xd4};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_213: All = All {code: 0xd5};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_214: All = All {code: 0xd6};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_215: All = All {code: 0xd7};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_216: All = All {code: 0xd8};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_217: All = All {code: 0xd9};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_218: All = All {code: 0xda};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_219: All = All {code: 0xdb};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_220: All = All {code: 0xdc};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_221: All = All {code: 0xdd};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_222: All = All {code: 0xde};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_223: All = All {code: 0xdf};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_224: All = All {code: 0xe0};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_225: All = All {code: 0xe1};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_226: All = All {code: 0xe2};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_227: All = All {code: 0xe3};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_228: All = All {code: 0xe4};
+    // ------------------------------------------------------------------
+    // TapScript opcodes. These are op-returns when in pretapscript scripts.
+
+    /// Pops a bytestring and push SHA256 context creating by adding the bytestring to the initial SHA256 context
+    pub const OP_SHA256INITIALIZE: All = All {code: 0xc4};
+    /// First pops a bytestring followed by another pop for SHA256 context and
+    /// pushes an updated context by adding the bytestring to the data stream being hashed
+    pub const OP_SHA256UPDATE: All = All {code: 0xc5};
+    /// First pops a pops a bytestring followed by another pop for SHA256 context
+    /// and finally pushes a SHA256 hash value after adding the bytestring
+    /// and completing the padding
+    pub const OP_SHA256FINALIZE: All = All {code: 0xc6};
+    /// Pop a CScriptNum input index idx and push the outpoint as a tuple.
+    /// First push the txid(32) of the prev_out, followed by a 4 byte push of
+    /// vout followed by a push for the outpoint_flag(1)
+    pub const OP_INSPECTINPUTOUTPOINT: All = All {code: 0xc7};
+    /// Pop a CScriptNum input index idx and push the nAsset onto the stack as two elements.
+    /// The first push the assetID(32), followed by the prefix(1)
+    pub const OP_INSPECTINPUTASSET: All = All {code: 0xc8};
+    /// Pop a CScriptNum input index idx and push the nValue as a tuple,
+    /// value(8 byte LE, 32) followed by prefix(1),
+    pub const OP_INSPECTINPUTVALUE: All = All {code: 0xc9};
+    /// Pop a CScriptNum input index idx and push the following depending the type of scriptPubkey:
+    /// - If the scriptPubKey is not a native segwit program, push a single sha256
+    /// hash of the scriptPubKey on stack top. Next, push a CScriptNum(-1) to
+    /// indicate a non-native segwit scriptPubKey.
+    /// - If the scriptPubKey is a native segwit program, push the witness program(2-40)
+    /// followed by a push for segwit version(0-1).
+    pub const OP_INSPECTINPUTSCRIPTPUBKEY: All = All {code: 0xca};
+    /// Pop a CScriptNum input index idx and push the nSequence(4) as little-endian number.
+    pub const OP_INSPECTINPUTSEQUENCE: All = All {code: 0xcb};
+    /// Pop a CScriptNum input index idx and push the assetIssuance information if the asset has issuance,
+    /// otherwise push an empty vector. Refer to the [spec](https://github.com/ElementsProject/elements/blob/master/doc/tapscript_opcodes.md)
+    /// for details
+    pub const OP_INSPECTINPUTISSUANCE: All = All {code: 0xcc};
+    /// Pushes the current input index as CScriptNum. This can be used in conjunction with
+    /// input introspection opcodes for inspecting current input.
+    pub const OP_PUSHCURRENTINPUTINDEX: All = All {code: 0xcd};
+    /// Pop a CScriptNum input index idx and push the nAsset as a tuple,
+    /// first push the assetID(32), followed by the prefix(1)
+    pub const OP_INSPECTOUTPUTASSET: All = All {code: 0xce};
+    /// Pop a CScriptNum input index idx and push the nValue as a tuple,
+    /// value(8 byte LE, 32) followed by prefix
+    pub const OP_INSPECTOUTPUTVALUE: All = All {code: 0xcf};
+    /// Pop a CScriptNum input index idx and push the nNonce(33) onto the stack.
+    /// If the nonce is null, push an empty vector onto the stack
+    pub const OP_INSPECTOUTPUTNONCE: All = All {code: 0xd0};
+    /// Pop a CScriptNum input index idx and push the scriptPubkey onto the stack.
+    /// Similar to [`OP_INSPECTINPUTSCRIPTPUBKEY`], for this output.
+    pub const OP_INSPECTOUTPUTSCRIPTPUBKEY: All = All {code: 0xd1};
+    /// Push the nVersion(4) as little-endian.
+    pub const OP_INSPECTVERSION: All = All {code: 0xd2};
+    /// Push the nLockTime(4) as little-endian.
+    pub const OP_INSPECTLOCKTIME: All = All {code: 0xd3};
+    /// Push the number of inputs as CScriptNum
+    pub const OP_INSPECTNUMINPUTS: All = All {code: 0xd4};
+    /// Push the number of outputs as CScriptNum
+    pub const OP_INSPECTNUMOUTPUTS: All = All {code: 0xd5};
+    /// Push the transaction weight (8) as little-endian
+    pub const OP_TXWEIGHT: All = All {code: 0xd6};
+    /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    /// Push a + b onto the stack. Push 1 CScriptNum if there is no overflow.
+    /// Refer to the spec for details when dealing with overflow.
+    pub const OP_ADD64: All = All {code: 0xd7};
+    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    /// Push a - b onto the stack. Push 1 CScriptNum if there is no overflow.
+    /// Refer to the spec for details when dealing with overflow.
+    pub const OP_SUB64: All = All {code: 0xd8};
+    /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    /// Push a*b onto the stack. Push 1 CScriptNum if there is no overflow.
+    /// Refer to the spec for details when dealing with overflow.
+    pub const OP_MUL64: All = All {code: 0xd9};
+    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    /// First push remainder a%b(must be non-negative and less than |b|) onto the
+    /// stack followed by quotient(a//b) onto the stack.
+    ///
+    /// If b==0 or a = -2<sup>63</sup> && b = -1, treat as overflow.
+    /// Push 1 CScriptNum if there is no overflow.
+    /// Refer to the spec for details when dealing with overflow.
+    pub const OP_DIV64: All = All {code: 0xda};
+    /// Pop the first number(8 byte LE) as a and pushes -a on the stack top.
+    /// If the number is -2^63 treat as overflow, otherwise push CScriptNum 1 to indicate no overflow.
+    /// Refer to the spec for details when dealing with overflow.
+    pub const OP_NEG64: All = All {code: 0xdb};
+    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a < b.
+    /// Note that this operation cannot fail
+    pub const OP_LESSTHAN64: All = All {code: 0xdc};
+    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a <= b.
+    /// Note that this operation cannot fail
+    pub const OP_LESSTHANOREQUAL64: All = All {code: 0xdd};
+    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a > b
+    /// Note that this operation cannot fail
+    pub const OP_GREATERTHAN64: All = All {code: 0xde};
+    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a >= b.
+    /// Note that this operation cannot fail
+    pub const OP_GREATERTHANOREQUAL64: All = All {code: 0xdf};
+    /// pop the stack as minimal CSciptNum, push 8 byte signed LE corresponding to that number.
+    pub const OP_SCRIPTNUMTOLE64: All = All {code: 0xe0};
+    /// pop the stack as a 8 byte signed LE. Convert to CScriptNum and push it, abort on fail.
+    /// Please check the range of the operand before calling the opcode.
+    pub const OP_LE64TOSCRIPTNUM: All = All {code: 0xe1};
+    /// pop the stack as a 4 byte unsigned LE. Push the corresponding 8 byte signed LE number.
+    /// Cannot fail, useful for operating of version, locktime, sequence, number of inputs,
+    /// number of outputs, weight etc.
+    pub const OP_LE32TOLE64: All = All {code: 0xe2};
+    ///  Pops three elements from stack as described below:
+    /// 1) a 32 byte big endian, unsigned scalar k.
+    /// 2) Compressed EC point P, and
+    /// 3) compressed EC point Q.
+    /// Abort if P, Q is invalid or k is not 32 bytes and outside of secp256k1 curve order.
+    /// Abort if Q != k*P.
+    pub const OP_ECMULSCALARVERIFY: All = All {code: 0xe3};
+    /// Pop the three elements as:
+    /// 1) 32 byte X-only internal key P,
+    /// 2) a 32 byte big endian, unsigned scalar k, and
+    /// 3) 33 byte compressed point Q.
+    ///
+    /// Abort if P, Q is invalid or k is not 32 bytes and outside of secp256k1 curve order.
+    /// Abort if Q != P + k*G where G is the generator for secp256k1.
+    pub const OP_TWEAKVERIFY: All = All {code: 0xe4};
     /// Synonym for OP_RETURN
     pub const OP_RETURN_229: All = All {code: 0xe5};
     /// Synonym for OP_RETURN
@@ -553,8 +607,8 @@ pub mod all {
     pub const OP_RETURN_253: All = All {code: 0xfd};
     /// Synonym for OP_RETURN
     pub const OP_RETURN_254: All = All {code: 0xfe};
-    /// Synonym for OP_RETURN
-    pub const OP_RETURN_255: All = All {code: 0xff};
+    /// Invalid opcode
+    pub const OP_INVALIDOPCODE: All = All {code: 0xff};
 }
 
 impl fmt::Debug for All {
@@ -652,44 +706,123 @@ impl fmt::Debug for All {
             all::OP_CHECKSIGFROMSTACKVERIFY => write!(f, "CHECKSIGFROMSTACKVERIFY"),
             all::OP_CLTV => write!(f, "CLTV"),
             all::OP_CSV => write!(f, "CSV"),
+            all::OP_CHECKSIGADD => write!(f, "CHECKSIGADD"),
+            all::OP_SHA256INITIALIZE => write!(f, "SHA256INITIALIZE"),
+            all::OP_SHA256UPDATE => write!(f, "SHA256UPDATE"),
+            all::OP_SHA256FINALIZE => write!(f, "SHA256FINALIZE"),
+            all::OP_INSPECTINPUTOUTPOINT => write!(f, "INSPECTINPUTOUTPOINT"),
+            all::OP_INSPECTINPUTASSET => write!(f, "INSPECTINPUTASSET"),
+            all::OP_INSPECTINPUTVALUE => write!(f, "INSPECTINPUTVALUE"),
+            all::OP_INSPECTINPUTSCRIPTPUBKEY => write!(f, "INSPECTINPUTSCRIPTPUBKEY"),
+            all::OP_INSPECTINPUTSEQUENCE => write!(f, "INSPECTINPUTSEQUENCE"),
+            all::OP_INSPECTINPUTISSUANCE => write!(f, "INSPECTINPUTISSUANCE"),
+            all::OP_PUSHCURRENTINPUTINDEX => write!(f, "PUSHCURRENTINPUTINDEX"),
+            all::OP_INSPECTOUTPUTASSET => write!(f, "INSPECTOUTPUTASSET"),
+            all::OP_INSPECTOUTPUTVALUE => write!(f, "INSPECTOUTPUTVALUE"),
+            all::OP_INSPECTOUTPUTNONCE => write!(f, "INSPECTOUTPUTNONCE"),
+            all::OP_INSPECTOUTPUTSCRIPTPUBKEY => write!(f, "INSPECTOUTPUTSCRIPTPUBKEY"),
+            all::OP_INSPECTVERSION => write!(f, "INSPECTVERSION"),
+            all::OP_INSPECTLOCKTIME => write!(f, "INSPECTLOCKTIME"),
+            all::OP_INSPECTNUMINPUTS => write!(f, "INSPECTNUMINPUTS"),
+            all::OP_INSPECTNUMOUTPUTS => write!(f, "INSPECTNUMOUTPUTS"),
+            all::OP_TXWEIGHT => write!(f, "TXWEIGHT"),
+
+            // 64 bit LE arithmetic opcodes
+            all::OP_ADD64 => write!(f, "ADD64"),
+            all::OP_SUB64 => write!(f, "SUB64"),
+            all::OP_MUL64 => write!(f, "MUL64"),
+            all::OP_DIV64 => write!(f, "DIV64"),
+            all::OP_NEG64 => write!(f, "NEG64"),
+            all::OP_LESSTHAN64 => write!(f, "LESSTHAN64"),
+            all::OP_LESSTHANOREQUAL64 => write!(f, "LESSTHANOREQUAL64"),
+            all::OP_GREATERTHAN64 => write!(f, "GREATERTHAN64"),
+            all::OP_GREATERTHANOREQUAL64 => write!(f, "GREATERTHANOREQUAL64"),
+            all::OP_SCRIPTNUMTOLE64 => write!(f, "SCRIPTNUMTOLE64"),
+            all::OP_LE64TOSCRIPTNUM => write!(f, "LE64TOSCRIPTNUM"),
+            all::OP_LE32TOLE64 => write!(f, "LE32TOLE64"),
+
+            // Crypto opcodes
+            all::OP_ECMULSCALARVERIFY => write!(f, "ECMULSCALARVERIFY"),
+            all::OP_TWEAKVERIFY => write!(f, "TWEAKVERIFY"),
+
+            all::OP_INVALIDOPCODE => write!(f, "INVALIDOPCODE"),
             All {code: x} if x >= all::OP_NOP1.code && x <= all::OP_NOP10.code => write!(f, "NOP{}", x - all::OP_NOP1.code + 1),
             All {code: x} => write!(f, "RETURN_{}", x),
         }
     }
 }
 
+/// Classification context for the opcode.
+///
+/// Some opcodes like [`all::OP_RESERVED`] abort the script in `ClassifyContext::Legacy` context,
+/// but will act as `OP_SUCCESSx` in `ClassifyContext::TapScript` (see BIP342 for full list).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum ClassifyContext {
+    /// Opcode used in tapscript context.
+    TapScript,
+    /// Opcode used in legacy context.
+    Legacy,
+}
+
 impl All {
-    /// Classifies an Opcode into a broad class
-    pub fn classify(self) -> Class {
-        // 7 opcodes
-        if self == all::OP_VERIF || self == all::OP_VERNOTIF ||
-           self == all::OP_2MUL || self == all::OP_2DIV ||
-           self == all::OP_MUL || self == all::OP_DIV || self == all::OP_MOD {
-            Class::IllegalOp
-        // 11 opcodes
-        } else if self == all::OP_NOP ||
-                  (all::OP_NOP1.code <= self.code &&
-                   self.code <= all::OP_NOP10.code) {
-            Class::NoOp
-        // 72 opcodes
-        } else if self == all::OP_RESERVED || self == all::OP_VER || self == all::OP_RETURN ||
-                  self == all::OP_RESERVED1 || self == all::OP_RESERVED2 ||
-                  (self.code >= all::OP_RETURN_186.code && self.code <= all::OP_RETURN_192.code) ||
-                  self.code >= all::OP_RETURN_196.code {
-            Class::ReturnOp
-        // 1 opcode
-        } else if self == all::OP_PUSHNUM_NEG1 {
-            Class::PushNum(-1)
-        // 16 opcodes
-        } else if all::OP_PUSHNUM_1.code <= self.code &&
-                  self.code <= all::OP_PUSHNUM_16.code {
-            Class::PushNum(1 + self.code as i32 - all::OP_PUSHNUM_1.code as i32)
-        // 76 opcodes
-        } else if self.code <= all::OP_PUSHBYTES_75.code {
-            Class::PushBytes(self.code as u32)
-        // 73 opcodes
-        } else {
-            Class::Ordinary(Ordinary::try_from_all(self).unwrap())
+    /// Classifies an Opcode into a broad class.
+    #[inline]
+    pub fn classify(self, ctx: ClassifyContext) -> Class {
+        use self::all::*;
+        match (self, ctx) {
+            // 3 opcodes illegal in all contexts
+            (OP_VERIF, _) | (OP_VERNOTIF, _) | (OP_INVALIDOPCODE, _) => Class::IllegalOp,
+
+            // 15 opcodes illegal in Legacy context
+            (OP_CAT, ctx) | (OP_SUBSTR, ctx)
+            | (OP_LEFT, ctx) | (OP_RIGHT, ctx)
+            | (OP_INVERT, ctx)
+            | (OP_AND, ctx) | (OP_OR, ctx) | (OP_XOR, ctx)
+            | (OP_2MUL, ctx) | (OP_2DIV, ctx)
+            | (OP_MUL, ctx) | (OP_DIV, ctx) | (OP_MOD, ctx)
+            | (OP_LSHIFT, ctx) | (OP_RSHIFT, ctx) if ctx == ClassifyContext::Legacy => Class::IllegalOp,
+
+            // 87 opcodes of SuccessOp class only in TapScript context
+            (op, ClassifyContext::TapScript)
+            if op.code == 80 || op.code == 98 ||
+                (op.code >= 137 && op.code <= 138) ||
+                (op.code >= 141 && op.code <= 142) ||
+                (op.code >= 149 && op.code <= 151) ||
+                (op.code >= 187 && op.code <= 191) ||
+                (op.code >= 229 && op.code <= 254) => Class::SuccessOp,
+
+            // 11 opcodes of NoOp class
+            (OP_NOP, _) => Class::NoOp,
+            (op, _) if op.code >= OP_NOP1.code && op.code <= OP_NOP10.code => Class::NoOp,
+
+            // 1 opcode for `OP_RETURN`
+            (OP_RETURN, _) => Class::ReturnOp,
+
+            // 4 opcodes operating equally to `OP_RETURN` only in Legacy context
+            (OP_RESERVED, ctx)
+            | (OP_RESERVED1, ctx) | (OP_RESERVED2, ctx)
+            | (OP_VER, ctx) if ctx == ClassifyContext::Legacy => Class::ReturnOp,
+
+            // 71 opcodes operating equally to `OP_RETURN` only in Legacy context
+            (op, ClassifyContext::Legacy) if op.code >= OP_CHECKSIGADD.code => Class::ReturnOp,
+
+            // 2 opcodes operating equally to `OP_RETURN` only in TapScript context
+            (OP_CHECKMULTISIG, ClassifyContext::TapScript)
+            | (OP_CHECKMULTISIGVERIFY, ClassifyContext::TapScript) => Class::ReturnOp,
+
+            // 1 opcode of PushNum class
+            (OP_PUSHNUM_NEG1, _) => Class::PushNum(-1),
+
+            // 16 opcodes of PushNum class
+            (op, _) if op.code >= OP_PUSHNUM_1.code && op.code <= OP_PUSHNUM_16.code => {
+                Class::PushNum(1 + self.code as i32 - OP_PUSHNUM_1.code as i32)
+            },
+
+            // 76 opcodes of PushBytes class
+            (op, _) if op.code <= OP_PUSHBYTES_75.code => Class::PushBytes(self.code as u32),
+
+            // opcodes of Ordinary class: 61 for Legacy and 60 for TapScript context
+            (_, _) => Class::Ordinary(Ordinary::try_from_all(self).unwrap()),
         }
     }
 
@@ -741,6 +874,8 @@ pub enum Class {
     PushBytes(u32),
     /// Fails the script if executed
     ReturnOp,
+    /// Succeeds the script even if not executed.
+    SuccessOp,
     /// Fails the script even if not executed
     IllegalOp,
     /// Does nothing
@@ -1015,7 +1150,7 @@ mod tests {
         roundtrip!(unique, OP_NOP8);
         roundtrip!(unique, OP_NOP9);
         roundtrip!(unique, OP_NOP10);
-        roundtrip!(unique, OP_RETURN_186);
+        roundtrip!(unique, OP_CHECKSIGADD);
         roundtrip!(unique, OP_RETURN_187);
         roundtrip!(unique, OP_RETURN_188);
         roundtrip!(unique, OP_RETURN_189);
@@ -1025,39 +1160,39 @@ mod tests {
         roundtrip!(unique, OP_CHECKSIGFROMSTACK);
         roundtrip!(unique, OP_CHECKSIGFROMSTACKVERIFY);
         roundtrip!(unique, OP_SUBSTR_LAZY);
-        roundtrip!(unique, OP_RETURN_196);
-        roundtrip!(unique, OP_RETURN_197);
-        roundtrip!(unique, OP_RETURN_198);
-        roundtrip!(unique, OP_RETURN_199);
-        roundtrip!(unique, OP_RETURN_200);
-        roundtrip!(unique, OP_RETURN_201);
-        roundtrip!(unique, OP_RETURN_202);
-        roundtrip!(unique, OP_RETURN_203);
-        roundtrip!(unique, OP_RETURN_204);
-        roundtrip!(unique, OP_RETURN_205);
-        roundtrip!(unique, OP_RETURN_206);
-        roundtrip!(unique, OP_RETURN_207);
-        roundtrip!(unique, OP_RETURN_208);
-        roundtrip!(unique, OP_RETURN_209);
-        roundtrip!(unique, OP_RETURN_210);
-        roundtrip!(unique, OP_RETURN_211);
-        roundtrip!(unique, OP_RETURN_212);
-        roundtrip!(unique, OP_RETURN_213);
-        roundtrip!(unique, OP_RETURN_214);
-        roundtrip!(unique, OP_RETURN_215);
-        roundtrip!(unique, OP_RETURN_216);
-        roundtrip!(unique, OP_RETURN_217);
-        roundtrip!(unique, OP_RETURN_218);
-        roundtrip!(unique, OP_RETURN_219);
-        roundtrip!(unique, OP_RETURN_220);
-        roundtrip!(unique, OP_RETURN_221);
-        roundtrip!(unique, OP_RETURN_222);
-        roundtrip!(unique, OP_RETURN_223);
-        roundtrip!(unique, OP_RETURN_224);
-        roundtrip!(unique, OP_RETURN_225);
-        roundtrip!(unique, OP_RETURN_226);
-        roundtrip!(unique, OP_RETURN_227);
-        roundtrip!(unique, OP_RETURN_228);
+        roundtrip!(unique, OP_SHA256INITIALIZE);
+        roundtrip!(unique, OP_SHA256UPDATE);
+        roundtrip!(unique, OP_SHA256FINALIZE);
+        roundtrip!(unique, OP_INSPECTINPUTOUTPOINT);
+        roundtrip!(unique, OP_INSPECTINPUTASSET);
+        roundtrip!(unique, OP_INSPECTINPUTVALUE);
+        roundtrip!(unique, OP_INSPECTINPUTSCRIPTPUBKEY);
+        roundtrip!(unique, OP_INSPECTINPUTSEQUENCE);
+        roundtrip!(unique, OP_INSPECTINPUTISSUANCE);
+        roundtrip!(unique, OP_PUSHCURRENTINPUTINDEX);
+        roundtrip!(unique, OP_INSPECTOUTPUTASSET);
+        roundtrip!(unique, OP_INSPECTOUTPUTVALUE);
+        roundtrip!(unique, OP_INSPECTOUTPUTNONCE);
+        roundtrip!(unique, OP_INSPECTOUTPUTSCRIPTPUBKEY);
+        roundtrip!(unique, OP_INSPECTVERSION);
+        roundtrip!(unique, OP_INSPECTLOCKTIME);
+        roundtrip!(unique, OP_INSPECTNUMINPUTS);
+        roundtrip!(unique, OP_INSPECTNUMOUTPUTS);
+        roundtrip!(unique, OP_TXWEIGHT);
+        roundtrip!(unique, OP_ADD64);
+        roundtrip!(unique, OP_SUB64);
+        roundtrip!(unique, OP_MUL64);
+        roundtrip!(unique, OP_DIV64);
+        roundtrip!(unique, OP_NEG64);
+        roundtrip!(unique, OP_LESSTHAN64);
+        roundtrip!(unique, OP_LESSTHANOREQUAL64);
+        roundtrip!(unique, OP_GREATERTHAN64);
+        roundtrip!(unique, OP_GREATERTHANOREQUAL64);
+        roundtrip!(unique, OP_SCRIPTNUMTOLE64);
+        roundtrip!(unique, OP_LE64TOSCRIPTNUM);
+        roundtrip!(unique, OP_LE32TOLE64);
+        roundtrip!(unique, OP_ECMULSCALARVERIFY);
+        roundtrip!(unique, OP_TWEAKVERIFY);
         roundtrip!(unique, OP_RETURN_229);
         roundtrip!(unique, OP_RETURN_230);
         roundtrip!(unique, OP_RETURN_231);
@@ -1084,7 +1219,7 @@ mod tests {
         roundtrip!(unique, OP_RETURN_252);
         roundtrip!(unique, OP_RETURN_253);
         roundtrip!(unique, OP_RETURN_254);
-        roundtrip!(unique, OP_RETURN_255);
+        roundtrip!(unique, OP_INVALIDOPCODE);
         assert_eq!(unique.len(), 256);
     }
 }

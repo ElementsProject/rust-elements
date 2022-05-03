@@ -447,7 +447,7 @@ impl Script {
             let opcode = opcodes::All::from(self.0[index]);
             index += 1;
 
-            let data_len = if let opcodes::Class::PushBytes(n) = opcode.classify() {
+            let data_len = if let opcodes::Class::PushBytes(n) = opcode.classify(opcodes::ClassifyContext::Legacy) {
                 n as usize
             } else {
                 match opcode {
@@ -580,7 +580,7 @@ impl<'a> Iterator for Instructions<'a> {
             return None;
         }
 
-        match opcodes::All::from(self.data[0]).classify() {
+        match opcodes::All::from(self.data[0]).classify(opcodes::ClassifyContext::Legacy) {
             opcodes::Class::PushBytes(n) => {
                 let n = n as usize;
                 if self.data.len() < n + 1 {
