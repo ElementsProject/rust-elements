@@ -15,6 +15,9 @@
 use std::{collections::BTreeMap, io};
 use std::collections::btree_map::Entry;
 
+use taproot::TapLeafHash;
+use taproot::{NodeInfo, TaprootBuilder};
+
 use {Script, encode, TxOutWitness};
 use bitcoin::util::bip32::KeySource;
 use bitcoin::{self, PublicKey};
@@ -40,6 +43,12 @@ const PSET_OUT_BIP32_DERIVATION: u8 = 0x02;
 const PSET_OUT_AMOUNT: u8 = 0x03;
 /// Type: Output Script PSET_OUT_SCRIPT = 0x04
 const PSET_OUT_SCRIPT: u8 = 0x04;
+/// Type: Taproot Internal Key PSBT_OUT_TAP_INTERNAL_KEY = 0x05
+const PSBT_OUT_TAP_INTERNAL_KEY: u8 = 0x05;
+/// Type: Taproot Tree PSBT_OUT_TAP_TREE = 0x06
+const PSBT_OUT_TAP_TREE: u8 = 0x06;
+/// Type: Taproot Key BIP 32 Derivation Path PSBT_OUT_TAP_BIP32_DERIVATION = 0x07
+const PSBT_OUT_TAP_BIP32_DERIVATION: u8 = 0x07;
 /// Type: Proprietary Use Type PSET_IN_PROPRIETARY = 0xFC
 const PSET_OUT_PROPRIETARY: u8 = 0xFC;
 
@@ -88,6 +97,13 @@ pub struct Output {
     /// corresponding master key fingerprints and derivation paths.
     #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
     pub bip32_derivation: BTreeMap<PublicKey, KeySource>,
+    /// The internal pubkey
+    pub tap_internal_key: Option<bitcoin::XOnlyPublicKey>,
+    /// Taproot Output tree
+    pub tap_tree: Option<TapTree>,
+    /// Map of tap root x only keys to origin info and leaf hashes contained in it
+    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    pub tap_key_origins: BTreeMap<bitcoin::XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
     /// (PSET) The explicit amount of the output
     pub amount: Option<u64>,
     /// (PSET) The out amount commitment
@@ -120,6 +136,47 @@ pub struct Output {
     /// Unknown key-value pairs for this output.
     #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
+}
+
+/// Taproot Tree representing a finalized [`TaprootBuilder`] (a complete binary tree)
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct TapTree(pub(crate) TaprootBuilder);
+
+impl PartialEq for TapTree {
+    fn eq(&self, other: &Self) -> bool {
+        self.node_info().hash.eq(&other.node_info().hash)
+    }
+}
+
+
+impl Eq for TapTree {}
+
+impl TapTree {
+    // get the inner node info as the builder is finalized
+    fn node_info(&self) -> &NodeInfo {
+        // The builder algorithm invariant guarantees that is_complete builder
+        // have only 1 element in branch and that is not None.
+        // We make sure that we only allow is_complete builders via the from_inner
+        // constructor
+        self.0.branch()[0].as_ref().expect("from_inner only parses is_complete builders")
+    }
+
+    /// Convert a [`TaprootBuilder`] into a tree if it is complete binary tree.
+    /// Returns the inner as Err if it is not a complete tree
+    pub fn from_inner(inner: TaprootBuilder) -> Result<Self, TaprootBuilder> {
+        if inner.is_complete() {
+            Ok(TapTree(inner))
+        } else {
+            Err(inner)
+        }
+    }
+
+    /// Convert self into builder [`TaprootBuilder`]. The builder is guaranteed to
+    /// be finalized.
+    pub fn into_inner(self) -> TaprootBuilder {
+        self.0
+    }
 }
 
 impl Output{
@@ -259,6 +316,22 @@ impl Map for Output {
             }
             PSET_OUT_SCRIPT => return Err(Error::DuplicateKey(raw_key).into()),
 
+            PSBT_OUT_TAP_INTERNAL_KEY => {
+                impl_pset_insert_pair! {
+                    self.tap_internal_key <= <raw_key: _>|<raw_value: bitcoin::XOnlyPublicKey>
+                }
+            }
+            PSBT_OUT_TAP_TREE => {
+                impl_pset_insert_pair! {
+                    self.tap_tree <= <raw_key: _>|<raw_value: TapTree>
+                }
+            }
+            PSBT_OUT_TAP_BIP32_DERIVATION => {
+                impl_pset_insert_pair! {
+                    self.tap_key_origins <= <raw_key: bitcoin::XOnlyPublicKey>|< raw_value: (Vec<TapLeafHash>, KeySource)>
+                }
+            }
+
             PSET_OUT_PROPRIETARY => {
                 let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
                 if prop_key.is_pset_key() {
@@ -330,6 +403,19 @@ impl Map for Output {
 
         impl_pset_get_pair! {
             rv.push(self.bip32_derivation as <PSET_OUT_BIP32_DERIVATION, PublicKey>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push(self.tap_internal_key as <PSBT_OUT_TAP_INTERNAL_KEY, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push(self.tap_tree as <PSBT_OUT_TAP_TREE, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push(self.tap_key_origins as <PSBT_OUT_TAP_BIP32_DERIVATION,
+                    schnorr::PublicKey>)
         }
 
         impl_pset_get_pair! {
@@ -405,9 +491,12 @@ impl Map for Output {
         self.bip32_derivation.extend(other.bip32_derivation);
         self.proprietary.extend(other.proprietary);
         self.unknown.extend(other.unknown);
+        self.tap_key_origins.extend(other.tap_key_origins);
 
         merge!(redeem_script, self, other);
         merge!(witness_script, self, other);
+        merge!(tap_internal_key, self, other);
+        merge!(tap_tree, self, other);
 
         // elements
         merge!(value_rangeproof, self, other);

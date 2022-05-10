@@ -93,6 +93,7 @@ impl TweakedPublicKey {
 
 /// A BIP340-341 serialized schnorr signature with the corresponding hash type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct SchnorrSig {
     /// The underlying schnorr signature
     pub sig: secp256k1_zkp::schnorr::Signature,

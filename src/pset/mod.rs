@@ -42,7 +42,7 @@ use blind::ConfidentialTxOutError;
 use blind::{BlindAssetProofs, BlindValueProofs};
 
 pub use self::error::{Error, PsetBlindError};
-pub use self::map::{Global, GlobalTxData, Input, Output};
+pub use self::map::{Global, GlobalTxData, Input, Output, TapTree};
 use self::map::Map;
 
 /// A Partially Signed Transaction.

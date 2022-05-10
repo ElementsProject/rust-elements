@@ -333,6 +333,7 @@ impl TaprootSpendInfo {
 /// branches in a DFS(Depth first search) walk to construct this tree.
 // Similar to Taproot Builder in bitcoin core
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TaprootBuilder {
     // The following doc-comment is from bitcoin core, but modified for rust
     // The comment below describes the current state of the builder for a given tree.
@@ -378,6 +379,16 @@ impl TaprootBuilder {
     pub fn new() -> Self {
         TaprootBuilder { branch: vec![] }
     }
+
+    /// Check if the builder is a complete tree
+    pub fn is_complete(&self) -> bool {
+        self.branch.len() == 1 && self.branch[0].is_some()
+    }
+
+    pub(crate) fn branch(&self) -> &[Option<NodeInfo>]{
+        &self.branch
+    }
+
     /// Just like [`TaprootBuilder::add_leaf`] but allows to specify script version
     pub fn add_leaf_with_ver(
         self,
@@ -470,26 +481,27 @@ impl TaprootBuilder {
     }
 }
 
-// Internally used structure to represent the node information in taproot tree
+/// Structure to represent the node information in taproot tree
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct NodeInfo {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct NodeInfo {
     /// Merkle Hash for this node
-    hash: sha256::Hash,
+    pub(crate) hash: sha256::Hash,
     /// information about leaves inside this node
-    leaves: Vec<LeafInfo>,
+    pub(crate) leaves: Vec<LeafInfo>,
 }
 
 impl NodeInfo {
-    // Create a new NodeInfo with omitted/hidden info
-    fn new_hidden(hash: sha256::Hash) -> Self {
+    /// Creates a new NodeInfo with omitted/hidden info
+    pub fn new_hidden(hash: sha256::Hash) -> Self {
         Self {
             hash: hash,
             leaves: vec![],
         }
     }
 
-    // Create a new leaf with NodeInfo
-    fn new_leaf_with_ver(script: Script, ver: LeafVersion) -> Self {
+    /// Creates a new leaf with NodeInfo
+    pub fn new_leaf_with_ver(script: Script, ver: LeafVersion) -> Self {
         let leaf = LeafInfo::new(script, ver);
         Self {
             hash: leaf.hash(),
@@ -497,8 +509,8 @@ impl NodeInfo {
         }
     }
 
-    // Combine two NodeInfo's to create a new parent
-    fn combine(a: Self, b: Self) -> Result<Self, TaprootBuilderError> {
+    /// Combines two NodeInfo's to create a new parent
+    pub fn combine(a: Self, b: Self) -> Result<Self, TaprootBuilderError> {
         let mut all_leaves = Vec::with_capacity(a.leaves.len() + b.leaves.len());
         for mut a_leaf in a.leaves {
             a_leaf.merkle_branch.push(b.hash)?; // add hashing partner
@@ -523,20 +535,21 @@ impl NodeInfo {
     }
 }
 
-// Internally used structure to store information about taproot leaf node
+/// Data Structure to store information about taproot leaf node
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct LeafInfo {
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct LeafInfo {
     // The underlying script
-    script: Script,
+    pub(crate) script: Script,
     // The leaf version
-    ver: LeafVersion,
+    pub(crate) ver: LeafVersion,
     // The merkle proof(hashing partners) to get this node
-    merkle_branch: TaprootMerkleBranch,
+    pub(crate) merkle_branch: TaprootMerkleBranch,
 }
 
 impl LeafInfo {
-    // Create an instance of Self from Script with default version and no merkle branch
-    fn new(script: Script, ver: LeafVersion) -> Self {
+    /// Creates an instance of Self from Script with default version and no merkle branch
+    pub fn new(script: Script, ver: LeafVersion) -> Self {
         Self {
             script: script,
             ver: ver,
@@ -544,7 +557,7 @@ impl LeafInfo {
         }
     }
 
-    // Compute a leaf hash for the given leaf
+    // Computes a leaf hash for the given leaf
     fn hash(&self) -> sha256::Hash {
         let leaf_hash = TapLeafHash::from_script(&self.script, self.ver);
         sha256::Hash::from_inner(leaf_hash.into_inner())
@@ -555,6 +568,7 @@ impl LeafInfo {
 // The type of hash is sha256::Hash because the vector might contain
 // both TapBranchHash and TapLeafHash
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct TaprootMerkleBranch(Vec<sha256::Hash>);
 
 impl TaprootMerkleBranch {
@@ -626,6 +640,7 @@ impl TaprootMerkleBranch {
 
 /// Control Block data structure used in Tapscript satisfaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ControlBlock {
     /// The tapleaf version,
     pub leaf_version: LeafVersion,
@@ -732,6 +747,7 @@ impl ControlBlock {
 
 /// The leaf version for tapleafs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LeafVersion(u8);
 
 impl Default for LeafVersion {
