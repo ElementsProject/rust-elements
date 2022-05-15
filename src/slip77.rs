@@ -42,7 +42,7 @@ impl MasterBlindingKey {
     ) -> sha256d::Hash {
         let blinding_private_key = self.derive_blinding_key(script_pubkey);
         let shared_secret = secp256k1_zkp::ecdh::SharedSecret::new(&other, &blinding_private_key);
-        sha256d::Hash::hash(&shared_secret[..])
+        sha256d::Hash::hash(shared_secret.as_ref())
     }
 }
 

@@ -1040,7 +1040,7 @@ mod tests {
                 &PrivateKey {
                     compressed: true,
                     network: Network::Regtest,
-                    key: sk,
+                    inner: sk,
                 },
             );
             let blinding_sk = SecretKey::new(&mut thread_rng());
@@ -1049,11 +1049,11 @@ mod tests {
                 &PrivateKey {
                     compressed: true,
                     network: Network::Regtest,
-                    key: blinding_sk,
+                    inner: blinding_sk,
                 },
             );
             (
-                Address::p2wpkh(&pk, Some(blinding_pk.key), &AddressParams::ELEMENTS),
+                Address::p2wpkh(&pk, Some(blinding_pk.inner), &AddressParams::ELEMENTS),
                 blinding_sk,
             )
         };

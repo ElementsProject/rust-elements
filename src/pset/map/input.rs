@@ -14,6 +14,9 @@
 
 use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io};
 
+use schnorr;
+use taproot::{ControlBlock, LeafVersion, TapLeafHash, TapBranchHash};
+
 use {Script, AssetIssuance, SigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
 use encode::{self, Decodable};
 use confidential;
@@ -65,6 +68,18 @@ const PSET_IN_SEQUENCE: u8 = 0x10;
 const PSET_IN_REQUIRED_TIME_LOCKTIME: u8 = 0x11;
 /// Type: Required Height-based Locktime PSET_IN_REQUIRED_HEIGHT_LOCKTIME = 0x12
 const PSET_IN_REQUIRED_HEIGHT_LOCKTIME: u8 = 0x12;
+/// Type: Schnorr Signature in Key Spend PSBT_IN_TAP_KEY_SIG = 0x13
+const PSBT_IN_TAP_KEY_SIG: u8 = 0x13;
+/// Type: Schnorr Signature in Script Spend PSBT_IN_TAP_SCRIPT_SIG = 0x14
+const PSBT_IN_TAP_SCRIPT_SIG: u8 = 0x14;
+/// Type: Taproot Leaf Script PSBT_IN_TAP_LEAF_SCRIPT = 0x14
+const PSBT_IN_TAP_LEAF_SCRIPT: u8 = 0x15;
+/// Type: Taproot Key BIP 32 Derivation Path PSBT_IN_TAP_BIP32_DERIVATION = 0x16
+const PSBT_IN_TAP_BIP32_DERIVATION : u8 = 0x16;
+/// Type: Taproot Internal Key PSBT_IN_TAP_INTERNAL_KEY = 0x17
+const PSBT_IN_TAP_INTERNAL_KEY : u8 = 0x17;
+/// Type: Taproot Merkle Root PSBT_IN_TAP_MERKLE_ROOT = 0x18
+const PSBT_IN_TAP_MERKLE_ROOT : u8 = 0x18;
 /// Type: Proprietary Use Type PSET_IN_PROPRIETARY = 0xFC
 const PSET_IN_PROPRIETARY: u8 = 0xFC;
 
@@ -184,6 +199,21 @@ pub struct Input {
     pub required_time_locktime: Option<u32>,
     /// (PSET) Minimum required locktime, as a blockheight. If present, must be less than 500000000
     pub required_height_locktime: Option<u32>,
+    /// Serialized schnorr signature with sighash type for key spend
+    pub tap_key_sig: Option<schnorr::SchnorrSig>,
+    /// Map of <xonlypubkey>|<leafhash> with signature
+    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    pub tap_script_sigs: BTreeMap<(bitcoin::XOnlyPublicKey, TapLeafHash), schnorr::SchnorrSig>,
+    /// Map of Control blocks to Script version pair
+    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    pub tap_scripts: BTreeMap<ControlBlock, (Script, LeafVersion)>,
+    /// Map of tap root x only keys to origin info and leaf hashes contained in it
+    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    pub tap_key_origins: BTreeMap<bitcoin::XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
+    /// Taproot Internal key
+    pub tap_internal_key : Option<bitcoin::XOnlyPublicKey>,
+    /// Taproot Merkle root
+    pub tap_merkle_root : Option<TapBranchHash>,
     // Proprietary key-value pairs for this input.
     /// The issuance value
     pub issuance_value_amount: Option<u64>,
@@ -386,6 +416,36 @@ impl Map for Input {
                     self.required_height_locktime <= <raw_key: _>|<raw_value: u32>
                 }
             }
+            PSBT_IN_TAP_KEY_SIG => {
+                impl_pset_insert_pair! {
+                    self.tap_key_sig <= <raw_key: _>|<raw_value: schnorr::SchnorrSig>
+                }
+            }
+            PSBT_IN_TAP_SCRIPT_SIG => {
+                impl_pset_insert_pair! {
+                    self.tap_script_sigs <= <raw_key: (bitcoin::XOnlyPublicKey, TapLeafHash)>|<raw_value: schnorr::SchnorrSig>
+                }
+            }
+            PSBT_IN_TAP_LEAF_SCRIPT=> {
+                impl_pset_insert_pair! {
+                    self.tap_scripts <= <raw_key: ControlBlock>|< raw_value: (Script, LeafVersion)>
+                }
+            }
+            PSBT_IN_TAP_BIP32_DERIVATION => {
+                impl_pset_insert_pair! {
+                    self.tap_key_origins <= <raw_key: bitcoin::XOnlyPublicKey>|< raw_value: (Vec<TapLeafHash>, KeySource)>
+                }
+            }
+            PSBT_IN_TAP_INTERNAL_KEY => {
+                impl_pset_insert_pair! {
+                    self.tap_internal_key <= <raw_key: _>|< raw_value: bitcoin::XOnlyPublicKey>
+                }
+            }
+            PSBT_IN_TAP_MERKLE_ROOT => {
+                impl_pset_insert_pair! {
+                    self.tap_merkle_root <= <raw_key: _>|< raw_value: TapBranchHash>
+                }
+            }
             PSET_IN_PROPRIETARY => {
                 let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
                 if prop_key.is_pset_key() {
@@ -544,6 +604,31 @@ impl Map for Input {
         }
 
         impl_pset_get_pair! {
+            rv.push(self.tap_key_sig as <PSBT_IN_TAP_KEY_SIG, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push(self.tap_script_sigs as <PSBT_IN_TAP_SCRIPT_SIG, (schnorr::PublicKey, TapLeafHash)>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push(self.tap_scripts as <PSBT_IN_TAP_LEAF_SCRIPT, ControlBlock>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push(self.tap_key_origins as <PSBT_IN_TAP_BIP32_DERIVATION,
+                schnorr::PublicKey>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push(self.tap_internal_key as <PSBT_IN_TAP_INTERNAL_KEY, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push(self.tap_merkle_root as <PSBT_IN_TAP_MERKLE_ROOT, _>)
+        }
+
+        impl_pset_get_pair! {
             rv.push_prop(self.issuance_value_amount as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE, _>)
         }
 
@@ -645,6 +730,9 @@ impl Map for Input {
         self.sha256_preimages.extend(other.sha256_preimages);
         self.hash160_preimages.extend(other.hash160_preimages);
         self.hash256_preimages.extend(other.hash256_preimages);
+        self.tap_script_sigs.extend(other.tap_script_sigs);
+        self.tap_scripts.extend(other.tap_scripts);
+        self.tap_key_origins.extend(other.tap_key_origins);
         self.proprietary.extend(other.proprietary);
         self.unknown.extend(other.unknown);
 
@@ -652,6 +740,9 @@ impl Map for Input {
         merge!(witness_script, self, other);
         merge!(final_script_sig, self, other);
         merge!(final_script_witness, self, other);
+        merge!(tap_key_sig, self, other);
+        merge!(tap_internal_key, self, other);
+        merge!(tap_merkle_root, self, other);
 
         // Should we do this?
         self.required_time_locktime = cmp::max(self.required_time_locktime, other.required_time_locktime);

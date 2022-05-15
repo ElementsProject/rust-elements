@@ -30,6 +30,9 @@ pub use bitcoin::{self, consensus::encode::MAX_VEC_SIZE};
 
 // Use the ReadExt/WriteExt traits as is from upstream
 pub use bitcoin::consensus::encode::{ReadExt, WriteExt};
+
+use taproot::TapLeafHash;
+
 /// Encoding error
 #[derive(Debug)]
 pub enum Error {
@@ -271,6 +274,7 @@ macro_rules! impl_vec {
 impl_vec!(TxIn);
 impl_vec!(TxOut);
 impl_vec!(Transaction);
+impl_vec!(TapLeafHash);
 
 
 macro_rules! impl_option {
@@ -343,6 +347,18 @@ impl Encodable for sha256::Hash {
 }
 
 impl Decodable for sha256::Hash {
+    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+        Ok(Self::from_inner(<<Self as Hash>::Inner>::consensus_decode(d)?))
+    }
+}
+
+impl Encodable for TapLeafHash {
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+        self.into_inner().consensus_encode(s)
+    }
+}
+
+impl Decodable for TapLeafHash {
     fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
         Ok(Self::from_inner(<<Self as Hash>::Inner>::consensus_decode(d)?))
     }

@@ -748,9 +748,9 @@ impl Builder {
     /// Pushes a public key
     pub fn push_key(self, key: &PublicKey) -> Builder {
         if key.compressed {
-            self.push_slice(&key.key.serialize()[..])
+            self.push_slice(&key.inner.serialize()[..])
         } else {
-            self.push_slice(&key.key.serialize_uncompressed()[..])
+            self.push_slice(&key.inner.serialize_uncompressed()[..])
         }
     }
 

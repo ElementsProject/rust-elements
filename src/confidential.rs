@@ -20,7 +20,7 @@
 use hashes::{sha256d, Hash, hex};
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
     PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
-    compute_adaptive_blinding_factor, ecdh::SharedSecret,
+    compute_adaptive_blinding_factor,
     rand::{CryptoRng, Rng, RngCore}
 };
 #[cfg(feature = "serde")]
@@ -560,20 +560,21 @@ impl Nonce {
 
     /// Create the shared secret.
     fn make_shared_secret(pk: &PublicKey, sk: &SecretKey) -> SecretKey {
-        let shared_secret = SharedSecret::new_with_hash(pk, sk, |x, y| {
+        let xy = secp256k1_zkp::ecdh::shared_secret_point(pk, sk);
+        let shared_secret = {
             // Yes, what follows is the compressed representation of a Bitcoin public key.
             // However, this is more by accident then by design, see here: https://github.com/rust-bitcoin/rust-secp256k1/pull/255#issuecomment-744146282
 
             let mut dh_secret = [0u8; 33];
-            dh_secret[0] = if y.last().unwrap() % 2 == 0 {
+            dh_secret[0] = if xy.last().unwrap() % 2 == 0 {
                 0x02
             } else {
                 0x03
             };
-            dh_secret[1..].copy_from_slice(&x);
+            dh_secret[1..].copy_from_slice(&xy[0..32]);
 
-            sha256d::Hash::hash(&dh_secret).into_inner().into()
-        });
+            sha256d::Hash::hash(&dh_secret).into_inner()
+        };
 
         SecretKey::from_slice(&shared_secret.as_ref()[..32]).expect("always has exactly 32 bytes")
     }

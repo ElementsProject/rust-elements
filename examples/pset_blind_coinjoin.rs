@@ -164,7 +164,7 @@ fn main() {
     let dest_btc_txout = TxOut {
         asset: confidential::Asset::Explicit(btc_txout_secrets.sec.asset),
         value: confidential::Value::Explicit(dest_btc_amt),
-        nonce: confidential::Nonce::Confidential(dest_btc_blind_pk.key),
+        nonce: confidential::Nonce::Confidential(dest_btc_blind_pk.inner),
         script_pubkey: Script::new_v0_wsh(&dest_btc_wsh),
         witness: TxOutWitness::default(),
     };
@@ -181,7 +181,7 @@ fn main() {
     let change_btc_txout = TxOut {
         asset: confidential::Asset::Explicit(btc_txout_secrets.sec.asset),
         value: confidential::Value::Explicit(change_amt),
-        nonce: confidential::Nonce::Confidential(change_btc_blind_pk.key),
+        nonce: confidential::Nonce::Confidential(change_btc_blind_pk.inner),
         script_pubkey: Script::new_v0_wsh(&change_btc_wsh),
         witness: TxOutWitness::default(),
     };
@@ -226,7 +226,7 @@ fn main() {
     let dest_asset_txout = TxOut {
         asset: confidential::Asset::Explicit(asset_txout_secrets.sec.asset),
         value: confidential::Value::Explicit(dest_asset_amt),
-        nonce: confidential::Nonce::Confidential(dest_asset_blind_pk.key),
+        nonce: confidential::Nonce::Confidential(dest_asset_blind_pk.inner),
         script_pubkey: Script::new_v0_wsh(&dest_asset_wsh),
         witness: TxOutWitness::default(),
     };
@@ -242,7 +242,7 @@ fn main() {
     let change_asset_txout = TxOut {
         asset: confidential::Asset::Explicit(asset_txout_secrets.sec.asset),
         value: confidential::Value::Explicit(change_asset_amt),
-        nonce: confidential::Nonce::Confidential(change_asset_blind_pk.key),
+        nonce: confidential::Nonce::Confidential(change_asset_blind_pk.inner),
         script_pubkey: Script::new_v0_wsh(&change_asset_wsh),
         witness: TxOutWitness::default(),
     };
