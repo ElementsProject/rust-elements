@@ -208,6 +208,22 @@ impl<'s> ScriptPath<'s> {
     pub fn with_defaults(script: &'s Script) -> Self {
         Self::new(script, 0xFFFFFFFFu32, 0xc4)
     }
+
+    /// Compute the leaf hash
+    pub fn leaf_hash(&self) -> TapLeafHash {
+        let mut enc = TapLeafHash::engine();
+
+        self.leaf_version.consensus_encode(&mut enc).expect("Writing to hash enging should never fail");
+        self.script.consensus_encode(&mut enc).expect("Writing to hash enging should never fail");
+
+        TapLeafHash::from_engine(enc)
+    }
+}
+
+impl<'s> From<ScriptPath<'s>> for TapLeafHash {
+    fn from(script_path: ScriptPath<'s>) -> TapLeafHash {
+        script_path.leaf_hash()
+    }
 }
 
 impl<R: Deref<Target = Transaction>> SigHashCache<R> {
@@ -232,7 +248,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         input_index: usize,
         prevouts: &Prevouts,
         annex: Option<Annex>,
-        script_path: Option<ScriptPath>,
+        leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
         sighash_type: SchnorrSigHashType,
         genesis_hash: BlockHash,
     ) -> Result<(), Error> {
@@ -304,7 +320,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         if annex.is_some() {
             spend_type |= 1u8;
         }
-        if script_path.is_some() {
+        if leaf_hash_code_separator.is_some() {
             spend_type |= 2u8;
         }
         spend_type.consensus_encode(&mut writer)?;
@@ -389,17 +405,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         //         ss += TaggedHash("TapLeaf", bytes([leaf_ver]) + ser_string(script))
         //         ss += bytes([0])
         //         ss += struct.pack("<i", codeseparator_pos)
-        if let Some(ScriptPath {
-            script,
-            leaf_version,
-            code_separator_pos,
-        }) = script_path
-        {
-            let mut enc = TapLeafHash::engine();
-            leaf_version.consensus_encode(&mut enc)?;
-            script.consensus_encode(&mut enc)?;
-            let hash = TapLeafHash::from_engine(enc);
-
+        if let Some((hash, code_separator_pos)) = leaf_hash_code_separator {
             hash.into_inner().consensus_encode(&mut writer)?;
             KEY_VERSION_0.consensus_encode(&mut writer)?;
             code_separator_pos.consensus_encode(&mut writer)?;
@@ -414,7 +420,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         input_index: usize,
         prevouts: &Prevouts,
         annex: Option<Annex>,
-        script_path: Option<ScriptPath>,
+        leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
         sighash_type: SchnorrSigHashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
@@ -424,9 +430,55 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             input_index,
             prevouts,
             annex,
-            script_path,
+            leaf_hash_code_separator,
             sighash_type,
             genesis_hash,
+        )?;
+        Ok(TapSighashHash::from_engine(enc))
+    }
+
+    /// Compute the BIP341 sighash for a key spend
+    pub fn taproot_key_spend_signature_hash(
+        &mut self,
+        input_index: usize,
+        prevouts: &Prevouts,
+        sighash_type: SchnorrSigHashType,
+        genesis_hash: BlockHash,
+    ) -> Result<TapSighashHash, Error> {
+        let mut enc = TapSighashHash::engine();
+        self.taproot_encode_signing_data_to(
+            &mut enc,
+            input_index,
+            prevouts,
+            None,
+            None,
+            sighash_type,
+            genesis_hash,
+        )?;
+        Ok(TapSighashHash::from_engine(enc))
+    }
+
+    /// Compute the BIP341 sighash for a script spend
+    ///
+    /// Assumes the default `OP_CODESEPARATOR` position of `0xFFFFFFFF`. Custom values can be
+    /// provided through the more fine-grained API of [`SighashCache::taproot_encode_signing_data_to`].
+    pub fn taproot_script_spend_signature_hash<S: Into<TapLeafHash>>(
+        &mut self,
+        input_index: usize,
+        prevouts: &Prevouts,
+        leaf_hash: S,
+        sighash_type: SchnorrSigHashType,
+        genesis_hash: BlockHash,
+    ) -> Result<TapSighashHash, Error> {
+        let mut enc = TapSighashHash::engine();
+        self.taproot_encode_signing_data_to(
+            &mut enc,
+            input_index,
+            prevouts,
+            None,
+            Some((leaf_hash.into(), 0xFFFFFFFF)),
+            sighash_type,
+            genesis_hash
         )?;
         Ok(TapSighashHash::from_engine(enc))
     }

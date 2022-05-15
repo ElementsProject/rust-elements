@@ -14,7 +14,7 @@ use elements::encode::{deserialize, serialize_hex};
 use elements::script::Builder;
 use elements::secp256k1_zkp::{self, schnorrsig};
 use elements::sighash::{self, SigHashCache};
-use elements::taproot::{LeafVersion, TapTweakHash, TaprootBuilder, TaprootSpendInfo};
+use elements::taproot::{LeafVersion, TapTweakHash, TaprootBuilder, TaprootSpendInfo, TapLeafHash};
 use elements::OutPoint;
 use elements::{
     confidential, opcodes, AssetIssuance, BlockHash, SchnorrSig, SchnorrSigHashType, Script,
@@ -241,11 +241,10 @@ fn taproot_spend_test(
         // script spend
         // try spending using leaf1
         let sighash_msg = cache
-            .taproot_sighash(
+            .taproot_script_spend_signature_hash(
                 0, // input index
                 &sighash::Prevouts::All(&[test_data.utxo]),
-                None, // annex
-                Some(sighash::ScriptPath::with_defaults(&test_data.leaf1_script)),
+                TapLeafHash::from(sighash::ScriptPath::with_defaults(&test_data.leaf1_script)),
                 sighash_ty, // sighash_ty
                 genesis_hash,
             )
