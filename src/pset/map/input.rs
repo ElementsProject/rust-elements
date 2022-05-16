@@ -18,7 +18,7 @@ use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io, str::FromStr};
 use schnorr;
 use taproot::{ControlBlock, LeafVersion, TapLeafHash, TapBranchHash};
 
-use {Script, AssetIssuance, SigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
+use {Script, AssetIssuance, EcdsaSigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
 use {SchnorrSigHashType, transaction::SighashTypeParseError};
 use encode::{self, Decodable};
 use confidential;
@@ -303,8 +303,8 @@ impl FromStr for PsbtSighashType {
         Err(SighashTypeParseError{ unrecognized: s.to_owned() })
     }
 }
-impl From<SigHashType> for PsbtSighashType {
-    fn from(ecdsa_hash_ty: SigHashType) -> Self {
+impl From<EcdsaSigHashType> for PsbtSighashType {
+    fn from(ecdsa_hash_ty: EcdsaSigHashType) -> Self {
         PsbtSighashType { inner: ecdsa_hash_ty as u32 }
     }
 }
@@ -318,8 +318,8 @@ impl From<SchnorrSigHashType> for PsbtSighashType {
 impl PsbtSighashType {
     /// Returns the [`SigHashType`] if the [`PsbtSighashType`] can be
     /// converted to one.
-    pub fn ecdsa_hash_ty(self) -> Option<SigHashType> {
-        SigHashType::from_standard(self.inner).ok()
+    pub fn ecdsa_hash_ty(self) -> Option<EcdsaSigHashType> {
+        EcdsaSigHashType::from_standard(self.inner).ok()
     }
 
     /// Returns the [`SchnorrSigHashType`] if the [`PsbtSighashType`] can be
