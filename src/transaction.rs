@@ -900,8 +900,6 @@ impl fmt::Display for SighashTypeParseError {
     }
 }
 
-#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
-#[cfg(feature = "std")]
 impl ::std::error::Error for SighashTypeParseError {}
 
 #[cfg(test)]
