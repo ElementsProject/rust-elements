@@ -20,18 +20,17 @@
 use std::io;
 
 use bitcoin::{self, PublicKey, VarInt};
-use {Script, SigHashType, Transaction, TxOut, Txid, BlockHash, AssetId};
+use {Script, Transaction, TxOut, Txid, BlockHash, AssetId};
 use encode::{self, serialize, deserialize, Decodable, Encodable, deserialize_partial};
 use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
 use hashes::{hash160, ripemd160, sha256, sha256d, Hash};
-use pset;
 use bitcoin::hashes::hex::ToHex;
 use confidential;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use taproot::{TapBranchHash, TapLeafHash, ControlBlock, LeafVersion};
 use schnorr;
-use super::map::TapTree;
+use super::map::{TapTree, PsbtSighashType};
 
 use taproot::TaprootBuilder;
 use sighash::SchnorrSigHashType;
@@ -169,22 +168,16 @@ impl Deserialize for Vec<u8> {
     }
 }
 
-impl Serialize for SigHashType {
+impl Serialize for PsbtSighashType {
     fn serialize(&self) -> Vec<u8> {
-        serialize(&self.as_u32())
+        serialize(&self.to_u32())
     }
 }
 
-impl Deserialize for SigHashType {
+impl Deserialize for PsbtSighashType {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         let raw: u32 = encode::deserialize(bytes)?;
-        let rv: SigHashType = SigHashType::from_u32(raw);
-
-        if rv.as_u32() == raw {
-            Ok(rv)
-        } else {
-            Err(pset::Error::NonStandardSigHashType(raw).into())
-        }
+        Ok(PsbtSighashType::from_u32(raw))
     }
 }
 

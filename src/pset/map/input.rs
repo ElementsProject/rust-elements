@@ -12,12 +12,14 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io};
+use std::fmt;
+use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io, str::FromStr};
 
 use schnorr;
 use taproot::{ControlBlock, LeafVersion, TapLeafHash, TapBranchHash};
 
 use {Script, AssetIssuance, SigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
+use {SchnorrSigHashType, transaction::SighashTypeParseError};
 use encode::{self, Decodable};
 use confidential;
 use bitcoin::util::bip32::KeySource;
@@ -161,7 +163,7 @@ pub struct Input {
     pub partial_sigs: BTreeMap<PublicKey, Vec<u8>>,
     /// The sighash type to be used for this input. Signatures for this input
     /// must use the sighash type.
-    pub sighash_type: Option<SigHashType>,
+    pub sighash_type: Option<PsbtSighashType>,
     /// The redeem script for this input.
     pub redeem_script: Option<Script>,
     /// The witness script for this input.
@@ -256,6 +258,95 @@ pub struct Input {
     /// Unknown key-value pairs for this input.
     #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
+}
+
+/// A Signature hash type for the corresponding input. As of taproot upgrade, the signature hash
+/// type can be either [`SigHashType`] or [`SchnorrSigHashType`] but it is not possible to know
+/// directly which signature hash type the user is dealing with. Therefore, the user is responsible
+/// for converting to/from [`PsbtSighashType`] from/to the desired signature hash type they need.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct PsbtSighashType {
+    pub (crate) inner: u32,
+}
+
+impl fmt::Display for PsbtSighashType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.schnorr_hash_ty() {
+            Some(SchnorrSigHashType::Reserved) | None => write!(f, "{:#x}", self.inner),
+            Some(schnorr_hash_ty) => fmt::Display::fmt(&schnorr_hash_ty, f),
+        }
+    }
+}
+
+impl FromStr for PsbtSighashType {
+    type Err = SighashTypeParseError;
+
+    #[inline]
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // We accept strings of form: "SIGHASH_ALL" etc.
+        //
+        // NB: some of Schnorr sighash types are non-standard for pre-taproot
+        // inputs. We also do not support SIGHASH_RESERVED in verbatim form
+        // ("0xFF" string should be used instead).
+        match SchnorrSigHashType::from_str(s) {
+            Ok(SchnorrSigHashType::Reserved) => return Err(SighashTypeParseError{ unrecognized: s.to_owned() }),
+            Ok(ty) => return Ok(ty.into()),
+            Err(_) => {}
+        }
+
+        // We accept non-standard sighash values.
+        if let Ok(inner) = u32::from_str_radix(s.trim_start_matches("0x"), 16) {
+            return Ok(PsbtSighashType { inner });
+        }
+
+        Err(SighashTypeParseError{ unrecognized: s.to_owned() })
+    }
+}
+impl From<SigHashType> for PsbtSighashType {
+    fn from(ecdsa_hash_ty: SigHashType) -> Self {
+        PsbtSighashType { inner: ecdsa_hash_ty as u32 }
+    }
+}
+
+impl From<SchnorrSigHashType> for PsbtSighashType {
+    fn from(schnorr_hash_ty: SchnorrSigHashType) -> Self {
+        PsbtSighashType { inner: schnorr_hash_ty as u32 }
+    }
+}
+
+impl PsbtSighashType {
+    /// Returns the [`SigHashType`] if the [`PsbtSighashType`] can be
+    /// converted to one.
+    pub fn ecdsa_hash_ty(self) -> Option<SigHashType> {
+        SigHashType::from_standard(self.inner).ok()
+    }
+
+    /// Returns the [`SchnorrSigHashType`] if the [`PsbtSighashType`] can be
+    /// converted to one.
+    pub fn schnorr_hash_ty(self) -> Option<SchnorrSigHashType> {
+        if self.inner > 0xffu32 {
+            None
+        } else {
+            SchnorrSigHashType::from_u8(self.inner as u8)
+        }
+    }
+
+    /// Creates a [`PsbtSighashType`] from a raw `u32`.
+    ///
+    /// Allows construction of a non-standard or non-valid sighash flag
+    /// ([`SigHashType`], [`SchnorrSigHashType`] respectively).
+    pub fn from_u32(n: u32) -> PsbtSighashType {
+        PsbtSighashType { inner: n }
+    }
+
+
+    /// Converts [`PsbtSighashType`] to a raw `u32` sighash flag.
+    ///
+    /// No guarantees are made as to the standardness or validity of the returned value.
+    pub fn to_u32(self) -> u32 {
+        self.inner
+    }
 }
 
 impl Input{
@@ -358,7 +449,7 @@ impl Map for Input {
             }
             PSET_IN_SIGHASH_TYPE => {
                 impl_pset_insert_pair! {
-                    self.sighash_type <= <raw_key: _>|<raw_value: SigHashType>
+                    self.sighash_type <= <raw_key: _>|<raw_value: PsbtSighashType>
                 }
             }
             PSET_IN_REDEEM_SCRIPT => {

@@ -32,6 +32,8 @@ use std::fmt;
 use taproot::{TapSighashHash, TapLeafHash};
 
 use BlockHash;
+
+use transaction::SighashTypeParseError;
 /// Efficiently calculates signature hash message for legacy, segwit and taproot inputs.
 #[derive(Debug)]
 pub struct SigHashCache<T: Deref<Target = Transaction>> {
@@ -922,6 +924,41 @@ impl SchnorrSigHashType {
         }
     }
 }
+
+impl fmt::Display for SchnorrSigHashType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            SchnorrSigHashType::Default => "SIGHASH_DEFAULT",
+            SchnorrSigHashType::All => "SIGHASH_ALL",
+            SchnorrSigHashType::None => "SIGHASH_NONE",
+            SchnorrSigHashType::Single => "SIGHASH_SINGLE",
+            SchnorrSigHashType::AllPlusAnyoneCanPay => "SIGHASH_ALL|SIGHASH_ANYONECANPAY",
+            SchnorrSigHashType::NonePlusAnyoneCanPay => "SIGHASH_NONE|SIGHASH_ANYONECANPAY",
+            SchnorrSigHashType::SinglePlusAnyoneCanPay => "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY",
+            SchnorrSigHashType::Reserved => "SIGHASH_RESERVED",
+        };
+        f.write_str(s)
+    }
+}
+
+impl std::str::FromStr for SchnorrSigHashType {
+    type Err = SighashTypeParseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "SIGHASH_DEFAULT" => Ok(SchnorrSigHashType::Default),
+            "SIGHASH_ALL" => Ok(SchnorrSigHashType::All),
+            "SIGHASH_NONE" => Ok(SchnorrSigHashType::None),
+            "SIGHASH_SINGLE" => Ok(SchnorrSigHashType::Single),
+            "SIGHASH_ALL|SIGHASH_ANYONECANPAY" => Ok(SchnorrSigHashType::AllPlusAnyoneCanPay),
+            "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSigHashType::NonePlusAnyoneCanPay),
+            "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSigHashType::SinglePlusAnyoneCanPay),
+            "SIGHASH_RESERVED" => Ok(SchnorrSigHashType::Reserved),
+            _ => Err(SighashTypeParseError{ unrecognized: s.to_owned() }),
+        }
+    }
+}
+
 
 #[cfg(test)]
 mod tests{

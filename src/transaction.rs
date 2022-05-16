@@ -852,7 +852,57 @@ impl SigHashType {
     pub fn as_u32(self) -> u32 {
         self as u32
     }
+
+    /// Creates a [`SigHashType`] from a raw `u32`.
+    ///
+    /// # Errors
+    ///
+    /// If `n` is a non-standard sighash value.
+    pub fn from_standard(n: u32) -> Result<SigHashType, NonStandardSighashType> {
+        match n {
+            // Standard sighashes, see https://github.com/bitcoin/bitcoin/blob/b805dbb0b9c90dadef0424e5b3bf86ac308e103e/src/script/interpreter.cpp#L189-L198
+            0x01 => Ok(SigHashType::All),
+            0x02 => Ok(SigHashType::None),
+            0x03 => Ok(SigHashType::Single),
+            0x81 => Ok(SigHashType::AllPlusAnyoneCanPay),
+            0x82 => Ok(SigHashType::NonePlusAnyoneCanPay),
+            0x83 => Ok(SigHashType::SinglePlusAnyoneCanPay),
+            non_standard => Err(NonStandardSighashType(non_standard))
+        }
+    }
 }
+
+/// This type is consensus valid but an input including it would prevent the transaction from
+/// being relayed on today's Bitcoin network.
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct NonStandardSighashType(pub u32);
+
+impl fmt::Display for NonStandardSighashType {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Non standard sighash type {}", self.0)
+    }
+}
+
+impl std::error::Error for NonStandardSighashType {}
+
+/// Error returned for failure during parsing one of the sighash types.
+///
+/// This is currently returned for unrecognized sighash strings.
+#[derive(Debug, Clone)]
+pub struct SighashTypeParseError {
+    /// The unrecognized string we attempted to parse.
+    pub unrecognized: String,
+}
+
+impl fmt::Display for SighashTypeParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Unrecognized SIGHASH string '{}'", self.unrecognized)
+    }
+}
+
+#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
+#[cfg(feature = "std")]
+impl ::std::error::Error for SighashTypeParseError {}
 
 #[cfg(test)]
 mod tests {
