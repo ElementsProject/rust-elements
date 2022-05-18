@@ -1454,6 +1454,7 @@ mod tests {
     }
 
     #[cfg(feature = "serde")]
+    #[test]
     fn test_value_bincode_be() {
         let value = Value::Explicit(500);
         let bytes = bincode::serialize(&value).unwrap();

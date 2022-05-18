@@ -834,8 +834,6 @@ impl fmt::Display for TaprootBuilderError {
     }
 }
 
-#[cfg(feature = "std")]
-#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl error::Error for TaprootBuilderError {}
 
 /// Detailed error type for taproot utilities
