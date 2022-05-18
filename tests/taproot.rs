@@ -114,7 +114,6 @@ fn funded_tap_txout(
     let amt = Amount::from_sat(1_000_000);
     let txid_hex = elementsd.send_to_address(&addr.to_string(), &amt.as_btc().to_string());
     elementsd.generate(1);
-    dbg!(&txid_hex);
     let tx_hex = elementsd.get_transaction(&txid_hex);
 
     let tx = deserialize::<Transaction>(&Vec::<u8>::from_hex(&tx_hex).unwrap()).unwrap();
@@ -306,7 +305,6 @@ fn taproot_tests() {
             }
             for script_spend in [true, false] {
                 for sighash_ty in sighash_tys {
-                    dbg!(conf_prevout, blind, sighash_ty);
                     taproot_spend_test(
                         &elementsd,
                         &secp,
@@ -375,7 +373,6 @@ impl Call for ElementsD {
 
     fn test_mempool_accept(&self, hex: &str) -> bool {
         let result = self.call("testmempoolaccept", &[json!([hex])]);
-        dbg!(&result);
         let allowed = result.get(0).unwrap().get("allowed");
         allowed.unwrap().as_bool().unwrap()
     }

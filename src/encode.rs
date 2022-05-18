@@ -277,9 +277,9 @@ impl_vec!(Transaction);
 impl_vec!(TapLeafHash);
 
 
-macro_rules! impl_option {
+macro_rules! impl_box_option {
     ($type: ty) => {
-        impl Encodable for Option<$type> {
+        impl Encodable for Option<Box<$type>> {
             #[inline]
             fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
                 match self {
@@ -289,14 +289,14 @@ macro_rules! impl_option {
             }
         }
 
-        impl Decodable for Option<$type> {
+        impl Decodable for Option<Box<$type>> {
             #[inline]
             fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, Error> {
                 let v : Vec<u8> = Decodable::consensus_decode(&mut d)?;
                 if v.is_empty() {
                     Ok(None)
                 } else {
-                    Ok(Some(<$type>::from_slice(&v)?))
+                    Ok(Some(Box::new(<$type>::from_slice(&v)?)))
                 }
             }
         }
@@ -364,5 +364,5 @@ impl Decodable for TapLeafHash {
     }
 }
 
-impl_option!(RangeProof);
-impl_option!(SurjectionProof);
+impl_box_option!(RangeProof);
+impl_box_option!(SurjectionProof);

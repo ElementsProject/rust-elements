@@ -419,13 +419,13 @@ impl PartiallySignedTransaction {
                     compressed: true
                 });
                 let asset_id = self.outputs[i].asset.ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
-                self.outputs[i].blind_asset_proof = Some(SurjectionProof::blind_asset_proof(rng, secp, asset_id, abf)
-                    .map_err(|e| PsetBlindError::BlindingProofsCreationError(i, e))?);
+                self.outputs[i].blind_asset_proof = Some(Box::new(SurjectionProof::blind_asset_proof(rng, secp, asset_id, abf)
+                    .map_err(|e| PsetBlindError::BlindingProofsCreationError(i, e))?));
 
                 let asset_gen = self.outputs[i].asset_comm.expect("Blinding proof creation error");
                 let value_comm = self.outputs[i].amount_comm.expect("Blinding proof successful");
-                self.outputs[i].blind_value_proof = Some(RangeProof::blind_value_proof(rng, secp, value, value_comm, asset_gen, vbf)
-                    .map_err(|e| PsetBlindError::BlindingProofsCreationError(i, e))?);
+                self.outputs[i].blind_value_proof = Some(Box::new(RangeProof::blind_value_proof(rng, secp, value, value_comm, asset_gen, vbf)
+                    .map_err(|e| PsetBlindError::BlindingProofsCreationError(i, e))?));
             }
             // return blinding factors used
             ret.push((abf, vbf));
@@ -575,8 +575,8 @@ impl PartiallySignedTransaction {
 
         // mutate the pset
         {
-            self.outputs[last_out_index].value_rangeproof = Some(rangeproof);
-            self.outputs[last_out_index].asset_surjection_proof = Some(surjection_proof);
+            self.outputs[last_out_index].value_rangeproof = Some(Box::new(rangeproof));
+            self.outputs[last_out_index].asset_surjection_proof = Some(Box::new(surjection_proof));
             self.outputs[last_out_index].amount_comm = Some(value_commitment);
             self.outputs[last_out_index].asset_comm = Some(out_asset_commitment);
             self.outputs[last_out_index].ecdh_pubkey = nonce.commitment().map(|pk| bitcoin::PublicKey{
@@ -584,13 +584,13 @@ impl PartiallySignedTransaction {
                 compressed: true
             });
             let asset_id = self.outputs[last_out_index].asset.ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
-            self.outputs[last_out_index].blind_asset_proof = Some(SurjectionProof::blind_asset_proof(rng, secp, asset_id, out_abf)
-                .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?);
+            self.outputs[last_out_index].blind_asset_proof = Some(Box::new(SurjectionProof::blind_asset_proof(rng, secp, asset_id, out_abf)
+                .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?));
 
             let asset_gen = self.outputs[last_out_index].asset_comm.expect("Blinding proof creation error");
             let value_comm = self.outputs[last_out_index].amount_comm.expect("Blinding proof successful");
-            self.outputs[last_out_index].blind_value_proof = Some(RangeProof::blind_value_proof(rng, secp, value, value_comm, asset_gen, final_vbf)
-                .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?);
+            self.outputs[last_out_index].blind_value_proof = Some(Box::new(RangeProof::blind_value_proof(rng, secp, value, value_comm, asset_gen, final_vbf)
+                .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?));
 
             self.global.scalars.clear()
         }

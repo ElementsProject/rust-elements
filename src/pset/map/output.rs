@@ -116,9 +116,9 @@ pub struct Output {
     pub asset_comm: Option<secp256k1_zkp::Generator>,
     // Proprietary key-value pairs for this output.
     /// Output value rangeproof
-    pub value_rangeproof: Option<RangeProof>,
+    pub value_rangeproof: Option<Box<RangeProof>>,
     /// Output Asset surjection proof
-    pub asset_surjection_proof: Option<SurjectionProof>,
+    pub asset_surjection_proof: Option<Box<SurjectionProof>>,
     /// Blinding pubkey which is used in receiving address
     pub blinding_key: Option<bitcoin::PublicKey>,
     /// The ephermal pk sampled by sender
@@ -126,9 +126,9 @@ pub struct Output {
     /// The index of the input whose owner should blind this output
     pub blinder_index: Option<u32>,
     /// The blind value rangeproof
-    pub blind_value_proof: Option<RangeProof>,
+    pub blind_value_proof: Option<Box<RangeProof>>,
     /// The blind asset surjection proof
-    pub blind_asset_proof: Option<SurjectionProof>,
+    pub blind_asset_proof: Option<Box<SurjectionProof>>,
     /// Pset
     /// Other fields
     #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
@@ -346,10 +346,10 @@ impl Map for Output {
                             impl_pset_prop_insert_pair!(self.asset_comm <= <raw_key: _> | <raw_value : Generator>)
                         }
                         PSBT_ELEMENTS_OUT_VALUE_RANGEPROOF => {
-                            impl_pset_prop_insert_pair!(self.value_rangeproof <= <raw_key: _> | <raw_value : RangeProof>)
+                            impl_pset_prop_insert_pair!(self.value_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
                         PSBT_ELEMENTS_OUT_ASSET_SURJECTION_PROOF => {
-                            impl_pset_prop_insert_pair!(self.asset_surjection_proof <= <raw_key: _> | <raw_value : SurjectionProof>)
+                            impl_pset_prop_insert_pair!(self.asset_surjection_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
                         }
                         PSBT_ELEMENTS_OUT_BLINDING_PUBKEY => {
                             impl_pset_prop_insert_pair!(self.blinding_key <= <raw_key: _> | <raw_value : bitcoin::PublicKey>)
@@ -361,10 +361,10 @@ impl Map for Output {
                             impl_pset_prop_insert_pair!(self.blinder_index <= <raw_key: _> | <raw_value : u32>)
                         }
                         PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : RangeProof>)
+                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
                         PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : SurjectionProof>)
+                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
                         }
                         _ => {
                             match self.proprietary.entry(prop_key) {

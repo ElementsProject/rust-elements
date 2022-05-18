@@ -245,29 +245,31 @@ impl Deserialize for confidential::Asset {
     }
 }
 
-impl Serialize for RangeProof {
+impl Serialize for Box<RangeProof> {
     fn serialize(&self) -> Vec<u8> {
-        self.serialize()
+        RangeProof::serialize(self)
     }
 }
 
-impl Deserialize for RangeProof {
+impl Deserialize for Box<RangeProof> {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        RangeProof::from_slice(&bytes)
-            .map_err(|_| encode::Error::ParseFailed("Invalid Rangeproof"))
+        let prf = RangeProof::from_slice(&bytes)
+            .map_err(|_| encode::Error::ParseFailed("Invalid Rangeproof"))?;
+        Ok(Box::new(prf))
     }
 }
 
-impl Serialize for SurjectionProof {
+impl Serialize for Box<SurjectionProof> {
     fn serialize(&self) -> Vec<u8> {
-        self.serialize()
+        SurjectionProof::serialize(self)
     }
 }
 
-impl Deserialize for SurjectionProof {
+impl Deserialize for Box<SurjectionProof> {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        SurjectionProof::from_slice(&bytes)
-            .map_err(|_| encode::Error::ParseFailed("Invalid SurjectionProof"))
+        let prf = SurjectionProof::from_slice(&bytes)
+            .map_err(|_| encode::Error::ParseFailed("Invalid SurjectionProof"))?;
+        Ok(Box::new(prf))
     }
 }
 
