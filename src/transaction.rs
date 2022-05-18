@@ -135,9 +135,9 @@ impl ::std::str::FromStr for OutPoint {
 #[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
 pub struct TxInWitness {
     /// Amount rangeproof
-    pub amount_rangeproof: Option<RangeProof>,
+    pub amount_rangeproof: Option<Box<RangeProof>>,
     /// Rangeproof for inflation keys
-    pub inflation_keys_rangeproof: Option<RangeProof>,
+    pub inflation_keys_rangeproof: Option<Box<RangeProof>>,
     /// Traditional script witness
     pub script_witness: Vec<Vec<u8>>,
     /// Pegin witness, basically the same thing
@@ -329,9 +329,13 @@ impl TxIn {
 #[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
 pub struct TxOutWitness {
     /// Surjection proof showing that the asset commitment is legitimate
-    pub surjection_proof: Option<SurjectionProof>,
+    // We Box it because surjection proof internally is an array [u8; N] that
+    // allocates on stack even when the surjection proof is empty
+    pub surjection_proof: Option<Box<SurjectionProof>>,
     /// Rangeproof showing that the value commitment is legitimate
-    pub rangeproof: Option<RangeProof>,
+    // We Box it because range proof internally is an array [u8; N] that
+    // allocates on stack even when the range proof is empty
+    pub rangeproof: Option<Box<RangeProof>>,
 }
 serde_struct_impl!(TxOutWitness, surjection_proof, rangeproof);
 impl_consensus_encoding!(TxOutWitness, surjection_proof, rangeproof);

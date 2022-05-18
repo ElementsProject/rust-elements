@@ -338,8 +338,8 @@ impl TxOut {
             nonce,
             script_pubkey: address.script_pubkey(),
             witness: TxOutWitness {
-                surjection_proof: Some(surjection_proof),
-                rangeproof: Some(rangeproof),
+                surjection_proof: Some(Box::new(surjection_proof)),
+                rangeproof: Some(Box::new(rangeproof)),
             },
         };
 
@@ -494,8 +494,8 @@ impl TxOut {
             nonce,
             script_pubkey: address.script_pubkey(),
             witness: TxOutWitness {
-                surjection_proof: Some(surjection_proof),
-                rangeproof: Some(rangeproof),
+                surjection_proof: Some(Box::new(surjection_proof)),
+                rangeproof: Some(Box::new(rangeproof)),
             },
         };
 

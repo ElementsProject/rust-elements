@@ -390,6 +390,7 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use Block;
+    use hashes::hex::FromHex;
 
     use super::*;
 
@@ -784,5 +785,13 @@ mod tests {
             block.block_hash().to_string(),
             "e9a5176b1690a448f76fb691ab4d516e60e13a6e7a49454c62dbf0d611ffcce7"
         );
+    }
+
+    #[test]
+    fn test_failed_block() {
+        let block_str = include_str!("../tests/data/failedblock.hex");
+
+        let bytes = Vec::<u8>::from_hex(block_str).unwrap();
+        let _block = encode::deserialize::<Block>(&bytes).unwrap();
     }
 }
