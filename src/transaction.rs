@@ -791,7 +791,7 @@ pub enum EcdsaSigHashType {
     SinglePlusAnyoneCanPay = 0x83,
 }
 
-serde_string_impl!(EcdsaSigHashType, "a SigHashType data");
+serde_string_impl!(EcdsaSigHashType, "a EcdsaSigHashType data");
 
 impl fmt::Display for EcdsaSigHashType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
