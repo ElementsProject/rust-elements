@@ -870,7 +870,6 @@ impl<'a> Encodable for Annex<'a> {
 /// Hashtype of an input's signature, encoded in the last byte of the signature
 /// Fixed values so they can be casted as integer types for encoding
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum SchnorrSigHashType {
     /// 0x0: Used when not explicitly specified, defaulting to [`SchnorrSigHashType::All`]
     Default = 0x00,
@@ -893,6 +892,8 @@ pub enum SchnorrSigHashType {
     /// Reserved for future use, `#[non_exhaustive]` is not available with current MSRV
     Reserved = 0xFF,
 }
+
+serde_string_impl!(SchnorrSigHashType, "a SchnorrSigHashType data");
 
 impl SchnorrSigHashType {
     /// Break the sighash flag into the "real" sighash flag and the ANYONECANPAY boolean
