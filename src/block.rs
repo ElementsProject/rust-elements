@@ -381,7 +381,7 @@ impl Block {
     pub fn size(&self) -> usize {
         // The size of the header + the size of the varint with the tx count + the txs themselves
         let base_size = serialize(&self.header).len() + VarInt(self.txdata.len() as u64).len();
-        let txs_size: usize = self.txdata.iter().map(Transaction::get_size).sum();
+        let txs_size: usize = self.txdata.iter().map(Transaction::size).sum();
         base_size + txs_size
     }
 
@@ -394,7 +394,7 @@ impl Block {
     /// Get the weight of the block
     pub fn weight(&self) -> usize {
         let base_weight = 4 * (serialize(&self.header).len() + VarInt(self.txdata.len() as u64).len());
-        let txs_weight: usize = self.txdata.iter().map(Transaction::get_weight).sum();
+        let txs_weight: usize = self.txdata.iter().map(Transaction::weight).sum();
         base_weight + txs_weight
     }
 }
@@ -473,8 +473,8 @@ mod tests {
         assert_eq!(block.header.version, 0x20000000);
         assert_eq!(block.header.height, 2);
         assert_eq!(block.txdata.len(), 1);
-        assert_eq!(block.get_size(), serialize(&block).len());
-        assert_eq!(block.get_weight(), 1089);
+        assert_eq!(block.size(), serialize(&block).len());
+        assert_eq!(block.weight(), 1089);
 
         // Block with 3 transactions ... the rangeproofs are very large :)
         let block: Block = hex_deserialize!(
@@ -685,7 +685,7 @@ mod tests {
         assert_eq!(block.header.version, 0x20000000);
         assert_eq!(block.header.height, 1);
         assert_eq!(block.txdata.len(), 3);
-        assert_eq!(block.get_size(), serialize(&block).len());
+        assert_eq!(block.size(), serialize(&block).len());
 
         // 2-of-3 signed block from Liquid integration tests
         let block: Block = hex_deserialize!(

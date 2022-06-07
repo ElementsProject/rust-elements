@@ -990,8 +990,8 @@ mod tests {
         );
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 2);
-        assert_eq!(tx.get_size(), serialize(&tx).len());
-        assert_eq!(tx.get_weight(), tx.get_size() * 4);
+        assert_eq!(tx.size(), serialize(&tx).len());
+        assert_eq!(tx.weight(), tx.size() * 4);
         assert_eq!(tx.output[0].is_fee(), false);
         assert_eq!(tx.output[1].is_fee(), true);
         assert_eq!(tx.output[0].value, confidential::Value::Explicit(9999996700));
@@ -1200,8 +1200,8 @@ mod tests {
             tx.txid().to_string(),
             "d606b563122409191e3b114a41d5611332dc58237ad5d2dccded302664fd56c4"
         );
-        assert_eq!(tx.get_size(), serialize(&tx).len());
-        assert_eq!(tx.get_weight(), 7296);
+        assert_eq!(tx.size(), serialize(&tx).len());
+        assert_eq!(tx.weight(), 7296);
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.input[0].is_coinbase(), false);
         assert_eq!(tx.is_coinbase(), false);
@@ -1243,8 +1243,8 @@ mod tests {
             "cc1f895908af2509e55719e662acf4a50ca4dcf0454edd718459241745e2b0aa"
         );
         assert_eq!(tx.input.len(), 1);
-        assert_eq!(tx.get_size(), serialize(&tx).len());
-        assert_eq!(tx.get_weight(), 769);
+        assert_eq!(tx.size(), serialize(&tx).len());
+        assert_eq!(tx.weight(), 769);
         assert_eq!(tx.input[0].is_coinbase(), true);
         assert_eq!(!tx.input[0].is_pegin(), true);
         assert_eq!(tx.input[0].pegin_data(), None);
