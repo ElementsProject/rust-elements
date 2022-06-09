@@ -626,7 +626,7 @@ impl Encodable for PartiallySignedTransaction {
 }
 
 impl Decodable for PartiallySignedTransaction {
-    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
         let magic: [u8; 4] = Decodable::consensus_decode(&mut d)?;
 
         if *b"pset" != magic {

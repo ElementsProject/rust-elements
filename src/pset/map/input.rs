@@ -892,7 +892,7 @@ impl_psetmap_consensus_encoding!(Input);
 // because some fields like txid and outpoint are
 // not optional and cannot by set by insert_pair
 impl Decodable for Input {
-    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
 
         // Sets the default to [0;32] and [0;4]
         let mut rv = Self::default();

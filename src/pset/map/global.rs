@@ -351,7 +351,7 @@ impl_psetmap_consensus_encoding!(Global);
 // PSET data structure.
 
 impl Decodable for Global {
-    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
 
         let mut version: Option<u32> = None;
         let mut unknowns: BTreeMap<raw::Key, Vec<u8>> = Default::default();

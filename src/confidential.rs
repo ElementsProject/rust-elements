@@ -168,31 +168,20 @@ impl Encodable for PedersenCommitment {
 }
 
 impl Decodable for Value {
-    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Value, encode::Error> {
-        let prefix = {
-            let buffer = d.fill_buf()?;
-
-            if buffer.is_empty() {
-                return Err(encode::Error::UnexpectedEOF);
-            }
-
-            buffer[0]
-        };
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Value, encode::Error> {
+        let prefix = u8::consensus_decode(&mut d)?;
 
         match prefix {
-            0 => {
-                // consume null value prefix
-                d.consume(1);
-                Ok(Value::Null)
-            }
+            0 => Ok(Value::Null),
             1 => {
-                // ignore prefix when decoding an explicit value
-                d.consume(1);
                 let explicit = u64::swap_bytes(Decodable::consensus_decode(&mut d)?);
                 Ok(Value::Explicit(explicit))
             }
             p if p == 0x08 || p == 0x09 => {
-                let commitment = Decodable::consensus_decode(&mut d)?;
+                let mut comm = [0u8; 33];
+                comm[0] = p;
+                d.read_exact(&mut comm[1..])?;
+                let commitment = Decodable::consensus_decode(&comm[..])?;
                 Ok(Value::Confidential(commitment))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
@@ -201,7 +190,7 @@ impl Decodable for Value {
 }
 
 impl Decodable for PedersenCommitment {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
         let bytes = <[u8; 33]>::consensus_decode(d)?;
         Ok(PedersenCommitment::from_slice(&bytes)?)
     }
@@ -416,31 +405,20 @@ impl Encodable for Generator {
 }
 
 impl Decodable for Asset {
-    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
-        let prefix = {
-            let buffer = d.fill_buf()?;
-
-            if buffer.is_empty() {
-                return Err(encode::Error::UnexpectedEOF);
-            }
-
-            buffer[0]
-        };
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        let prefix = u8::consensus_decode(&mut d)?;
 
         match prefix {
-            0 => {
-                // consume null value prefix
-                d.consume(1);
-                Ok(Asset::Null)
-            }
+            0 => Ok(Asset::Null),
             1 => {
-                // ignore prefix when decoding an explicit asset
-                d.consume(1);
                 let explicit = Decodable::consensus_decode(&mut d)?;
                 Ok(Asset::Explicit(explicit))
             }
             p if p == 0x0a || p == 0x0b => {
-                let generator = Decodable::consensus_decode(&mut d)?;
+                let mut comm = [0u8; 33];
+                comm[0] = p;
+                d.read_exact(&mut comm[1..])?;
+                let generator = Decodable::consensus_decode(&comm[..])?;
                 Ok(Asset::Confidential(generator))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
@@ -449,7 +427,7 @@ impl Decodable for Asset {
 }
 
 impl Decodable for Generator {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
         let bytes = <[u8; 33]>::consensus_decode(d)?;
         Ok(Generator::from_slice(&bytes)?)
     }
@@ -686,31 +664,20 @@ impl Encodable for PublicKey {
 }
 
 impl Decodable for Nonce {
-    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
-        let prefix = {
-            let buffer = d.fill_buf()?;
-
-            if buffer.is_empty() {
-                return Err(encode::Error::UnexpectedEOF);
-            }
-
-            buffer[0]
-        };
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        let prefix = u8::consensus_decode(&mut d)?;
 
         match prefix {
-            0 => {
-                // consume null value prefix
-                d.consume(1);
-                Ok(Nonce::Null)
-            }
+            0 => Ok(Nonce::Null),
             1 => {
-                // ignore prefix when decoding an explicit asset
-                d.consume(1);
                 let explicit = Decodable::consensus_decode(&mut d)?;
                 Ok(Nonce::Explicit(explicit))
             }
             p if p == 0x02 || p == 0x03 => {
-                let pk = Decodable::consensus_decode(&mut d)?;
+                let mut comm = [0u8; 33];
+                comm[0] = p;
+                d.read_exact(&mut comm[1..])?;
+                let pk = Decodable::consensus_decode(&comm[..])?;
                 Ok(Nonce::Confidential(pk))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
@@ -719,7 +686,7 @@ impl Decodable for Nonce {
 }
 
 impl Decodable for PublicKey {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
         let bytes = <[u8; 33]>::consensus_decode(d)?;
         Ok(PublicKey::from_slice(&bytes)?)
     }

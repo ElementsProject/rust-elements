@@ -30,7 +30,7 @@ macro_rules! impl_hashencode {
         }
 
         impl $crate::encode::Decodable for $hashtype {
-            fn consensus_decode<D: ::std::io::BufRead>(d: D) -> Result<Self, $crate::encode::Error> {
+            fn consensus_decode<D: ::std::io::Read>(d: D) -> Result<Self, $crate::encode::Error> {
                 use $crate::bitcoin::hashes::Hash;
                 Ok(Self::from_inner(<<$hashtype as $crate::bitcoin::hashes::Hash>::Inner>::consensus_decode(d)?))
             }
