@@ -59,6 +59,12 @@ pub struct PartiallySignedTransaction {
     outputs: Vec<Output>,
 }
 
+impl Default for PartiallySignedTransaction {
+    fn default() -> Self {
+        Self::new_v2()
+    }
+}
+
 impl PartiallySignedTransaction {
 
     /// Create a new PSET from a raw transaction

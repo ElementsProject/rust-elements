@@ -208,6 +208,21 @@ pub struct TxIn {
     /// part of the txin.
     pub witness: TxInWitness,
 }
+
+impl Default for TxIn {
+    fn default() -> Self {
+        Self {
+            previous_output: Default::default(), // same as in rust-bitcoin
+            is_pegin: false,
+            has_issuance: false,
+            script_sig: Script::new(),
+            sequence: u32::max_value(), // same as in rust-bitcoin
+            asset_issuance: Default::default(),
+            witness: Default::default()
+        }
+    }
+}
+
 serde_struct_impl!(TxIn, previous_output, is_pegin, has_issuance, script_sig, sequence, asset_issuance, witness);
 
 impl Encodable for TxIn {
