@@ -323,7 +323,7 @@ impl Encodable for BlockHeader {
 }
 
 impl Decodable for BlockHeader {
-    fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
         let mut version: u32 = Decodable::consensus_decode(&mut d)?;
         let is_dyna = if version >> 31 == 1 {
             version &= 0x7fff_ffff;

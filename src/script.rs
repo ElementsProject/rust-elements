@@ -881,7 +881,7 @@ impl Encodable for Script {
 
 impl Decodable for Script {
     #[inline]
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
         Ok(Script(Decodable::consensus_decode(d)?))
     }
 }

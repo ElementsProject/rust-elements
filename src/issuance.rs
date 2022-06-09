@@ -166,7 +166,7 @@ impl Encodable for AssetId {
 }
 
 impl Decodable for AssetId {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, encode::Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
         Ok(Self::from_inner(sha256::Midstate::consensus_decode(d)?))
     }
 }

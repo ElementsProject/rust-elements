@@ -25,7 +25,7 @@ macro_rules! impl_consensus_encoding {
 
         impl $crate::encode::Decodable for $thing {
             #[inline]
-            fn consensus_decode<D: $crate::std::io::BufRead>(mut d: D) -> Result<$thing, $crate::encode::Error> {
+            fn consensus_decode<D: $crate::std::io::Read>(mut d: D) -> Result<$thing, $crate::encode::Error> {
                 Ok($thing {
                     $( $field: $crate::encode::Decodable::consensus_decode(&mut d)?, )+
                 })

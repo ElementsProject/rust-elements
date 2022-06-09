@@ -148,7 +148,7 @@ pub trait Encodable {
 /// Data which can be encoded in a consensus-consistent way
 pub trait Decodable: Sized {
     /// Decode an object with a well-defined format
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error>;
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error>;
 }
 
 /// Encode an object into a vector
@@ -193,7 +193,7 @@ impl Encodable for sha256::Midstate {
 }
 
 impl Decodable for sha256::Midstate {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
         Ok(Self::from_inner(<[u8; 32]>::consensus_decode(d)?))
     }
 }
@@ -214,7 +214,7 @@ macro_rules! impl_upstream {
         }
 
         impl Decodable for $type {
-            fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, Error> {
+            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
                 Ok(btcenc::Decodable::consensus_decode(&mut d)?)
             }
         }
@@ -251,7 +251,7 @@ macro_rules! impl_vec {
 
         impl Decodable for Vec<$type> {
             #[inline]
-            fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, Error> {
+            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
                 let len = btcenc::VarInt::consensus_decode(&mut d)?.0;
                 let byte_size = (len as usize)
                     .checked_mul(mem::size_of::<$type>())
@@ -291,7 +291,7 @@ macro_rules! impl_box_option {
 
         impl Decodable for Option<Box<$type>> {
             #[inline]
-            fn consensus_decode<D: io::BufRead>(mut d: D) -> Result<Self, Error> {
+            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
                 let v : Vec<u8> = Decodable::consensus_decode(&mut d)?;
                 if v.is_empty() {
                     Ok(None)
@@ -310,7 +310,7 @@ impl Encodable for Tweak {
 }
 
 impl Decodable for Tweak {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
         Ok(Tweak::from_inner(<[u8; 32]>::consensus_decode(d)?)?)
     }
 }
@@ -322,7 +322,7 @@ impl Encodable for RangeProof {
 }
 
 impl Decodable for RangeProof {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
         Ok(RangeProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
     }
 }
@@ -334,7 +334,7 @@ impl Encodable for SurjectionProof {
 }
 
 impl Decodable for SurjectionProof {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
         Ok(SurjectionProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
     }
 }
@@ -347,7 +347,7 @@ impl Encodable for sha256::Hash {
 }
 
 impl Decodable for sha256::Hash {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
         Ok(Self::from_inner(<<Self as Hash>::Inner>::consensus_decode(d)?))
     }
 }
@@ -359,7 +359,7 @@ impl Encodable for TapLeafHash {
 }
 
 impl Decodable for TapLeafHash {
-    fn consensus_decode<D: io::BufRead>(d: D) -> Result<Self, Error> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
         Ok(Self::from_inner(<<Self as Hash>::Inner>::consensus_decode(d)?))
     }
 }
