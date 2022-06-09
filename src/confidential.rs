@@ -181,8 +181,7 @@ impl Decodable for Value {
                 let mut comm = [0u8; 33];
                 comm[0] = p;
                 d.read_exact(&mut comm[1..])?;
-                let commitment = Decodable::consensus_decode(&comm[..])?;
-                Ok(Value::Confidential(commitment))
+                Ok(Value::Confidential(PedersenCommitment::from_slice(&comm)?))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
@@ -418,8 +417,7 @@ impl Decodable for Asset {
                 let mut comm = [0u8; 33];
                 comm[0] = p;
                 d.read_exact(&mut comm[1..])?;
-                let generator = Decodable::consensus_decode(&comm[..])?;
-                Ok(Asset::Confidential(generator))
+                Ok(Asset::Confidential(Generator::from_slice(&comm[..])?))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
@@ -677,8 +675,7 @@ impl Decodable for Nonce {
                 let mut comm = [0u8; 33];
                 comm[0] = p;
                 d.read_exact(&mut comm[1..])?;
-                let pk = Decodable::consensus_decode(&comm[..])?;
-                Ok(Nonce::Confidential(pk))
+                Ok(Nonce::Confidential(PublicKey::from_slice(&comm)?))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
