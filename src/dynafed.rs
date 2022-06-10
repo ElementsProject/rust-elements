@@ -20,8 +20,8 @@ use bitcoin;
 use bitcoin::hashes::{Hash, sha256, sha256d};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use encode::{self, Encodable, Decodable};
-use Script;
+use crate::encode::{self, Encodable, Decodable};
+use crate::Script;
 
 /// Dynamic federations paramaters, as encoded in a block header
 #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -212,7 +212,7 @@ impl Params {
                     serialize_hash(fedpegscript).into_inner(),
                     serialize_hash(extension_space).into_inner(),
                 ];
-                ::fast_merkle_root::fast_merkle_root(&leaves[..])
+                crate::fast_merkle_root::fast_merkle_root(&leaves[..])
             },
         }
     }
@@ -233,13 +233,13 @@ impl Params {
             serialize_hash(self.signblockscript().unwrap()).into_inner(),
             serialize_hash(&self.signblock_witness_limit().unwrap()).into_inner(),
         ];
-        let compact_root = ::fast_merkle_root::fast_merkle_root(&leaves[..]);
+        let compact_root = crate::fast_merkle_root::fast_merkle_root(&leaves[..]);
 
         let leaves = [
             compact_root.into_inner(),
             self.extra_root().into_inner(),
         ];
-        ::fast_merkle_root::fast_merkle_root(&leaves[..])
+        crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
 
     /// Turns paramers into compact parameters.
@@ -649,8 +649,8 @@ mod tests {
             "8eb1b83cce69a3d8b0bfb7fbe77ae8f1d24b57a9cae047b8c0aba084ad878249"
         );
 
-        let header = ::block::BlockHeader{
-            ext: ::block::ExtData::Dynafed {
+        let header = crate::block::BlockHeader{
+            ext: crate::block::ExtData::Dynafed {
                 current: compact_entry,
                 proposed: full_entry,
                 signblock_witness: vec![],

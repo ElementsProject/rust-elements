@@ -15,23 +15,23 @@
 use std::{collections::BTreeMap, io};
 use std::collections::btree_map::Entry;
 
-use taproot::TapLeafHash;
-use taproot::{NodeInfo, TaprootBuilder};
+use crate::taproot::TapLeafHash;
+use crate::taproot::{NodeInfo, TaprootBuilder};
 
-use {Script, encode, TxOutWitness};
+use crate::{Script, encode, TxOutWitness};
 use bitcoin::util::bip32::KeySource;
 use bitcoin::{self, PublicKey};
-use {pset, confidential};
-use encode::Decodable;
-use pset::map::Map;
-use pset::raw;
-use pset::Error;
+use crate::{pset, confidential};
+use crate::encode::Decodable;
+use crate::pset::map::Map;
+use crate::pset::raw;
+use crate::pset::Error;
 use secp256k1_zkp::{self, Generator, RangeProof, SurjectionProof};
 
-use issuance;
+use crate::issuance;
 
-use TxOut;
-use AssetId;
+use crate::TxOut;
+use crate::AssetId;
 
 /// Type: Redeem Script PSET_OUT_REDEEM_SCRIPT = 0x00
 const PSET_OUT_REDEEM_SCRIPT: u8 = 0x00;
@@ -95,14 +95,14 @@ pub struct Output {
     pub witness_script: Option<Script>,
     /// A map from public keys needed to spend this output to their
     /// corresponding master key fingerprints and derivation paths.
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub bip32_derivation: BTreeMap<PublicKey, KeySource>,
     /// The internal pubkey
     pub tap_internal_key: Option<bitcoin::XOnlyPublicKey>,
     /// Taproot Output tree
     pub tap_tree: Option<TapTree>,
     /// Map of tap root x only keys to origin info and leaf hashes contained in it
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub tap_key_origins: BTreeMap<bitcoin::XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
     /// (PSET) The explicit amount of the output
     pub amount: Option<u64>,
@@ -131,10 +131,10 @@ pub struct Output {
     pub blind_asset_proof: Option<Box<SurjectionProof>>,
     /// Pset
     /// Other fields
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
     /// Unknown key-value pairs for this output.
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
@@ -539,7 +539,7 @@ impl Decodable for Output {
                         _ =>  rv.insert_pair(raw::Pair { key: raw_key, value: raw_value })?,
                     }
                 }
-                Err(::encode::Error::PsetError(::pset::Error::NoMorePairs)) => break,
+                Err(crate::encode::Error::PsetError(crate::pset::Error::NoMorePairs)) => break,
                 Err(e) => return Err(e),
             }
         }

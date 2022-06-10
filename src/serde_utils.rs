@@ -7,7 +7,7 @@ pub mod btreemap_byte_values {
     // NOTE: This module can be exactly copied to use with HashMap.
 
     use ::std::collections::BTreeMap;
-    use hashes::hex::{FromHex, ToHex};
+    use bitcoin::hashes::hex::{FromHex, ToHex};
     use serde;
 
     pub fn serialize<S, T>(v: &BTreeMap<T, Vec<u8>>, s: S)
@@ -149,7 +149,7 @@ pub mod btreemap_as_seq_byte_values {
     #[derive(Debug, Deserialize)]
     struct OwnedPair<T>(
         T,
-        #[serde(deserialize_with = "::serde_utils::hex_bytes::deserialize")]
+        #[serde(deserialize_with = "crate::serde_utils::hex_bytes::deserialize")]
         Vec<u8>,
     );
 
@@ -157,7 +157,7 @@ pub mod btreemap_as_seq_byte_values {
     #[derive(Debug, Serialize)]
     struct BorrowedPair<'a, T: 'static>(
         &'a T,
-        #[serde(serialize_with = "::serde_utils::hex_bytes::serialize")]
+        #[serde(serialize_with = "crate::serde_utils::hex_bytes::serialize")]
         &'a [u8],
     );
 
@@ -221,7 +221,7 @@ pub mod hex_bytes {
     //! Module for serialization of byte arrays as hex strings.
     #![allow(missing_docs)]
 
-    use hashes::hex::{FromHex, ToHex};
+    use bitcoin::hashes::hex::{FromHex, ToHex};
     use serde;
 
     pub fn serialize<T, S>(bytes: &T, s: S) -> Result<S::Ok, S::Error>

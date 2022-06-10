@@ -20,14 +20,14 @@ use std::{self, fmt};
 use secp256k1_zkp::{self, PedersenCommitment, SecretKey, Tag, Tweak, Verification, ZERO_TWEAK, rand::{CryptoRng, RngCore}};
 use secp256k1_zkp::{Generator, RangeProof, Secp256k1, Signing, SurjectionProof};
 
-use AddressParams;
+use crate::AddressParams;
 
-use {Address, AssetId, Transaction, TxOut, TxOutWitness,
+use crate::{Address, AssetId, Transaction, TxOut, TxOutWitness,
     confidential::{Asset, AssetBlindingFactor, Nonce, Value,
     ValueBlindingFactor
 }};
 
-use hashes;
+use crate::hashes;
 
 /// Transaction Output related errors
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -981,13 +981,13 @@ impl BlindAssetProofs for SurjectionProof {
 
 #[cfg(test)]
 mod tests {
-    use hashes::hex::FromHex;
+    use crate::hashes::hex::FromHex;
     use rand::thread_rng;
     use secp256k1_zkp::SECP256K1;
     use super::*;
-    use encode::deserialize;
-    use confidential;
-    use Script;
+    use crate::encode::deserialize;
+    use crate::confidential;
+    use crate::Script;
     use bitcoin::{self, Network, PrivateKey, PublicKey};
 
     #[test]

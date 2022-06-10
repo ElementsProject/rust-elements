@@ -17,21 +17,21 @@
 
 use std::io::Cursor;
 use std::{error, fmt, io, mem};
-use hashes::{self, Hash};
+use crate::hashes::{self, Hash};
 
 use bitcoin::consensus::encode as btcenc;
 use bitcoin::hashes::sha256;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
-use transaction::{Transaction, TxIn, TxOut};
-use pset;
+use crate::transaction::{Transaction, TxIn, TxOut};
+use crate::pset;
 
 pub use bitcoin::{self, consensus::encode::MAX_VEC_SIZE};
 
 // Use the ReadExt/WriteExt traits as is from upstream
 pub use bitcoin::consensus::encode::{ReadExt, WriteExt};
 
-use taproot::TapLeafHash;
+use crate::taproot::TapLeafHash;
 
 /// Encoding error
 #[derive(Debug)]
@@ -230,7 +230,7 @@ impl_upstream!([u8; 33]);
 impl_upstream!(Vec<u8>);
 impl_upstream!(Vec<Vec<u8>>);
 impl_upstream!(btcenc::VarInt);
-impl_upstream!(::hashes::sha256d::Hash);
+impl_upstream!(crate::hashes::sha256d::Hash);
 impl_upstream!(bitcoin::Transaction);
 impl_upstream!(bitcoin::BlockHash);
 

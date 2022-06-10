@@ -21,9 +21,9 @@ use std::fmt;
 
 pub use secp256k1_zkp::{XOnlyPublicKey, KeyPair};
 use secp256k1_zkp::{self, Secp256k1, Verification, constants::SCHNORR_SIGNATURE_SIZE};
-use hashes::{Hash, HashEngine};
-use taproot::{TapBranchHash, TapTweakHash};
-use SchnorrSigHashType;
+use crate::hashes::{Hash, HashEngine};
+use crate::taproot::{TapBranchHash, TapTweakHash};
+use crate::SchnorrSigHashType;
 
 /// Untweaked Schnorr public key
 pub type UntweakedPublicKey = XOnlyPublicKey;

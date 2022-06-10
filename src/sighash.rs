@@ -19,21 +19,21 @@
 //! signatures, which are placed in the scriptSig.
 //!
 
-use encode::{self, Encodable};
-use hash_types::SigHash;
-use hashes::{sha256d, Hash, sha256};
-use script::Script;
+use crate::encode::{self, Encodable};
+use crate::hash_types::SigHash;
+use crate::hashes::{sha256d, Hash, sha256};
+use crate::script::Script;
 use std::ops::{Deref, DerefMut};
 use std::io;
-use endian;
-use transaction::{EcdsaSigHashType, Transaction, TxIn, TxOut, TxInWitness};
-use confidential;
+use crate::endian;
+use crate::transaction::{EcdsaSigHashType, Transaction, TxIn, TxOut, TxInWitness};
+use crate::confidential;
 use std::fmt;
-use taproot::{TapSighashHash, TapLeafHash};
+use crate::taproot::{TapSighashHash, TapLeafHash};
 
-use BlockHash;
+use crate::BlockHash;
 
-use transaction::SighashTypeParseError;
+use crate::transaction::SighashTypeParseError;
 /// Efficiently calculates signature hash message for legacy, segwit and taproot inputs.
 #[derive(Debug)]
 pub struct SigHashCache<T: Deref<Target = Transaction>> {
@@ -963,7 +963,7 @@ impl std::str::FromStr for SchnorrSigHashType {
 #[cfg(test)]
 mod tests{
     use super::*;
-    use encode::deserialize;
+    use crate::encode::deserialize;
     use bitcoin::hashes::hex::FromHex;
     use bitcoin;
 

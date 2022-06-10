@@ -14,13 +14,13 @@
 
 use std::{error, fmt};
 
-use Txid;
-use encode;
+use crate::Txid;
+use crate::encode;
 
 use super::raw;
 
-use hashes;
-use blind::ConfidentialTxOutError;
+use crate::hashes;
+use crate::blind::ConfidentialTxOutError;
 use secp256k1_zkp;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
