@@ -27,6 +27,7 @@
 use std::default::Default;
 use std::{fmt, io, ops, str};
 
+use secp256k1_zkp::{Verification, Secp256k1};
 #[cfg(feature = "serde")] use serde;
 
 use encode::{self, Decodable, Encodable};
@@ -34,6 +35,9 @@ use bitcoin::hashes::{Hash, hex};
 use {opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
 
 use bitcoin::PublicKey;
+
+use schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
+use taproot::TapBranchHash;
 
 const MAX_SCRIPT_SIZE : usize = 10_000;
 
@@ -265,6 +269,19 @@ impl Script {
         Script::new_witness_program(::bech32::u5::try_from_u8(0).unwrap(), &script_hash.to_vec())
     }
 
+    /// Generates P2TR for script spending path using an internal public key and some optional
+    /// script tree merkle root.
+    pub fn new_v1_p2tr<C: Verification>(secp: &Secp256k1<C>, internal_key: UntweakedPublicKey, merkle_root: Option<TapBranchHash>) -> Script {
+        let (output_key, _) = internal_key.tap_tweak(secp, merkle_root);
+        Script::new_witness_program(::bech32::u5::try_from_u8(1).unwrap(), &output_key.as_inner().serialize())
+    }
+
+    /// Generates P2TR for key spending path for a known [`TweakedPublicKey`].
+    pub fn new_v1_p2tr_tweaked(output_key: TweakedPublicKey) -> Script {
+        Script::new_witness_program(::bech32::u5::try_from_u8(1).unwrap(), &output_key.as_inner().serialize())
+    }
+
+
     /// Generates P2WSH-type of scriptPubkey with a given hash of the redeem script
     pub fn new_witness_program(ver: ::bech32::u5, program: &[u8]) -> Script {
         let mut verop = ver.to_u8();
@@ -383,6 +400,14 @@ impl Script {
     pub fn is_v0_p2wsh(&self) -> bool {
         self.0.len() == 34 &&
         self.0[0] == opcodes::all::OP_PUSHBYTES_0.into_u8() &&
+        self.0[1] == opcodes::all::OP_PUSHBYTES_32.into_u8()
+    }
+
+    /// Checks whether a script pubkey is a P2TR output.
+    #[inline]
+    pub fn is_v1_p2tr(&self) -> bool {
+        self.0.len() == 34 &&
+        self.0[0] == opcodes::all::OP_PUSHNUM_1.into_u8() &&
         self.0[1] == opcodes::all::OP_PUSHBYTES_32.into_u8()
     }
 
