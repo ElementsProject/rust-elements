@@ -1,3 +1,13 @@
+
+# 0.19.1 - 2022-06-10
+
+- revert use of `io::BufRead` back to `io::Read` in `ConsensusEncodable` trait
+- deprecate `Block::get_size` in favor of new `Block::size`
+- deprecate `Block::get_weight` in favor of new `Block::weight`
+- deprecate `Transaction::get_size` in favor of new `Transaction::size`
+- deprecate `Transaction::get_weight` in favor of new `Transaction::weight`
+- implement `Default` on `PartiallySignedTransaction`, `TxIn`
+
 # 0.19 - 2022-04-30 "The Taproot Release"
 
 - Taproot support for complex taptrees compatible with elements taproot signature.
