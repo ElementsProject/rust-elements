@@ -46,7 +46,7 @@ pub enum Params {
         /// Maximum, in bytes, of the size of a blocksigning witness
         signblock_witness_limit: u32,
         /// Untweaked `scriptPubKey` used for pegins
-        fedpeg_program: Script,
+        fedpeg_program: bitcoin::Script,
         /// For v0 fedpeg programs, the witness script of the untweaked
         /// pegin address. For future versions, this data has no defined
         /// meaning and will be considered "anyone can spend".
@@ -158,7 +158,7 @@ impl Params {
     }
 
     /// Get the fedpeg_program. Is [None] for non-[Full] params.
-    pub fn fedpeg_program(&self) -> Option<&Script> {
+    pub fn fedpeg_program(&self) -> Option<&bitcoin::Script> {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
@@ -623,7 +623,7 @@ mod tests {
 
         let signblockscript: Script = vec![1].into();
         let signblock_wl = 2;
-        let fp_program: Script = vec![3].into();
+        let fp_program: bitcoin::Script = vec![3].into();
         let fp_script = vec![4];
         let ext = vec![vec![5, 6], vec![7]];
 
