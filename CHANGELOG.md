@@ -1,4 +1,8 @@
 
+# 0.19.2 - 2022-06-16
+
+- revert dynafed field `fedpeg_program` back to `bitcoin::Script`
+
 # 0.19.1 - 2022-06-10
 
 - revert use of `io::BufRead` back to `io::Read` in `ConsensusEncodable` trait
