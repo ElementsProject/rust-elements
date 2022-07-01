@@ -17,12 +17,12 @@ use std::{collections::BTreeMap, io::{self, Cursor, Read}};
 use std::collections::btree_map::Entry;
 use std::cmp;
 
-use VarInt;
-use encode::{Decodable};
-use pset::{self, map::Map, raw, Error};
-use endian::u32_to_array_le;
+use crate::VarInt;
+use crate::encode::{Decodable};
+use crate::pset::{self, map::Map, raw, Error};
+use crate::endian::u32_to_array_le;
 use bitcoin::util::bip32::{ExtendedPubKey, KeySource, Fingerprint, DerivationPath, ChildNumber};
-use encode;
+use crate::encode;
 use secp256k1_zkp::Tweak;
 
 // (Not used in pset) Type: Unsigned Transaction PSET_GLOBAL_UNSIGNED_TX = 0x00
@@ -107,10 +107,10 @@ pub struct Global {
     /// Elements tx modifiable flag
     pub elements_tx_modifiable_flag: Option<u8>,
     /// Other Proprietary fields
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
     /// Unknown global key-value pairs.
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
@@ -466,7 +466,7 @@ impl Decodable for Global {
                         }
                     }
                 }
-                Err(::encode::Error::PsetError(::pset::Error::NoMorePairs)) => break,
+                Err(crate::encode::Error::PsetError(crate::pset::Error::NoMorePairs)) => break,
                 Err(e) => return Err(e),
             }
         }

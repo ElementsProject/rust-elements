@@ -16,13 +16,13 @@
 use std::cmp::Reverse;
 use std::{error, io, fmt};
 
-use hashes::{sha256, sha256t, Hash};
-use schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
-use Script;
+use crate::hashes::{sha256, sha256t, Hash};
+use crate::schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
+use crate::Script;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 use secp256k1_zkp::{self, Secp256k1};
-use hashes::HashEngine;
-use encode::Encodable;
+use crate::hashes::HashEngine;
+use crate::encode::Encodable;
 
 /// The SHA-256 midstate value for the TapLeaf/elements hash.
 const MIDSTATE_TAPLEAF: [u8; 32] = [
@@ -888,9 +888,9 @@ impl error::Error for TaprootError {}
 #[cfg(test)]
 mod tests{
     use super::*;
-    use hashes::HashEngine;
-    use hashes::sha256t::Tag;
-    use hashes::hex::FromHex;
+    use crate::hashes::HashEngine;
+    use crate::hashes::sha256t::Tag;
+    use crate::hashes::hex::FromHex;
     use std::str::FromStr;
 
     fn tag_engine(tag_name: &str) -> sha256::HashEngine {

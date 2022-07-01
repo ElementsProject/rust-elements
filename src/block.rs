@@ -21,10 +21,10 @@ use bitcoin::hashes::{Hash, sha256};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
 
-use dynafed;
-use Transaction;
-use encode::{self, Encodable, Decodable, serialize};
-use {BlockHash, Script, TxMerkleNode, VarInt};
+use crate::dynafed;
+use crate::Transaction;
+use crate::encode::{self, Encodable, Decodable, serialize};
+use crate::{BlockHash, Script, TxMerkleNode, VarInt};
 
 /// Data related to block signatures
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -283,7 +283,7 @@ impl BlockHeader {
                     current.calculate_root().into_inner(),
                     proposed.calculate_root().into_inner(),
                 ];
-                Some(::fast_merkle_root::fast_merkle_root(&leaves[..]))
+                Some(crate::fast_merkle_root::fast_merkle_root(&leaves[..]))
             }
         }
     }
@@ -401,8 +401,8 @@ impl Block {
 
 #[cfg(test)]
 mod tests {
-    use Block;
-    use hashes::hex::FromHex;
+    use crate::Block;
+    use crate::hashes::hex::FromHex;
 
     use super::*;
 

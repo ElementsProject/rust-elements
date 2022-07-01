@@ -7,6 +7,7 @@ license = "CC0-1.0"
 homepage = "https://github.com/ElementsProject/rust-elements/"
 repository = "https://github.com/ElementsProject/rust-elements/"
 documentation = "https://docs.rs/elements/"
+edition = "2018"
 
 [features]
 default = [ "json-contract" ]

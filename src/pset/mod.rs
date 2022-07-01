@@ -29,17 +29,17 @@ mod map;
 pub mod raw;
 pub mod serialize;
 
-use {Transaction, Txid, TxIn, OutPoint, TxInWitness, TxOut, TxOutWitness};
-use encode::{self, Encodable, Decodable};
-use confidential;
+use crate::{Transaction, Txid, TxIn, OutPoint, TxInWitness, TxOut, TxOutWitness};
+use crate::encode::{self, Encodable, Decodable};
+use crate::confidential;
 use secp256k1_zkp::rand::{CryptoRng, RngCore};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof};
-use {TxOutSecrets, blind::RangeProofMessage, confidential::{AssetBlindingFactor, ValueBlindingFactor}};
+use crate::{TxOutSecrets, blind::RangeProofMessage, confidential::{AssetBlindingFactor, ValueBlindingFactor}};
 use bitcoin;
 
-use blind::ConfidentialTxOutError;
+use crate::blind::ConfidentialTxOutError;
 
-use blind::{BlindAssetProofs, BlindValueProofs};
+use crate::blind::{BlindAssetProofs, BlindValueProofs};
 
 pub use self::error::{Error, PsetBlindError};
 pub use self::map::{Global, GlobalTxData, Input, Output, TapTree};
@@ -728,7 +728,7 @@ mod tests {
         use std::str::FromStr;
         use rand::{self, SeedableRng};
         use serde_json;
-        use AssetId;
+        use crate::AssetId;
 
         // Initially secp context and rng global state
         let secp = secp256k1_zkp::Secp256k1::new();

@@ -7,7 +7,7 @@ use bitcoin::hashes::{Hash, HashEngine, hmac, sha256, sha256d};
 use secp256k1_zkp;
 use slip21;
 
-use Script;
+use crate::Script;
 
 const SLIP77_DERIVATION: &str = "SLIP-0077";
 
@@ -55,7 +55,7 @@ mod tests {
     use secp256k1_zkp::SecretKey;
     use bitcoin::hashes::hex::FromHex;
 
-    use address::Address;
+    use crate::address::Address;
 
     #[test]
     fn test_slip77() {

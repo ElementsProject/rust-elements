@@ -63,15 +63,15 @@ mod endian;
 // re-export bitcoin deps which we re-use
 pub use bitcoin::{bech32, hashes};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
-pub use address::{Address, AddressParams, AddressError};
-pub use transaction::{OutPoint, PeginData, PegoutData, EcdsaSigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
-pub use blind::{ConfidentialTxOutError, TxOutSecrets, TxOutError, VerificationError, BlindError, UnblindError};
-pub use block::{BlockHeader, Block};
-pub use block::ExtData as BlockExtData;
+pub use crate::address::{Address, AddressParams, AddressError};
+pub use crate::transaction::{OutPoint, PeginData, PegoutData, EcdsaSigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
+pub use crate::blind::{ConfidentialTxOutError, TxOutSecrets, TxOutError, VerificationError, BlindError, UnblindError};
+pub use crate::block::{BlockHeader, Block};
+pub use crate::block::ExtData as BlockExtData;
 pub use ::bitcoin::consensus::encode::VarInt;
-pub use fast_merkle_root::fast_merkle_root;
-pub use hash_types::*;
-pub use issuance::{AssetId, ContractHash};
-pub use script::Script;
-pub use sighash::SchnorrSigHashType;
-pub use schnorr::{SchnorrSig, SchnorrSigError};
+pub use crate::fast_merkle_root::fast_merkle_root;
+pub use crate::hash_types::*;
+pub use crate::issuance::{AssetId, ContractHash};
+pub use crate::script::Script;
+pub use crate::sighash::SchnorrSigHashType;
+pub use crate::schnorr::{SchnorrSig, SchnorrSigError};

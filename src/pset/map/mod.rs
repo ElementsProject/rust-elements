@@ -12,8 +12,8 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use encode;
-use pset::{self, raw};
+use crate::encode;
+use crate::pset::{self, raw};
 
 /// A trait that describes a PSET key-value map.
 pub(crate) trait Map {

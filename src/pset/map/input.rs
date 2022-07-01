@@ -15,24 +15,24 @@
 use std::fmt;
 use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io, str::FromStr};
 
-use schnorr;
-use taproot::{ControlBlock, LeafVersion, TapLeafHash, TapBranchHash};
+use crate::schnorr;
+use crate::taproot::{ControlBlock, LeafVersion, TapLeafHash, TapBranchHash};
 
-use {Script, AssetIssuance, EcdsaSigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
-use {SchnorrSigHashType, transaction::SighashTypeParseError};
-use encode::{self, Decodable};
-use confidential;
+use crate::{Script, AssetIssuance, EcdsaSigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
+use crate::{SchnorrSigHashType, transaction::SighashTypeParseError};
+use crate::encode::{self, Decodable};
+use crate::confidential;
 use bitcoin::util::bip32::KeySource;
 use bitcoin::{self, PublicKey};
-use hashes::{self, hash160, ripemd160, sha256, sha256d};
-use pset::map::Map;
-use pset::raw;
-use pset::serialize;
-use pset::{self, Error, error};
+use crate::hashes::{self, hash160, ripemd160, sha256, sha256d};
+use crate::pset::map::Map;
+use crate::pset::raw;
+use crate::pset::serialize;
+use crate::pset::{self, Error, error};
 use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
 
 
-use OutPoint;
+use crate::OutPoint;
 
 /// Type: Non-Witness UTXO PSET_IN_NON_WITNESS_UTXO = 0x00
 const PSET_IN_NON_WITNESS_UTXO: u8 = 0x00;
@@ -159,7 +159,7 @@ pub struct Input {
     pub witness_utxo: Option<TxOut>,
     /// A map from public keys to their corresponding signature as would be
     /// pushed to the stack from a scriptSig or witness.
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
     pub partial_sigs: BTreeMap<PublicKey, Vec<u8>>,
     /// The sighash type to be used for this input. Signatures for this input
     /// must use the sighash type.
@@ -170,7 +170,7 @@ pub struct Input {
     pub witness_script: Option<Script>,
     /// A map from public keys needed to sign this input to their corresponding
     /// master key fingerprints and derivation paths.
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub bip32_derivation: BTreeMap<PublicKey, KeySource>,
     /// The finalized, fully-constructed scriptSig with signatures and any other
     /// scripts necessary for this input to pass validation.
@@ -180,16 +180,16 @@ pub struct Input {
     pub final_script_witness: Option<Vec<Vec<u8>>>,
     /// TODO: Proof of reserves commitment
     /// RIPEMD160 hash to preimage map
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
     pub ripemd160_preimages: BTreeMap<ripemd160::Hash, Vec<u8>>,
     /// SHA256 hash to preimage map
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
     pub sha256_preimages: BTreeMap<sha256::Hash, Vec<u8>>,
     /// HSAH160 hash to preimage map
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
     pub hash160_preimages: BTreeMap<hash160::Hash, Vec<u8>>,
     /// HAS256 hash to preimage map
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
     pub hash256_preimages: BTreeMap<sha256d::Hash, Vec<u8>>,
     /// (PSET) Prevout TXID of the input
     pub previous_txid: Txid,
@@ -204,13 +204,13 @@ pub struct Input {
     /// Serialized schnorr signature with sighash type for key spend
     pub tap_key_sig: Option<schnorr::SchnorrSig>,
     /// Map of <xonlypubkey>|<leafhash> with signature
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub tap_script_sigs: BTreeMap<(bitcoin::XOnlyPublicKey, TapLeafHash), schnorr::SchnorrSig>,
     /// Map of Control blocks to Script version pair
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub tap_scripts: BTreeMap<ControlBlock, (Script, LeafVersion)>,
     /// Map of tap root x only keys to origin info and leaf hashes contained in it
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub tap_key_origins: BTreeMap<bitcoin::XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
     /// Taproot Internal key
     pub tap_internal_key : Option<bitcoin::XOnlyPublicKey>,
@@ -253,10 +253,10 @@ pub struct Input {
     /// Proof that blinded inflation keys matches the corresponding commitment
     pub in_issuance_blind_inflation_keys_proof: Option<Box<RangeProof>>,
     /// Other fields
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
     /// Unknown key-value pairs for this input.
-    #[cfg_attr(feature = "serde", serde(with = "::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
@@ -920,7 +920,7 @@ impl Decodable for Input {
                         _ =>  rv.insert_pair(raw::Pair { key: raw_key, value: raw_value })?,
                     }
                 }
-                Err(::encode::Error::PsetError(::pset::Error::NoMorePairs)) => break,
+                Err(crate::encode::Error::PsetError(crate::pset::Error::NoMorePairs)) => break,
                 Err(e) => return Err(e),
             }
         }

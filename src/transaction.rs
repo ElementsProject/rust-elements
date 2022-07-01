@@ -21,12 +21,12 @@ use std::collections::HashMap;
 use bitcoin::{self, VarInt};
 use bitcoin::hashes::Hash;
 
-use confidential;
-use encode::{self, Encodable, Decodable};
-use issuance::AssetId;
-use opcodes;
-use script::Instruction;
-use {Script, Txid, Wtxid};
+use crate::confidential;
+use crate::encode::{self, Encodable, Decodable};
+use crate::issuance::AssetId;
+use crate::opcodes;
+use crate::script::Instruction;
+use crate::{Script, Txid, Wtxid};
 use secp256k1_zkp::{
     RangeProof, SurjectionProof, Tweak,
 };
@@ -939,10 +939,10 @@ mod tests {
     use bitcoin;
     use bitcoin::hashes::hex::FromHex;
 
-    use encode::serialize;
-    use confidential;
+    use crate::encode::serialize;
+    use crate::confidential;
     use secp256k1_zkp::{self, ZERO_TWEAK};
-    use script;
+    use crate::script;
 
     use super::*;
 

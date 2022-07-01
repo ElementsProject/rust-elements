@@ -16,7 +16,7 @@ macro_rules! impl_consensus_encoding {
     ($thing:ident, $($field:ident),+) => (
         impl $crate::encode::Encodable for $thing {
             #[inline]
-            fn consensus_encode<S: $crate::std::io::Write>(&self, mut s: S) -> Result<usize, $crate::encode::Error> {
+            fn consensus_encode<S: std::io::Write>(&self, mut s: S) -> Result<usize, $crate::encode::Error> {
                 let mut ret = 0;
                 $( ret += self.$field.consensus_encode(&mut s)?; )+
                 Ok(ret)
@@ -25,7 +25,7 @@ macro_rules! impl_consensus_encoding {
 
         impl $crate::encode::Decodable for $thing {
             #[inline]
-            fn consensus_decode<D: $crate::std::io::Read>(mut d: D) -> Result<$thing, $crate::encode::Error> {
+            fn consensus_decode<D: std::io::Read>(mut d: D) -> Result<$thing, $crate::encode::Error> {
                 Ok($thing {
                     $( $field: $crate::encode::Decodable::consensus_decode(&mut d)?, )+
                 })
@@ -42,7 +42,7 @@ macro_rules! serde_struct_impl {
             where
                 D: $crate::serde::de::Deserializer<'de>,
             {
-                use $crate::std::fmt::{self, Formatter};
+                use std::fmt::{self, Formatter};
                 use $crate::serde::de::IgnoredAny;
 
                 #[allow(non_camel_case_types)]
@@ -442,6 +442,6 @@ macro_rules! hex_script(
     ($e:expr) => ({
         let v: Vec<u8> = ::bitcoin::hashes::hex::FromHex::from_hex($e)
             .expect("hex decoding");
-        ::Script::from(v)
+        crate::Script::from(v)
     })
 );

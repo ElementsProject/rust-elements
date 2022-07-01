@@ -17,7 +17,7 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
-use hashes::{sha256d, Hash, hex};
+use crate::hashes::{sha256d, Hash, hex};
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
     PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
     compute_adaptive_blinding_factor,
@@ -28,8 +28,8 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 use std::{fmt, io, ops::{AddAssign, Neg}, str};
 
-use encode::{self, Decodable, Encodable};
-use issuance::AssetId;
+use crate::encode::{self, Decodable, Encodable};
+use crate::issuance::AssetId;
 
 /// A CT commitment to an amount
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]

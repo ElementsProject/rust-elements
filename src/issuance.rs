@@ -19,10 +19,10 @@ use std::str::FromStr;
 
 use bitcoin::hashes::{self, hex, sha256, sha256d, Hash};
 
-use encode::{self, Encodable, Decodable};
-use fast_merkle_root::fast_merkle_root;
+use crate::encode::{self, Encodable, Decodable};
+use crate::fast_merkle_root::fast_merkle_root;
 use secp256k1_zkp::Tag;
-use transaction::OutPoint;
+use crate::transaction::OutPoint;
 
 /// The zero hash.
 const ZERO32: [u8; 32] = [

@@ -29,13 +29,13 @@ use secp256k1_zkp::Verification;
 #[cfg(feature = "serde")]
 use serde;
 
-use blech32;
+use crate::blech32;
 
-use schnorr::{TapTweak, TweakedPublicKey, UntweakedPublicKey};
-use taproot::TapBranchHash;
+use crate::schnorr::{TapTweak, TweakedPublicKey, UntweakedPublicKey};
+use crate::taproot::TapBranchHash;
 
-use {PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
-use {opcodes, script};
+use crate::{PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
+use crate::{opcodes, script};
 
 /// Encoding error
 #[derive(Debug, PartialEq)]
@@ -744,7 +744,7 @@ mod test {
     use super::*;
     use bitcoin::util::key;
     use secp256k1_zkp::{PublicKey, Secp256k1};
-    use Script;
+    use crate::Script;
     #[cfg(feature = "serde")]
     use serde_json;
 

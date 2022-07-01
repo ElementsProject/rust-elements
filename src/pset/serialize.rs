@@ -20,20 +20,20 @@
 use std::io;
 
 use bitcoin::{self, PublicKey, VarInt};
-use {Script, Transaction, TxOut, Txid, BlockHash, AssetId};
-use encode::{self, serialize, deserialize, Decodable, Encodable, deserialize_partial};
+use crate::{Script, Transaction, TxOut, Txid, BlockHash, AssetId};
+use crate::encode::{self, serialize, deserialize, Decodable, Encodable, deserialize_partial};
 use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
-use hashes::{hash160, ripemd160, sha256, sha256d, Hash};
+use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use bitcoin::hashes::hex::ToHex;
-use confidential;
+use crate::confidential;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
-use taproot::{TapBranchHash, TapLeafHash, ControlBlock, LeafVersion};
-use schnorr;
+use crate::taproot::{TapBranchHash, TapLeafHash, ControlBlock, LeafVersion};
+use crate::schnorr;
 use super::map::{TapTree, PsbtSighashType};
 
-use taproot::TaprootBuilder;
-use sighash::SchnorrSigHashType;
+use crate::taproot::TaprootBuilder;
+use crate::sighash::SchnorrSigHashType;
 
 /// A trait for serializing a value as raw data for insertion into PSET
 /// key-value pairs.
