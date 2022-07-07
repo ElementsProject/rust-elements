@@ -42,7 +42,7 @@ use crate::blind::ConfidentialTxOutError;
 use crate::blind::{BlindAssetProofs, BlindValueProofs};
 
 pub use self::error::{Error, PsetBlindError};
-pub use self::map::{Global, GlobalTxData, Input, Output, TapTree};
+pub use self::map::{Global, GlobalTxData, Input, Output, TapTree, PsbtSighashType};
 use self::map::Map;
 
 /// A Partially Signed Transaction.
