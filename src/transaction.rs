@@ -305,27 +305,21 @@ impl TxIn {
             return None
         }
 
-        macro_rules! opt_try(
-            ($res:expr) => { match $res { Ok(x) => x, Err(_) => return None } }
-        );
-
         Some(PeginData {
             // Cast of an elements::OutPoint to a bitcoin::OutPoint
             outpoint: bitcoin::OutPoint {
                 txid: bitcoin::Txid::from(self.previous_output.txid.as_hash()),
                 vout: self.previous_output.vout,
             },
-            value: opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[0])),
+            value: bitcoin::consensus::deserialize(&self.witness.pegin_witness[0]).ok()?,
             asset: confidential::Asset::Explicit(
-                opt_try!(encode::deserialize(&self.witness.pegin_witness[1])),
+                encode::deserialize(&self.witness.pegin_witness[1]).ok()?,
             ),
-            genesis_hash: opt_try!(bitcoin::consensus::deserialize(&self.witness.pegin_witness[2])),
+            genesis_hash: bitcoin::consensus::deserialize(&self.witness.pegin_witness[2]).ok()?,
             claim_script: &self.witness.pegin_witness[3],
             tx: &self.witness.pegin_witness[4],
             merkle_proof: &self.witness.pegin_witness[5],
-            referenced_block: bitcoin::BlockHash::hash(
-                &self.witness.pegin_witness[5][0..80],
-            ),
+            referenced_block: bitcoin::BlockHash::hash(self.witness.pegin_witness[5].get(0..80)?),
         })
     }
 
