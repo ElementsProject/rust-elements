@@ -323,9 +323,7 @@ impl TxIn {
             claim_script: &self.witness.pegin_witness[3],
             tx: &self.witness.pegin_witness[4],
             merkle_proof: &self.witness.pegin_witness[5],
-            referenced_block: bitcoin::BlockHash::hash(
-                &self.witness.pegin_witness[5][0..80],
-            ),
+            referenced_block: bitcoin::BlockHash::hash(self.witness.pegin_witness[5].get(0..80)?),
         })
     }
 
