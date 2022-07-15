@@ -591,6 +591,26 @@ pub enum Instruction<'a> {
     Op(opcodes::All),
 }
 
+impl<'a> Instruction<'a> {
+    /// Get the opcode in case of [Instruction::Op].
+    pub fn op(&self) -> Option<opcodes::All> {
+        if let Instruction::Op(o) = self {
+            Some(*o)
+        } else {
+            None
+        }
+    }
+
+    /// Get the push bytes in case of [Instruction::PushBytes].
+    pub fn push_bytes(&self) -> Option<&'a [u8]> {
+        if let Instruction::PushBytes(p) = self {
+            Some(p)
+        } else {
+            None
+        }
+    }
+}
+
 /// Iterator over a script returning parsed opcodes
 pub struct Instructions<'a> {
     data: &'a [u8],

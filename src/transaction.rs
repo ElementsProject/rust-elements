@@ -468,37 +468,20 @@ impl TxOut {
         }
 
         // Must have an explicit value
-        let value = if let confidential::Value::Explicit(val) = self.value {
-            val
-        } else {
-            return None;
-        };
+        let value = self.value.explicit()?;
 
         let mut iter = self.script_pubkey.instructions();
 
         iter.next(); // Skip OP_RETURN
 
         // Parse destination chain's genesis block
-        let genesis_hash = if let Some(Ok(Instruction::PushBytes(data))) = iter.next() {
-            if let Ok(hash) = bitcoin::BlockHash::from_slice(data) {
-                hash
-            } else {
-                return None;
-            }
-        } else {
-            return None;
-        };
+        let genesis_hash = bitcoin::BlockHash::from_slice(iter.next()?.ok()?.push_bytes()?).ok()?;
 
         // Parse destination scriptpubkey
-        let script_pubkey = if let Some(Ok(Instruction::PushBytes(data))) = iter.next() {
-            if data.is_empty() {
-                return None;
-            } else {
-                bitcoin::Script::from(data.to_owned())
-            }
-        } else {
+        let script_pubkey = bitcoin::Script::from(iter.next()?.ok()?.push_bytes()?.to_owned());
+        if script_pubkey.len() == 0 {
             return None;
-        };
+        }
 
         // Return everything
         let mut found_non_data_push = false;
