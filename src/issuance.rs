@@ -64,6 +64,14 @@ impl ContractHash {
 pub struct AssetId(sha256::Midstate);
 
 impl AssetId {
+    /// The asset ID for L-BTC, Bitcoin on the Liquid network.
+    pub const LIQUID_BTC: AssetId = AssetId(sha256::Midstate([
+        0x6d, 0x52, 0x1c, 0x38, 0xec, 0x1e, 0xa1, 0x57,
+        0x34, 0xae, 0x22, 0xb7, 0xc4, 0x60, 0x64, 0x41,
+        0x28, 0x29, 0xc0, 0xd0, 0x57, 0x9f, 0x0a, 0x71,
+        0x3d, 0x1c, 0x04, 0xed, 0xe9, 0x79, 0x02, 0x6f,
+    ]));
+
     /// Create an [AssetId] from its inner type.
     pub fn from_inner(midstate: sha256::Midstate) -> AssetId {
         AssetId(midstate)
@@ -349,5 +357,13 @@ mod test {
 
         let nested_unordered = r#"{"ticker":"USDt","entity":{"domain":"tether.to","hq":"Mars","author":"Tether Inc","copyright":2020},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"version":0}"#;
         assert_eq!(nested_expected, ContractHash::from_json_contract(&nested_unordered).unwrap());
+    }
+
+    #[test]
+    fn liquid() {
+        assert_eq!(
+            AssetId::LIQUID_BTC.to_string(),
+            "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d",
+        );
     }
 }
