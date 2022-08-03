@@ -10,7 +10,7 @@ use elements::{
     bitcoin::PublicKey, pset::PartiallySignedTransaction as Pset, Address, AddressParams, OutPoint,
     Script, TxOutSecrets, TxOutWitness, Txid, WScriptHash,
 };
-use elements::{pset, secp256k1_zkp};
+use elements::{pset, secp256k1_zkp, SurjectionInput};
 
 use elements::encode::{deserialize, serialize_hex};
 use elements::hashes::hex::FromHex;
@@ -168,8 +168,8 @@ fn main() {
     // Add outputs
     // Send 5_000 worth of asset units to new address
     let inputs = [
-        (btc_txout.asset, Some(&btc_txout_secrets.sec)),
-        (asset_txout.asset, Some(&asset_txout_secrets.sec)),
+        (SurjectionInput::from_txout_secrets(btc_txout_secrets.sec)),
+        (SurjectionInput::from_txout_secrets(asset_txout_secrets.sec)),
     ];
 
     let dest_wsh =
@@ -179,7 +179,7 @@ fn main() {
     let dest_blind_pk =
         PublicKey::from_str("0212bf0ea45b733dfde8ecb5e896306c4165c666c99fc5d1ab887f71393a975cea")
             .unwrap();
-    let (dest_asset_txout, dest_abf, dest_vbf) = TxOut::new_not_last_confidential(
+    let (dest_asset_txout, dest_abf, dest_vbf, _) = TxOut::new_not_last_confidential(
         &mut rng,
         &secp,
         dest_amt,
@@ -200,7 +200,7 @@ fn main() {
     let change_wsh =
         WScriptHash::from_str("f6b43d56e004e9d0b1ec2fc3c95511d81af08420992be8dec7f86cdf8970b3e2")
             .unwrap();
-    let (change_asset_txout, asset_change_abf, asset_change_vbf) =
+    let (change_asset_txout, asset_change_abf, asset_change_vbf, _) =
         TxOut::new_not_last_confidential(
             &mut rng,
             &secp,
@@ -254,19 +254,16 @@ fn main() {
 
     // For the last output we require all secrets.
     let inputs = [
-        (btc_txout.asset, &btc_txout_secrets.sec),
-        (asset_txout.asset, &asset_txout_secrets.sec),
+        btc_txout_secrets.sec,
+        asset_txout_secrets.sec,
     ];
-    let (btc_change_txout, _abf, _vbf) = TxOut::new_last_confidential(
+    let (btc_change_txout, _abf, _vbf, _) = TxOut::new_last_confidential(
         &mut rng,
         &secp,
         change_amt,
-        Address::p2wsh(
-            &Script::new_v0_wsh(&change_wsh),
-            Some(change_blind_pk.inner),
-            &PARAMS,
-        ),
         btc_txout_secrets.sec.asset,
+        Script::new_v0_wsh(&change_wsh),
+        change_blind_pk.inner,
         &inputs,
         &output_secrets,
     )

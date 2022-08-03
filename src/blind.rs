@@ -15,12 +15,12 @@
 //! # Transactions Blinding
 //!
 
-use std::{self, fmt};
+use std::{self, fmt, collections::BTreeMap};
 
 use secp256k1_zkp::{self, PedersenCommitment, SecretKey, Tag, Tweak, Verification, ZERO_TWEAK, rand::{CryptoRng, RngCore}};
 use secp256k1_zkp::{Generator, RangeProof, Secp256k1, Signing, SurjectionProof};
 
-use crate::AddressParams;
+use crate::{AddressParams, Script};
 
 use crate::{Address, AssetId, Transaction, TxOut, TxOutWitness,
     confidential::{Asset, AssetBlindingFactor, Nonce, Value,
@@ -211,7 +211,7 @@ impl RangeProofMessage {
 
 /// Information about Transaction Input Asset
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct TxOutSecrets {
     /// Asset
     pub asset: AssetId,
@@ -239,34 +239,169 @@ impl TxOutSecrets {
     /// Returns a tuple (assetid, blind_factor, generator) if the blinds are
     /// consistent with asset commitment
     /// Otherwise, returns an error
-    pub(crate) fn surjection_inputs<C: Signing>(
-        secret: Option<&Self>,
-        secp: &Secp256k1<C>,
-        asset: Asset,
-    ) -> Result<(Generator, Tag, Tweak), TxOutError>
+    pub fn surjection_inputs<C: Signing>(&self, secp: &Secp256k1<C>)
+        -> (Generator, Tag, Tweak)
     {
-        let gen = asset.into_asset_gen(secp)
-            .ok_or(TxOutError::UnExpectedNullAsset)?;
-        match secret {
-            None => {
-                let tag = Tag::from([0u8; 32]);
-                Ok((gen, tag, ZERO_TWEAK))
-            }
-            Some(secret) => {
-                let tag = secret.asset.into_tag();
-                let bf = secret.asset_bf.into_inner();
-                let gen1 = Generator::new_blinded(secp, tag, bf);
-                if gen1 != gen {
-                    return Err(TxOutError::IncorrectBlindingFactors);
-                }
-                Ok((gen, tag, bf))
-            }
-        }
+        let tag = self.asset.into_tag();
+        let bf = self.asset_bf.into_inner();
+        let gen = Generator::new_blinded(secp, tag, bf);
+        (gen, tag, bf)
     }
 
     /// Gets the required fields for last value blinding factor calculation from [`TxOutSecrets`]
-    pub(crate) fn value_blind_inputs(&self) -> (u64, AssetBlindingFactor, ValueBlindingFactor) {
+    pub fn value_blind_inputs(&self) -> (u64, AssetBlindingFactor, ValueBlindingFactor) {
         return (self.value, self.asset_bf, self.value_bf);
+    }
+}
+
+/// Data structure used to provide inputs to [`SurjectionProof`] methods.
+/// Inputs for which we don't know the secrets can be [`SurjectionInput::Unknown`],
+/// while inputs from user's wallet should be [`SurjectionInput::Known`]
+///
+/// Explicit assets can be provided as [`SurjectionInput::Unknown`]. There is no
+/// need to construct a `Known` variant with secrets
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum SurjectionInput{
+    /// Unknown inputs for whom we don't know the secrets(asset tags/blinding factors)
+    Unknown(Asset),
+    /// Known inputs for whom we know blinding factors
+    Known{
+        /// Asset
+        asset: AssetId,
+        /// Asset Blinding Factor
+        asset_bf: AssetBlindingFactor,
+    },
+}
+
+impl From<TxOutSecrets> for SurjectionInput {
+    fn from(v: TxOutSecrets) -> Self {
+        Self::Known {
+            asset: v.asset,
+            asset_bf: v.asset_bf,
+        }
+    }
+}
+
+impl From<Asset> for SurjectionInput {
+    fn from(v: Asset) -> Self {
+        Self::Unknown(v)
+    }
+}
+
+impl SurjectionInput {
+
+    /// Creates a new [`SurjectionInput`] from commitment
+    pub fn from_comm(asset: Asset) -> Self {
+        Self::Unknown(asset)
+    }
+
+    /// Creates a new [`SurjectionInput`] from [`TxOutSecrets`]
+    pub fn from_txout_secrets(secrets: TxOutSecrets) -> Self {
+        Self::from(secrets)
+    }
+
+    /// Handy method to convert [`SurjectionInput`] into a surjection target
+    /// that can be used while creating a new [SurjectionProof].
+    ///
+    /// Only errors when the input asset is Null.
+    pub fn surjection_target<C: Signing>(&self, secp: &Secp256k1<C>) -> Result<(Generator, Tag, Tweak), TxOutError> {
+        match self {
+            SurjectionInput::Unknown(asset) => {
+                let gen = asset.into_asset_gen(secp).ok_or(TxOutError::UnExpectedNullAsset)?;
+                // Return the input as 0 tag and 0 tweak. This also correctly handles explicit case
+                Ok((gen, Tag::default(), ZERO_TWEAK))
+            },
+            SurjectionInput::Known {asset, asset_bf} => {
+                let tag = asset.into_tag();
+                let bf = asset_bf.into_inner();
+                let gen = Generator::new_blinded(secp, tag, bf);
+                Ok((gen, tag, bf))
+            },
+        }
+    }
+}
+
+impl Asset {
+
+    /// Blinds the asset such that there is a surjection proof between
+    /// the input assets and the output blinded asset.
+    ///
+    /// # Returns:
+    ///
+    /// A pair of blinded asset and corresponding proof as ([`Asset`], [`SurjectionProof`])
+    pub fn blind<R, C, S>(
+        self,
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        asset_bf: AssetBlindingFactor,
+        spent_utxo_secrets: &[S],
+    ) -> Result<(Self, SurjectionProof), ConfidentialTxOutError>
+    where
+        R: RngCore + CryptoRng,
+        C: Signing,
+        S: Into<SurjectionInput> + Copy
+    {
+        let asset = self.explicit().ok_or(ConfidentialTxOutError::ExpectedExplicitAsset)?;
+        let out_asset = Asset::new_confidential(secp, asset, asset_bf);
+
+        let inputs = spent_utxo_secrets
+            .iter()
+            .enumerate()
+            .map(|(i, surject_inp)| {
+                (*surject_inp).into().surjection_target(secp).map_err(|e| ConfidentialTxOutError::TxOutError(i, e))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let surjection_proof = SurjectionProof::new(
+            secp,
+            rng,
+            asset.into_tag(),
+            asset_bf.into_inner(),
+            inputs.as_ref(),
+        )?;
+
+        Ok((out_asset, surjection_proof))
+    }
+}
+
+impl Value {
+
+    /// Blinds the values and outputs the blinded value along with [`RangeProof`].
+    ///
+    /// # Returns:
+    ///
+    /// A pair of blinded asset, nonce and corresponding proof as ([`Value`], [`Nonce`], [`RangeProof`])
+    /// The nonce here refers to public key corresponding to the input `ephemeral_sk`
+    pub fn blind<C: Signing>(
+        self,
+        secp: &Secp256k1<C>,
+        vbf: ValueBlindingFactor,
+        receiver_blinding_pk: secp256k1_zkp::PublicKey,
+        ephemeral_sk: SecretKey,
+        spk: &Script,
+        msg: &RangeProofMessage,
+    ) -> Result<(Self, Nonce, RangeProof), ConfidentialTxOutError>
+    {
+        let value = self.explicit().ok_or(ConfidentialTxOutError::ExpectedExplicitValue)?;
+        let out_asset_commitment = Generator::new_blinded(secp, msg.asset.into_tag(), msg.bf.into_inner());
+        let value_commitment = Value::new_confidential(secp, value, out_asset_commitment, vbf);
+
+        let (nonce, shared_secret) = Nonce::with_ephemeral_sk(secp, ephemeral_sk, &receiver_blinding_pk);
+
+        let rangeproof = RangeProof::new(
+            secp,
+            TxOut::RANGEPROOF_MIN_VALUE,
+            value_commitment.commitment().expect("confidential value"),
+            value,
+            vbf.into_inner(),
+            &msg.to_bytes(),
+            spk.as_bytes(),
+            shared_secret,
+            TxOut::RANGEPROOF_EXP_SHIFT,
+            TxOut::RANGEPROOF_MIN_PRIV_BITS,
+            out_asset_commitment,
+        )?;
+        Ok((value_commitment, nonce, rangeproof))
     }
 }
 
@@ -281,95 +416,112 @@ impl TxOut {
     pub const MAX_MONEY: u64 = 21_000_000 * 100_000_000;
 
     /// Creates a new confidential output that is **not** the last one in the transaction.
-    /// Provide input secret information by creating [`TxOutSecrets`] type.
-    /// The inputs secrets must be consistent with the target_asset confidential [`Asset`]
-    /// It is not necessary to supply `[TxOutSecrets]` for explicit assets
-    pub fn new_not_last_confidential<R, C>(
+    /// Provide input secret information by creating [`SurjectionInput`] for each input.
+    /// Inputs for issuances must be provided in the followed by inputs for input asset.
+    ///
+    /// For example, if the second input contains non-null issuance and re-issuance tokens,
+    /// the `spent_utxo_secrets` should be of the form [inp_1, inp_2, inp_2_issue, inp2_reissue,...]
+    ///
+    /// If the issuance or re-issuance is null, it should not be added to `spent_utxo_secrets`
+    ///
+    /// # Returns:
+    ///
+    /// A tuple of ([`TxOut`], [`AssetBlindingFactor`], [`ValueBlindingFactor`], ephemeral secret key [`SecretKey`])
+    /// sampled from the given rng
+    pub fn new_not_last_confidential<R, C, S>(
         rng: &mut R,
         secp: &Secp256k1<C>,
         value: u64,
         address: Address,
         asset: AssetId,
-        spent_utxo_secrets: &[(Asset, Option<&TxOutSecrets>)],
-    ) -> Result<(Self, AssetBlindingFactor, ValueBlindingFactor), ConfidentialTxOutError>
+        spent_utxo_secrets: &[S],
+    ) -> Result<(Self, AssetBlindingFactor, ValueBlindingFactor, SecretKey), ConfidentialTxOutError>
     where
         R: RngCore + CryptoRng,
         C: Signing,
+        S: Into<SurjectionInput> + Copy
     {
-        let out_abf = AssetBlindingFactor::new(rng);
-        let out_asset = Asset::new_confidential(secp, asset, out_abf);
+        let spk = address.script_pubkey();
+        let blinder = address.blinding_pubkey.ok_or(ConfidentialTxOutError::NoBlindingKeyInAddress)?;
+        let asset_bf = AssetBlindingFactor::new(rng);
+        let value_bf = ValueBlindingFactor::new(rng);
+        let out_secrets = TxOutSecrets::new(asset, asset_bf, value, value_bf);
+        let ephemeral_sk = SecretKey::new(rng);
 
-        let out_asset_commitment = out_asset.commitment().expect("confidential asset");
-        let out_vbf = ValueBlindingFactor::new(rng);
-        let value_commitment = Value::new_confidential(secp, value, out_asset_commitment, out_vbf);
+        let txout = Self::with_txout_secrets(
+                rng, secp, spk, blinder, ephemeral_sk, out_secrets, spent_utxo_secrets
+            )?;
+        Ok((txout, asset_bf, value_bf, ephemeral_sk))
+    }
 
-        let receiver_blinding_pk = &address
-            .blinding_pubkey
-            .ok_or(ConfidentialTxOutError::NoBlindingKeyInAddress)?;
-        let (nonce, shared_secret) = Nonce::new_confidential(rng, secp, receiver_blinding_pk);
+    /// Similar to [`TxOut::new_not_last_confidential`], but takes input
+    /// the asset, value blinding factors and ephemeral secret key instead of sampling
+    /// them from rng. The `rng` is only used in surjection proof creation while
+    /// selecting inputs
+    ///
+    /// Use the `txout_secrets` to specify the secrets to use while creating this output.
+    /// Use the [`ValueBlindingFactor::last`] method to compute the blinding factor for the
+    /// last input.
+    //
+    // TODO: In upstream secp-zkp, create a non-rng based function.
+    pub fn with_txout_secrets<R, C, S>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        spk: Script,
+        receiver_blinding_pk: secp256k1_zkp::PublicKey,
+        ephemeral_sk: SecretKey,
+        out_secrets: TxOutSecrets,
+        spent_utxo_secrets: &[S],
+    ) -> Result<Self, ConfidentialTxOutError>
+    where
+        R: RngCore + CryptoRng,
+        C: Signing,
+        S: Into<SurjectionInput> + Copy
+    {
+        let exp_asset = Asset::Explicit(out_secrets.asset);
+        let (out_asset, surjection_proof) =
+            exp_asset.blind(rng, secp, out_secrets.asset_bf, spent_utxo_secrets)?;
 
-        let message = RangeProofMessage { asset, bf: out_abf };
-        let rangeproof = RangeProof::new(
-            secp,
-            Self::RANGEPROOF_MIN_VALUE,
-            value_commitment.commitment().expect("confidential value"),
-            value,
-            out_vbf.0,
-            &message.to_bytes(),
-            address.script_pubkey().as_bytes(),
-            shared_secret,
-            Self::RANGEPROOF_EXP_SHIFT,
-            Self::RANGEPROOF_MIN_PRIV_BITS,
-            out_asset_commitment,
-        )?;
-
-        let inputs = spent_utxo_secrets
-            .iter()
-            .enumerate()
-            .map(|(i, (asset, sec))| {
-                TxOutSecrets::surjection_inputs(*sec, secp, *asset)
-                .map_err(|e| ConfidentialTxOutError::TxOutError(i, e))
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let surjection_proof = SurjectionProof::new(
-            secp,
-            rng,
-            asset.into_tag(),
-            out_abf.into_inner(),
-            inputs.as_ref(),
-        )?;
+        let msg = RangeProofMessage { asset: out_secrets.asset, bf: out_secrets.asset_bf };
+        let exp_value = Value::Explicit(out_secrets.value);
+        let (out_value, nonce, range_proof) =
+            exp_value.blind(secp, out_secrets.value_bf, receiver_blinding_pk, ephemeral_sk, &spk, &msg)?;
 
         let txout = TxOut {
             asset: out_asset,
-            value: value_commitment,
+            value: out_value,
             nonce,
-            script_pubkey: address.script_pubkey(),
+            script_pubkey: spk,
             witness: TxOutWitness {
                 surjection_proof: Some(Box::new(surjection_proof)),
-                rangeproof: Some(Box::new(rangeproof)),
+                rangeproof: Some(Box::new(range_proof)),
             },
         };
-
-        Ok((txout, out_abf, out_vbf))
+        Ok(txout)
     }
 
     /// Convert a explicit TxOut into a Confidential TxOut.
     /// The blinding key is provided by the blinder paramter.
     /// The initial value of nonce is ignored and is set to the ECDH pubkey
     /// sampled by the sender.
-    pub fn to_non_last_confidential<R, C>(
-        &mut self,
+    ///
+    /// # Returns:
+    ///
+    /// A tuple of ([`AssetBlindingFactor`], [`ValueBlindingFactor`], ephemeral secret key [`SecretKey`])
+    /// sampled from the given rng
+    pub fn to_non_last_confidential<R, C, S>(
+        &self,
         rng: &mut R,
         secp: &Secp256k1<C>,
         blinder: secp256k1_zkp::PublicKey,
-        spent_utxo_secrets: &[(Asset, Option<&TxOutSecrets>)],
-    ) -> Result<(AssetBlindingFactor, ValueBlindingFactor), ConfidentialTxOutError>
+        spent_utxo_secrets: &[S],
+    ) -> Result<(TxOut, AssetBlindingFactor, ValueBlindingFactor, SecretKey), ConfidentialTxOutError>
     where
         R: RngCore + CryptoRng,
         C: Signing,
+        S: Into<SurjectionInput> + Copy
     {
-        let (txout, abf, vbf) = Self::new_not_last_confidential(
+        let (txout, abf, vbf, ephemeral_sk) = Self::new_not_last_confidential(
             rng,
             secp,
             self.value
@@ -382,8 +534,7 @@ impl TxOut {
                 .ok_or(ConfidentialTxOutError::ExpectedExplicitAsset)?,
             spent_utxo_secrets,
         )?;
-        *self = txout;
-        Ok((abf, vbf))
+        Ok((txout, abf, vbf, ephemeral_sk))
     }
 
     // Internally used function for getting the generator from asset
@@ -426,88 +577,71 @@ impl TxOut {
     }
 
     /// Creates a new confidential output that IS the last one in the transaction.
-    /// Provide input Asset information by creating [`TxInputAsset`] type.
+    ///
+    /// # Returns:
+    ///
+    /// A tuple of ([`AssetBlindingFactor`], [`ValueBlindingFactor`], ephemeral secret key [`SecretKey`])
+    /// sampled from the given rng
     pub fn new_last_confidential<R, C>(
         rng: &mut R,
         secp: &Secp256k1<C>,
         value: u64,
-        address: Address,
         asset: AssetId,
-        spent_utxo_secrets: &[(Asset, &TxOutSecrets)],
+        spk: Script,
+        blinder: secp256k1_zkp::PublicKey,
+        spent_utxo_secrets: &[TxOutSecrets],
         output_secrets: &[&TxOutSecrets],
-    ) -> Result<(Self, AssetBlindingFactor, ValueBlindingFactor), ConfidentialTxOutError>
+    ) -> Result<(Self, AssetBlindingFactor, ValueBlindingFactor, SecretKey), ConfidentialTxOutError>
     where
         R: RngCore + CryptoRng,
         C: Signing,
     {
-        // Check for Null Assets at start.
-        // Maybe just remove this variant altogether?
-        for (i, (asset, _sec)) in spent_utxo_secrets.iter().enumerate(){
-            if asset.is_null() {
-                return Err(ConfidentialTxOutError::TxOutError(i, TxOutError::UnExpectedNullAsset));
-            }
-        }
-        let (surjection_proof_inputs, value_blind_inputs) = spent_utxo_secrets
+
+        let out_abf = AssetBlindingFactor::new(rng);
+        let ephemeral_sk = SecretKey::new(rng);
+
+        let (txout, out_vbf) = TxOut::with_secrets_last(
+            rng, secp, value, spk, blinder, asset, ephemeral_sk, out_abf, spent_utxo_secrets, output_secrets
+        )?;
+        Ok((txout, out_abf, out_vbf, ephemeral_sk))
+    }
+
+    /// Similar to [TxOut::new_last_confidential], but allows specifying the asset blinding factor
+    /// and the ephemeral key. The value-blinding factor is computed adaptively
+    pub fn with_secrets_last<R, C>(
+        rng: &mut R,
+        secp: &Secp256k1<C>,
+        value: u64,
+        spk: Script,
+        blinder: secp256k1_zkp::PublicKey,
+        asset: AssetId,
+        ephemeral_sk: SecretKey,
+        out_abf: AssetBlindingFactor,
+        spent_utxo_secrets: &[TxOutSecrets],
+        output_secrets: &[&TxOutSecrets],
+    ) -> Result<(Self, ValueBlindingFactor), ConfidentialTxOutError>
+    where
+        R: RngCore + CryptoRng,
+        C: Signing,
+    {
+
+        let value_blind_inputs = spent_utxo_secrets
             .iter()
-            .map(|(asset, sec)| {
-                let gen = asset.into_asset_gen(secp).expect("Null");
-                ((gen, sec.asset.into_tag(), sec.asset_bf.0), (sec.value_blind_inputs()))
-            })
-            .unzip::<_, _, Vec<_>, Vec<_>>();
+            .map(|utxo_sec| utxo_sec.value_blind_inputs())
+            .collect::<Vec<_>>();
 
         let value_blind_outputs = output_secrets
             .iter()
             .map(|e| e.value_blind_inputs())
             .collect::<Vec<_>>();
 
-        let out_abf = AssetBlindingFactor::new(rng);
-        let out_asset = Asset::new_confidential(secp, asset, out_abf);
-
-        let out_asset_commitment = out_asset.commitment().expect("confidential asset");
         let out_vbf =
             ValueBlindingFactor::last(secp, value, out_abf, &value_blind_inputs, &value_blind_outputs);
-        let value_commitment = Value::new_confidential(secp, value, out_asset_commitment, out_vbf);
+        let out_secrets = TxOutSecrets::new(asset, out_abf, value, out_vbf);
+        let txout =
+            TxOut::with_txout_secrets(rng, secp, spk, blinder, ephemeral_sk, out_secrets, spent_utxo_secrets)?;
 
-        let receiver_blinding_pk = &address
-            .blinding_pubkey
-            .ok_or(ConfidentialTxOutError::NoBlindingKeyInAddress)?;
-        let (nonce, shared_secret) = Nonce::new_confidential(rng, secp, receiver_blinding_pk);
-
-        let message = RangeProofMessage { asset, bf: out_abf };
-        let rangeproof = RangeProof::new(
-            secp,
-            Self::RANGEPROOF_MIN_VALUE,
-            value_commitment.commitment().expect("confidential value"),
-            value,
-            out_vbf.0,
-            &message.to_bytes(),
-            address.script_pubkey().as_bytes(),
-            shared_secret,
-            Self::RANGEPROOF_EXP_SHIFT,
-            Self::RANGEPROOF_MIN_PRIV_BITS,
-            out_asset_commitment,
-        )?;
-
-        let surjection_proof = SurjectionProof::new(
-            secp,
-            rng,
-            asset.into_tag(),
-            out_abf.into_inner(),
-            surjection_proof_inputs.as_ref(),
-        )?;
-
-        let txout = TxOut {
-            asset: out_asset,
-            value: value_commitment,
-            nonce,
-            script_pubkey: address.script_pubkey(),
-            witness: TxOutWitness {
-                surjection_proof: Some(Box::new(surjection_proof)),
-                rangeproof: Some(Box::new(rangeproof)),
-            },
-        };
-
-        Ok((txout, out_abf, out_vbf))
+        Ok((txout, out_vbf))
     }
 
     /// Unblinds a transaction output, if it is confidential.
@@ -731,8 +865,8 @@ impl Transaction {
         &mut self,
         rng: &mut R,
         secp: &Secp256k1<C>,
-        spent_utxo_secrets: &[(Asset, &TxOutSecrets)],
-    ) -> Result<Vec<(AssetBlindingFactor, ValueBlindingFactor)>, BlindError>
+        spent_utxo_secrets: &[TxOutSecrets],
+    ) -> Result<BTreeMap<usize, (AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, BlindError>
     where
         R: RngCore + CryptoRng,
         C: Signing,
@@ -752,35 +886,31 @@ impl Transaction {
             .filter(|i| !i.is_fee() && i.nonce.is_confidential())
             .count();
         let mut num_blinded = 0;
-        let mut blinds = Vec::new();
+        let mut blinds = BTreeMap::new();
         let mut out_secrets = Vec::new();
         let mut last_output_index = None;
         for (i, out) in self.output.iter_mut().enumerate() {
             if out.is_fee() || !out.nonce.is_confidential() {
-                let abf = AssetBlindingFactor::zero();
-                let vbf = ValueBlindingFactor::zero();
                 out_secrets.push(
                     TxOutSecrets::new(
                     out.asset.explicit().unwrap(),
-                    abf,
+                    AssetBlindingFactor::zero(),
                     out.value.explicit().unwrap(),
-                    vbf,
+                    ValueBlindingFactor::zero(),
                 ));
-                blinds.push((abf, vbf));
                 continue;
             }
 
-            let opt_utxo_secrets : Vec<_> = spent_utxo_secrets.iter().map(|(a, sec)| (*a, Some(*sec))).collect();
             let blinder = out.nonce.commitment().expect("Confidential");
             let address = Address::from_script(&out.script_pubkey, Some(blinder), &AddressParams::ELEMENTS)
                 .ok_or(BlindError::InvalidAddress)?;
             if num_blinded + 1 < num_to_blind {
 
-                let (conf_out, abf, vbf) = TxOut::new_not_last_confidential(
-                    rng, secp, out.value.explicit().unwrap(), address, out.asset.explicit().unwrap(), &opt_utxo_secrets
+                let (conf_out, abf, vbf, ephemeral_sk) = TxOut::new_not_last_confidential(
+                    rng, secp, out.value.explicit().unwrap(), address, out.asset.explicit().unwrap(), &spent_utxo_secrets
                 )?;
 
-                blinds.push((abf, vbf));
+                blinds.insert(i, (abf, vbf, ephemeral_sk));
                 out_secrets.push(
                     TxOutSecrets::new(
                     out.asset.explicit().unwrap(),
@@ -797,23 +927,24 @@ impl Transaction {
         }
         let last_index = last_output_index.expect("Internal output calculation error");
         // NLL block
-        let (value, asset, address) = {
+        let (value, asset, spk, blinder) = {
             let out = &self.output[last_index];
             let blinder = out.nonce.commitment().expect("Confidential");
             (
                 out.value.explicit().unwrap(),
                 out.asset.explicit().unwrap(),
-                Address::from_script(&out.script_pubkey, Some(blinder), &AddressParams::ELEMENTS)
-                    .ok_or(BlindError::InvalidAddress)?
+                out.script_pubkey.clone(), // TODO: Possible to avoid this clone in future with _mut APIs
+                blinder
             )
         };
         // Get Vec<&T> from Vec<T>
         let out_secrets = out_secrets.iter().collect::<Vec<_>>();
 
-        let (conf_out, abf, vbf) = TxOut::new_last_confidential(
-            rng, secp, value, address, asset, spent_utxo_secrets, &out_secrets)?;
+        let (conf_out, abf, vbf, ephemeral_sk) = TxOut::new_last_confidential(
+            rng, secp, value, asset, spk, blinder, spent_utxo_secrets, &out_secrets
+        )?;
 
-        blinds.push((abf, vbf));
+        blinds.insert(last_index, (abf, vbf, ephemeral_sk));
         self.output[last_index] = conf_out;
         Ok(blinds)
     }
@@ -1026,8 +1157,7 @@ mod tests {
         }
 
         let secp = secp256k1_zkp::Secp256k1::new();
-        let spent_asset = Asset::from_commitment(&Vec::<u8>::from_hex("0baf634b18e1880c96dcf9947b0e0fd2d38d66d723339174df3fd980148c2f0bb3").unwrap()).unwrap();
-        let _bfs = tx.blind(&mut thread_rng(), &secp, &[(spent_asset, &spent_utxo_secrets)]).unwrap();
+        let _bfs = tx.blind(&mut thread_rng(), &secp, &[spent_utxo_secrets]).unwrap();
 
         let spent_utxo = TxOut {
             asset: Asset::from_commitment(&Vec::<u8>::from_hex("0baf634b18e1880c96dcf9947b0e0fd2d38d66d723339174df3fd980148c2f0bb3").unwrap()).unwrap(),
@@ -1070,7 +1200,6 @@ mod tests {
         let asset = AssetId::default();
 
         let asset_bf = AssetBlindingFactor::new(&mut thread_rng());
-        let asset_commitment = Asset::new_confidential(SECP256K1, asset, asset_bf);
         let value_bf = ValueBlindingFactor::new(&mut thread_rng());
         /*let spent_utxo_secrets = &[(
             asset,
@@ -1080,9 +1209,9 @@ mod tests {
             input_vbf,
         )]; */
         let txout_secrets = TxOutSecrets { asset, asset_bf, value, value_bf};
-        let spent_utxo_secrets = [(asset_commitment, Some(&txout_secrets))];
+        let spent_utxo_secrets = [txout_secrets];
 
-        let (txout, _, _) = TxOut::new_not_last_confidential(
+        let (txout, _, _, _) = TxOut::new_not_last_confidential(
             &mut thread_rng(),
             SECP256K1,
             value,

@@ -65,7 +65,7 @@ pub use bitcoin::{bech32, hashes};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressParams, AddressError};
 pub use crate::transaction::{OutPoint, PeginData, PegoutData, EcdsaSigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
-pub use crate::blind::{ConfidentialTxOutError, TxOutSecrets, TxOutError, VerificationError, BlindError, UnblindError, BlindValueProofs, BlindAssetProofs};
+pub use crate::blind::{ConfidentialTxOutError, TxOutSecrets, SurjectionInput, TxOutError, VerificationError, BlindError, UnblindError, BlindValueProofs, BlindAssetProofs};
 pub use crate::block::{BlockHeader, Block};
 pub use crate::block::ExtData as BlockExtData;
 pub use ::bitcoin::consensus::encode::VarInt;

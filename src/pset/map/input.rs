@@ -15,7 +15,7 @@
 use std::fmt;
 use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io, str::FromStr};
 
-use crate::schnorr;
+use crate::{schnorr, AssetId, ContractHash};
 use crate::taproot::{ControlBlock, LeafVersion, TapLeafHash, TapBranchHash};
 
 use crate::{Script, AssetIssuance, EcdsaSigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
@@ -427,9 +427,33 @@ impl Input{
         ret
     }
 
+    /// Compute the issuance asset ids from pset. This function does not check
+    /// whether there is an issuance in this input. Returns (asset_id, token_id)
+    pub fn issuance_ids(&self) -> (AssetId, AssetId) {
+        let issue_nonce = self.issuance_blinding_nonce.unwrap_or(ZERO_TWEAK);
+        let entropy = if issue_nonce == ZERO_TWEAK {
+            // new issuance
+            let prevout = OutPoint {
+                txid: self.previous_txid,
+                vout: self.previous_output_index,
+            };
+            let contract_hash =
+                ContractHash::from_inner(self.issuance_asset_entropy.unwrap_or_default());
+            AssetId::generate_asset_entropy(prevout, contract_hash)
+        } else {
+            // re-issuance
+            sha256::Midstate::from_inner(self.issuance_asset_entropy.unwrap_or_default())
+        };
+        let asset_id = AssetId::from_entropy(entropy);
+        let token_id =
+            AssetId::reissuance_token_from_entropy(entropy, self.issuance_value_comm.is_some());
+
+        (asset_id, token_id)
+    }
+
     /// If the pset input has issuance
     pub fn has_issuance(&self) -> bool {
-        self.previous_output_index & (1 << 31) != 0
+        !self.asset_issuance().is_null()
     }
 
     /// If the Pset Input is pegin

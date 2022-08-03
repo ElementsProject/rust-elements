@@ -266,20 +266,16 @@ fn main() {
     // ----------------------------------------------------------
     // B Adds it's own outputs. Step 2 completed
     // ----- Step 3: B to blind it's own outputs
-    let inp_txout_sec = [
-        None,
-        Some(&asset_txout_secrets.sec),
-    ];
+    let mut inp_txout_sec = HashMap::new();
+    inp_txout_sec.insert(1, asset_txout_secrets.sec);
 
     pset.blind_non_last(&mut rng, &secp, &inp_txout_sec).unwrap();
     assert_eq!(pset, deser_pset(&tests["pset_coinjoined_B_blinded"]));
 
     // Step 4: A blinds it's own inputs
-    let inp_txout_sec = [
-        Some(&btc_txout_secrets.sec),
-        None,
-    ];
-    pset.blind_last(&mut rng, &secp, &inp_txout_sec).unwrap();
+    let mut inp_txout_sec_a = HashMap::new();
+    inp_txout_sec_a.insert(0, btc_txout_secrets.sec);
+    pset.blind_last(&mut rng, &secp, &inp_txout_sec_a).unwrap();
     assert_eq!(pset, deser_pset(&tests["pset_coinjoined_blinded"]));
 
     // check whether the blinding was correct
