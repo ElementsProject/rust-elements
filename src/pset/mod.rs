@@ -245,7 +245,6 @@ impl PartiallySignedTransaction {
             let txin = TxIn {
                 previous_output: OutPoint::new(psetin.previous_txid, psetin.previous_output_index),
                 is_pegin: psetin.is_pegin(),
-                has_issuance: psetin.has_issuance(),
                 script_sig: psetin.final_script_sig.clone().unwrap_or_default(),
                 sequence: psetin.sequence.unwrap_or(0xffffffff),
                 asset_issuance: psetin.asset_issuance(),

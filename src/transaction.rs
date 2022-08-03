@@ -43,6 +43,14 @@ pub struct AssetIssuance {
     /// Amount of inflation keys to issue
     pub inflation_keys: confidential::Value,
 }
+
+impl AssetIssuance {
+
+    /// Checks whether the [`AssetIssuance`] is null
+    pub fn is_null(&self) -> bool {
+        self.amount.is_null() && self.inflation_keys.is_null()
+    }
+}
 serde_struct_impl!(AssetIssuance, asset_blinding_nonce, asset_entropy, amount, inflation_keys);
 impl_consensus_encoding!(AssetIssuance, asset_blinding_nonce, asset_entropy, amount, inflation_keys);
 
@@ -232,8 +240,6 @@ pub struct TxIn {
     pub previous_output: OutPoint,
     /// Flag indicating that `previous_outpoint` refers to something on the main chain
     pub is_pegin: bool,
-    /// Flag indicating that `previous_outpoint` has an asset issuance attached
-    pub has_issuance: bool,
     /// The script which pushes values on the stack which will cause
     /// the referenced output's script to accept
     pub script_sig: Script,
@@ -255,7 +261,6 @@ impl Default for TxIn {
         Self {
             previous_output: Default::default(), // same as in rust-bitcoin
             is_pegin: false,
-            has_issuance: false,
             script_sig: Script::new(),
             sequence: u32::max_value(), // same as in rust-bitcoin
             asset_issuance: Default::default(),
@@ -264,7 +269,7 @@ impl Default for TxIn {
     }
 }
 
-serde_struct_impl!(TxIn, previous_output, is_pegin, has_issuance, script_sig, sequence, asset_issuance, witness);
+serde_struct_impl!(TxIn, previous_output, is_pegin, script_sig, sequence, asset_issuance, witness);
 
 impl Encodable for TxIn {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
@@ -273,7 +278,7 @@ impl Encodable for TxIn {
         if self.is_pegin {
             vout |= 1 << 30;
         }
-        if self.has_issuance {
+        if self.has_issuance() {
             vout |= 1 << 31;
         }
         ret += self.previous_output.txid.consensus_encode(&mut s)?;
@@ -313,7 +318,6 @@ impl Decodable for TxIn {
         Ok(TxIn {
             previous_output: outp,
             is_pegin,
-            has_issuance,
             script_sig,
             sequence,
             asset_issuance: issuance,
@@ -347,12 +351,12 @@ impl TxIn {
 
     /// Helper to determine whether an input has an asset issuance attached
     pub fn has_issuance(&self) -> bool {
-        self.has_issuance
+        !&self.asset_issuance.is_null()
     }
 
     /// Obtain the outpoint flag corresponding to this input
     pub fn outpoint_flag(&self) -> u8 {
-        ((self.is_pegin as u8) << 6 ) | ((self.has_issuance as u8) << 7)
+        ((self.is_pegin as u8) << 6 ) | ((self.has_issuance() as u8) << 7)
     }
 }
 
@@ -1784,7 +1788,7 @@ mod tests {
         );
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.input[0].has_issuance, true);
+        assert_eq!(tx.input[0].has_issuance(), true);
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
         assert_eq!(tx.fee_in(fee_asset), 56400);
         assert_eq!(tx.all_fees()[&fee_asset], 56400);

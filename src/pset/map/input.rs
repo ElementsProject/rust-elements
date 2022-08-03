@@ -395,6 +395,7 @@ impl Input{
     /// Create a pset input from TxIn
     pub fn from_txin(txin: TxIn) -> Self {
         let mut ret = Self::from_prevout(txin.previous_output);
+        let has_issuance = txin.has_issuance();
         ret.sequence = Some(txin.sequence);
         ret.final_script_sig = Some(txin.script_sig);
         ret.final_script_witness = Some(txin.witness.script_witness);
@@ -403,7 +404,7 @@ impl Input{
             ret.previous_output_index |= 1 << 30;
             ret.pegin_witness = Some(txin.witness.pegin_witness);
         }
-        if txin.has_issuance {
+        if has_issuance {
             ret.previous_output_index |= 1 << 31;
             ret.issuance_blinding_nonce = Some(txin.asset_issuance.asset_blinding_nonce);
             ret.issuance_asset_entropy = Some(txin.asset_issuance.asset_entropy);
