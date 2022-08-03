@@ -112,6 +112,18 @@ impl AssetId {
         AssetId(fast_merkle_root(&[entropy.into_inner(), ZERO32]))
     }
 
+    /// Computes the asset ID when issuing asset from issuing input and contract hash
+    pub fn new_issuance(prevout: OutPoint, contract_hash: ContractHash) -> Self {
+        let entropy = AssetId::generate_asset_entropy(prevout, contract_hash);
+        AssetId::from_entropy(entropy)
+    }
+
+    /// Computes the re-issuance token from input and contract hash
+    pub fn new_reissuance_token(prevout: OutPoint, contract_hash: ContractHash, confidential: bool) -> Self {
+        let entropy = AssetId::generate_asset_entropy(prevout, contract_hash);
+        AssetId::reissuance_token_from_entropy(entropy, confidential)
+    }
+
     /// Calculate the reissuance token asset ID from the asset entropy.
     pub fn reissuance_token_from_entropy(entropy: sha256::Midstate, confidential: bool) -> AssetId {
         // H_a : asset reissuance tag
