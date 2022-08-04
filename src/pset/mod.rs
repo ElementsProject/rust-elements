@@ -404,10 +404,14 @@ impl PartiallySignedTransaction {
     /// For each output that is to be blinded, the following must be true
     /// 1. The blinder_index must be set in pset output field
     /// 2. the corresponding inp_secrets\[out.blinder_index\] must be present
+    ///
+    /// Issuances and re-issuance inputs are not blinded.
     /// # Parameters
     ///
     /// * `inp_secrets`: [`TxOutSecrets`] corresponding to owned inputs. Use [`None`] for non-owned outputs
     ///
+    // Blinding issuances is not currently supported. We have no way in pset to specify
+    // which issuances we want to blind
     pub fn blind_non_last<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
         &mut self,
         rng: &mut R,

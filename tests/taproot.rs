@@ -199,7 +199,8 @@ fn taproot_spend_test(
         tx.blind(
             &mut thread_rng(),
             &secp,
-            &[(test_data.utxo.asset, &test_data.txout_secrets)],
+            &[test_data.txout_secrets],
+            false
         )
         .unwrap();
     }

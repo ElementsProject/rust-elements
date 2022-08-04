@@ -19,16 +19,16 @@ use std::{io, fmt, str};
 use std::collections::HashMap;
 
 use bitcoin::{self, VarInt};
-use bitcoin::hashes::Hash;
+use crate::hashes::{Hash, sha256};
 
-use crate::confidential;
+use crate::{confidential, ContractHash};
 use crate::encode::{self, Encodable, Decodable};
 use crate::issuance::AssetId;
 use crate::opcodes;
 use crate::script::Instruction;
 use crate::{Script, Txid, Wtxid};
 use secp256k1_zkp::{
-    RangeProof, SurjectionProof, Tweak,
+    RangeProof, SurjectionProof, Tweak, ZERO_TWEAK,
 };
 
 /// Description of an asset issuance in a transaction input
@@ -357,6 +357,24 @@ impl TxIn {
     /// Obtain the outpoint flag corresponding to this input
     pub fn outpoint_flag(&self) -> u8 {
         ((self.is_pegin as u8) << 6 ) | ((self.has_issuance() as u8) << 7)
+    }
+
+    /// Compute the issuance asset ids from this [`TxIn`]. This function does not check
+    /// whether there is an issuance in this input. Returns (asset_id, token_id)
+    pub fn issuance_ids(&self) -> (AssetId, AssetId) {
+        let entropy = if self.asset_issuance.asset_blinding_nonce == ZERO_TWEAK {
+            let contract_hash =
+                ContractHash::from_inner(self.asset_issuance.asset_entropy);
+            AssetId::generate_asset_entropy(self.previous_output, contract_hash)
+        } else {
+            // re-issuance
+            sha256::Midstate::from_inner(self.asset_issuance.asset_entropy)
+        };
+        let asset_id = AssetId::from_entropy(entropy);
+        let token_id =
+            AssetId::reissuance_token_from_entropy(entropy, self.asset_issuance.amount.is_confidential());
+
+        (asset_id, token_id)
     }
 }
 
