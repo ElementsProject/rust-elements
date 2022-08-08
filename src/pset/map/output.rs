@@ -82,7 +82,7 @@ const PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF: u8 = 0x09;
 /// PSBT_ELEMENTS_OUT_ASSET_COMMITMENT matches the explicit asset in
 /// PSBT_ELEMENTS_OUT_ASSET. If provided, PSBT_ELEMENTS_OUT_ASSET_COMMITMENT must
 /// be provided too.
-const PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF: u8 = 0x10;
+const PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF: u8 = 0x0a;
 
 /// A key-value map for an output of the corresponding index in the unsigned
 /// transaction.
