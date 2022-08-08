@@ -894,7 +894,11 @@ impl Transaction {
         // Issuances and reissuances not supported yet
         let mut in_commits = vec![];
         let mut out_commits = vec![];
+        let mut domain = vec![];
         for (i, inp) in self.input.iter().enumerate() {
+            let gen = spent_utxos[i].get_asset_gen(secp)
+                .map_err(|e| VerificationError::SpentTxOutError(i, e))?;
+            domain.push(gen);
             in_commits.push(
                 spent_utxos[i].get_value_commit(secp)
                     .map_err(|e| VerificationError::SpentTxOutError(i, e))?
@@ -910,22 +914,20 @@ impl Transaction {
                         Value::Null => continue,
                         Value::Explicit(v) => {
                             let gen = Generator::new_unblinded(secp, asset.into_tag());
+                            domain.push(gen);
                             let comm = PedersenCommitment::new_unblinded(secp, *v, gen);
                             in_commits.push(comm)
                         },
-                        Value::Confidential(comm) => in_commits.push(*comm),
+                        Value::Confidential(comm) => {
+                            let gen = Generator::new_unblinded(secp, asset.into_tag());
+                            domain.push(gen);
+                            in_commits.push(*comm)
+                        }
                     }
                 }
             }
         }
 
-        let domain = spent_utxos
-            .iter()
-            .enumerate()
-            .map(|(i, out)|
-                out.get_asset_gen(secp).map_err(|e| VerificationError::SpentTxOutError(i, e))
-            )
-            .collect::<Result<Vec<_>, _>>()?;
         for (i, out) in self.output.iter().enumerate() {
 
             // Compute the value commitments and asset generator
@@ -1243,6 +1245,7 @@ impl BlindAssetProofs for SurjectionProof {
 
 #[cfg(test)]
 mod tests {
+    use crate::encode;
     use crate::hashes::hex::FromHex;
     use rand::thread_rng;
     use secp256k1_zkp::SECP256K1;
@@ -1391,5 +1394,31 @@ mod tests {
 
         let res = proof.blind_asset_proof_verify(SECP256K1, id, asset_comm);
         assert!(res);
+    }
+
+    #[test]
+    fn test_partially_blinded_tx() {
+        // Partially blinded tx with multiple issuances from options project
+        let secp = secp256k1_zkp::Secp256k1::new();
+        let tx_str = include_str!("../tests/data/issue_tx.hex");
+
+        let bytes = Vec::<u8>::from_hex(tx_str).unwrap();
+        let tx = encode::deserialize::<Transaction>(&bytes).unwrap();
+
+        let mut utxos = [TxOut::default(), TxOut::default(), TxOut::default(), TxOut::default()];
+        {
+            utxos[0].asset = Asset::from_commitment(&Vec::<u8>::from_hex("0ae7a52e8e4b07e00548bab151a83e5c9ab2f9a910e10dcee930a1a152a939f99e").unwrap()).unwrap();
+            utxos[0].value = Value::Explicit(1);
+
+            utxos[1].asset = Asset::from_commitment(&Vec::<u8>::from_hex("0bc226167e9ee0bb5a86c8f1478ee7d7becb7bfd4d97c26a041e628c5486a8c67a").unwrap()).unwrap();
+            utxos[1].value = Value::Explicit(1);
+
+            utxos[2].asset = Asset::from_commitment(&Vec::<u8>::from_hex("0b495dbfc356993c5ac157c3d04fadf6f198a7e35a873df482ad9e4e95daa8aa7e").unwrap()).unwrap();
+            utxos[2].value = Value::from_commitment(&Vec::<u8>::from_hex("08e0ac2ab5f3c173d5e0652a2ec209a9a370a4e510178e73c2f22f9e132341abf4").unwrap()).unwrap();
+
+            utxos[3].asset = Asset::from_commitment(&Vec::<u8>::from_hex("0aa0956d60687982d5e73d52f8c5902478754e5f0e2e5ceff5ae53fa9681c12ae1").unwrap()).unwrap();
+            utxos[3].value = Value::from_commitment(&Vec::<u8>::from_hex("094b35f1e86b097ccf0b3a826570c089c724ed9cf22620937500b14acdd169e7bf").unwrap()).unwrap();
+        }
+        tx.verify_tx_amt_proofs(&secp, &utxos).unwrap();
     }
 }
