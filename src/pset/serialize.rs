@@ -79,15 +79,13 @@ impl_pset_de_serialize!(Vec<TapLeafHash>);
 
 impl Serialize for Tweak {
     fn serialize(&self) -> Vec<u8> {
-        println!("{}", &self);
-        let x = encode::serialize(&self.as_ref().to_vec());
-        x
+        encode::serialize(self.as_ref())
     }
 }
 
 impl Deserialize for Tweak {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let x = deserialize::<Vec<u8>>(&bytes)?;
+        let x = deserialize::<[u8; 32]>(&bytes)?;
         Tweak::from_slice(&x)
             .map_err(|_| encode::Error::ParseFailed("invalid Tweak"))
     }
