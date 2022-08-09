@@ -100,6 +100,25 @@ impl PartiallySignedTransaction {
         self.inputs.push(inp);
     }
 
+    /// Add an input to pset at position i. This also updates the
+    /// pset global input count and the blinder index that might have shifted.
+    ///
+    /// See also: [`PartiallySignedTransaction::add_input`]
+    /// Panics if index is more than length.
+    pub fn insert_input(&mut self, inp: Input, pos: usize) {
+        self.global.tx_data.input_count += 1;
+        self.inputs.insert(pos, inp);
+
+        for out in self.outputs_mut(){
+            match out.blinder_index {
+                Some(i) if i >= pos as u32 => {
+                    out.blinder_index = Some(i+1);
+                }
+                _ => {}
+            }
+        }
+    }
+
     /// Read accessor to inputs
     pub fn inputs(&self) -> &[Input] {
         &self.inputs
@@ -125,6 +144,14 @@ impl PartiallySignedTransaction {
     pub fn add_output(&mut self, out: Output) {
         self.global.tx_data.output_count += 1;
         self.outputs.push(out);
+    }
+
+    /// Add an output to pset at position i. This also updates the
+    /// pset global output count
+    /// Panics if index is more than length.
+    pub fn insert_output(&mut self, out: Output, pos: usize) {
+        self.global.tx_data.output_count += 1;
+        self.outputs.insert(pos, out);
     }
 
     /// read accessor to outputs
