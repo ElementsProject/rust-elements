@@ -165,7 +165,7 @@ pub struct PeginData<'tx> {
     /// The value, in satoshis, of the pegin
     pub value: u64,
     /// Asset type being pegged in
-    pub asset: confidential::Asset,
+    pub asset: AssetId,
     /// Hash of genesis block of originating blockchain
     pub genesis_hash: bitcoin::BlockHash,
     /// The claim script that we should hash to tweak our address. Unparsed
@@ -312,9 +312,7 @@ impl TxIn {
                 vout: self.previous_output.vout,
             },
             value: bitcoin::consensus::deserialize(&self.witness.pegin_witness[0]).ok()?,
-            asset: confidential::Asset::Explicit(
-                encode::deserialize(&self.witness.pegin_witness[1]).ok()?,
-            ),
+            asset: encode::deserialize(&self.witness.pegin_witness[1]).ok()?,
             genesis_hash: bitcoin::consensus::deserialize(&self.witness.pegin_witness[2]).ok()?,
             claim_script: &self.witness.pegin_witness[3],
             tx: &self.witness.pegin_witness[4],
@@ -1302,7 +1300,7 @@ mod tests {
                     vout: 0,
                 },
                 value: 100000000,
-                asset: tx.output[0].asset,
+                asset: tx.output[0].asset.explicit().unwrap(),
                 genesis_hash: bitcoin::BlockHash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
