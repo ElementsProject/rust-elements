@@ -184,6 +184,50 @@ pub struct PeginData<'tx> {
     pub referenced_block: bitcoin::BlockHash,
 }
 
+impl<'tx> PeginData<'tx> {
+    /// Construct the pegin data from a pegin witness.
+    /// Returns None if not a valid pegin witness.
+    pub fn from_pegin_witness(
+        pegin_witness: &'tx [Vec<u8>],
+        prevout: OutPoint,
+    ) -> Option<PeginData<'tx>> {
+        if pegin_witness.len() != 6 {
+            return None
+        }
+
+        macro_rules! opt_try(
+            ($res:expr) => { match $res { Ok(x) => x, Err(_) => return None } }
+        );
+
+        Some(PeginData {
+            // Cast of an elements::OutPoint to a bitcoin::OutPoint
+            outpoint: bitcoin::OutPoint {
+                txid: bitcoin::Txid::from(prevout.txid.as_hash()),
+                vout: prevout.vout,
+            },
+            value: opt_try!(bitcoin::consensus::deserialize(&pegin_witness[0])),
+            asset: opt_try!(encode::deserialize(&pegin_witness[1])),
+            genesis_hash: opt_try!(bitcoin::consensus::deserialize(&pegin_witness[2])),
+            claim_script: &pegin_witness[3],
+            tx: &pegin_witness[4],
+            merkle_proof: &pegin_witness[5],
+            referenced_block: bitcoin::BlockHash::hash(&pegin_witness[5][0..80]),
+        })
+    }
+
+    /// Construct a pegin witness from the pegin data.
+    pub fn to_pegin_witness(&self) -> Vec<Vec<u8>> {
+        vec![
+            bitcoin::consensus::serialize(&self.value),
+            encode::serialize(&self.asset),
+            bitcoin::consensus::serialize(&self.genesis_hash),
+            self.claim_script.to_vec(),
+            self.tx.to_vec(),
+            self.merkle_proof.to_vec(),
+        ]
+    }
+}
+
 /// A transaction input, which defines old coins to be consumed
 #[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct TxIn {
@@ -301,24 +345,7 @@ impl TxIn {
             return None
         }
 
-        if self.witness.pegin_witness.len() != 6 {
-            return None
-        }
-
-        Some(PeginData {
-            // Cast of an elements::OutPoint to a bitcoin::OutPoint
-            outpoint: bitcoin::OutPoint {
-                txid: bitcoin::Txid::from(self.previous_output.txid.as_hash()),
-                vout: self.previous_output.vout,
-            },
-            value: bitcoin::consensus::deserialize(&self.witness.pegin_witness[0]).ok()?,
-            asset: encode::deserialize(&self.witness.pegin_witness[1]).ok()?,
-            genesis_hash: bitcoin::consensus::deserialize(&self.witness.pegin_witness[2]).ok()?,
-            claim_script: &self.witness.pegin_witness[3],
-            tx: &self.witness.pegin_witness[4],
-            merkle_proof: &self.witness.pegin_witness[5],
-            referenced_block: bitcoin::BlockHash::hash(self.witness.pegin_witness[5].get(0..80)?),
-        })
+        PeginData::from_pegin_witness(&self.witness.pegin_witness, self.previous_output)
     }
 
     /// Helper to determine whether an input has an asset issuance attached
@@ -1364,6 +1391,10 @@ mod tests {
                     "297852caf43464d8f13a3847bd602184c21474cd06760dbf9fc5e87bade234f1"
                 ).unwrap(),
             })
+        );
+        assert_eq!(
+            tx.input[0].witness.pegin_witness,
+            tx.input[0].pegin_data().unwrap().to_pegin_witness(),
         );
 
         assert_eq!(tx.output.len(), 2);
