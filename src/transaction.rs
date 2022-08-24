@@ -190,24 +190,21 @@ impl<'tx> PeginData<'tx> {
     pub fn from_pegin_witness(
         pegin_witness: &'tx [Vec<u8>],
         prevout: OutPoint,
-    ) -> Option<PeginData<'tx>> {
+    ) -> Result<PeginData<'tx>, &'static str> {
         if pegin_witness.len() != 6 {
-            return None
+            return Err("size not 6");
         }
 
-        macro_rules! opt_try(
-            ($res:expr) => { match $res { Ok(x) => x, Err(_) => return None } }
-        );
-
-        Some(PeginData {
+        Ok(PeginData {
             // Cast of an elements::OutPoint to a bitcoin::OutPoint
             outpoint: bitcoin::OutPoint {
                 txid: bitcoin::Txid::from(prevout.txid.as_hash()),
                 vout: prevout.vout,
             },
-            value: opt_try!(bitcoin::consensus::deserialize(&pegin_witness[0])),
-            asset: opt_try!(encode::deserialize(&pegin_witness[1])),
-            genesis_hash: opt_try!(bitcoin::consensus::deserialize(&pegin_witness[2])),
+            value: bitcoin::consensus::deserialize(&pegin_witness[0]).map_err(|_| "invalid value")?,
+            asset: encode::deserialize(&pegin_witness[1]).map_err(|_| "invalid asset")?,
+            genesis_hash: bitcoin::consensus::deserialize(&pegin_witness[2])
+                .map_err(|_| "invalid genesis hash")?,
             claim_script: &pegin_witness[3],
             tx: &pegin_witness[4],
             merkle_proof: &pegin_witness[5],
@@ -345,7 +342,7 @@ impl TxIn {
             return None
         }
 
-        PeginData::from_pegin_witness(&self.witness.pegin_witness, self.previous_output)
+        PeginData::from_pegin_witness(&self.witness.pegin_witness, self.previous_output).ok()
     }
 
     /// Helper to determine whether an input has an asset issuance attached
