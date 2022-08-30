@@ -165,7 +165,7 @@ pub struct PeginData<'tx> {
     /// The value, in satoshis, of the pegin
     pub value: u64,
     /// Asset type being pegged in
-    pub asset: confidential::Asset,
+    pub asset: AssetId,
     /// Hash of genesis block of originating blockchain
     pub genesis_hash: bitcoin::BlockHash,
     /// The claim script that we should hash to tweak our address. Unparsed
@@ -182,6 +182,47 @@ pub struct PeginData<'tx> {
     /// The Bitcoin block that the pegin output appears in; scraped
     /// from the transaction inclusion proof
     pub referenced_block: bitcoin::BlockHash,
+}
+
+impl<'tx> PeginData<'tx> {
+    /// Construct the pegin data from a pegin witness.
+    /// Returns None if not a valid pegin witness.
+    pub fn from_pegin_witness(
+        pegin_witness: &'tx [Vec<u8>],
+        prevout: OutPoint,
+    ) -> Result<PeginData<'tx>, &'static str> {
+        if pegin_witness.len() != 6 {
+            return Err("size not 6");
+        }
+
+        Ok(PeginData {
+            // Cast of an elements::OutPoint to a bitcoin::OutPoint
+            outpoint: bitcoin::OutPoint {
+                txid: bitcoin::Txid::from(prevout.txid.as_hash()),
+                vout: prevout.vout,
+            },
+            value: bitcoin::consensus::deserialize(&pegin_witness[0]).map_err(|_| "invalid value")?,
+            asset: encode::deserialize(&pegin_witness[1]).map_err(|_| "invalid asset")?,
+            genesis_hash: bitcoin::consensus::deserialize(&pegin_witness[2])
+                .map_err(|_| "invalid genesis hash")?,
+            claim_script: &pegin_witness[3],
+            tx: &pegin_witness[4],
+            merkle_proof: &pegin_witness[5],
+            referenced_block: bitcoin::BlockHash::hash(&pegin_witness[5][0..80]),
+        })
+    }
+
+    /// Construct a pegin witness from the pegin data.
+    pub fn to_pegin_witness(&self) -> Vec<Vec<u8>> {
+        vec![
+            bitcoin::consensus::serialize(&self.value),
+            encode::serialize(&self.asset),
+            bitcoin::consensus::serialize(&self.genesis_hash),
+            self.claim_script.to_vec(),
+            self.tx.to_vec(),
+            self.merkle_proof.to_vec(),
+        ]
+    }
 }
 
 /// A transaction input, which defines old coins to be consumed
@@ -301,26 +342,7 @@ impl TxIn {
             return None
         }
 
-        if self.witness.pegin_witness.len() != 6 {
-            return None
-        }
-
-        Some(PeginData {
-            // Cast of an elements::OutPoint to a bitcoin::OutPoint
-            outpoint: bitcoin::OutPoint {
-                txid: bitcoin::Txid::from(self.previous_output.txid.as_hash()),
-                vout: self.previous_output.vout,
-            },
-            value: bitcoin::consensus::deserialize(&self.witness.pegin_witness[0]).ok()?,
-            asset: confidential::Asset::Explicit(
-                encode::deserialize(&self.witness.pegin_witness[1]).ok()?,
-            ),
-            genesis_hash: bitcoin::consensus::deserialize(&self.witness.pegin_witness[2]).ok()?,
-            claim_script: &self.witness.pegin_witness[3],
-            tx: &self.witness.pegin_witness[4],
-            merkle_proof: &self.witness.pegin_witness[5],
-            referenced_block: bitcoin::BlockHash::hash(self.witness.pegin_witness[5].get(0..80)?),
-        })
+        PeginData::from_pegin_witness(&self.witness.pegin_witness, self.previous_output).ok()
     }
 
     /// Helper to determine whether an input has an asset issuance attached
@@ -1302,7 +1324,7 @@ mod tests {
                     vout: 0,
                 },
                 value: 100000000,
-                asset: tx.output[0].asset,
+                asset: tx.output[0].asset.explicit().unwrap(),
                 genesis_hash: bitcoin::BlockHash::from_hex(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
@@ -1366,6 +1388,10 @@ mod tests {
                     "297852caf43464d8f13a3847bd602184c21474cd06760dbf9fc5e87bade234f1"
                 ).unwrap(),
             })
+        );
+        assert_eq!(
+            tx.input[0].witness.pegin_witness,
+            tx.input[0].pegin_data().unwrap().to_pegin_witness(),
         );
 
         assert_eq!(tx.output.len(), 2);
