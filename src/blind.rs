@@ -869,6 +869,7 @@ impl From<ConfidentialTxOutError> for BlindError {
     }
 }
 
+/// A trait to create and verify explicit rangeproofs
 pub trait BlindValueProofs: Sized {
     /// Outputs a `[RangeProof]` that blinded value
     /// corresponfs to unblinded explicit value
@@ -939,6 +940,7 @@ impl BlindValueProofs for RangeProof {
     }
 }
 
+/// A trait to create and verify explicit surjection proofs
 pub trait BlindAssetProofs: Sized {
     /// Outputs a `[SurjectionProof]` that blinded asset
     /// corresponfs to unblinded explicit asset
