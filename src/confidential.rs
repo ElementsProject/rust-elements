@@ -957,14 +957,13 @@ impl AddAssign for ValueBlindingFactor {
             // for scalar arethematic, we need to abuse secret key
             // operations for this
             let sk2 = SecretKey::from_slice(self.into_inner().as_ref()).expect("Valid key");
-            let mut sk = SecretKey::from_slice(other.into_inner().as_ref()).expect("Valid key");
+            let sk = SecretKey::from_slice(other.into_inner().as_ref()).expect("Valid key");
             // The only reason that secret key addition can fail
             // is when the keys add up to zero since we have already checked
             // keys are in valid secret keys
-            if sk.add_assign(&sk2.into()).is_err() {
-                *self = Self::zero();
-            } else {
-                *self = ValueBlindingFactor::from_slice(sk.as_ref()).expect("Valid Tweak")
+            match sk.add_tweak(&sk2.into()) {
+                Ok(sk_tweaked) => *self = ValueBlindingFactor::from_slice(sk_tweaked.as_ref()).expect("Valid Tweak"),
+                Err(_) =>  *self = Self::zero(),
             }
         }
     }
@@ -977,8 +976,7 @@ impl Neg for ValueBlindingFactor {
         if self.0.as_ref() == &[0u8; 32] {
             self
         } else {
-            let mut sk = SecretKey::from_slice(self.into_inner().as_ref()).expect("Valid key");
-            sk.negate_assign();
+            let sk = SecretKey::from_slice(self.into_inner().as_ref()).expect("Valid key").negate();
             ValueBlindingFactor::from_slice(sk.as_ref()).expect("Valid Tweak")
         }
     }

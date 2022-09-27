@@ -62,8 +62,7 @@ impl TapTweak for UntweakedPublicKey {
         let tweak_value = Scalar::from_be_bytes(tweak_value).expect("hash value greater than curve order");
 
         //Tweak the internal key by the tweak value
-        let mut output_key = self.clone();
-        let parity = output_key.tweak_add_assign(&secp, &tweak_value).expect("Tap tweak failed");
+        let (output_key, parity) = self.clone().add_tweak(secp, &tweak_value).expect("Tap tweak failed");
         debug_assert!(self.tweak_add_check(&secp, &output_key, parity, tweak_value));
 
         (TweakedPublicKey(output_key), parity)
