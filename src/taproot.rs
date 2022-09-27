@@ -20,7 +20,7 @@ use crate::hashes::{sha256, sha256t, Hash};
 use crate::schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
 use crate::Script;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
-use secp256k1_zkp::{self, Secp256k1};
+use secp256k1_zkp::{self, Secp256k1, Scalar};
 use crate::hashes::HashEngine;
 use crate::encode::Encodable;
 
@@ -736,11 +736,13 @@ impl ControlBlock {
         }
         // compute the taptweak
         let tweak = TapTweakHash::from_key_and_tweak(self.internal_key, Some(curr_hash));
+        let tweak = Scalar::from_be_bytes(tweak.into_inner()).expect("hash value greater than curve order");
+
         self.internal_key.tweak_add_check(
             secp,
             output_key.as_inner(),
             self.output_key_parity,
-            tweak.into_inner(),
+            tweak,
         )
     }
 }

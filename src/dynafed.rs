@@ -590,6 +590,8 @@ mod tests {
     use bitcoin::hashes::hex::ToHex;
     use bitcoin::hashes::sha256;
 
+    use crate::{BlockHash, TxMerkleNode};
+
     use super::*;
 
     #[test]
@@ -655,7 +657,11 @@ mod tests {
                 proposed: full_entry,
                 signblock_witness: vec![],
             },
-            ..Default::default()
+            version: Default::default(),
+            prev_blockhash: BlockHash::all_zeros(),
+            merkle_root: TxMerkleNode::all_zeros(),
+            time: Default::default(),
+            height: Default::default(),
         };
         assert_eq!(
             header.calculate_dynafed_params_root().unwrap().to_hex(),

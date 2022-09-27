@@ -11,6 +11,7 @@ use bitcoin::{Amount, XOnlyPublicKey, KeyPair};
 use elements::bitcoin::hashes::hex::FromHex;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::encode::{deserialize, serialize_hex};
+use elements::hashes::Hash;
 use elements::script::Builder;
 use elements::secp256k1_zkp;
 use elements::sighash::{self, SigHashCache};
@@ -48,7 +49,7 @@ fn gen_keypair(
     rng: &mut rngs::ThreadRng,
 ) -> (XOnlyPublicKey, KeyPair) {
     let keypair = KeyPair::new(secp, rng);
-    let pk = XOnlyPublicKey::from_keypair(&keypair);
+    let (pk, _) = XOnlyPublicKey::from_keypair(&keypair);
     (pk, keypair)
 }
 
@@ -224,6 +225,7 @@ fn taproot_spend_test(
             test_data.internal_pk,
             test_data.spend_info.merkle_root(),
         );
+        let tweak = secp256k1_zkp::Scalar::from_be_bytes(tweak.into_inner()).expect("hash value greater than curve order");
         output_keypair.tweak_add_assign(&secp, &tweak).unwrap();
         let sig = secp.sign_schnorr(
             &secp256k1_zkp::Message::from_slice(&sighash_msg[..]).unwrap(),

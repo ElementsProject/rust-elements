@@ -961,7 +961,7 @@ impl AddAssign for ValueBlindingFactor {
             // The only reason that secret key addition can fail
             // is when the keys add up to zero since we have already checked
             // keys are in valid secret keys
-            if sk.add_assign(sk2.as_ref()).is_err() {
+            if sk.add_assign(&sk2.into()).is_err() {
                 *self = Self::zero();
             } else {
                 *self = ValueBlindingFactor::from_slice(sk.as_ref()).expect("Valid Tweak")
@@ -1374,13 +1374,17 @@ mod tests {
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Bytes(
-                    &[
-                        2,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-                    ]
-                ),
+                Token::Tuple { len: 33 },
+                Token::U8(2), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1),
+                Token::TupleEnd,
                 Token::SeqEnd
             ]
         );

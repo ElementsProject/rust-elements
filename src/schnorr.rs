@@ -19,6 +19,7 @@
 
 use std::fmt;
 
+use secp256k1_zkp::Scalar;
 pub use secp256k1_zkp::{XOnlyPublicKey, KeyPair};
 use secp256k1_zkp::{self, Secp256k1, Verification, constants::SCHNORR_SIGNATURE_SIZE};
 use crate::hashes::{Hash, HashEngine};
@@ -58,6 +59,7 @@ impl TapTweak for UntweakedPublicKey {
         engine.input(&self.serialize());
         merkle_root.map(|hash| engine.input(&hash));
         let tweak_value: [u8; 32] = TapTweakHash::from_engine(engine).into_inner();
+        let tweak_value = Scalar::from_be_bytes(tweak_value).expect("hash value greater than curve order");
 
         //Tweak the internal key by the tweak value
         let mut output_key = self.clone();
