@@ -15,7 +15,7 @@ use elements::{pset, secp256k1_zkp};
 use elements::encode::{deserialize, serialize_hex};
 use elements::hashes::hex::FromHex;
 use elements::{confidential, AssetId, TxOut};
-use rand::SeedableRng;
+
 /// Pset example workflow:
 /// Simple transaction spending a confidential asset
 /// with external signer and blinding done by rust-elements using raw APIs
@@ -138,8 +138,7 @@ fn main() {
     let tests = test_data();
     // Initially secp context and rng global state
     let secp = secp256k1_zkp::Secp256k1::new();
-    #[allow(deprecated)]
-    let mut rng = rand::ChaChaRng::seed_from_u64(0);
+    let mut rng = CrappyRng::new(core::num::NonZeroU64::new(1).unwrap());
 
     let txouts = txout_data();
     let (btc_txout, btc_txout_secrets, btc_inp) = txouts[0].clone();
@@ -271,7 +270,6 @@ fn main() {
     // Add both pset outputs to btc transaction
     pset.add_output(pset::Output::from_txout(btc_fees_txout));
     pset.add_output(pset::Output::from_txout(btc_change_txout));
-
     assert_eq!(pset, deser_pset(&tests["blinded_unsigned"]));
 
     // Verify the balance checks
@@ -320,3 +318,43 @@ fn main() {
     let tx = pset.extract_tx().unwrap();
     assert_eq!(serialize_hex(&tx), tests["extracted_tx"]);
 }
+
+
+/// Xorshift
+pub struct CrappyRng(u64);
+
+impl CrappyRng {
+    fn new(initial: core::num::NonZeroU64) -> Self {
+        Self(initial.get())
+    }
+}
+
+impl rand::RngCore for CrappyRng {
+
+    fn next_u32(&mut self) -> u32 {
+        self.next_u64() as u32
+    }
+
+    fn next_u64(&mut self) -> u64 {
+        let mut x = self.0;
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        self.0 = x;
+        x
+      }
+
+    fn fill_bytes(&mut self, dest: &mut [u8]) {
+        for chunk in dest.chunks_mut(8) {
+            let x = self.next_u64().to_be_bytes();
+            chunk.copy_from_slice(&x[..chunk.len()]);
+
+        }
+    }
+
+    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
+        Ok(self.fill_bytes(dest))
+    }
+}
+
+impl rand::CryptoRng for CrappyRng {}
