@@ -13,16 +13,19 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use std::{collections::BTreeMap, io::{self, Cursor, Read}};
-use std::collections::btree_map::Entry;
 use std::cmp;
+use std::collections::btree_map::Entry;
+use std::{
+    collections::BTreeMap,
+    io::{self, Cursor, Read},
+};
 
-use crate::VarInt;
-use crate::encode::{Decodable};
-use crate::pset::{self, map::Map, raw, Error};
-use crate::endian::u32_to_array_le;
-use bitcoin::util::bip32::{ExtendedPubKey, KeySource, Fingerprint, DerivationPath, ChildNumber};
 use crate::encode;
+use crate::encode::Decodable;
+use crate::endian::u32_to_array_le;
+use crate::pset::{self, map::Map, raw, Error};
+use crate::VarInt;
+use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint, KeySource};
 use secp256k1_zkp::Tweak;
 
 // (Not used in pset) Type: Unsigned Transaction PSET_GLOBAL_UNSIGNED_TX = 0x00
@@ -46,7 +49,6 @@ const PSET_GLOBAL_TX_MODIFIABLE: u8 = 0x06;
 const PSET_GLOBAL_VERSION: u8 = 0xFB;
 /// Type: Proprietary Use Type PSET_GLOBAL_PROPRIETARY = 0xFC
 const PSET_GLOBAL_PROPRIETARY: u8 = 0xFC;
-
 
 /// Proprietary fields in elements
 /// Type: Global Scalars used in range proofs = 0x00
@@ -76,7 +78,7 @@ pub struct TxData {
     pub tx_modifiable: Option<u8>,
 }
 
-impl Default for TxData{
+impl Default for TxData {
     fn default() -> Self {
         Self {
             // tx version must be 2
@@ -107,10 +109,16 @@ pub struct Global {
     /// Elements tx modifiable flag
     pub elements_tx_modifiable_flag: Option<u8>,
     /// Other Proprietary fields
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "crate::serde_utils::btreemap_as_seq_byte_values")
+    )]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
     /// Unknown global key-value pairs.
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "crate::serde_utils::btreemap_as_seq_byte_values")
+    )]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
@@ -129,7 +137,6 @@ impl Default for Global {
 }
 
 impl Global {
-
     /// Accessor for the number of inputs currently in the PSET
     pub fn n_inputs(&self) -> usize {
         self.tx_data.input_count
@@ -149,14 +156,14 @@ impl Map for Global {
         } = pair;
 
         match raw_key.type_value {
-            PSET_GLOBAL_UNSIGNED_TX=> return Err(Error::ExpiredPsbtv0Field)?,
+            PSET_GLOBAL_UNSIGNED_TX => return Err(Error::ExpiredPsbtv0Field)?,
             // Can't set the mandatory non-optional fields via insert_pair
-            PSET_GLOBAL_VERSION |
-            PSET_GLOBAL_FALLBACK_LOCKTIME |
-            PSET_GLOBAL_INPUT_COUNT|
-            PSET_GLOBAL_OUTPUT_COUNT|
-            PSET_GLOBAL_TX_MODIFIABLE |
-            PSET_GLOBAL_TX_VERSION => return Err(Error::DuplicateKey(raw_key).into()),
+            PSET_GLOBAL_VERSION
+            | PSET_GLOBAL_FALLBACK_LOCKTIME
+            | PSET_GLOBAL_INPUT_COUNT
+            | PSET_GLOBAL_OUTPUT_COUNT
+            | PSET_GLOBAL_TX_MODIFIABLE
+            | PSET_GLOBAL_TX_VERSION => return Err(Error::DuplicateKey(raw_key).into()),
             PSET_GLOBAL_PROPRIETARY => {
                 let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
                 if prop_key.is_pset_key() && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR {
@@ -170,25 +177,29 @@ impl Map for Global {
                     } else {
                         return Err(Error::InvalidKey(raw_key.into()))?;
                     }
-                } else if prop_key.is_pset_key() && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE {
+                } else if prop_key.is_pset_key()
+                    && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
+                {
                     if prop_key.key.is_empty() && raw_value.len() == 1 {
                         self.elements_tx_modifiable_flag = Some(raw_value[0]);
                     } else {
                         return Err(Error::InvalidKey(raw_key.into()))?;
                     }
                 } else {
-                        match self.proprietary.entry(prop_key) {
-                            Entry::Vacant(empty_key) => {
-                                empty_key.insert(raw_value);
-                            }
-                            Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
+                    match self.proprietary.entry(prop_key) {
+                        Entry::Vacant(empty_key) => {
+                            empty_key.insert(raw_value);
+                        }
+                        Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
                     }
                 }
             }
             _ => match self.unknown.entry(raw_key) {
-                Entry::Vacant(empty_key) => {empty_key.insert(raw_value);},
+                Entry::Vacant(empty_key) => {
+                    empty_key.insert(raw_value);
+                }
                 Entry::Occupied(k) => return Err(Error::DuplicateKey(k.key().clone()).into()),
-            }
+            },
         }
 
         Ok(())
@@ -236,9 +247,11 @@ impl Map for Global {
                 value: {
                     let mut ret = Vec::with_capacity(4 + derivation.len() * 4);
                     ret.extend(fingerprint.as_bytes());
-                    derivation.into_iter().for_each(|n| ret.extend(&u32_to_array_le((*n).into())));
+                    derivation
+                        .into_iter()
+                        .for_each(|n| ret.extend(&u32_to_array_le((*n).into())));
                     ret
-                }
+                },
             });
         }
 
@@ -249,7 +262,10 @@ impl Map for Global {
 
         // Serialize scalars and elements tx modifiable
         for scalar in &self.scalars {
-            let key = raw::ProprietaryKey::from_pset_pair(PSBT_ELEMENTS_GLOBAL_SCALAR, scalar.as_ref().to_vec());
+            let key = raw::ProprietaryKey::from_pset_pair(
+                PSBT_ELEMENTS_GLOBAL_SCALAR,
+                scalar.as_ref().to_vec(),
+            );
             rv.push(raw::Pair {
                 key: key.to_key(),
                 value: vec![], // This is a bug in elements core c++, parses this value as vec![0]
@@ -287,8 +303,9 @@ impl Map for Global {
         // But since unique ids must be the same, all fields of
         // tx_data but tx modifiable must be the same
         // Keep flags from both psets
-        self.tx_data.tx_modifiable = Some(self.tx_data.tx_modifiable.unwrap_or(0) |
-            other.tx_data.tx_modifiable.unwrap_or(0));
+        self.tx_data.tx_modifiable = Some(
+            self.tx_data.tx_modifiable.unwrap_or(0) | other.tx_data.tx_modifiable.unwrap_or(0),
+        );
 
         // Keeping the highest version
         self.version = cmp::max(self.version, other.version);
@@ -298,7 +315,7 @@ impl Map for Global {
             match self.xpub.entry(xpub) {
                 Entry::Vacant(entry) => {
                     entry.insert((fingerprint1, derivation1));
-                },
+                }
                 Entry::Occupied(mut entry) => {
                     // Here in case of the conflict we select the version with algorithm:
                     // 1) if everything is equal we do nothing
@@ -311,24 +328,21 @@ impl Map for Global {
 
                     let (fingerprint2, derivation2) = entry.get().clone();
 
-                    if derivation1 == derivation2 && fingerprint1 == fingerprint2
+                    if derivation1 == derivation2 && fingerprint1 == fingerprint2 {
+                        continue;
+                    } else if derivation1.len() < derivation2.len()
+                        && derivation1[..] == derivation2[derivation2.len() - derivation1.len()..]
                     {
-                        continue
-                    }
-                    else if
-                        derivation1.len() < derivation2.len() &&
-                        derivation1[..] == derivation2[derivation2.len() - derivation1.len()..]
-                    {
-                        continue
-                    }
-                    else if derivation2[..] == derivation1[derivation1.len() - derivation2.len()..]
+                        continue;
+                    } else if derivation2[..]
+                        == derivation1[derivation1.len() - derivation2.len()..]
                     {
                         entry.insert((fingerprint1, derivation1));
-                        continue
+                        continue;
                     }
-                    return Err(pset::Error::MergeConflict(format!(
-                        "global xpub {} has inconsistent key sources", xpub
-                    ).to_owned()));
+                    return Err(pset::Error::MergeConflict(
+                        format!("global xpub {} has inconsistent key sources", xpub).to_owned(),
+                    ));
                 }
             }
         }
@@ -352,10 +366,10 @@ impl_psetmap_consensus_encoding!(Global);
 
 impl Decodable for Global {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
-
         let mut version: Option<u32> = None;
         let mut unknowns: BTreeMap<raw::Key, Vec<u8>> = Default::default();
-        let mut xpub_map: BTreeMap<ExtendedPubKey, (Fingerprint, DerivationPath)> = Default::default();
+        let mut xpub_map: BTreeMap<ExtendedPubKey, (Fingerprint, DerivationPath)> =
+            Default::default();
         let mut proprietary = BTreeMap::new();
         let mut scalars = Vec::new();
 
@@ -407,7 +421,9 @@ impl Decodable for Global {
                                     ))?;
 
                                 if raw_value.is_empty() || raw_value.len() % 4 != 0 {
-                                    return Err(encode::Error::ParseFailed("Incorrect length of global xpub derivation data"))
+                                    return Err(encode::Error::ParseFailed(
+                                        "Incorrect length of global xpub derivation data",
+                                    ));
                                 }
 
                                 let child_count = raw_value.len() / 4 - 1;
@@ -420,11 +436,18 @@ impl Decodable for Global {
                                 }
                                 let derivation = DerivationPath::from(path);
                                 // Keys, according to BIP-174, must be unique
-                                if xpub_map.insert(xpub, (Fingerprint::from(&fingerprint[..]), derivation)).is_some() {
-                                    return Err(encode::Error::ParseFailed("Repeated global xpub key"))
+                                if xpub_map
+                                    .insert(xpub, (Fingerprint::from(&fingerprint[..]), derivation))
+                                    .is_some()
+                                {
+                                    return Err(encode::Error::ParseFailed(
+                                        "Repeated global xpub key",
+                                    ));
                                 }
                             } else {
-                                return Err(encode::Error::ParseFailed("Xpub global key must contain serialized Xpub data"))
+                                return Err(encode::Error::ParseFailed(
+                                    "Xpub global key must contain serialized Xpub data",
+                                ));
                             }
                         }
                         PSET_GLOBAL_VERSION => {
@@ -434,7 +457,9 @@ impl Decodable for Global {
                         }
                         PSET_GLOBAL_PROPRIETARY => {
                             let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
-                            if prop_key.is_pset_key() && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR {
+                            if prop_key.is_pset_key()
+                                && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR
+                            {
                                 if raw_value.is_empty() && prop_key.key.len() == 32 {
                                     let scalar = Tweak::from_slice(&prop_key.key)?;
                                     if !scalars.contains(&scalar) {
@@ -445,25 +470,33 @@ impl Decodable for Global {
                                 } else {
                                     return Err(Error::InvalidKey(raw_key.into()))?;
                                 }
-                            } else if prop_key.is_pset_key() && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE {
+                            } else if prop_key.is_pset_key()
+                                && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
+                            {
                                 if prop_key.key.is_empty() && raw_value.len() == 1 {
                                     elements_tx_modifiable_flag = Some(raw_value[0]);
                                 } else {
                                     return Err(Error::InvalidKey(raw_key.into()))?;
                                 }
                             } else {
-                                    match proprietary.entry(prop_key) {
-                                        Entry::Vacant(empty_key) => {
-                                            empty_key.insert(raw_value);
-                                        }
-                                        Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
+                                match proprietary.entry(prop_key) {
+                                    Entry::Vacant(empty_key) => {
+                                        empty_key.insert(raw_value);
+                                    }
+                                    Entry::Occupied(_) => {
+                                        return Err(Error::DuplicateKey(raw_key).into())
+                                    }
                                 }
                             }
                         }
                         _ => match unknowns.entry(raw_key) {
-                            Entry::Vacant(empty_key) => {empty_key.insert(raw_value);},
-                            Entry::Occupied(k) => return Err(Error::DuplicateKey(k.key().clone()).into()),
-                        }
+                            Entry::Vacant(empty_key) => {
+                                empty_key.insert(raw_value);
+                            }
+                            Entry::Occupied(k) => {
+                                return Err(Error::DuplicateKey(k.key().clone()).into())
+                            }
+                        },
                     }
                 }
                 Err(crate::encode::Error::PsetError(crate::pset::Error::NoMorePairs)) => break,
@@ -481,7 +514,13 @@ impl Decodable for Global {
         let output_count = output_count.ok_or(Error::MissingOutputCount)?.0 as usize;
 
         let global = Global {
-            tx_data: TxData { version: tx_version, fallback_locktime, input_count, output_count, tx_modifiable},
+            tx_data: TxData {
+                version: tx_version,
+                fallback_locktime,
+                input_count,
+                output_count,
+                tx_modifiable,
+            },
             version: version,
             xpub: xpub_map,
             proprietary: proprietary,

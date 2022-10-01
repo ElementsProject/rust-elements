@@ -35,6 +35,6 @@ mod output;
 pub use self::global::Global;
 pub use self::global::TxData as GlobalTxData;
 pub use self::input::Input;
+pub use self::input::PsbtSighashType;
 pub use self::output::Output;
 pub use self::output::TapTree;
-pub use self::input::PsbtSighashType;

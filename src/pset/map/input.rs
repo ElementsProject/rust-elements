@@ -13,25 +13,29 @@
 //
 
 use std::fmt;
-use std::{cmp, collections::btree_map::{BTreeMap, Entry}, io, str::FromStr};
+use std::{
+    cmp,
+    collections::btree_map::{BTreeMap, Entry},
+    io,
+    str::FromStr,
+};
 
+use crate::taproot::{ControlBlock, LeafVersion, TapBranchHash, TapLeafHash};
 use crate::{schnorr, AssetId, ContractHash};
-use crate::taproot::{ControlBlock, LeafVersion, TapLeafHash, TapBranchHash};
 
-use crate::{Script, AssetIssuance, EcdsaSigHashType, Transaction, Txid, TxOut, TxIn, BlockHash};
-use crate::{SchnorrSigHashType, transaction::SighashTypeParseError};
-use crate::encode::{self, Decodable};
 use crate::confidential;
-use bitcoin::util::bip32::KeySource;
-use bitcoin::{self, PublicKey};
-use hashes::Hash;
+use crate::encode::{self, Decodable};
 use crate::hashes::{self, hash160, ripemd160, sha256, sha256d};
 use crate::pset::map::Map;
 use crate::pset::raw;
 use crate::pset::serialize;
-use crate::pset::{self, Error, error};
+use crate::pset::{self, error, Error};
+use crate::{transaction::SighashTypeParseError, SchnorrSigHashType};
+use crate::{AssetIssuance, BlockHash, EcdsaSigHashType, Script, Transaction, TxIn, TxOut, Txid};
+use bitcoin::util::bip32::KeySource;
+use bitcoin::{self, PublicKey};
+use hashes::Hash;
 use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
-
 
 use crate::OutPoint;
 
@@ -78,11 +82,11 @@ const PSBT_IN_TAP_SCRIPT_SIG: u8 = 0x14;
 /// Type: Taproot Leaf Script PSBT_IN_TAP_LEAF_SCRIPT = 0x14
 const PSBT_IN_TAP_LEAF_SCRIPT: u8 = 0x15;
 /// Type: Taproot Key BIP 32 Derivation Path PSBT_IN_TAP_BIP32_DERIVATION = 0x16
-const PSBT_IN_TAP_BIP32_DERIVATION : u8 = 0x16;
+const PSBT_IN_TAP_BIP32_DERIVATION: u8 = 0x16;
 /// Type: Taproot Internal Key PSBT_IN_TAP_INTERNAL_KEY = 0x17
-const PSBT_IN_TAP_INTERNAL_KEY : u8 = 0x17;
+const PSBT_IN_TAP_INTERNAL_KEY: u8 = 0x17;
 /// Type: Taproot Merkle Root PSBT_IN_TAP_MERKLE_ROOT = 0x18
-const PSBT_IN_TAP_MERKLE_ROOT : u8 = 0x18;
+const PSBT_IN_TAP_MERKLE_ROOT: u8 = 0x18;
 /// Type: Proprietary Use Type PSET_IN_PROPRIETARY = 0xFC
 const PSET_IN_PROPRIETARY: u8 = 0xFC;
 
@@ -160,7 +164,10 @@ pub struct Input {
     pub witness_utxo: Option<TxOut>,
     /// A map from public keys to their corresponding signature as would be
     /// pushed to the stack from a scriptSig or witness.
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "crate::serde_utils::btreemap_byte_values")
+    )]
     pub partial_sigs: BTreeMap<PublicKey, Vec<u8>>,
     /// The sighash type to be used for this input. Signatures for this input
     /// must use the sighash type.
@@ -181,16 +188,28 @@ pub struct Input {
     pub final_script_witness: Option<Vec<Vec<u8>>>,
     /// TODO: Proof of reserves commitment
     /// RIPEMD160 hash to preimage map
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "crate::serde_utils::btreemap_byte_values")
+    )]
     pub ripemd160_preimages: BTreeMap<ripemd160::Hash, Vec<u8>>,
     /// SHA256 hash to preimage map
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "crate::serde_utils::btreemap_byte_values")
+    )]
     pub sha256_preimages: BTreeMap<sha256::Hash, Vec<u8>>,
     /// HSAH160 hash to preimage map
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "crate::serde_utils::btreemap_byte_values")
+    )]
     pub hash160_preimages: BTreeMap<hash160::Hash, Vec<u8>>,
     /// HAS256 hash to preimage map
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "crate::serde_utils::btreemap_byte_values")
+    )]
     pub hash256_preimages: BTreeMap<sha256d::Hash, Vec<u8>>,
     /// (PSET) Prevout TXID of the input
     pub previous_txid: Txid,
@@ -214,9 +233,9 @@ pub struct Input {
     #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub tap_key_origins: BTreeMap<bitcoin::XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
     /// Taproot Internal key
-    pub tap_internal_key : Option<bitcoin::XOnlyPublicKey>,
+    pub tap_internal_key: Option<bitcoin::XOnlyPublicKey>,
     /// Taproot Merkle root
-    pub tap_merkle_root : Option<TapBranchHash>,
+    pub tap_merkle_root: Option<TapBranchHash>,
     // Proprietary key-value pairs for this input.
     /// The issuance value
     pub issuance_value_amount: Option<u64>,
@@ -254,10 +273,16 @@ pub struct Input {
     /// Proof that blinded inflation keys matches the corresponding commitment
     pub in_issuance_blind_inflation_keys_proof: Option<Box<RangeProof>>,
     /// Other fields
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "crate::serde_utils::btreemap_as_seq_byte_values")
+    )]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
     /// Unknown key-value pairs for this input.
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq_byte_values"))]
+    #[cfg_attr(
+        feature = "serde",
+        serde(with = "crate::serde_utils::btreemap_as_seq_byte_values")
+    )]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
@@ -273,7 +298,7 @@ impl Default for Input {
 /// for converting to/from [`PsbtSighashType`] from/to the desired signature hash type they need.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct PsbtSighashType {
-    pub (crate) inner: u32,
+    pub(crate) inner: u32,
 }
 
 serde_string_impl!(PsbtSighashType, "a PsbtSighashType data");
@@ -298,7 +323,11 @@ impl FromStr for PsbtSighashType {
         // inputs. We also do not support SIGHASH_RESERVED in verbatim form
         // ("0xFF" string should be used instead).
         match SchnorrSigHashType::from_str(s) {
-            Ok(SchnorrSigHashType::Reserved) => return Err(SighashTypeParseError{ unrecognized: s.to_owned() }),
+            Ok(SchnorrSigHashType::Reserved) => {
+                return Err(SighashTypeParseError {
+                    unrecognized: s.to_owned(),
+                })
+            }
             Ok(ty) => return Ok(ty.into()),
             Err(_) => {}
         }
@@ -308,18 +337,24 @@ impl FromStr for PsbtSighashType {
             return Ok(PsbtSighashType { inner });
         }
 
-        Err(SighashTypeParseError{ unrecognized: s.to_owned() })
+        Err(SighashTypeParseError {
+            unrecognized: s.to_owned(),
+        })
     }
 }
 impl From<EcdsaSigHashType> for PsbtSighashType {
     fn from(ecdsa_hash_ty: EcdsaSigHashType) -> Self {
-        PsbtSighashType { inner: ecdsa_hash_ty as u32 }
+        PsbtSighashType {
+            inner: ecdsa_hash_ty as u32,
+        }
     }
 }
 
 impl From<SchnorrSigHashType> for PsbtSighashType {
     fn from(schnorr_hash_ty: SchnorrSigHashType) -> Self {
-        PsbtSighashType { inner: schnorr_hash_ty as u32 }
+        PsbtSighashType {
+            inner: schnorr_hash_ty as u32,
+        }
     }
 }
 
@@ -348,7 +383,6 @@ impl PsbtSighashType {
         PsbtSighashType { inner: n }
     }
 
-
     /// Converts [`PsbtSighashType`] to a raw `u32` sighash flag.
     ///
     /// No guarantees are made as to the standardness or validity of the returned value.
@@ -357,8 +391,7 @@ impl PsbtSighashType {
     }
 }
 
-impl Input{
-
+impl Input {
     /// Obtains the [`EcdsaSigHashType`] for this input if one is specified. If no sighash type is
     /// specified, returns [`EcdsaSigHashType::All`].
     ///
@@ -409,15 +442,16 @@ impl Input{
             ret.issuance_blinding_nonce = Some(txin.asset_issuance.asset_blinding_nonce);
             ret.issuance_asset_entropy = Some(txin.asset_issuance.asset_entropy);
             match txin.asset_issuance.amount {
-                confidential::Value::Null => { },
+                confidential::Value::Null => {}
                 confidential::Value::Explicit(x) => ret.issuance_value_amount = Some(x),
                 confidential::Value::Confidential(comm) => ret.issuance_value_comm = Some(comm),
             }
             match txin.asset_issuance.inflation_keys {
-                confidential::Value::Null => { },
+                confidential::Value::Null => {}
                 confidential::Value::Explicit(x) => ret.issuance_inflation_keys = Some(x),
-                confidential::Value::Confidential(comm) =>
-                    ret.issuance_inflation_keys_comm = Some(comm),
+                confidential::Value::Confidential(comm) => {
+                    ret.issuance_inflation_keys_comm = Some(comm)
+                }
             }
 
             // Witness
@@ -464,15 +498,17 @@ impl Input{
     /// Get the issuance for this tx input
     pub fn asset_issuance(&self) -> AssetIssuance {
         AssetIssuance {
-            asset_blinding_nonce: *self.issuance_blinding_nonce.as_ref()
-                .unwrap_or(&ZERO_TWEAK),
+            asset_blinding_nonce: *self.issuance_blinding_nonce.as_ref().unwrap_or(&ZERO_TWEAK),
             asset_entropy: self.issuance_asset_entropy.unwrap_or_default(),
             amount: match (self.issuance_value_amount, self.issuance_value_comm) {
                 (None, None) => confidential::Value::Null,
                 (_, Some(comm)) => confidential::Value::Confidential(comm),
                 (Some(x), None) => confidential::Value::Explicit(x),
             },
-            inflation_keys: match (self.issuance_inflation_keys, self.issuance_inflation_keys_comm) {
+            inflation_keys: match (
+                self.issuance_inflation_keys,
+                self.issuance_inflation_keys_comm,
+            ) {
                 (None, None) => confidential::Value::Null,
                 (_, Some(comm)) => confidential::Value::Confidential(comm),
                 (Some(x), None) => confidential::Value::Explicit(x),
@@ -535,18 +571,38 @@ impl Map for Input {
                 }
             }
             PSET_IN_RIPEMD160 => {
-                pset_insert_hash_pair(&mut self.ripemd160_preimages, raw_key, raw_value, error::PsetHash::Ripemd)?;
+                pset_insert_hash_pair(
+                    &mut self.ripemd160_preimages,
+                    raw_key,
+                    raw_value,
+                    error::PsetHash::Ripemd,
+                )?;
             }
             PSET_IN_SHA256 => {
-                pset_insert_hash_pair(&mut self.sha256_preimages, raw_key, raw_value, error::PsetHash::Sha256)?;
+                pset_insert_hash_pair(
+                    &mut self.sha256_preimages,
+                    raw_key,
+                    raw_value,
+                    error::PsetHash::Sha256,
+                )?;
             }
             PSET_IN_HASH160 => {
-                pset_insert_hash_pair(&mut self.hash160_preimages, raw_key, raw_value, error::PsetHash::Hash160)?;
+                pset_insert_hash_pair(
+                    &mut self.hash160_preimages,
+                    raw_key,
+                    raw_value,
+                    error::PsetHash::Hash160,
+                )?;
             }
             PSET_IN_HASH256 => {
-                pset_insert_hash_pair(&mut self.hash256_preimages, raw_key, raw_value, error::PsetHash::Hash256)?;
+                pset_insert_hash_pair(
+                    &mut self.hash256_preimages,
+                    raw_key,
+                    raw_value,
+                    error::PsetHash::Hash256,
+                )?;
             }
-            PSET_IN_PREVIOUS_TXID| PSET_IN_OUTPUT_INDEX => {
+            PSET_IN_PREVIOUS_TXID | PSET_IN_OUTPUT_INDEX => {
                 return Err(Error::DuplicateKey(raw_key))?;
             }
             PSET_IN_SEQUENCE => {
@@ -574,7 +630,7 @@ impl Map for Input {
                     self.tap_script_sigs <= <raw_key: (bitcoin::XOnlyPublicKey, TapLeafHash)>|<raw_value: schnorr::SchnorrSig>
                 }
             }
-            PSBT_IN_TAP_LEAF_SCRIPT=> {
+            PSBT_IN_TAP_LEAF_SCRIPT => {
                 impl_pset_insert_pair! {
                     self.tap_scripts <= <raw_key: ControlBlock>|< raw_value: (Script, LeafVersion)>
                 }
@@ -651,11 +707,11 @@ impl Map for Input {
                             impl_pset_prop_insert_pair!(self.in_issuance_blind_inflation_keys_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
                         _ => match self.proprietary.entry(prop_key) {
-                                Entry::Vacant(empty_key) => {
-                                    empty_key.insert(raw_value);
-                                }
-                                Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
-                        }
+                            Entry::Vacant(empty_key) => {
+                                empty_key.insert(raw_value);
+                            }
+                            Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
+                        },
                     }
                 }
             }
@@ -663,9 +719,7 @@ impl Map for Input {
                 Entry::Vacant(empty_key) => {
                     empty_key.insert(raw_value);
                 }
-                Entry::Occupied(k) => {
-                    return Err(Error::DuplicateKey(k.key().clone()).into())
-                }
+                Entry::Occupied(k) => return Err(Error::DuplicateKey(k.key().clone()).into()),
             },
         }
 
@@ -729,14 +783,20 @@ impl Map for Input {
 
         // Mandatory field: Prev Txid
         rv.push(raw::Pair {
-            key: raw::Key { type_value: PSET_IN_PREVIOUS_TXID, key: vec![]},
-            value: serialize::Serialize::serialize(&self.previous_txid)
+            key: raw::Key {
+                type_value: PSET_IN_PREVIOUS_TXID,
+                key: vec![],
+            },
+            value: serialize::Serialize::serialize(&self.previous_txid),
         });
 
         // Mandatory field: prev out index
         rv.push(raw::Pair {
-            key: raw::Key { type_value: PSET_IN_OUTPUT_INDEX, key: vec![]},
-            value: serialize::Serialize::serialize(&self.previous_output_index)
+            key: raw::Key {
+                type_value: PSET_IN_OUTPUT_INDEX,
+                key: vec![],
+            },
+            value: serialize::Serialize::serialize(&self.previous_output_index),
         });
 
         impl_pset_get_pair! {
@@ -893,8 +953,12 @@ impl Map for Input {
         merge!(tap_merkle_root, self, other);
 
         // Should we do this?
-        self.required_time_locktime = cmp::max(self.required_time_locktime, other.required_time_locktime);
-        self.required_height_locktime = cmp::max(self.required_height_locktime, other.required_height_locktime);
+        self.required_time_locktime =
+            cmp::max(self.required_time_locktime, other.required_time_locktime);
+        self.required_height_locktime = cmp::max(
+            self.required_height_locktime,
+            other.required_height_locktime,
+        );
 
         // elements
         merge!(issuance_value_amount, self, other);
@@ -925,7 +989,6 @@ impl_psetmap_consensus_encoding!(Input);
 // not optional and cannot by set by insert_pair
 impl Decodable for Input {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
-
         // Sets the default to [0;32] and [0;4]
         let mut rv = Self::default();
         let mut prev_vout: Option<u32> = None;
@@ -949,7 +1012,10 @@ impl Decodable for Input {
                                 prev_vout <= <raw_key: _>|<raw_value: u32>
                             }
                         }
-                        _ =>  rv.insert_pair(raw::Pair { key: raw_key, value: raw_value })?,
+                        _ => rv.insert_pair(raw::Pair {
+                            key: raw_key,
+                            value: raw_value,
+                        })?,
                     }
                 }
                 Err(crate::encode::Error::PsetError(crate::pset::Error::NoMorePairs)) => break,

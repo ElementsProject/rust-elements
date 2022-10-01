@@ -14,13 +14,13 @@
 
 use std::{error, fmt};
 
-use crate::Txid;
 use crate::encode;
+use crate::Txid;
 
 use super::raw;
 
-use crate::hashes;
 use crate::blind::ConfidentialTxOutError;
+use crate::hashes;
 use secp256k1_zkp;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -119,30 +119,54 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
             Error::InvalidKey(ref rkey) => write!(f, "invalid key: {}", rkey),
-            Error::InvalidProprietaryKey => write!(f, "non-proprietary key type found when proprietary key was expected"),
+            Error::InvalidProprietaryKey => write!(
+                f,
+                "non-proprietary key type found when proprietary key was expected"
+            ),
             Error::DuplicateKey(ref rkey) => write!(f, "duplicate key: {}", rkey),
             Error::LocktimeConflict => write!(f, "conflicting locktime requirements"),
-            Error::UniqueIdMismatch { expected: ref e, actual: ref a } => write!(f, "different id: expected {}, actual {}", e, a),
-            Error::NonStandardSigHashType(ref sht) => write!(f, "non-standard sighash type: {}", sht),
+            Error::UniqueIdMismatch {
+                expected: ref e,
+                actual: ref a,
+            } => write!(f, "different id: expected {}, actual {}", e, a),
+            Error::NonStandardSigHashType(ref sht) => {
+                write!(f, "non-standard sighash type: {}", sht)
+            }
             Error::InvalidMagic => f.write_str("invalid magic"),
             Error::InvalidSeparator => f.write_str("invalid separator"),
-            Error::UnsignedTxHasScriptSigs => f.write_str("the unsigned transaction has script sigs"),
-            Error::UnsignedTxHasScriptWitnesses => f.write_str("the unsigned transaction has script witnesses"),
+            Error::UnsignedTxHasScriptSigs => {
+                f.write_str("the unsigned transaction has script sigs")
+            }
+            Error::UnsignedTxHasScriptWitnesses => {
+                f.write_str("the unsigned transaction has script witnesses")
+            }
             Error::MustHaveUnsignedTx => {
                 f.write_str("partially signed transactions must have an unsigned transaction")
             }
             Error::NoMorePairs => f.write_str("no more key-value pairs for this pset map"),
             Error::HashParseError(e) => write!(f, "Hash Parse Error: {}", e),
-            Error::InvalidPreimageHashPair{ref preimage, ref hash, ref hash_type} => {
+            Error::InvalidPreimageHashPair {
+                ref preimage,
+                ref hash,
+                ref hash_type,
+            } => {
                 // directly using debug forms of psethash enums
-                write!(f, "Preimage {:?} does not match {:?} hash {:?}", preimage, hash_type, hash )
+                write!(
+                    f,
+                    "Preimage {:?} does not match {:?} hash {:?}",
+                    preimage, hash_type, hash
+                )
             }
-            Error::MergeConflict(ref s) => { write!(f, "Merge conflict: {}", s) }
+            Error::MergeConflict(ref s) => {
+                write!(f, "Merge conflict: {}", s)
+            }
             Error::ConsensusEncoding => f.write_str("bitcoin consensus encoding error"),
             Error::TooLargePset => {
                 write!(f, "Psets with 10_000 or more inputs/outputs unsupported")
             }
-            Error::ExpiredPsbtv0Field => f.write_str("psbt v0 field specified in pset(based on pset)"),
+            Error::ExpiredPsbtv0Field => {
+                f.write_str("psbt v0 field specified in pset(based on pset)")
+            }
             Error::IncorrectPsetVersion => f.write_str("Pset version must be 2"),
             Error::MissingTxVersion => f.write_str("PSET missing global transaction version"),
             Error::MissingInputCount => f.write_str("PSET missing input count"),
@@ -150,21 +174,39 @@ impl fmt::Display for Error {
             Error::MissingInputPrevTxId => f.write_str("PSET input missing previous txid"),
             Error::MissingInputPrevVout => f.write_str("PSET input missing previous output index"),
             Error::SecpScalarSizeError(actual) => {
-                write!(f, "PSET blinding scalars must be 32 bytes. Found {} bytes", actual)
+                write!(
+                    f,
+                    "PSET blinding scalars must be 32 bytes. Found {} bytes",
+                    actual
+                )
             }
-            Error::MissingOutputValue => f.write_str("PSET output missing value. Must have \
-                at least one of explicit/confidential value set"),
-            Error::MissingOutputAsset => f.write_str("PSET output missing asset. Must have \
-                at least one of explicit/confidential asset set"),
-            Error::MissingBlinderIndex => f.write_str("Output is blinded but does not have a blinder index"),
-            Error::MissingBlindingInfo => f.write_str("Output marked for blinding, but missing \
-                some blinding information"),
-            Error::MissingOutputSpk => f.write_str("PSET output missing script pubkey. Must have \
-                exactly one of explicit/confidential script pubkey set"),
-            Error::InputCountMismatch => f.write_str("PSET input count global field must \
-                match the number of inputs"),
-            Error::OutputCountMismatch => f.write_str("PSET output count global field must \
-                match the number of outputs"),
+            Error::MissingOutputValue => f.write_str(
+                "PSET output missing value. Must have \
+                at least one of explicit/confidential value set",
+            ),
+            Error::MissingOutputAsset => f.write_str(
+                "PSET output missing asset. Must have \
+                at least one of explicit/confidential asset set",
+            ),
+            Error::MissingBlinderIndex => {
+                f.write_str("Output is blinded but does not have a blinder index")
+            }
+            Error::MissingBlindingInfo => f.write_str(
+                "Output marked for blinding, but missing \
+                some blinding information",
+            ),
+            Error::MissingOutputSpk => f.write_str(
+                "PSET output missing script pubkey. Must have \
+                exactly one of explicit/confidential script pubkey set",
+            ),
+            Error::InputCountMismatch => f.write_str(
+                "PSET input count global field must \
+                match the number of inputs",
+            ),
+            Error::OutputCountMismatch => f.write_str(
+                "PSET output count global field must \
+                match the number of outputs",
+            ),
         }
     }
 }
@@ -223,8 +265,12 @@ impl fmt::Display for PsetBlindError {
                 write!(f, "Atleast one output secrets should be provided")
             }
             PsetBlindError::BlinderIndexOutOfBounds(i, bl) => {
-                write!(f, "Blinder index {} for output index {} must be less \
-                    than total input count", bl, i)
+                write!(
+                    f,
+                    "Blinder index {} for output index {} must be less \
+                    than total input count",
+                    bl, i
+                )
             }
             PsetBlindError::MissingInputBlinds(i, bl) => {
                 write!(f, "Output index {} expects blinding input index {}", i, bl)
@@ -239,7 +285,11 @@ impl fmt::Display for PsetBlindError {
                 write!(f, "Blinding error {} at output index {}", e, i)
             }
             PsetBlindError::BlindingProofsCreationError(i, e) => {
-                write!(f, "Blinding proof creation error {} at output index {}", e, i)
+                write!(
+                    f,
+                    "Blinding proof creation error {} at output index {}",
+                    e, i
+                )
             }
         }
     }

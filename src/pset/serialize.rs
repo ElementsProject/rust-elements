@@ -19,21 +19,21 @@
 
 use std::io;
 
-use bitcoin::{self, PublicKey, VarInt};
-use crate::{Script, Transaction, TxOut, Txid, BlockHash, AssetId};
-use crate::encode::{self, serialize, deserialize, Decodable, Encodable, deserialize_partial};
-use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
-use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
-use bitcoin::hashes::hex::ToHex;
 use crate::confidential;
+use crate::encode::{self, deserialize, deserialize_partial, serialize, Decodable, Encodable};
+use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
+use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
+use bitcoin::hashes::hex::ToHex;
+use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
+use bitcoin::{self, PublicKey, VarInt};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
-use crate::taproot::{TapBranchHash, TapLeafHash, ControlBlock, LeafVersion};
+use super::map::{PsbtSighashType, TapTree};
 use crate::schnorr;
-use super::map::{TapTree, PsbtSighashType};
+use crate::taproot::{ControlBlock, LeafVersion, TapBranchHash, TapLeafHash};
 
-use crate::taproot::TaprootBuilder;
 use crate::sighash::SchnorrSigHashType;
+use crate::taproot::TaprootBuilder;
 
 /// A trait for serializing a value as raw data for insertion into PSET
 /// key-value pairs.
@@ -86,8 +86,7 @@ impl Serialize for Tweak {
 impl Deserialize for Tweak {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         let x = deserialize::<[u8; 32]>(&bytes)?;
-        Tweak::from_slice(&x)
-            .map_err(|_| encode::Error::ParseFailed("invalid Tweak"))
+        Tweak::from_slice(&x).map_err(|_| encode::Error::ParseFailed("invalid Tweak"))
     }
 }
 
@@ -113,8 +112,7 @@ impl Serialize for PublicKey {
 
 impl Deserialize for PublicKey {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        PublicKey::from_slice(bytes)
-            .map_err(|_| encode::Error::ParseFailed("invalid public key"))
+        PublicKey::from_slice(bytes).map_err(|_| encode::Error::ParseFailed("invalid public key"))
     }
 }
 
@@ -135,7 +133,7 @@ impl Serialize for KeySource {
 impl Deserialize for KeySource {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         if bytes.len() < 4 {
-            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into())
+            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
         }
 
         let fprint: Fingerprint = Fingerprint::from(&bytes[0..4]);
@@ -181,10 +179,10 @@ impl Deserialize for PsbtSighashType {
 
 impl Serialize for confidential::Value {
     fn serialize(&self) -> Vec<u8> {
-        match self{
+        match self {
             confidential::Value::Null => vec![], // should never be invoked
             confidential::Value::Explicit(x) => Serialize::serialize(x),
-            y => encode::serialize(y) // confidential can serialized as is
+            y => encode::serialize(y), // confidential can serialized as is
         }
     }
 }
@@ -226,10 +224,10 @@ impl Deserialize for secp256k1_zkp::Generator {
 
 impl Serialize for confidential::Asset {
     fn serialize(&self) -> Vec<u8> {
-        match self{
+        match self {
             confidential::Asset::Null => vec![], // should never be invoked
             confidential::Asset::Explicit(x) => Serialize::serialize(x),
-            y => encode::serialize(y) // confidential can serialized as is
+            y => encode::serialize(y), // confidential can serialized as is
         }
     }
 }
@@ -285,7 +283,7 @@ impl Deserialize for bitcoin::XOnlyPublicKey {
     }
 }
 
-impl Serialize for schnorr::SchnorrSig  {
+impl Serialize for schnorr::SchnorrSig {
     fn serialize(&self) -> Vec<u8> {
         self.to_vec()
     }
@@ -299,14 +297,17 @@ impl Deserialize for schnorr::SchnorrSig {
                     .ok_or(encode::Error::ParseFailed("Invalid Sighash type"))?;
                 let sig = secp256k1_zkp::schnorr::Signature::from_slice(&bytes[..64])
                     .map_err(|_| encode::Error::ParseFailed("Invalid Schnorr signature"))?;
-                Ok(schnorr::SchnorrSig{ sig, hash_ty })
+                Ok(schnorr::SchnorrSig { sig, hash_ty })
             }
             64 => {
                 let sig = secp256k1_zkp::schnorr::Signature::from_slice(&bytes[..64])
                     .map_err(|_| encode::Error::ParseFailed("Invalid Schnorr signature"))?;
-                    Ok(schnorr::SchnorrSig{ sig, hash_ty: SchnorrSigHashType::Default })
+                Ok(schnorr::SchnorrSig {
+                    sig,
+                    hash_ty: SchnorrSigHashType::Default,
+                })
             }
-            _ => Err(encode::Error::ParseFailed("Invalid Schnorr signature len"))
+            _ => Err(encode::Error::ParseFailed("Invalid Schnorr signature len")),
         }
     }
 }
@@ -324,7 +325,7 @@ impl Serialize for (bitcoin::XOnlyPublicKey, TapLeafHash) {
 impl Deserialize for (bitcoin::XOnlyPublicKey, TapLeafHash) {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         if bytes.len() < 32 {
-            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into())
+            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
         }
         let a: bitcoin::XOnlyPublicKey = Deserialize::deserialize(&bytes[..32])?;
         let b: TapLeafHash = Deserialize::deserialize(&bytes[32..])?;
@@ -340,8 +341,7 @@ impl Serialize for ControlBlock {
 
 impl Deserialize for ControlBlock {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        Self::from_slice(bytes)
-            .map_err(|_| encode::Error::ParseFailed("Invalid control block"))
+        Self::from_slice(bytes).map_err(|_| encode::Error::ParseFailed("Invalid control block"))
     }
 }
 
@@ -358,7 +358,7 @@ impl Serialize for (Script, LeafVersion) {
 impl Deserialize for (Script, LeafVersion) {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         if bytes.is_empty() {
-            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into())
+            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
         }
         // The last byte is LeafVersion.
         let script = Script::deserialize(&bytes[..bytes.len() - 1])?;
@@ -368,11 +368,12 @@ impl Deserialize for (Script, LeafVersion) {
     }
 }
 
-
 impl Serialize for (Vec<TapLeafHash>, KeySource) {
     fn serialize(&self) -> Vec<u8> {
-        let mut buf = Vec::with_capacity( 32 * self.0.len() + key_source_len(&self.1));
-        self.0.consensus_encode(&mut buf).expect("Vecs don't error allocation");
+        let mut buf = Vec::with_capacity(32 * self.0.len() + key_source_len(&self.1));
+        self.0
+            .consensus_encode(&mut buf)
+            .expect("Vecs don't error allocation");
         // TODO: Add support for writing into a writer for key-source
         buf.extend(self.1.serialize());
         buf
@@ -381,7 +382,7 @@ impl Serialize for (Vec<TapLeafHash>, KeySource) {
 
 impl Deserialize for (Vec<TapLeafHash>, KeySource) {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let (leafhash_vec, consumed) = deserialize_partial::<Vec::<TapLeafHash>>(&bytes)?;
+        let (leafhash_vec, consumed) = deserialize_partial::<Vec<TapLeafHash>>(&bytes)?;
         let key_source = KeySource::deserialize(&bytes[consumed..])?;
         Ok((leafhash_vec, key_source))
     }
@@ -399,11 +400,14 @@ impl Serialize for TapTree {
                     // safe to cast from usize to u8
                     buf.push(leaf_info.merkle_branch.as_inner().len() as u8);
                     buf.push(leaf_info.ver.as_u8());
-                    leaf_info.script.consensus_encode(&mut buf).expect("Vecs dont err");
+                    leaf_info
+                        .script
+                        .consensus_encode(&mut buf)
+                        .expect("Vecs dont err");
                 }
                 buf
             }
-        // This should be unreachable as we Taptree is already finalized
+            // This should be unreachable as we Taptree is already finalized
             _ => unreachable!(),
         }
     }
@@ -414,7 +418,9 @@ impl Deserialize for TapTree {
         let mut builder = TaprootBuilder::new();
         let mut bytes_iter = bytes.iter();
         while let Some(depth) = bytes_iter.next() {
-            let version = bytes_iter.next().ok_or(encode::Error::ParseFailed("Invalid Taproot Builder"))?;
+            let version = bytes_iter
+                .next()
+                .ok_or(encode::Error::ParseFailed("Invalid Taproot Builder"))?;
             let (script, consumed) = deserialize_partial::<Script>(bytes_iter.as_slice())?;
             if consumed > 0 {
                 bytes_iter.nth(consumed - 1);
@@ -422,7 +428,8 @@ impl Deserialize for TapTree {
 
             let leaf_version = LeafVersion::from_u8(*version)
                 .map_err(|_| encode::Error::ParseFailed("Leaf Version Error"))?;
-            builder = builder.add_leaf_with_ver(usize::from(*depth), script, leaf_version)
+            builder = builder
+                .add_leaf_with_ver(usize::from(*depth), script, leaf_version)
                 .map_err(|_| encode::Error::ParseFailed("Tree not in DFS order"))?;
         }
         if builder.is_complete() {
