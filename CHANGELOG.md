@@ -1,5 +1,6 @@
 # unreleased
 
+- the feature "serde-feature" is now renamed to just "serde"
 - update MSRV to 1.41.1
 - breaking change in serde in how the Nonce is serialized
 - `Block`, `BlockHeader`, `PeginData`, `PegoutData` loose the Default impl

@@ -210,7 +210,7 @@ impl RangeProofMessage {
 }
 
 /// Information about Transaction Input Asset
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct TxOutSecrets {
     /// Asset
