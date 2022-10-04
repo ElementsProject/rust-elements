@@ -27,6 +27,7 @@ use elements::{pset, secp256k1_zkp};
 use elements::encode::{deserialize, serialize_hex};
 use elements::hashes::hex::FromHex;
 use elements::{confidential, AssetId, TxOut};
+use rand::SeedableRng;
 
 // Assume txouts are simple pay to wpkh
 // and keep the secrets correponding to
@@ -137,7 +138,10 @@ fn main() {
     let tests = test_data();
     // Initially secp context and rng global state
     let secp = secp256k1_zkp::Secp256k1::new();
-    let mut rng = CrappyRng::new(core::num::NonZeroU64::new(1).unwrap());
+
+    // NOTE: Zero is not a reasonable seed for production code.
+    // It is used here so that we can match test vectors.
+    let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
 
     let txouts = txout_data();
     let (btc_txout, btc_txout_secrets, btc_inp) = txouts[0].clone();
@@ -285,43 +289,3 @@ fn main() {
     tx.verify_tx_amt_proofs(&secp, &[btc_txout, asset_txout])
         .unwrap();
 }
-
-
-/// Xorshift
-pub struct CrappyRng(u64);
-
-impl CrappyRng {
-    fn new(initial: core::num::NonZeroU64) -> Self {
-        Self(initial.get())
-    }
-}
-
-impl rand::RngCore for CrappyRng {
-
-    fn next_u32(&mut self) -> u32 {
-        self.next_u64() as u32
-    }
-
-    fn next_u64(&mut self) -> u64 {
-        let mut x = self.0;
-        x ^= x << 13;
-        x ^= x >> 7;
-        x ^= x << 17;
-        self.0 = x;
-        x
-      }
-
-    fn fill_bytes(&mut self, dest: &mut [u8]) {
-        for chunk in dest.chunks_mut(8) {
-            let x = self.next_u64().to_be_bytes();
-            chunk.copy_from_slice(&x[..chunk.len()]);
-
-        }
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand::Error> {
-        Ok(self.fill_bytes(dest))
-    }
-}
-
-impl rand::CryptoRng for CrappyRng {}
