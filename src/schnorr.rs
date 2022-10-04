@@ -19,6 +19,7 @@
 
 use std::fmt;
 
+use secp256k1_zkp::Scalar;
 pub use secp256k1_zkp::{XOnlyPublicKey, KeyPair};
 use secp256k1_zkp::{self, Secp256k1, Verification, constants::SCHNORR_SIGNATURE_SIZE};
 use crate::hashes::{Hash, HashEngine};
@@ -58,10 +59,10 @@ impl TapTweak for UntweakedPublicKey {
         engine.input(&self.serialize());
         merkle_root.map(|hash| engine.input(&hash));
         let tweak_value: [u8; 32] = TapTweakHash::from_engine(engine).into_inner();
+        let tweak_value = Scalar::from_be_bytes(tweak_value).expect("hash value greater than curve order");
 
         //Tweak the internal key by the tweak value
-        let mut output_key = self.clone();
-        let parity = output_key.tweak_add_assign(&secp, &tweak_value).expect("Tap tweak failed");
+        let (output_key, parity) = self.clone().add_tweak(secp, &tweak_value).expect("Tap tweak failed");
         debug_assert!(self.tweak_add_check(&secp, &output_key, parity, tweak_value));
 
         (TweakedPublicKey(output_key), parity)
@@ -93,7 +94,7 @@ impl TweakedPublicKey {
 
 /// A BIP340-341 serialized schnorr signature with the corresponding hash type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
 pub struct SchnorrSig {
     /// The underlying schnorr signature
     pub sig: secp256k1_zkp::schnorr::Signature,

@@ -73,7 +73,7 @@ impl OutPoint {
     #[inline]
     pub fn null() -> OutPoint {
         OutPoint {
-            txid: Default::default(),
+            txid: Txid::all_zeros(),
             vout: u32::max_value(),
         }
     }
@@ -158,7 +158,7 @@ impl TxInWitness {
 
 
 /// Parsed data from a transaction input's pegin witness
-#[derive(Copy, Clone, Default, PartialEq, Eq, Debug, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub struct PeginData<'tx> {
     /// Reference to the pegin output on the mainchain
     pub outpoint: bitcoin::OutPoint,
@@ -389,7 +389,7 @@ impl TxOutWitness {
 }
 
 /// Information about a pegout
-#[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash)]
 pub struct PegoutData<'txo> {
     /// Amount to peg out
     pub value: u64,

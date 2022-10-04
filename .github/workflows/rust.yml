@@ -22,7 +22,7 @@ jobs:
           - rust: nightly
             env:
               DUMMY: true
-          - rust: 1.36.0
+          - rust: 1.41.1
             env:
               PIN_VERSIONS: true
     steps:

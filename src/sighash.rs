@@ -503,7 +503,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         value: confidential::Value,
         sighash_type: EcdsaSigHashType,
     ) -> Result<(), encode::Error> {
-        let zero_hash = sha256d::Hash::default();
+        let zero_hash = sha256d::Hash::all_zeros();
 
         let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
 

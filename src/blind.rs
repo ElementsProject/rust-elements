@@ -210,7 +210,7 @@ impl RangeProofMessage {
 }
 
 /// Information about Transaction Input Asset
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
 #[derive(Debug, PartialEq, Eq, Clone, Hash)]
 pub struct TxOutSecrets {
     /// Asset
@@ -1008,7 +1008,7 @@ mod tests {
         let spent_utxo_secrets = TxOutSecrets {
             asset: AssetId::from_hex("b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23").unwrap(),
             asset_bf: AssetBlindingFactor::from_hex("a5b3d111cdaa5fc111e2723df4caf315864f25fb4610cc737f10d5a55cd4096f").unwrap(),
-            value: bitcoin::Amount::from_str_in("20999997.97999114", bitcoin::Denomination::Bitcoin).unwrap().as_sat(),
+            value: bitcoin::Amount::from_str_in("20999997.97999114", bitcoin::Denomination::Bitcoin).unwrap().to_sat(),
             value_bf: ValueBlindingFactor::from_hex("e36a4de359469f547571d117bc5509fb74fba73c84b0cdd6f4edfa7ff7fa457d").unwrap(),
         };
 

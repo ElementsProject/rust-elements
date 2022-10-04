@@ -11,6 +11,7 @@ use bitcoin::{Amount, XOnlyPublicKey, KeyPair};
 use elements::bitcoin::hashes::hex::FromHex;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::encode::{deserialize, serialize_hex};
+use elements::hashes::Hash;
 use elements::script::Builder;
 use elements::secp256k1_zkp;
 use elements::sighash::{self, SigHashCache};
@@ -48,7 +49,7 @@ fn gen_keypair(
     rng: &mut rngs::ThreadRng,
 ) -> (XOnlyPublicKey, KeyPair) {
     let keypair = KeyPair::new(secp, rng);
-    let pk = XOnlyPublicKey::from_keypair(&keypair);
+    let (pk, _) = XOnlyPublicKey::from_keypair(&keypair);
     (pk, keypair)
 }
 
@@ -112,7 +113,7 @@ fn funded_tap_txout(
         &PARAMS,
     );
     let amt = Amount::from_sat(1_000_000);
-    let txid_hex = elementsd.send_to_address(&addr.to_string(), &amt.as_btc().to_string());
+    let txid_hex = elementsd.send_to_address(&addr.to_string(), &amt.to_btc().to_string());
     elementsd.generate(1);
     let tx_hex = elementsd.get_transaction(&txid_hex);
 
@@ -219,15 +220,15 @@ fn taproot_spend_test(
             )
             .unwrap();
 
-        let mut output_keypair = test_data.internal_keypair; // type is copy
+        let output_keypair = test_data.internal_keypair; // type is copy
         let tweak = TapTweakHash::from_key_and_tweak(
             test_data.internal_pk,
             test_data.spend_info.merkle_root(),
         );
-        output_keypair.tweak_add_assign(&secp, &tweak).unwrap();
+        let tweak = secp256k1_zkp::Scalar::from_be_bytes(tweak.into_inner()).expect("hash value greater than curve order");
         let sig = secp.sign_schnorr(
             &secp256k1_zkp::Message::from_slice(&sighash_msg[..]).unwrap(),
-            &output_keypair,
+            &output_keypair.add_xonly_tweak(&secp, &tweak).unwrap(),
         );
 
         let schnorr_sig = SchnorrSig {

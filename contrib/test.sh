@@ -1,6 +1,6 @@
 #!/bin/sh -ex
 
-FEATURES="serde-feature"
+FEATURES="serde"
 
 # Use toolchain if explicitly specified
 if [ -n "$TOOLCHAIN" ]

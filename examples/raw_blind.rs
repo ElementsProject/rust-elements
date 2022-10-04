@@ -68,7 +68,7 @@ fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
                 bitcoin::Denomination::Bitcoin,
             )
             .unwrap()
-            .as_sat(),
+            .to_sat(),
             asset: AssetId::from_hex(&v["asset"].as_str().unwrap()).unwrap(),
         },
     };
