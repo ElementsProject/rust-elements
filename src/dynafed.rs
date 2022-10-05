@@ -18,12 +18,188 @@ use std::{fmt, io};
 
 use bitcoin;
 use bitcoin::hashes::{Hash, sha256, sha256d};
-#[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde")]
+use serde::ser::{SerializeSeq, SerializeStruct};
 
 use crate::encode::{self, Encodable, Decodable};
 use crate::Script;
 
-/// Dynamic federations parameters, as encoded in a block header
+/// ad-hoc struct to fmt in hex
+struct HexBytes<'a>(&'a [u8]);
+impl<'a> fmt::Display for HexBytes<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        bitcoin::hashes::hex::format_hex(&self.0[..], f)
+    }
+}
+impl<'a> fmt::Debug for HexBytes<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self, f)
+    }
+}
+#[cfg(feature = "serde")]
+impl<'a> Serialize for HexBytes<'a> {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        if s.is_human_readable() {
+            s.collect_str(self)
+        } else {
+            s.serialize_bytes(&self.0[..])
+        }
+    }
+}
+
+/// ad-hoc struct to fmt in hex
+struct HexBytesArray<'a>(&'a [Vec<u8>]);
+impl<'a> fmt::Display for HexBytesArray<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "[")?;
+        for (i, e) in self.0.iter().enumerate() {
+            if i != 0 {
+                write!(f, ", ")?;
+            }
+            bitcoin::hashes::hex::format_hex(&e[..], f)?;
+        }
+        write!(f, "]")
+    }
+}
+impl<'a> fmt::Debug for HexBytesArray<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        fmt::Display::fmt(&self, f)
+    }
+}
+#[cfg(feature = "serde")]
+impl<'a> Serialize for HexBytesArray<'a> {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let mut seq = s.serialize_seq(Some(self.0.len()))?;
+        for b in self.0 {
+            seq.serialize_element(&HexBytes(&b[..]))?;
+        }
+        seq.end()
+    }
+}
+
+/// Full dynafed parameters with all fields.
+#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
+pub struct FullParams {
+    /// "scriptPubKey" used for block signing
+    signblockscript: Script,
+    /// Maximum, in bytes, of the size of a blocksigning witness
+    signblock_witness_limit: u32,
+    /// Untweaked `scriptPubKey` used for pegins
+    fedpeg_program: bitcoin::Script,
+    /// For v0 fedpeg programs, the witness script of the untweaked
+    /// pegin address. For future versions, this data has no defined
+    /// meaning and will be considered "anyone can spend".
+    fedpegscript: Vec<u8>,
+    /// "Extension space" used by Liquid for PAK key entries
+    extension_space: Vec<Vec<u8>>,
+}
+
+impl FullParams {
+    /// Return the `extra root` of this params.
+    /// The extra root commits to the consensus parameters unrelated to
+    /// blocksigning: `fedpeg_program`, `fedpegscript` and `extension_space`.
+    fn extra_root(&self) -> sha256::Midstate {
+        fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
+            let mut engine = sha256d::Hash::engine();
+            obj.consensus_encode(&mut engine).expect("engines don't error");
+            sha256d::Hash::from_engine(engine)
+        }
+
+        let leaves = [
+            serialize_hash(&self.fedpeg_program).into_inner(),
+            serialize_hash(&self.fedpegscript).into_inner(),
+            serialize_hash(&self.extension_space).into_inner(),
+        ];
+        crate::fast_merkle_root::fast_merkle_root(&leaves[..])
+    }
+
+    /// Calculate the root of this [FullParams].
+    pub fn calculate_root(&self) -> sha256::Midstate {
+        fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
+            let mut engine = sha256d::Hash::engine();
+            obj.consensus_encode(&mut engine).expect("engines don't error");
+            sha256d::Hash::from_engine(engine)
+        }
+
+        let leaves = [
+            serialize_hash(&self.signblockscript).into_inner(),
+            serialize_hash(&self.signblock_witness_limit).into_inner(),
+        ];
+        let compact_root = crate::fast_merkle_root::fast_merkle_root(&leaves[..]);
+
+        let leaves = [
+            compact_root.into_inner(),
+            self.extra_root().into_inner(),
+        ];
+        crate::fast_merkle_root::fast_merkle_root(&leaves[..])
+    }
+
+    /// Turns paramers into compact parameters.
+    /// This returns self for compact params and [None] for null ones.
+    pub fn into_compact(self) -> Params {
+        Params::Compact {
+            elided_root: self.extra_root(),
+            signblockscript: self.signblockscript,
+            signblock_witness_limit: self.signblock_witness_limit,
+        }
+    }
+
+    /// Format for [fmt::Debug].
+    fn fmt_debug(&self, f: &mut fmt::Formatter, name: &'static str) -> fmt::Result {
+        let mut s = f.debug_struct(name);
+        s.field("signblockscript", &HexBytes(&self.signblockscript[..]));
+        s.field("signblock_witness_limit", &self.signblock_witness_limit);
+        s.field("fedpeg_program", &HexBytes(&self.fedpeg_program[..]));
+        s.field("fedpegscript", &HexBytes(&self.fedpegscript[..]));
+        s.field("extension_space", &HexBytesArray(&self.extension_space));
+        s.finish()
+    }
+
+
+    #[cfg(feature = "serde")]
+    fn serde_serialize<S: Serializer>(&self, s: S, name: &'static str) -> Result<S::Ok, S::Error> {
+        let mut st = s.serialize_struct(name, 5)?;
+        st.serialize_field("signblockscript", &self.signblockscript)?;
+        st.serialize_field("signblock_witness_limit", &self.signblock_witness_limit)?;
+        st.serialize_field("fedpeg_program", &self.fedpeg_program)?;
+        st.serialize_field("fedpegscript", &HexBytes(&self.fedpegscript))?;
+        st.serialize_field("extension_space", &HexBytesArray(&self.extension_space))?;
+        st.end()
+    }
+}
+
+impl fmt::Debug for FullParams {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        self.fmt_debug(f, "FullParams")
+    }
+}
+
+impl Encodable for FullParams {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+        let ret = Encodable::consensus_encode(&self.signblockscript, &mut s)? +
+            Encodable::consensus_encode(&self.signblock_witness_limit, &mut s)? +
+            Encodable::consensus_encode(&self.fedpeg_program, &mut s)? +
+            Encodable::consensus_encode(&self.fedpegscript, &mut s)? +
+            Encodable::consensus_encode(&self.extension_space, &mut s)?;
+        Ok(ret)
+    }
+}
+
+impl Decodable for FullParams {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        Ok(FullParams {
+            signblockscript: Decodable::consensus_decode(&mut d)?,
+            signblock_witness_limit: Decodable::consensus_decode(&mut d)?,
+            fedpeg_program: Decodable::consensus_decode(&mut d)?,
+            fedpegscript: Decodable::consensus_decode(&mut d)?,
+            extension_space: Decodable::consensus_decode(&mut d)?,
+        })
+    }
+}
+
+/// Dynamic federations paramaters, as encoded in a block header
 #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Params {
     /// Null entry, used to signal "no vote" as a proposal
@@ -40,49 +216,11 @@ pub enum Params {
         elided_root: sha256::Midstate,
     },
     /// Full dynamic federations parameters
-    Full {
-        /// "scriptPubKey" used for block signing
-        signblockscript: Script,
-        /// Maximum, in bytes, of the size of a blocksigning witness
-        signblock_witness_limit: u32,
-        /// Untweaked `scriptPubKey` used for pegins
-        fedpeg_program: bitcoin::Script,
-        /// For v0 fedpeg programs, the witness script of the untweaked
-        /// pegin address. For future versions, this data has no defined
-        /// meaning and will be considered "anyone can spend".
-        fedpegscript: Vec<u8>,
-        /// "Extension space" used by Liquid for PAK key entries
-        extension_space: Vec<Vec<u8>>,
-    },
+    Full(FullParams),
 }
 
 impl fmt::Debug for Params {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        // Null and Compact have nice Debug formats, but Full has these annoying Vec's.
-        // For Full, we write the fedpeg program and script and the PAK list as hex.
-
-        // ad-hoc struct to fmt in hex
-        struct HexBytes<'a>(&'a [u8]);
-        impl<'a> fmt::Debug for HexBytes<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                bitcoin::hashes::hex::format_hex(&self.0[..], f)
-            }
-        }
-        // ad-hoc struct to fmt in hex
-        struct HexBytesArray<'a>(&'a [Vec<u8>]);
-        impl<'a> fmt::Debug for HexBytesArray<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                write!(f, "[")?;
-                for (i, e) in self.0.iter().enumerate() {
-                    if i != 0 {
-                        write!(f, ", ")?;
-                    }
-                    bitcoin::hashes::hex::format_hex(&e[..], f)?;
-                }
-                write!(f, "]")
-            }
-        }
-
         match self {
             Params::Null => write!(f, "Null"),
             Params::Compact { signblockscript, signblock_witness_limit, elided_root } => {
@@ -92,21 +230,7 @@ impl fmt::Debug for Params {
                 s.field("elided_root", elided_root);
                 s.finish()
             }
-            Params::Full {
-                signblockscript,
-                signblock_witness_limit,
-                fedpeg_program,
-                fedpegscript,
-                extension_space,
-            } => {
-                let mut s = f.debug_struct("Full");
-                s.field("signblockscript", &HexBytes(&signblockscript[..]));
-                s.field("signblock_witness_limit", signblock_witness_limit);
-                s.field("fedpeg_program", &HexBytes(&fedpeg_program[..]));
-                s.field("fedpegscript", &HexBytes(&fedpegscript[..]));
-                s.field("extension_space", &HexBytesArray(&extension_space));
-                s.finish()
-            }
+            Params::Full(ref full) => full.fmt_debug(f, "Full"),
         }
     }
 }
@@ -117,7 +241,7 @@ impl Params {
         match *self {
             Params::Null => true,
             Params::Compact { .. } => false,
-            Params::Full { .. } => false,
+            Params::Full(..) => false,
         }
     }
 
@@ -126,7 +250,7 @@ impl Params {
         match *self {
             Params::Null => false,
             Params::Compact { .. } => true,
-            Params::Full { .. } => false,
+            Params::Full(..) => false,
         }
     }
 
@@ -135,7 +259,7 @@ impl Params {
         match *self {
             Params::Null => false,
             Params::Compact { .. } => false,
-            Params::Full { .. } => true,
+            Params::Full(..) => true,
         }
     }
 
@@ -144,7 +268,7 @@ impl Params {
         match *self {
             Params::Null => None,
             Params::Compact { ref signblockscript, ..} => Some(signblockscript),
-            Params::Full { ref signblockscript, ..} => Some(signblockscript),
+            Params::Full(ref f) => Some(&f.signblockscript),
         }
     }
 
@@ -153,7 +277,7 @@ impl Params {
         match *self {
             Params::Null => None,
             Params::Compact { signblock_witness_limit, ..} => Some(signblock_witness_limit),
-            Params::Full { signblock_witness_limit, ..} => Some(signblock_witness_limit),
+            Params::Full(ref f) => Some(f.signblock_witness_limit),
         }
     }
 
@@ -162,7 +286,7 @@ impl Params {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
-            Params::Full { ref fedpeg_program, ..} => Some(fedpeg_program),
+            Params::Full(ref f) => Some(&f.fedpeg_program),
         }
     }
 
@@ -171,7 +295,7 @@ impl Params {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
-            Params::Full { ref fedpegscript, ..} => Some(fedpegscript),
+            Params::Full(ref f) => Some(&f.fedpegscript),
         }
     }
 
@@ -180,7 +304,7 @@ impl Params {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
-            Params::Full { ref extension_space, ..} => Some(extension_space),
+            Params::Full(ref f) => Some(&f.extension_space),
         }
     }
 
@@ -189,7 +313,7 @@ impl Params {
         match *self {
             Params::Null => None,
             Params::Compact { ref elided_root, ..} => Some(elided_root),
-            Params::Full { .. } => None,
+            Params::Full(..) => None,
         }
     }
 
@@ -197,23 +321,10 @@ impl Params {
     /// The extra root commits to the consensus parameters unrelated to
     /// blocksigning: `fedpeg_program`, `fedpegscript` and `extension_space`.
     fn extra_root(&self) -> sha256::Midstate {
-        fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
-            let mut engine = sha256d::Hash::engine();
-            obj.consensus_encode(&mut engine).expect("engines don't error");
-            sha256d::Hash::from_engine(engine)
-        }
-
         match *self {
             Params::Null => sha256::Midstate::from_inner([0u8; 32]),
             Params::Compact { ref elided_root, .. } => *elided_root,
-            Params::Full { ref fedpeg_program, ref fedpegscript, ref extension_space, .. } => {
-                let leaves = [
-                    serialize_hash(fedpeg_program).into_inner(),
-                    serialize_hash(fedpegscript).into_inner(),
-                    serialize_hash(extension_space).into_inner(),
-                ];
-                crate::fast_merkle_root::fast_merkle_root(&leaves[..])
-            },
+            Params::Full(ref f) => f.extra_root(),
         }
     }
 
@@ -242,31 +353,31 @@ impl Params {
         crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
 
+    /// Get the full params when this params are full.
+    pub fn full(&self) -> Option<&FullParams> {
+        match self {
+            Params::Null => None,
+            Params::Compact { .. } => None,
+            Params::Full(ref f) => Some(f),
+        }
+    }
+
+    /// Convert into the full params when this params are full.
+    pub fn into_full(self) -> Option<FullParams> {
+        match self {
+            Params::Null => None,
+            Params::Compact { .. } => None,
+            Params::Full(f) => Some(f),
+        }
+    }
+
     /// Turns paramers into compact parameters.
     /// This returns self for compact params and [None] for null ones.
     pub fn into_compact(self) -> Option<Params> {
-        // Avoid calcualting when it's not needed.
-        let mut extra_root = None;
-        if self.is_full() {
-            extra_root = Some(self.extra_root());
-        }
-
         match self {
             Params::Null => None,
-            Params::Compact { signblockscript, signblock_witness_limit, elided_root } => {
-                Some(Params::Compact {
-                    signblockscript,
-                    signblock_witness_limit,
-                    elided_root,
-                })
-            }
-            Params::Full { signblockscript, signblock_witness_limit, ..} => {
-                Some(Params::Compact {
-                    signblockscript,
-                    signblock_witness_limit,
-                    elided_root: extra_root.unwrap(),
-                })
-            }
+            s @ Params::Compact { .. } => Some(s),
+            Params::Full(f) => Some(f.into_compact()),
         }
     }
 }
@@ -422,13 +533,13 @@ impl<'de> Deserialize<'de> for Params {
                         Some(fedpeg_program),
                         Some(HexBytes(fedpegscript)),
                         Some(extension_space),
-                    ) => Ok(Params::Full {
+                    ) => Ok(Params::Full(FullParams {
                         signblockscript,
                         signblock_witness_limit,
                         fedpeg_program,
                         fedpegscript,
                         extension_space: extension_space.into_iter().map(|h| h.0).collect(),
-                    }),
+                    })),
                     (
                         Some(signblockscript),
                         Some(signblock_witness_limit),
@@ -462,36 +573,6 @@ impl<'de> Deserialize<'de> for Params {
 #[cfg(feature = "serde")]
 impl Serialize for Params {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::{SerializeSeq, SerializeStruct};
-
-        // ad-hoc struct to fmt in hex
-        struct HexBytes<'a>(&'a [u8]);
-        impl<'a> fmt::Display for HexBytes<'a> {
-            fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-                bitcoin::hashes::hex::format_hex(&self.0[..], f)
-            }
-        }
-        impl<'a> Serialize for HexBytes<'a> {
-            fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-                if s.is_human_readable() {
-                    s.collect_str(self)
-                } else {
-                    s.serialize_bytes(&self.0[..])
-                }
-            }
-        }
-        // ad-hoc struct to fmt in hex
-        struct HexBytesArray<'a>(&'a [Vec<u8>]);
-        impl<'a> Serialize for HexBytesArray<'a> {
-            fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-                let mut seq = s.serialize_seq(Some(self.0.len()))?;
-                for b in self.0 {
-                    seq.serialize_element(&HexBytes(&b[..]))?;
-                }
-                seq.end()
-            }
-        }
-
         match *self {
             Params::Null => {
                 let st = s.serialize_struct("Params", 0)?;
@@ -508,21 +589,7 @@ impl Serialize for Params {
                 st.serialize_field("elided_root", elided_root)?;
                 st.end()
             },
-            Params::Full {
-                ref signblockscript,
-                ref signblock_witness_limit,
-                ref fedpeg_program,
-                ref fedpegscript,
-                ref extension_space,
-            } => {
-                let mut st = s.serialize_struct("Params", 5)?;
-                st.serialize_field("signblockscript", signblockscript)?;
-                st.serialize_field("signblock_witness_limit", signblock_witness_limit)?;
-                st.serialize_field("fedpeg_program", fedpeg_program)?;
-                st.serialize_field("fedpegscript", &HexBytes(&fedpegscript))?;
-                st.serialize_field("extension_space", &HexBytesArray(&extension_space))?;
-                st.end()
-            },
+            Params::Full(ref full) => full.serde_serialize(s, "Params"),
         }
     }
 }
@@ -541,19 +608,9 @@ impl Encodable for Params {
                 Encodable::consensus_encode(signblock_witness_limit, &mut s)? +
                 Encodable::consensus_encode(&elided_root.into_inner(), &mut s)?
             },
-            Params::Full {
-                ref signblockscript,
-                ref signblock_witness_limit,
-                ref fedpeg_program,
-                ref fedpegscript,
-                ref extension_space,
-            } => {
+            Params::Full(ref f) => {
                 Encodable::consensus_encode(&2u8, &mut s)? +
-                Encodable::consensus_encode(signblockscript, &mut s)? +
-                Encodable::consensus_encode(signblock_witness_limit, &mut s)? +
-                Encodable::consensus_encode(fedpeg_program, &mut s)? +
-                Encodable::consensus_encode(fedpegscript, &mut s)? +
-                Encodable::consensus_encode(extension_space, &mut s)?
+                Encodable::consensus_encode(f, &mut s)?
             },
         })
     }
@@ -569,13 +626,7 @@ impl Decodable for Params {
                 signblock_witness_limit: Decodable::consensus_decode(&mut d)?,
                 elided_root: sha256::Midstate::from_inner(Decodable::consensus_decode(&mut d)?),
             }),
-            2 => Ok(Params::Full {
-                signblockscript: Decodable::consensus_decode(&mut d)?,
-                signblock_witness_limit: Decodable::consensus_decode(&mut d)?,
-                fedpeg_program: Decodable::consensus_decode(&mut d)?,
-                fedpegscript: Decodable::consensus_decode(&mut d)?,
-                extension_space: Decodable::consensus_decode(&mut d)?,
-            }),
+            2 => Ok(Params::Full(Decodable::consensus_decode(&mut d)?)),
             _ => Err(encode::Error::ParseFailed(
                 "bad serialize type for dynafed parameters"
             )),
@@ -639,13 +690,13 @@ mod tests {
             "f98f149fd11da6fbe26d0ee53cadd28372fa9eed2cb7080f41da7ca311531777"
         );
 
-        let full_entry = Params::Full {
+        let full_entry = Params::Full(FullParams {
             signblockscript,
             signblock_witness_limit: signblock_wl,
             fedpeg_program: fp_program,
             fedpegscript: fp_script,
             extension_space: ext,
-        };
+        });
         assert_eq!(
             full_entry.calculate_root().to_hex(),
             "8eb1b83cce69a3d8b0bfb7fbe77ae8f1d24b57a9cae047b8c0aba084ad878249"
@@ -677,24 +728,32 @@ mod tests {
 
     #[test]
     fn into_compact_test() {
-        let full = Params::Full {
+        let full = FullParams {
             signblockscript: vec![0x01, 0x02].into(),
             signblock_witness_limit: 3,
             fedpeg_program: vec![0x04, 0x05].into(),
             fedpegscript: vec![0x06, 0x07],
             extension_space: vec![vec![0x08, 0x09], vec![0x0a]],
         };
+        let extra_root = full.extra_root();
+        let root = full.calculate_root();
+        let params = Params::Full(full.clone());
+        assert_eq!(params.full(), Some(&full));
+        assert_eq!(params.clone().into_full(), Some(full.clone()));
+        assert_eq!(params.extra_root(), extra_root);
+        assert_eq!(params.calculate_root(), root);
+
         assert_eq!(
-            to_debug_string(&full),
+            to_debug_string(&params),
             "Full { signblockscript: 0102, signblock_witness_limit: 3, fedpeg_program: 0405, fedpegscript: 0607, extension_space: [0809, 0a] }",
         );
-        let extra_root = full.extra_root();
 
-        let compact = full.into_compact().unwrap();
+        let compact = params.into_compact().unwrap();
         assert_eq!(
             to_debug_string(&compact),
             "Compact { signblockscript: 0102, signblock_witness_limit: 3, elided_root: c3058c822b22a13bb7c47cf50d3f3c7817e7d9075ff55a7d16c85b9673e7e553 }",
         );
+        assert_eq!(compact.calculate_root(), full.calculate_root());
         assert_eq!(compact.elided_root(), Some(&extra_root));
         assert_eq!(compact.extra_root(), extra_root);
     }
@@ -704,13 +763,13 @@ mod tests {
     fn test_serde_roundtrip() {
         use serde_json;
 
-        let full = Params::Full {
+        let full = Params::Full(FullParams {
             signblockscript: vec![0x01, 0x02].into(),
             signblock_witness_limit: 3,
             fedpeg_program: vec![0x04, 0x05].into(),
             fedpegscript: vec![0x06, 0x07],
             extension_space: vec![vec![0x08, 0x09], vec![0x0a]],
-        };
+        });
         let encoded = serde_json::to_string(&full).unwrap();
         let decoded: Params = serde_json::from_str(&encoded).unwrap();
         assert_eq!(full, decoded);
