@@ -516,11 +516,19 @@ impl Nonce {
         secp: &Secp256k1<C>,
         receiver_blinding_pk: &PublicKey,
     ) -> (Self, SecretKey) {
-        let sender_sk = SecretKey::new(rng);
-        let sender_pk = PublicKey::from_secret_key(&secp, &sender_sk);
+        let ephemeral_sk = SecretKey::new(rng);
+        Self::with_ephemeral_sk(secp, ephemeral_sk, receiver_blinding_pk)
+    }
 
-        let shared_secret = Self::make_shared_secret(receiver_blinding_pk, &sender_sk);
-
+    /// Similar to [Nonce::new_confidential], but with a given `ephemeral_sk`
+    /// instead of sampling it from rng.
+    pub fn with_ephemeral_sk<C: Signing>(
+        secp: &Secp256k1<C>,
+        ephemeral_sk: SecretKey,
+        receiver_blinding_pk: &PublicKey
+    ) -> (Self, SecretKey) {
+        let sender_pk = PublicKey::from_secret_key(&secp, &ephemeral_sk);
+        let shared_secret = Self::make_shared_secret(receiver_blinding_pk, &ephemeral_sk);
         (Nonce::Confidential(sender_pk), shared_secret)
     }
 

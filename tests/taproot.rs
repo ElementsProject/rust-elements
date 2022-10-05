@@ -173,7 +173,6 @@ fn taproot_spend_test(
     let inp = TxIn {
         previous_output: test_data.prevout,
         is_pegin: false,
-        has_issuance: false,
         script_sig: Script::new(),
         sequence: u32::MAX - 1,
         asset_issuance: AssetIssuance::default(),
@@ -200,7 +199,8 @@ fn taproot_spend_test(
         tx.blind(
             &mut thread_rng(),
             &secp,
-            &[(test_data.utxo.asset, &test_data.txout_secrets)],
+            &[test_data.txout_secrets],
+            false
         )
         .unwrap();
     }

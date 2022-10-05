@@ -623,7 +623,6 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             tx.input = vec![TxIn {
                 previous_output: self.tx.input[input_index].previous_output,
                 is_pegin: self.tx.input[input_index].is_pegin,
-                has_issuance: self.tx.input[input_index].has_issuance,
                 script_sig: script_pubkey.clone(),
                 sequence: self.tx.input[input_index].sequence,
                 asset_issuance: self.tx.input[input_index].asset_issuance,
@@ -635,7 +634,6 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
                 tx.input.push(TxIn {
                     previous_output: input.previous_output,
                     is_pegin: input.is_pegin,
-                    has_issuance: input.has_issuance,
                     script_sig: if n == input_index { script_pubkey.clone() } else { Script::new() },
                     sequence: if n != input_index && (sighash == EcdsaSigHashType::Single || sighash == EcdsaSigHashType::None) { 0 } else { input.sequence },
                     asset_issuance: input.asset_issuance,

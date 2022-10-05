@@ -146,6 +146,15 @@ impl AddressParams {
         bech_hrp: "ert",
         blech_hrp: "el",
     };
+
+    /// The default liquid testnet network address parameters.
+    pub const LIQUID_TESTNET: AddressParams = AddressParams {
+        p2pkh_prefix: 36,
+        p2sh_prefix: 19,
+        blinded_prefix: 23,
+        bech_hrp: "tex",
+        blech_hrp: "tlq",
+    };
 }
 
 /// The method used to produce an address
@@ -439,7 +448,7 @@ impl Address {
         if data.len() < 2 || data.len() > 40 + if blinded { 33 } else { 0 } {
             return Err(AddressError::InvalidWitnessProgramLength(data.len() - if blinded { 33 } else { 0 }));
         }
- 
+
         // Specific segwit v0 check.
         if !blinded && version.to_u8() == 0 && data.len() != 20 && data.len() != 32 {
             return Err(AddressError::InvalidSegwitV0ProgramLength(data.len()));
@@ -649,20 +658,19 @@ impl FromStr for Address {
         // shorthands
         let liq = &AddressParams::LIQUID;
         let ele = &AddressParams::ELEMENTS;
+        let liq_test = &AddressParams::LIQUID_TESTNET;
 
-        // Bech32.
+        let net_arr = [liq, ele, liq_test];
+
         let prefix = find_prefix(s);
-        if match_prefix(prefix, liq.bech_hrp) {
-            return Address::from_bech32(s, false, liq);
-        }
-        if match_prefix(prefix, liq.blech_hrp) {
-            return Address::from_bech32(s, true, liq);
-        }
-        if match_prefix(prefix, ele.bech_hrp) {
-            return Address::from_bech32(s, false, ele);
-        }
-        if match_prefix(prefix, ele.blech_hrp) {
-            return Address::from_bech32(s, true, ele);
+        for net in net_arr.iter() {
+            // Bech32.
+            if match_prefix(prefix, net.bech_hrp) {
+                return Address::from_bech32(s, false, net);
+            }
+            if match_prefix(prefix, net.blech_hrp) {
+                return Address::from_bech32(s, true, net);
+            }
         }
 
         // Base58.
@@ -675,11 +683,10 @@ impl FromStr for Address {
         }
 
         let p = data[0];
-        if p == liq.p2pkh_prefix || p == liq.p2sh_prefix || p == liq.blinded_prefix {
-            return Address::from_base58(&data, liq);
-        }
-        if p == ele.p2pkh_prefix || p == ele.p2sh_prefix || p == ele.blinded_prefix {
-            return Address::from_base58(&data, ele);
+        for net in net_arr.iter() {
+            if p == net.p2pkh_prefix || p == net.p2sh_prefix || p == net.blinded_prefix {
+                return Address::from_base58(&data, net);
+            }
         }
 
         Err(AddressError::InvalidAddress(s.to_owned()))
