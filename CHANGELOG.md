@@ -1,5 +1,10 @@
-# unreleased
+# 0.20.0 - 2022-06-10
 
+- Remove has_issuance field in TxIn, calculate it directly to avoid the user provide it.
+- Blinding API cleanup into smaller chunks
+- Issuance: add support for blinding, and surjection proof verification
+- Pset: allow inserting inputs/outputs at specified position, fix Tweak serde and key bug
+- Add liquid test parameters
 - the feature "serde-feature" is now renamed to just "serde"
 - update MSRV to 1.41.1
 - breaking change in serde in how the Nonce is serialized
