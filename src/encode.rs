@@ -226,9 +226,6 @@ macro_rules! impl_upstream {
 impl_upstream!(u8);
 impl_upstream!(u32);
 impl_upstream!(u64);
-impl_upstream!(crate::PackedLockTime);
-impl_upstream!(crate::LockTime);
-impl_upstream!(crate::Sequence);
 impl_upstream!([u8; 4]);
 impl_upstream!([u8; 32]);
 impl_upstream!(Box<[u8]>);

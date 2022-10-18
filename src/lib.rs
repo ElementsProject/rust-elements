@@ -44,13 +44,16 @@ mod block;
 pub mod confidential;
 pub mod dynafed;
 pub mod encode;
+mod error;
 mod fast_merkle_root;
 pub mod hash_types;
+pub mod locktime;
 pub mod issuance;
 pub mod opcodes;
 pub mod script;
 mod transaction;
 mod blind;
+mod parse;
 pub mod slip77;
 pub mod sighash;
 pub mod pset;
@@ -62,12 +65,10 @@ mod serde_utils;
 mod endian;
 // re-export bitcoin deps which we re-use
 pub use bitcoin::{bech32, hashes};
-// re-export bitcoin locktime types, which have identical semantics as in Elements,
-//  and differ only by what kind of transaction they appear in.
-pub use bitcoin::{blockdata::locktime, LockTime, PackedLockTime, Sequence};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressParams, AddressError};
 pub use crate::transaction::{OutPoint, PeginData, PegoutData, EcdsaSigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
+pub use crate::transaction::Sequence;
 pub use crate::blind::{ConfidentialTxOutError, TxOutSecrets, SurjectionInput, TxOutError, VerificationError, BlindError, UnblindError, BlindValueProofs, BlindAssetProofs};
 pub use crate::block::{BlockHeader, Block};
 pub use crate::block::ExtData as BlockExtData;
@@ -75,6 +76,7 @@ pub use ::bitcoin::consensus::encode::VarInt;
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;
 pub use crate::issuance::{AssetId, ContractHash};
+pub use crate::locktime::{LockTime, PackedLockTime};
 pub use crate::script::Script;
 pub use crate::sighash::SchnorrSigHashType;
 pub use crate::schnorr::{SchnorrSig, SchnorrSigError};
