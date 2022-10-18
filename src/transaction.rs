@@ -26,7 +26,7 @@ use crate::encode::{self, Encodable, Decodable};
 use crate::issuance::AssetId;
 use crate::opcodes;
 use crate::script::Instruction;
-use crate::{Script, Txid, Wtxid};
+use crate::{PackedLockTime, Script, Sequence, Txid, Wtxid};
 use secp256k1_zkp::{
     RangeProof, SurjectionProof, Tweak, ZERO_TWEAK,
 };
@@ -247,7 +247,7 @@ pub struct TxIn {
     /// conflicting transactions should be preferred, or 0xFFFFFFFF
     /// to ignore this feature. This is generally never used since
     /// the miner behaviour cannot be enforced.
-    pub sequence: u32,
+    pub sequence: Sequence,
     /// Asset issuance data
     pub asset_issuance: AssetIssuance,
     /// Witness data - not deserialized/serialized as part of a `TxIn` object
@@ -262,7 +262,7 @@ impl Default for TxIn {
             previous_output: Default::default(), // same as in rust-bitcoin
             is_pegin: false,
             script_sig: Script::new(),
-            sequence: u32::max_value(), // same as in rust-bitcoin
+            sequence: Sequence::MAX, // same as in rust-bitcoin
             asset_issuance: Default::default(),
             witness: Default::default()
         }
@@ -296,7 +296,7 @@ impl Decodable for TxIn {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<TxIn, encode::Error> {
         let mut outp = OutPoint::consensus_decode(&mut d)?;
         let script_sig = Script::consensus_decode(&mut d)?;
-        let sequence = u32::consensus_decode(&mut d)?;
+        let sequence = Sequence::consensus_decode(&mut d)?;
         let issuance;
         let is_pegin;
         let has_issuance;
@@ -598,12 +598,12 @@ impl TxOut {
 }
 
 /// Elements transaction
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Transaction {
     /// Transaction version field (should always be 2)
     pub version: u32,
     /// Transaction locktime
-    pub lock_time: u32,
+    pub lock_time: PackedLockTime,
     /// Vector of inputs
     pub input: Vec<TxIn>,
     /// Vector of outputs
@@ -787,7 +787,7 @@ impl Decodable for Transaction {
         let wit_flag = u8::consensus_decode(&mut d)?;
         let mut input = Vec::<TxIn>::consensus_decode(&mut d)?;
         let mut output = Vec::<TxOut>::consensus_decode(&mut d)?;
-        let lock_time = u32::consensus_decode(&mut d)?;
+        let lock_time = PackedLockTime::consensus_decode(&mut d)?;
 
         match wit_flag {
             0 => Ok(Transaction {
@@ -991,7 +991,7 @@ mod tests {
 
         let tx = Transaction {
             version: 0,
-            lock_time: 0,
+            lock_time: PackedLockTime::ZERO,
             input: vec![],
             output: vec![fee1, fee2],
         };

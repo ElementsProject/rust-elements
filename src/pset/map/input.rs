@@ -23,7 +23,7 @@ use std::{
 use crate::taproot::{ControlBlock, LeafVersion, TapBranchHash, TapLeafHash};
 use crate::{schnorr, AssetId, ContractHash};
 
-use crate::confidential;
+use crate::{confidential, locktime};
 use crate::encode::{self, Decodable};
 use crate::hashes::{self, hash160, ripemd160, sha256, sha256d};
 use crate::pset::map::Map;
@@ -37,7 +37,7 @@ use bitcoin::{self, PublicKey};
 use hashes::Hash;
 use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
 
-use crate::OutPoint;
+use crate::{OutPoint, Sequence};
 
 /// Type: Non-Witness UTXO PSET_IN_NON_WITNESS_UTXO = 0x00
 const PSET_IN_NON_WITNESS_UTXO: u8 = 0x00;
@@ -216,11 +216,11 @@ pub struct Input {
     /// (PSET) Prevout vout of the input
     pub previous_output_index: u32,
     /// (PSET) Sequence number. If omitted, defaults to 0xffffffff
-    pub sequence: Option<u32>,
+    pub sequence: Option<Sequence>,
     /// (PSET) Minimum required locktime, as a UNIX timestamp. If present, must be greater than or equal to 500000000
-    pub required_time_locktime: Option<u32>,
+    pub required_time_locktime: Option<locktime::Time>,
     /// (PSET) Minimum required locktime, as a blockheight. If present, must be less than 500000000
-    pub required_height_locktime: Option<u32>,
+    pub required_height_locktime: Option<locktime::Height>,
     /// Serialized schnorr signature with sighash type for key spend
     pub tap_key_sig: Option<schnorr::SchnorrSig>,
     /// Map of <xonlypubkey>|<leafhash> with signature
@@ -607,17 +607,17 @@ impl Map for Input {
             }
             PSET_IN_SEQUENCE => {
                 impl_pset_insert_pair! {
-                    self.sequence <= <raw_key: _>|<raw_value: u32>
+                    self.sequence <= <raw_key: _>|<raw_value: Sequence>
                 }
             }
             PSET_IN_REQUIRED_TIME_LOCKTIME => {
                 impl_pset_insert_pair! {
-                    self.required_time_locktime <= <raw_key: _>|<raw_value: u32>
+                    self.required_time_locktime <= <raw_key: _>|<raw_value: locktime::Time>
                 }
             }
             PSET_IN_REQUIRED_HEIGHT_LOCKTIME => {
                 impl_pset_insert_pair! {
-                    self.required_height_locktime <= <raw_key: _>|<raw_value: u32>
+                    self.required_height_locktime <= <raw_key: _>|<raw_value: locktime::Height>
                 }
             }
             PSBT_IN_TAP_KEY_SIG => {

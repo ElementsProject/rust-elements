@@ -62,6 +62,9 @@ mod serde_utils;
 mod endian;
 // re-export bitcoin deps which we re-use
 pub use bitcoin::{bech32, hashes};
+// re-export bitcoin locktime types, which have identical semantics as in Elements,
+//  and differ only by what kind of transaction they appear in.
+pub use bitcoin::{blockdata::locktime, LockTime, PackedLockTime, Sequence};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressParams, AddressError};
 pub use crate::transaction::{OutPoint, PeginData, PegoutData, EcdsaSigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
