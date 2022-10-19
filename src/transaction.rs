@@ -432,6 +432,11 @@ impl<'tx> PeginData<'tx> {
             self.merkle_proof.to_vec(),
         ]
     }
+
+    /// Parse the mainchain tx provided as pegin data.
+    pub fn parse_tx(&self) -> Result<bitcoin::Transaction, bitcoin::consensus::encode::Error> {
+        bitcoin::consensus::encode::deserialize(self.tx)
+    }
 }
 
 /// A transaction input, which defines old coins to be consumed
