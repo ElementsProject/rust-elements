@@ -402,18 +402,14 @@ impl<'tx> PeginData<'tx> {
     /// Returns None if not a valid pegin witness.
     pub fn from_pegin_witness(
         pegin_witness: &'tx [Vec<u8>],
-        prevout: OutPoint,
+        prevout: bitcoin::OutPoint,
     ) -> Result<PeginData<'tx>, &'static str> {
         if pegin_witness.len() != 6 {
             return Err("size not 6");
         }
 
         Ok(PeginData {
-            // Cast of an elements::OutPoint to a bitcoin::OutPoint
-            outpoint: bitcoin::OutPoint {
-                txid: bitcoin::Txid::from(prevout.txid.as_hash()),
-                vout: prevout.vout,
-            },
+            outpoint: prevout,
             value: bitcoin::consensus::deserialize(&pegin_witness[0]).map_err(|_| "invalid value")?,
             asset: encode::deserialize(&pegin_witness[1]).map_err(|_| "invalid asset")?,
             genesis_hash: bitcoin::consensus::deserialize(&pegin_witness[2])
@@ -543,15 +539,26 @@ impl TxIn {
         self.is_pegin
     }
 
+    /// In case of a pegin input, returns the Bitcoin prevout.
+    pub fn pegin_prevout(&self) -> Option<bitcoin::OutPoint> {
+        if self.is_pegin {
+            // here we have to cast the previous_output to a bitcoin one
+            Some(bitcoin::OutPoint {
+                txid: bitcoin::Txid::from(self.previous_output.txid.as_hash()),
+                vout: self.previous_output.vout,
+            })
+        } else {
+            None
+        }
+    }
+
     /// Extracts witness data from a pegin. Will return `None` if any data
     /// cannot be parsed. The combination of `is_pegin()` returning `true`
     /// and `pegin_data()` returning `None` indicates an invalid transaction.
     pub fn pegin_data(&self) -> Option<PeginData> {
-        if !self.is_pegin {
-            return None
-        }
-
-        PeginData::from_pegin_witness(&self.witness.pegin_witness, self.previous_output).ok()
+        self.pegin_prevout().and_then(|p| {
+            PeginData::from_pegin_witness(&self.witness.pegin_witness, p).ok()
+        })
     }
 
     /// Helper to determine whether an input has an asset issuance attached
