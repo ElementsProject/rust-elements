@@ -1,3 +1,8 @@
+# 0.21.0 - 2022-10-19
+
+- Copy `Sequence` and `LockTime` structures from rust-bitcoin 0.29.1
+- Add `Txin::pegin_prevout` method which returns a `bitcoin::Outpoint`; modify `PeginData::from_pegin_witness` to take a bitcoin outpoint
+
 # 0.20.0 - 2022-06-10
 
 - Remove has_issuance field in TxIn, calculate it directly to avoid the user provide it.
