@@ -18,8 +18,8 @@ use elements::sighash::{self, SigHashCache};
 use elements::taproot::{LeafVersion, TapTweakHash, TaprootBuilder, TaprootSpendInfo, TapLeafHash};
 use elements::OutPoint;
 use elements::{
-    confidential, opcodes, AssetIssuance, BlockHash, SchnorrSig, SchnorrSigHashType, Script,
-    TxInWitness, TxOut, Txid,
+    confidential, opcodes, AssetIssuance, BlockHash, PackedLockTime, SchnorrSig, SchnorrSigHashType, Script,
+    Sequence, TxInWitness, TxOut, Txid,
 };
 use elements::{AddressParams, Transaction, TxIn, TxOutSecrets};
 use elementsd::bitcoincore_rpc::jsonrpc::serde_json::{json, Value};
@@ -168,13 +168,17 @@ fn taproot_spend_test(
     let test_data = funded_tap_txout(&elementsd, &secp, blind_prevout);
 
     // create a new spend that spends the above output
-    let mut tx = Transaction::default();
-    tx.version = 2;
+    let mut tx = Transaction {
+        version: 2,
+        lock_time: PackedLockTime::ZERO,
+        input: vec![],
+        output: vec![],
+    };
     let inp = TxIn {
         previous_output: test_data.prevout,
         is_pegin: false,
         script_sig: Script::new(),
-        sequence: u32::MAX - 1,
+        sequence: Sequence::MAX,
         asset_issuance: AssetIssuance::default(),
         witness: TxInWitness::default(),
     };

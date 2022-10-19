@@ -28,6 +28,7 @@ use std::io;
 use crate::endian;
 use crate::transaction::{EcdsaSigHashType, Transaction, TxIn, TxOut, TxInWitness};
 use crate::confidential;
+use crate::Sequence;
 use std::fmt;
 use crate::taproot::{TapSighashHash, TapLeafHash};
 
@@ -635,7 +636,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
                     previous_output: input.previous_output,
                     is_pegin: input.is_pegin,
                     script_sig: if n == input_index { script_pubkey.clone() } else { Script::new() },
-                    sequence: if n != input_index && (sighash == EcdsaSigHashType::Single || sighash == EcdsaSigHashType::None) { 0 } else { input.sequence },
+                    sequence: if n != input_index && (sighash == EcdsaSigHashType::Single || sighash == EcdsaSigHashType::None) { Sequence::ZERO } else { input.sequence },
                     asset_issuance: input.asset_issuance,
                     witness: TxInWitness::default(),
                 });
@@ -812,12 +813,12 @@ impl<R: DerefMut<Target = Transaction>> SigHashCache<R> {
     ///
     /// This allows in-line signing such as
     /// ```
-    /// use elements::{Transaction, EcdsaSigHashType};
+    /// use elements::{PackedLockTime, Transaction, EcdsaSigHashType};
     /// use elements::sighash::SigHashCache;
     /// use elements::Script;
     /// use elements::confidential;
     ///
-    /// let mut tx_to_sign = Transaction { version: 2, lock_time: 0, input: Vec::new(), output: Vec::new() };
+    /// let mut tx_to_sign = Transaction { version: 2, lock_time: PackedLockTime::ZERO, input: Vec::new(), output: Vec::new() };
     /// let input_count = tx_to_sign.input.len();
     ///
     /// let mut sig_hasher = SigHashCache::new(&mut tx_to_sign);

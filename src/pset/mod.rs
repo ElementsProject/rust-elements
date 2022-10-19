@@ -38,7 +38,7 @@ use crate::{
     confidential::{AssetBlindingFactor, ValueBlindingFactor},
     TxOutSecrets,
 };
-use crate::{OutPoint, SurjectionInput, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness, Txid};
+use crate::{OutPoint, LockTime, Sequence, SurjectionInput, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness, Txid};
 use bitcoin;
 use secp256k1_zkp::rand::{CryptoRng, RngCore};
 use secp256k1_zkp::{self, RangeProof, SecretKey, SurjectionProof};
@@ -190,23 +190,23 @@ impl PartiallySignedTransaction {
     }
 
     /// Accessor for the locktime to be used in the final transaction
-    pub fn locktime(&self) -> Result<u32, Error> {
+    pub fn locktime(&self) -> Result<LockTime, Error> {
         match self.global.tx_data {
             GlobalTxData {
                 fallback_locktime, ..
             } => {
                 #[derive(PartialEq, Eq, PartialOrd, Ord)]
-                enum Locktime {
+                enum Locktime<T: Ord> {
                     /// No inputs have specified this type of locktime
                     Unconstrained,
                     /// The locktime must be at least this much
-                    Minimum(u32),
+                    Minimum(T),
                     /// Some input exclusively requires the other type of locktime
                     Disallowed,
                 }
 
-                let mut time_locktime = Locktime::Unconstrained;
-                let mut height_locktime = Locktime::Unconstrained;
+                let mut time_locktime = Locktime::<crate::locktime::Time>::Unconstrained;
+                let mut height_locktime = Locktime::<crate::locktime::Height>::Unconstrained;
                 for inp in &self.inputs {
                     match (inp.required_time_locktime, inp.required_height_locktime) {
                         (Some(rt), Some(rh)) => {
@@ -227,10 +227,10 @@ impl PartiallySignedTransaction {
 
                 match (time_locktime, height_locktime) {
                     (Locktime::Unconstrained, Locktime::Unconstrained) => {
-                        Ok(fallback_locktime.unwrap_or(0))
+                        Ok(fallback_locktime.map(LockTime::from).unwrap_or(LockTime::ZERO))
                     }
-                    (Locktime::Minimum(x), _) => Ok(x),
-                    (_, Locktime::Minimum(x)) => Ok(x),
+                    (Locktime::Minimum(x), _) => Ok(x.into()),
+                    (_, Locktime::Minimum(x)) => Ok(x.into()),
                     (Locktime::Disallowed, Locktime::Disallowed) => Err(Error::LocktimeConflict),
                     (Locktime::Unconstrained, Locktime::Disallowed) => unreachable!(),
                     (Locktime::Disallowed, Locktime::Unconstrained) => unreachable!(),
@@ -249,7 +249,7 @@ impl PartiallySignedTransaction {
         // transaction must be set to 0 (not final, nor the sequence in PSBT_IN_SEQUENCE).
         // The lock time in this unsigned transaction must be computed as described previously.
         for inp in tx.input.iter_mut() {
-            inp.sequence = 0;
+            inp.sequence = Sequence::from_height(0);
         }
         Ok(tx.txid())
     }
@@ -279,7 +279,7 @@ impl PartiallySignedTransaction {
                 previous_output: OutPoint::new(psetin.previous_txid, psetin.previous_output_index),
                 is_pegin: psetin.is_pegin(),
                 script_sig: psetin.final_script_sig.clone().unwrap_or_default(),
-                sequence: psetin.sequence.unwrap_or(0xffffffff),
+                sequence: psetin.sequence.unwrap_or(Sequence::MAX),
                 asset_issuance: psetin.asset_issuance(),
                 witness: TxInWitness {
                     amount_rangeproof: psetin.issuance_value_rangeproof.clone(),
@@ -325,7 +325,7 @@ impl PartiallySignedTransaction {
         }
         Ok(Transaction {
             version: self.global.tx_data.version,
-            lock_time: locktime,
+            lock_time: locktime.into(),
             input: inputs,
             output: outputs,
         })

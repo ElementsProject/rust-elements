@@ -61,6 +61,8 @@ pub enum Error {
     PsetError(pset::Error),
     /// Hex parsing errors
     HexError(hashes::hex::Error),
+    /// Got a time-based locktime when expecting a height-based one, or vice-versa
+    BadLockTime(crate::LockTime)
 }
 
 impl fmt::Display for Error {
@@ -81,6 +83,7 @@ impl fmt::Display for Error {
             Error::Secp256k1zkp(ref e) => write!(f, "{}", e),
             Error::PsetError(ref e) => write!(f, "Pset Error: {}", e),
             Error::HexError(ref e) => write!(f, "Hex error {}", e),
+            Error::BadLockTime(ref lt) => write!(f, "Invalid locktime {}", lt),
         }
     }
 }
@@ -234,6 +237,36 @@ impl_upstream!(crate::hashes::sha256d::Hash);
 impl_upstream!(bitcoin::Transaction);
 impl_upstream!(bitcoin::BlockHash);
 impl_upstream!(bitcoin::Script);
+
+// Specific locktime types (which appear in PSET/PSBT2 but not in rust-bitcoin PSBT)
+impl Encodable for crate::locktime::Height {
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+        crate::LockTime::from(*self).consensus_encode(s)
+    }
+}
+impl Decodable for crate::locktime::Height {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
+        match crate::LockTime::consensus_decode(d)? {
+            crate::LockTime::Blocks(h) => Ok(h),
+            x @ crate::LockTime::Seconds(_) => Err(Error::BadLockTime(x)),
+        }
+    }
+}
+
+
+impl Encodable for crate::locktime::Time {
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+        crate::LockTime::from(*self).consensus_encode(s)
+    }
+}
+impl Decodable for crate::locktime::Time {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
+        match crate::LockTime::consensus_decode(d)? {
+            crate::LockTime::Seconds(t) => Ok(t),
+            x @ crate::LockTime::Blocks(_) => Err(Error::BadLockTime(x)),
+        }
+    }
+}
 
 
 // Vectors
