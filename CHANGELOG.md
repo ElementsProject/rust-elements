@@ -1,3 +1,9 @@
+
+# 0.21.1 - 2022-10-21
+
+- Add `PeginData::parse_tx`
+- Add `PeginData::parse_merkle_proof`
+
 # 0.21.0 - 2022-10-19
 
 - Copy `Sequence` and `LockTime` structures from rust-bitcoin 0.29.1
