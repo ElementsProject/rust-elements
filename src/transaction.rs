@@ -437,6 +437,11 @@ impl<'tx> PeginData<'tx> {
     pub fn parse_tx(&self) -> Result<bitcoin::Transaction, bitcoin::consensus::encode::Error> {
         bitcoin::consensus::encode::deserialize(self.tx)
     }
+
+    /// Parse the merkle inclusion proof provided as pegin data.
+    pub fn parse_merkle_proof(&self) -> Result<bitcoin::MerkleBlock, bitcoin::consensus::encode::Error> {
+        bitcoin::consensus::encode::deserialize(self.merkle_proof)
+    }
 }
 
 /// A transaction input, which defines old coins to be consumed
