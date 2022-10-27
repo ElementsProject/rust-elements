@@ -23,7 +23,7 @@ use bitcoin::hashes::{Hash, sha256, sha256d};
 use crate::encode::{self, Encodable, Decodable};
 use crate::Script;
 
-/// Dynamic federations paramaters, as encoded in a block header
+/// Dynamic federations parameters, as encoded in a block header
 #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Params {
     /// Null entry, used to signal "no vote" as a proposal
