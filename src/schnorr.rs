@@ -149,6 +149,31 @@ impl TweakedPublicKey {
     }
 }
 
+impl TweakedKeyPair {
+    /// Creates a new [`TweakedKeyPair`] from a [`KeyPair`]. No tweak is applied, consider
+    /// calling `tap_tweak` on an [`UntweakedKeyPair`] instead of using this constructor.
+    ///
+    /// This method is dangerous and can lead to loss of funds if used incorrectly.
+    /// Specifically, in multi-party protocols a peer can provide a value that allows them to steal.
+    #[inline]
+    pub fn dangerous_assume_tweaked(pair: KeyPair) -> TweakedKeyPair {
+        TweakedKeyPair(pair)
+    }
+
+    /// Returns the underlying key pair.
+    #[inline]
+    pub fn to_inner(self) -> KeyPair {
+        self.0
+    }
+
+    /// Returns the [`TweakedPublicKey`] and its [`Parity`] for this [`TweakedKeyPair`].
+    #[inline]
+    pub fn public_parts(&self) -> (TweakedPublicKey, secp256k1_zkp::Parity) {
+        let (xonly, parity) = self.0.x_only_public_key();
+        (TweakedPublicKey(xonly), parity)
+    }
+}
+
 /// A BIP340-341 serialized schnorr signature with the corresponding hash type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
