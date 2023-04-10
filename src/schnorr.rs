@@ -133,6 +133,13 @@ impl TapTweak for UntweakedKeyPair {
 }
 
 impl TweakedPublicKey {
+    /// Returns the [`TweakedPublicKey`] for `keypair`.
+    #[inline]
+    pub fn from_keypair(keypair: TweakedKeyPair) -> Self {
+        let (xonly, _parity) = keypair.0.x_only_public_key();
+        TweakedPublicKey(xonly)
+    }
+
     /// Create a new [TweakedPublicKey] from a [PublicKey]. No tweak is applied.
     pub fn new(key: XOnlyPublicKey) -> TweakedPublicKey {
         TweakedPublicKey(key)
