@@ -19,12 +19,10 @@
 
 use std::fmt;
 
-use secp256k1_zkp::Scalar;
-pub use secp256k1_zkp::{XOnlyPublicKey, KeyPair};
-use secp256k1_zkp::{self, Secp256k1, Verification, constants::SCHNORR_SIGNATURE_SIZE};
-use crate::hashes::{Hash, HashEngine};
 use crate::taproot::{TapBranchHash, TapTweakHash};
 use crate::SchnorrSigHashType;
+use secp256k1_zkp::{self, constants::SCHNORR_SIGNATURE_SIZE, Secp256k1, Verification};
+pub use secp256k1_zkp::{KeyPair, XOnlyPublicKey};
 
 /// Untweaked Schnorr public key
 pub type UntweakedPublicKey = XOnlyPublicKey;
@@ -33,38 +31,63 @@ pub type UntweakedPublicKey = XOnlyPublicKey;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TweakedPublicKey(XOnlyPublicKey);
 
-/// A trait for tweaking Schnorr public keys
+/// A trait for tweaking Schnorr key types (x-only public keys and key pairs).
 pub trait TapTweak {
-    /// Tweaks an untweaked public key given an untweaked key and optional script tree merkle root.
+    /// Tweaked key type with optional auxiliary information
+    type TweakedAux;
+    /// Tweaked key type
+    type TweakedKey;
+
+    /// Tweaks an untweaked key with corresponding public key value and optional script tree merkle
+    /// root. For the [`KeyPair`] type this also tweaks the private key in the pair.
     ///
     /// This is done by using the equation Q = P + H(P|c)G, where
-    ///  * Q is the tweaked key
-    ///  * P is the internal key
+    ///  * Q is the tweaked public key
+    ///  * P is the internal public key
     ///  * H is the hash function
     ///  * c is the commitment data
     ///  * G is the generator point
-    fn tap_tweak<C: Verification>(self, secp: &Secp256k1<C>, merkle_root: Option<TapBranchHash>) -> (TweakedPublicKey, secp256k1_zkp::Parity);
+    ///
+    /// # Returns
+    /// The tweaked key and its parity.
+    fn tap_tweak<C: Verification>(
+        self,
+        secp: &Secp256k1<C>,
+        merkle_root: Option<TapBranchHash>,
+    ) -> Self::TweakedAux;
 
-    /// Directly convert an UntweakedPublicKey to a TweakedPublicKey
+    /// Directly converts to a `TweakedKey`
     ///
     /// This method is dangerous and can lead to loss of funds if used incorrectly.
     /// Specifically, in multi-party protocols a peer can provide a value that allows them to steal.
-    fn dangerous_assume_tweaked(self) -> TweakedPublicKey;
+    fn dangerous_assume_tweaked(self) -> Self::TweakedKey;
 }
 
 impl TapTweak for UntweakedPublicKey {
-    fn tap_tweak<C: Verification>(self, secp: &Secp256k1<C>, merkle_root: Option<TapBranchHash>) -> (TweakedPublicKey, secp256k1_zkp::Parity) {
-        // Compute the tweak
-        let mut engine = TapTweakHash::engine();
-        engine.input(&self.serialize());
-        merkle_root.map(|hash| engine.input(&hash));
-        let tweak_value: [u8; 32] = TapTweakHash::from_engine(engine).into_inner();
-        let tweak_value = Scalar::from_be_bytes(tweak_value).expect("hash value greater than curve order");
+    type TweakedAux = (TweakedPublicKey, secp256k1_zkp::Parity);
+    type TweakedKey = TweakedPublicKey;
 
-        //Tweak the internal key by the tweak value
-        let (output_key, parity) = self.clone().add_tweak(secp, &tweak_value).expect("Tap tweak failed");
-        debug_assert!(self.tweak_add_check(&secp, &output_key, parity, tweak_value));
+    /// Tweaks an untweaked public key with corresponding public key value and optional script tree
+    /// merkle root.
+    ///
+    /// This is done by using the equation Q = P + H(P|c)G, where
+    ///  * Q is the tweaked public key
+    ///  * P is the internal public key
+    ///  * H is the hash function
+    ///  * c is the commitment data
+    ///  * G is the generator point
+    ///
+    /// # Returns
+    /// The tweaked key and its parity.
+    fn tap_tweak<C: Verification>(
+        self,
+        secp: &Secp256k1<C>,
+        merkle_root: Option<TapBranchHash>,
+    ) -> (TweakedPublicKey, secp256k1_zkp::Parity) {
+        let tweak = TapTweakHash::from_key_and_tweak(self, merkle_root).to_scalar();
+        let (output_key, parity) = self.add_tweak(secp, &tweak).expect("Tap tweak failed");
 
+        debug_assert!(self.tweak_add_check(secp, &output_key, parity, tweak));
         (TweakedPublicKey(output_key), parity)
     }
 
