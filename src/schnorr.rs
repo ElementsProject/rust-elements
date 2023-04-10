@@ -181,6 +181,27 @@ impl TweakedKeyPair {
     }
 }
 
+impl From<TweakedPublicKey> for XOnlyPublicKey {
+    #[inline]
+    fn from(pair: TweakedPublicKey) -> Self {
+        pair.0
+    }
+}
+
+impl From<TweakedKeyPair> for KeyPair {
+    #[inline]
+    fn from(pair: TweakedKeyPair) -> Self {
+        pair.0
+    }
+}
+
+impl From<TweakedKeyPair> for TweakedPublicKey {
+    #[inline]
+    fn from(pair: TweakedKeyPair) -> Self {
+        TweakedPublicKey::from_keypair(pair)
+    }
+}
+
 /// A BIP340-341 serialized schnorr signature with the corresponding hash type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
