@@ -31,6 +31,13 @@ pub type UntweakedPublicKey = XOnlyPublicKey;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct TweakedPublicKey(XOnlyPublicKey);
 
+/// Untweaked Schnorr key pair
+pub type UntweakedKeyPair = KeyPair;
+
+/// Tweaked Schnorr key pair
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub struct TweakedKeyPair(KeyPair);
+
 /// A trait for tweaking Schnorr key types (x-only public keys and key pairs).
 pub trait TapTweak {
     /// Tweaked key type with optional auxiliary information
@@ -97,6 +104,33 @@ impl TapTweak for UntweakedPublicKey {
     }
 }
 
+impl TapTweak for UntweakedKeyPair {
+    type TweakedAux = TweakedKeyPair;
+    type TweakedKey = TweakedKeyPair;
+
+    /// Tweaks private and public keys within an untweaked [`KeyPair`] with corresponding public key
+    /// value and optional script tree merkle root.
+    ///
+    /// This is done by tweaking private key within the pair using the equation q = p + H(P|c), where
+    ///  * q is the tweaked private key
+    ///  * p is the internal private key
+    ///  * H is the hash function
+    ///  * c is the commitment data
+    /// The public key is generated from a private key by multiplying with generator point, Q = qG.
+    ///
+    /// # Returns
+    /// The tweaked key and its parity.
+    fn tap_tweak<C: Verification>(self, secp: &Secp256k1<C>, merkle_root: Option<TapBranchHash>) -> TweakedKeyPair {
+        let (pubkey, _parity) = XOnlyPublicKey::from_keypair(&self);
+        let tweak = TapTweakHash::from_key_and_tweak(pubkey, merkle_root).to_scalar();
+        let tweaked = self.add_xonly_tweak(secp, &tweak).expect("Tap tweak failed");
+        TweakedKeyPair(tweaked)
+    }
+
+    fn dangerous_assume_tweaked(self) -> TweakedKeyPair {
+        TweakedKeyPair(self)
+    }
+}
 
 impl TweakedPublicKey {
     /// Create a new [TweakedPublicKey] from a [PublicKey]. No tweak is applied.
