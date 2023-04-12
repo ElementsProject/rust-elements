@@ -137,6 +137,40 @@ impl Call for ElementsD {
 
 #[cfg(test)]
 fn setup(validate_pegin: bool) -> (ElementsD, Option<BitcoinD>) {
+    // Create env var BITCOIND_EXE_PATH to point to the ../bitcoind/bin/bitcoind binary
+    let key = "BITCOIND_EXE";
+    if std::env::var(key).is_err() {
+        let mut root_path = std::env::current_dir().unwrap();
+        while std::fs::metadata(root_path.join("LICENSE")).is_err() {
+            if !root_path.pop() {
+                panic!("Could not find LICENSE file; do not know where repo root is.");
+            }
+        }
+
+        let bitcoind_path = root_path
+            .join("elementsd-tests")
+            .join("bin")
+            .join("bitcoind");
+        std::env::set_var(key, bitcoind_path);
+    }
+
+    // Create env var BITCOIND_EXE_PATH to point to the ../bitcoind/bin/bitcoind binary
+    let key = "ELEMENTSD_EXE";
+    if std::env::var(key).is_err() {
+        let mut root_path = std::env::current_dir().unwrap();
+        while std::fs::metadata(root_path.join("LICENSE")).is_err() {
+            if !root_path.pop() {
+                panic!("Could not find LICENSE file; do not know where repo root is.");
+            }
+        }
+
+        let bitcoind_path = root_path
+            .join("elementsd-tests")
+            .join("bin")
+            .join("elementsd");
+        std::env::set_var(key, bitcoind_path);
+    }
+
     let mut bitcoind = None;
     if validate_pegin {
         let bitcoind_exe = bitcoind::exe_path().unwrap();

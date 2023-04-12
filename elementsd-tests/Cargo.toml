@@ -9,6 +9,6 @@ edition = "2018"
 [dependencies]
 base64 = "0.13.0"
 elements = {path = "../"}
-elementsd = { version = "0.6.0", features = ["0_21_0", "bitcoind_22_0"] }
+elementsd = "0.6.0"
 rand = "0.8"
 

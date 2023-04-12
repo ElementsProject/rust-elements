@@ -1,16 +1,13 @@
-#![cfg(all(test, feature = "integration"))]
 
 extern crate elements;
 
-extern crate bitcoin;
 extern crate elementsd;
 extern crate rand;
 
-use crate::setup;
+use crate::{setup, Call};
 
-use bitcoin::hashes::hex::ToHex;
-use bitcoin::{Address, Amount};
-use elements::bitcoin::hashes::hex::FromHex;
+use elements::bitcoin::{self, Address, Amount};
+use elements::bitcoin::hashes::hex::{FromHex, ToHex};
 use elements::bitcoin::hashes::Hash;
 use elements::encode::{deserialize, serialize};
 use elements::pset::PartiallySignedTransaction;
@@ -159,56 +156,6 @@ fn psbt_rtt(elementsd: &ElementsD, base64: &str) {
             assert_ne!(a, decoded, "{} with changed byte {}", b_bytes.to_hex(), i);
         }
         b_bytes[i] = b_bytes[i].wrapping_sub(1);
-    }
-}
-
-impl Call for ElementsD {
-    fn call(&self, cmd: &str, args: &[Value]) -> Value {
-        self.client().call::<Value>(cmd, args).unwrap()
-    }
-
-    fn decode_psbt(&self, psbt: &str) -> Option<Value> {
-        self.client()
-            .call::<Value>("decodepsbt", &[psbt.into()])
-            .ok()
-    }
-
-    fn get_new_address(&self) -> String {
-        self.call("getnewaddress", &[])
-            .as_str()
-            .unwrap()
-            .to_string()
-    }
-
-    fn generate(&self, blocks: u32) {
-        let address = self.get_new_address();
-        let _value = self.call("generatetoaddress", &[blocks.into(), address.into()]);
-    }
-
-
-    fn expected_next(&self, base64: &str) -> String {
-        let value = self.call("analyzepsbt", &[base64.into()]);
-        value.get("next").unwrap().as_str().unwrap().to_string()
-    }
-
-    fn wallet_process_psbt(&self, base64: &str) -> String {
-        let value = self.call("walletprocesspsbt", &[base64.into()]);
-        value.get("psbt").unwrap().as_str().unwrap().to_string()
-    }
-
-    fn finalize_psbt(&self, base64: &str) -> String {
-        let value = self.call("finalizepsbt", &[base64.into()]);
-        value.get("hex").unwrap().as_str().unwrap().to_string()
-    }
-
-    fn get_balances(&self) -> Value {
-        self.call("getbalances", &[])
-    }
-
-    fn test_mempool_accept(&self, hex: &str) -> bool {
-        let result = self.call("testmempoolaccept", &[json!([hex])]);
-        let allowed = result.get(0).unwrap().get("allowed");
-        allowed.unwrap().as_bool().unwrap()
     }
 }
 
