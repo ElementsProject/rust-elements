@@ -7,16 +7,14 @@ extern crate rand;
 use crate::{setup, Call};
 
 use elements::bitcoin::{self, Address, Amount};
-use elements::bitcoin::hashes::hex::{FromHex, ToHex};
+use elements::bitcoin::hashes::hex::ToHex;
 use elements::bitcoin::hashes::Hash;
 use elements::encode::{deserialize, serialize};
 use elements::pset::PartiallySignedTransaction;
-use elements::Txid;
-use elements::{AssetId, ContractHash, OutPoint};
-use elementsd::bitcoincore_rpc::jsonrpc::serde_json::{json, Value};
+use elements::{AssetId, ContractHash};
+use elementsd::bitcoincore_rpc::jsonrpc::serde_json::json;
 use elementsd::bitcoincore_rpc::RpcApi;
-use elementsd::bitcoind::BitcoinD;
-use elementsd::{bitcoind, ElementsD};
+use elementsd::ElementsD;
 use rand::distributions::{Distribution, Uniform};
 use std::str::FromStr;
 
