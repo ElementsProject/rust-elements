@@ -1,13 +1,9 @@
-#![cfg(all(test, feature = "integration"))]
-
 extern crate elements;
 
-extern crate bitcoin;
-#[cfg(feature = "integration")]
 extern crate elementsd;
 extern crate rand;
 
-use bitcoin::{Amount, XOnlyPublicKey, KeyPair};
+use elements::bitcoin::{Amount, XOnlyPublicKey, KeyPair};
 use elements::bitcoin::hashes::hex::FromHex;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::encode::{deserialize, serialize_hex};

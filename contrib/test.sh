@@ -38,6 +38,8 @@ fi
 if [ "$DO_INTEGRATION" = true ]
 then
     (
-        cargo test --features integration
+        cd elementsd-tests
+        cargo test
+        cd ..
     )
 fi
