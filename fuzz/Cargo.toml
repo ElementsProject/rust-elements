@@ -15,7 +15,7 @@ honggfuzz_fuzz = ["honggfuzz"]
 [dependencies]
 honggfuzz = { version = "0.5", optional = true, default-features = false }
 afl = { version = "0.11", optional = true }
-elements = { path = "..", features = ["fuzztarget", "serde"] }
+elements = { path = "..", features = ["serde"] }
 
 # Prevent this from interfering with workspaces
 [workspace]
