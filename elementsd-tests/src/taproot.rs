@@ -3,6 +3,8 @@ extern crate elements;
 extern crate elementsd;
 extern crate rand;
 
+use crate::{Call, setup};
+
 use elements::bitcoin::{Amount, XOnlyPublicKey, KeyPair};
 use elements::bitcoin::hashes::hex::FromHex;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
@@ -18,27 +20,12 @@ use elements::{
     Sequence, TxInWitness, TxOut, Txid,
 };
 use elements::{AddressParams, Transaction, TxIn, TxOutSecrets};
-use elementsd::bitcoincore_rpc::jsonrpc::serde_json::{json, Value};
-use elementsd::bitcoincore_rpc::RpcApi;
-use elementsd::bitcoind::BitcoinD;
-use elementsd::{bitcoind, ElementsD};
+use elementsd::ElementsD;
 use rand::{rngs, thread_rng};
 use secp256k1_zkp::Secp256k1;
 use std::str::FromStr;
 
 static PARAMS: AddressParams = AddressParams::ELEMENTS;
-
-trait Call {
-    fn call(&self, cmd: &str, args: &[Value]) -> Value;
-    fn decode_psbt(&self, psbt: &str) -> Option<Value>;
-    fn get_new_address(&self) -> String;
-    fn send_to_address(&self, addr: &str, amt: &str) -> String;
-    fn get_transaction(&self, txid: &str) -> String;
-    fn get_block_hash(&self, id: u32) -> String;
-    fn test_mempool_accept(&self, hex: &str) -> bool;
-    fn send_raw_transaction(&self, hex: &str) -> String;
-    fn generate(&self, blocks: u32);
-}
 
 fn gen_keypair(
     secp: &secp256k1_zkp::Secp256k1<secp256k1_zkp::All>,
@@ -321,86 +308,3 @@ fn taproot_tests() {
     }
 }
 
-impl Call for ElementsD {
-    fn call(&self, cmd: &str, args: &[Value]) -> Value {
-        self.client().call::<Value>(cmd, args).unwrap()
-    }
-
-    fn decode_psbt(&self, psbt: &str) -> Option<Value> {
-        self.client()
-            .call::<Value>("decodepsbt", &[psbt.into()])
-            .ok()
-    }
-
-    fn get_new_address(&self) -> String {
-        self.call("getnewaddress", &[])
-            .as_str()
-            .unwrap()
-            .to_string()
-    }
-
-    fn get_transaction(&self, txid: &str) -> String {
-        self.call("gettransaction", &[txid.into()])["hex"]
-            .as_str()
-            .unwrap()
-            .to_string()
-    }
-
-    fn send_to_address(&self, addr: &str, amt: &str) -> String {
-        self.call("sendtoaddress", &[addr.into(), amt.into()])
-            .as_str()
-            .unwrap()
-            .to_string()
-    }
-
-    fn send_raw_transaction(&self, tx: &str) -> String {
-        self.call("sendrawtransaction", &[tx.into()])
-            .as_str()
-            .unwrap()
-            .to_string()
-    }
-
-    fn get_block_hash(&self, id: u32) -> String {
-        self.call("getblockhash", &[id.into()])
-            .as_str()
-            .unwrap()
-            .to_string()
-    }
-
-    fn generate(&self, blocks: u32) {
-        let address = self.get_new_address();
-        let _value = self.call("generatetoaddress", &[blocks.into(), address.into()]);
-    }
-
-    fn test_mempool_accept(&self, hex: &str) -> bool {
-        let result = self.call("testmempoolaccept", &[json!([hex])]);
-        let allowed = result.get(0).unwrap().get("allowed");
-        allowed.unwrap().as_bool().unwrap()
-    }
-}
-
-fn setup(validate_pegin: bool) -> (ElementsD, Option<BitcoinD>) {
-    let mut bitcoind = None;
-    if validate_pegin {
-        let bitcoind_exe = bitcoind::exe_path().unwrap();
-        let bitcoind_conf = bitcoind::Conf::default();
-        bitcoind = Some(bitcoind::BitcoinD::with_conf(&bitcoind_exe, &bitcoind_conf).unwrap());
-    }
-
-    let conf = elementsd::Conf::new(bitcoind.as_ref());
-
-    let elementsd = ElementsD::with_conf(elementsd::exe_path().unwrap(), &conf).unwrap();
-
-    let create = elementsd.call("createwallet", &["wallet".into()]);
-    assert_eq!(create.get("name").unwrap(), "wallet");
-
-    let rescan = elementsd.call("rescanblockchain", &[]);
-    assert_eq!(rescan.get("stop_height").unwrap(), 0);
-
-    let balances = elementsd.call("getbalances", &[]);
-    let mine = balances.get("mine").unwrap();
-    let trusted = mine.get("trusted").unwrap();
-    assert_eq!(trusted.get("bitcoin").unwrap(), 21.0);
-
-    (elementsd, bitcoind)
-}

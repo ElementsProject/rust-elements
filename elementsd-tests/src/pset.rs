@@ -3,9 +3,10 @@
 extern crate elements;
 
 extern crate bitcoin;
-#[cfg(feature = "integration")]
 extern crate elementsd;
 extern crate rand;
+
+use crate::setup;
 
 use bitcoin::hashes::hex::ToHex;
 use bitcoin::{Address, Amount};
@@ -21,21 +22,6 @@ use elementsd::bitcoind::BitcoinD;
 use elementsd::{bitcoind, ElementsD};
 use rand::distributions::{Distribution, Uniform};
 use std::str::FromStr;
-
-trait Call {
-    fn call(&self, cmd: &str, args: &[Value]) -> Value;
-    fn decode_psbt(&self, psbt: &str) -> Option<Value>;
-    fn get_new_address(&self) -> String;
-    fn get_pegin_address(&self) -> (String, String);
-    fn wallet_create_funded_psbt(&self, address: &str) -> String;
-    fn expected_next(&self, psbt: &str) -> String;
-    fn wallet_process_psbt(&self, psbt: &str) -> String;
-    fn finalize_psbt(&self, psbt: &str) -> String;
-    fn test_mempool_accept(&self, hex: &str) -> bool;
-    fn get_first_prevout(&self) -> OutPoint;
-    fn generate(&self, blocks: u32);
-    fn get_balances(&self) -> Value;
-}
 
 #[test]
 fn tx_unblinded() {
@@ -194,27 +180,11 @@ impl Call for ElementsD {
             .to_string()
     }
 
-    fn get_pegin_address(&self) -> (String, String) {
-        let value = self.call("getpeginaddress", &[]);
-        let mainchain_address = value.get("mainchain_address").unwrap();
-        let mainchain_address = mainchain_address.as_str().unwrap().to_string();
-        let claim_script = value.get("claim_script").unwrap();
-        let claim_script = claim_script.as_str().unwrap().to_string();
-        (mainchain_address, claim_script)
-    }
-
     fn generate(&self, blocks: u32) {
         let address = self.get_new_address();
         let _value = self.call("generatetoaddress", &[blocks.into(), address.into()]);
     }
 
-    fn wallet_create_funded_psbt(&self, address: &str) -> String {
-        let value = self.call(
-            "walletcreatefundedpsbt",
-            &[json!([]), json!([{address.to_string(): "1"}])],
-        );
-        value.get("psbt").unwrap().as_str().unwrap().to_string()
-    }
 
     fn expected_next(&self, base64: &str) -> String {
         let value = self.call("analyzepsbt", &[base64.into()]);
@@ -231,14 +201,6 @@ impl Call for ElementsD {
         value.get("hex").unwrap().as_str().unwrap().to_string()
     }
 
-    fn get_first_prevout(&self) -> OutPoint {
-        let value = self.call("listunspent", &[]);
-        let first = value.get(0).unwrap();
-        let txid = first.get("txid").unwrap().as_str().unwrap();
-        let vout = first.get("vout").unwrap().as_u64().unwrap();
-
-        OutPoint::new(Txid::from_hex(txid).unwrap(), vout as u32)
-    }
     fn get_balances(&self) -> Value {
         self.call("getbalances", &[])
     }
@@ -255,28 +217,3 @@ fn psbt_from_base64(base64: &str) -> PartiallySignedTransaction {
     deserialize(&bytes).unwrap()
 }
 
-fn setup(validate_pegin: bool) -> (ElementsD, Option<BitcoinD>) {
-    let mut bitcoind = None;
-    if validate_pegin {
-        let bitcoind_exe = bitcoind::exe_path().unwrap();
-        let bitcoind_conf = bitcoind::Conf::default();
-        bitcoind = Some(bitcoind::BitcoinD::with_conf(&bitcoind_exe, &bitcoind_conf).unwrap());
-    }
-
-    let conf = elementsd::Conf::new(bitcoind.as_ref());
-
-    let elementsd = ElementsD::with_conf(elementsd::exe_path().unwrap(), &conf).unwrap();
-
-    let create = elementsd.call("createwallet", &["wallet".into()]);
-    assert_eq!(create.get("name").unwrap(), "wallet");
-
-    let rescan = elementsd.call("rescanblockchain", &[]);
-    assert_eq!(rescan.get("stop_height").unwrap(), 0);
-
-    let balances = elementsd.call("getbalances", &[]);
-    let mine = balances.get("mine").unwrap();
-    let trusted = mine.get("trusted").unwrap();
-    assert_eq!(trusted.get("bitcoin").unwrap(), 21.0);
-
-    (elementsd, bitcoind)
-}
