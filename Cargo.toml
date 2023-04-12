@@ -18,7 +18,6 @@ json-contract = [ "serde_json" ]
     "secp256k1-zkp/use-serde",
     "actual-serde"
 ]
-"fuzztarget" = []
 
 [dependencies]
 bitcoin = "0.29.1"
