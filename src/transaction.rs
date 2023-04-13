@@ -869,6 +869,15 @@ impl Transaction {
         self.scaled_size(1)
     }
 
+    /// Returns the "virtual size" (vsize) of this transaction.
+    ///
+    /// Will be `ceil(weight / 4.0)`.
+    #[inline]
+    pub fn vsize(&self) -> usize {
+        let weight = self.weight();
+        (weight + 4 - 1) / 4
+    }
+
     fn scaled_size(&self, scale_factor: usize) -> usize {
         let witness_flag = self.has_witness();
 
