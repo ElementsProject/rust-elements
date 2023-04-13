@@ -19,6 +19,7 @@
 //! signatures, which are placed in the scriptSig.
 //!
 
+use std::borrow::Borrow;
 use crate::encode::{self, Encodable};
 use crate::hash_types::SigHash;
 use crate::hashes::{sha256d, Hash, sha256};
@@ -87,14 +88,14 @@ struct TaprootCache {
 /// Contains outputs of previous transactions.
 /// In the case [`SchnorrSigHashType`] variant is `ANYONECANPAY`, [`Prevouts::One`] may be provided
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Prevouts<'u> {
+pub enum Prevouts<'u, T> where T: 'u + Borrow<TxOut> {
     /// `One` variant allows to provide the single Prevout needed. It's useful for example
     /// when modifier `ANYONECANPAY` is provided, only prevout of the current input is needed.
     /// The first `usize` argument is the input index this [`TxOut`] is referring to.
-    One(usize, &'u TxOut),
+    One(usize, T),
     /// When `ANYONECANPAY` is not provided, or the caller is handy giving all prevouts so the same
     /// variable can be used for multiple inputs.
-    All(&'u [TxOut]),
+    All(&'u [T]),
 }
 
 const KEY_VERSION_0: u8 = 0u8;
@@ -166,7 +167,7 @@ impl fmt::Display for Error {
 
 impl ::std::error::Error for Error {}
 
-impl<'u> Prevouts<'u> {
+impl<'u, T> Prevouts<'u, T> where T: Borrow<TxOut> {
     fn check_all(&self, tx: &Transaction) -> Result<(), Error> {
         if let Prevouts::All(prevouts) = self {
             if prevouts.len() != tx.input.len() {
@@ -176,9 +177,9 @@ impl<'u> Prevouts<'u> {
         Ok(())
     }
 
-    fn get_all(&self) -> Result<&[TxOut], Error> {
+    fn get_all(&self) -> Result<&[T], Error> {
         match self {
-            Prevouts::All(prevouts) => Ok(prevouts),
+            Prevouts::All(prevouts) => Ok(*prevouts),
             _ => Err(Error::PrevoutKind),
         }
     }
@@ -187,12 +188,15 @@ impl<'u> Prevouts<'u> {
         match self {
             Prevouts::One(index, prevout) => {
                 if input_index == *index {
-                    Ok(prevout)
+                    Ok(prevout.borrow())
                 } else {
                     Err(Error::PrevoutIndex)
                 }
             }
-            Prevouts::All(prevouts) => prevouts.get(input_index).ok_or(Error::PrevoutIndex),
+            Prevouts::All(prevouts) => prevouts
+                .get(input_index)
+                .map(|x| x.borrow())
+                .ok_or(Error::PrevoutIndex),
         }
     }
 }
@@ -244,11 +248,11 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
 
     /// Encode the BIP341 signing data for any flag type into a given object implementing a
     /// io::Write trait.
-    pub fn taproot_encode_signing_data_to<Write: io::Write>(
+    pub fn taproot_encode_signing_data_to<Write: io::Write, T: Borrow<TxOut>>(
         &mut self,
         mut writer: Write,
         input_index: usize,
-        prevouts: &Prevouts,
+        prevouts: &Prevouts<T>,
         annex: Option<Annex>,
         leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
         sighash_type: SchnorrSigHashType,
@@ -417,10 +421,10 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     }
 
     /// Compute the BIP341 sighash for any flag type.
-    pub fn taproot_sighash(
+    pub fn taproot_sighash<T: Borrow<TxOut>>(
         &mut self,
         input_index: usize,
-        prevouts: &Prevouts,
+        prevouts: &Prevouts<T>,
         annex: Option<Annex>,
         leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
         sighash_type: SchnorrSigHashType,
@@ -440,10 +444,10 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     }
 
     /// Compute the BIP341 sighash for a key spend
-    pub fn taproot_key_spend_signature_hash(
+    pub fn taproot_key_spend_signature_hash<T: Borrow<TxOut>>(
         &mut self,
         input_index: usize,
-        prevouts: &Prevouts,
+        prevouts: &Prevouts<T>,
         sighash_type: SchnorrSigHashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
@@ -464,10 +468,10 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     ///
     /// Assumes the default `OP_CODESEPARATOR` position of `0xFFFFFFFF`. Custom values can be
     /// provided through the more fine-grained API of [`SighashCache::taproot_encode_signing_data_to`].
-    pub fn taproot_script_spend_signature_hash<S: Into<TapLeafHash>>(
+    pub fn taproot_script_spend_signature_hash<S: Into<TapLeafHash>, T: Borrow<TxOut>>(
         &mut self,
         input_index: usize,
-        prevouts: &Prevouts,
+        prevouts: &Prevouts<T>,
         leaf_hash: S,
         sighash_type: SchnorrSigHashType,
         genesis_hash: BlockHash,
@@ -760,14 +764,14 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     }
 
     #[inline]
-    fn taproot_cache(&mut self, prevouts: &[TxOut]) -> &TaprootCache {
+    fn taproot_cache<T: Borrow<TxOut>>(&mut self, prevouts: &[T]) -> &TaprootCache {
         Self::taproot_cache_minimal_borrow(&mut self.taproot_cache, &self.tx, prevouts)
     }
 
-    fn taproot_cache_minimal_borrow<'a>(
+    fn taproot_cache_minimal_borrow<'a, T: Borrow<TxOut>>(
         taproot_cache: &'a mut Option<TaprootCache>,
         tx: &R,
-        prevouts: &[TxOut],
+        prevouts: &[T],
     ) -> &'a TaprootCache {
         taproot_cache.get_or_insert_with(|| {
             let mut enc_asset_amounts = sha256::Hash::engine();
@@ -776,9 +780,10 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             let mut enc_issuance_rangeproofs = sha256::Hash::engine();
             let mut enc_output_witnesses = sha256::Hash::engine();
             for prevout in prevouts {
-                prevout.asset.consensus_encode(&mut enc_asset_amounts).unwrap();
-                prevout.value.consensus_encode(&mut enc_asset_amounts).unwrap();
+                prevout.borrow().asset.consensus_encode(&mut enc_asset_amounts).unwrap();
+                prevout.borrow().value.consensus_encode(&mut enc_asset_amounts).unwrap();
                 prevout
+                    .borrow()
                     .script_pubkey
                     .consensus_encode(&mut enc_script_pubkeys)
                     .unwrap();
