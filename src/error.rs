@@ -7,14 +7,10 @@ pub use crate::parse::ParseIntError;
 macro_rules! impl_std_error {
     // No source available
     ($type:ty) => {
-        #[cfg(feature = "std")]
-        #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
         impl std::error::Error for $type {}
     };
     // Struct with $field as source
     ($type:ty, $field:ident) => {
-        #[cfg(feature = "std")]
-        #[cfg_attr(docsrs, doc(cfg(feature = "std")))]
         impl std::error::Error for $type {
             fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
                 Some(&self.$field)
@@ -29,18 +25,11 @@ pub(crate) use impl_std_error;
 /// lost for no-std builds.
 macro_rules! write_err {
     ($writer:expr, $string:literal $(, $args:expr)*; $source:expr) => {
-        {   
-            #[cfg(feature = "std")]
-            {   
-                let _ = &$source;   // Prevents clippy warnings.
-                write!($writer, $string $(, $args)*)
-            }   
-            #[cfg(not(feature = "std"))]
-            {   
-                write!($writer, concat!($string, ": {}") $(, $args)*, $source)
-            }   
-        }   
-    }   
+        {
+            let _ = &$source;   // Prevents clippy warnings.
+            write!($writer, $string $(, $args)*)
+        }
+    }
 }
 pub(crate) use write_err;
 
