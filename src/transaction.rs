@@ -333,8 +333,6 @@ impl fmt::Display for RelativeLockTimeError {
 
 impl_parse_str_through_int!(Sequence);
 
-#[cfg(feature = "std")]
-#[cfg_attr(docsrs, doc(cfg(feature = "std")))]
 impl std::error::Error for RelativeLockTimeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
