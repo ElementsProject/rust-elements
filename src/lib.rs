@@ -25,12 +25,16 @@
 #![deny(unused_mut)]
 #![deny(missing_docs)]
 
+/// Re-export of bitcoin crate
 pub extern crate bitcoin;
 #[macro_use]
 extern crate bitcoin_hashes as just_imported_for_the_macros;
-extern crate slip21;
+/// Re-export of slip21 crate
+pub extern crate slip21;
+/// Re-export of secp256k1-zkp crate
 pub extern crate secp256k1_zkp;
-#[cfg(feature = "serde")] #[macro_use] extern crate actual_serde as serde;
+/// Re-export of serde crate
+#[cfg(feature = "serde")] #[macro_use] pub extern crate actual_serde as serde;
 #[cfg(all(test, feature = "serde"))] extern crate serde_test;
 
 #[cfg(test)] extern crate rand;
