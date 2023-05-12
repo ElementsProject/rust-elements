@@ -521,6 +521,9 @@ impl Decodable for TxIn {
         }
         if has_issuance {
             issuance = AssetIssuance::consensus_decode(&mut d)?;
+            if issuance.is_null() {
+                return Err(encode::Error::ParseFailed("superfluous asset issuance"));
+            }
         } else {
             issuance = AssetIssuance::default();
         }
@@ -2298,5 +2301,15 @@ mod tests {
             0000\
         ");
         assert!(tx.input[0].previous_output.is_null());
+    }
+
+    #[test]
+    fn superfluous_asset_issuance() {
+        let tx = Vec::<u8>::from_hex("1ae80068000109fee1000000000000000000000000000000000000000000000000000000000000005acf37f60000c7280028a7000000006e000000010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010115190000b9bfb80000000100000000d8d8d8d8d8d8d8d8d8d8d8d8d8d80000000000b8bfb8").unwrap();
+        if let encode::Error::ParseFailed("superfluous asset issuance") = Transaction::consensus_decode(&tx[..]).unwrap_err() {
+            // ok. FIXME replace this with matches! when we move to 1.48.0
+        } else {
+            panic!("Incorrect error for bad transaction");
+        }
     }
 }
