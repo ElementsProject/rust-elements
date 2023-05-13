@@ -6,7 +6,7 @@ extern crate rand;
 
 use crate::{setup, Call};
 
-use elements::bitcoin::{self, Address, Amount};
+use bitcoin30::{self, Address, Amount};
 use elements::bitcoin::hashes::hex::ToHex;
 use elements::bitcoin::hashes::Hash;
 use elements::encode::{deserialize, serialize};
@@ -60,7 +60,7 @@ fn tx_issuance() {
     let value = elementsd.call(
             "createpsbt",
             &[
-                json!([{ "txid": prevout.txid, "vout": prevout.vout, "issuance_amount": 1000, "issuance_tokens": 1}]),
+                json!([{ "txid": prevout.txid.to_string(), "vout": prevout.vout, "issuance_amount": 1000, "issuance_tokens": 1}]),
                 json!([
                     {address_asset: "1000", "asset": asset_id.to_string(), "blinder_index": 0},
                     {address_reissuance: "1", "asset": reissuance_id.to_string(), "blinder_index": 0},
@@ -87,23 +87,25 @@ fn tx_issuance() {
 fn tx_pegin() {
     let (elementsd, bitcoind) = setup(true);
     let bitcoind = bitcoind.unwrap();
-    let btc_addr = bitcoind.client.get_new_address(None, None).unwrap();
+    let btc_addr = bitcoind.client.get_new_address(None, None).unwrap()
+        .assume_checked();
     let address_lbtc = elementsd.get_new_address();
     bitcoind.client.generate_to_address(101, &btc_addr).unwrap();
     let (pegin_address, claim_script) = elementsd.get_pegin_address();
-    let address = Address::from_str(&pegin_address).unwrap();
+    let address = Address::from_str(&pegin_address).unwrap()
+        .assume_checked();
     let amount = Amount::from_sat(100_000_000);
     let txid = bitcoind
         .client
         .send_to_address(&address, amount, None, None, None, None, None, None)
         .unwrap();
     let tx = bitcoind.client.get_raw_transaction(&txid, None).unwrap();
-    let tx_bytes = serialize(&tx);
+    let tx_bytes = bitcoin30::consensus::serialize(&tx);
     let vout = tx
         .output
         .iter()
         .position(|o| {
-            let addr = Address::from_script(&o.script_pubkey, bitcoin::Network::Regtest);
+            let addr = Address::from_script(&o.script_pubkey, bitcoin30::Network::Regtest);
             addr.unwrap().to_string() == pegin_address
         })
         .unwrap();
