@@ -561,7 +561,7 @@ impl Nonce {
             sha256d::Hash::hash(&dh_secret).into_inner()
         };
 
-        SecretKey::from_slice(&shared_secret.as_ref()[..32]).expect("always has exactly 32 bytes")
+        SecretKey::from_slice(&shared_secret[..32]).expect("always has exactly 32 bytes")
     }
 
     /// Serialized length, in bytes
