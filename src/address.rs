@@ -19,8 +19,8 @@ use std::error;
 use std::fmt;
 use std::str::FromStr;
 
-use bitcoin::bech32::{self, u5, FromBase32, ToBase32};
-use bitcoin::util::base58;
+use bitcoin30::bech32::{self, u5, FromBase32, ToBase32};
+use bitcoin30::base58;
 use bitcoin::PublicKey;
 use bitcoin::hashes::Hash;
 use secp256k1_zkp;
@@ -550,7 +550,7 @@ impl Address {
         if s.len() > 150 {
             return Err(base58::Error::InvalidLength(s.len() * 11 / 15).into());
         }
-        let data = base58::from_check(s)?;
+        let data = base58::decode_check(s)?;
         Address::from_base58(&data, params)
     }
 }
@@ -565,12 +565,12 @@ impl fmt::Display for Address {
                     prefixed[1] = self.params.p2pkh_prefix;
                     prefixed[2..35].copy_from_slice(&blinder.serialize());
                     prefixed[35..].copy_from_slice(&hash[..]);
-                    base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                    base58::encode_check_to_fmt(fmt, &prefixed[..])
                 } else {
                     let mut prefixed = [0; 21];
                     prefixed[0] = self.params.p2pkh_prefix;
                     prefixed[1..].copy_from_slice(&hash[..]);
-                    base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                    base58::encode_check_to_fmt(fmt, &prefixed[..])
                 }
             }
             Payload::ScriptHash(ref hash) => {
@@ -580,12 +580,12 @@ impl fmt::Display for Address {
                     prefixed[1] = self.params.p2sh_prefix;
                     prefixed[2..35].copy_from_slice(&blinder.serialize());
                     prefixed[35..].copy_from_slice(&hash[..]);
-                    base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                    base58::encode_check_to_fmt(fmt, &prefixed[..])
                 } else {
                     let mut prefixed = [0; 21];
                     prefixed[0] = self.params.p2sh_prefix;
                     prefixed[1..].copy_from_slice(&hash[..]);
-                    base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                    base58::encode_check_to_fmt(fmt, &prefixed[..])
                 }
             }
             Payload::WitnessProgram {
@@ -677,7 +677,7 @@ impl FromStr for Address {
         if s.len() > 150 {
             return Err(base58::Error::InvalidLength(s.len() * 11 / 15).into());
         }
-        let data = base58::from_check(s)?;
+        let data = base58::decode_check(s)?;
         if data.is_empty() {
             return Err(base58::Error::InvalidLength(data.len()).into());
         }
