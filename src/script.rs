@@ -31,8 +31,8 @@ use secp256k1_zkp::{Verification, Secp256k1};
 #[cfg(feature = "serde")] use serde;
 
 use crate::encode::{self, Decodable, Encodable};
-use bitcoin::hashes::{Hash, hex};
-use crate::{opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
+use bitcoin::hashes::Hash;
+use crate::{hex, opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
 
 use bitcoin::PublicKey;
 
@@ -865,7 +865,7 @@ impl<'de> serde::Deserialize<'de> for Script {
         D: serde::Deserializer<'de>,
     {
         use std::fmt::Formatter;
-        use bitcoin::hashes::hex::FromHex;
+        use crate::hex::FromHex;
 
         struct Visitor;
         impl<'de> serde::de::Visitor<'de> for Visitor {
@@ -933,7 +933,7 @@ impl Decodable for Script {
 
 #[cfg(test)]
 mod test {
-    use bitcoin::hashes::hex::FromHex;
+    use crate::hex::FromHex;
     use bitcoin::PublicKey;
     use std::str::FromStr;
 

@@ -761,7 +761,7 @@ impl Decodable for PartiallySignedTransaction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::hashes::hex::{FromHex, ToHex};
+    use crate::hex::{FromHex, ToHex};
 
     fn tx_pset_rtt(tx_hex: &str) {
         let tx: Transaction =

@@ -17,10 +17,11 @@
 use std::io;
 use std::str::FromStr;
 
-use bitcoin::hashes::{self, hex, sha256, sha256d, Hash};
+use bitcoin::hashes::{self, sha256, sha256d, Hash};
 
 use crate::encode::{self, Encodable, Decodable};
 use crate::fast_merkle_root::fast_merkle_root;
+use crate::hex;
 use secp256k1_zkp::Tag;
 use crate::transaction::OutPoint;
 
@@ -194,7 +195,7 @@ impl Decodable for AssetId {
 #[cfg(feature = "serde")]
 impl ::serde::Serialize for AssetId {
     fn serialize<S: ::serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        use bitcoin::hashes::hex::ToHex;
+        use crate::hex::ToHex;
         if s.is_human_readable() {
             s.serialize_str(&self.to_hex())
         } else {
@@ -206,7 +207,7 @@ impl ::serde::Serialize for AssetId {
 #[cfg(feature = "serde")]
 impl<'de> ::serde::Deserialize<'de> for AssetId {
     fn deserialize<D: ::serde::Deserializer<'de>>(d: D) -> Result<AssetId, D::Error> {
-        use bitcoin::hashes::hex::FromHex;
+        use crate::hex::FromHex;
 
         if d.is_human_readable() {
             struct HexVisitor;
@@ -272,7 +273,7 @@ mod test {
     use super::*;
     use std::str::FromStr;
 
-    use bitcoin::hashes::hex::FromHex;
+    use crate::hex::FromHex;
     use bitcoin::hashes::sha256;
 
     #[test]

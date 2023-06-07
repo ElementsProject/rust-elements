@@ -899,7 +899,7 @@ mod tests{
     use super::*;
     use crate::hashes::HashEngine;
     use crate::hashes::sha256t::Tag;
-    use crate::hashes::hex::FromHex;
+    use crate::hex::FromHex;
     use std::str::FromStr;
 
     fn tag_engine(tag_name: &str) -> sha256::HashEngine {

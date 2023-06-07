@@ -402,7 +402,7 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use crate::Block;
-    use crate::hashes::hex::FromHex;
+    use crate::hex::FromHex;
 
     use super::*;
 

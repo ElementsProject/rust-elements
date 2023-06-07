@@ -53,9 +53,9 @@ mod tests {
     use std::str::FromStr;
 
     use secp256k1_zkp::SecretKey;
-    use bitcoin::hashes::hex::FromHex;
 
     use crate::address::Address;
+    use crate::hex::FromHex;
 
     #[test]
     fn test_slip77() {

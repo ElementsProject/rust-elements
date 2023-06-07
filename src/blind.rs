@@ -937,7 +937,7 @@ impl Transaction {
     ///
     /// ```
     /// # use std::str::FromStr;
-    /// # use elements::hashes::hex::FromHex;
+    /// # use elements::hex::FromHex;
     /// # use elements::encode::deserialize;
     /// # use elements::secp256k1_zkp;
     /// # use elements::{confidential, script, Transaction, TxOut, TxOutWitness};
@@ -1368,7 +1368,7 @@ mod tests {
     use crate::confidential;
     use crate::encode;
     use crate::encode::deserialize;
-    use crate::hashes::hex::FromHex;
+    use crate::hex::FromHex;
     use crate::Script;
     use bitcoin::{self, Network, PrivateKey, PublicKey};
     use rand::thread_rng;

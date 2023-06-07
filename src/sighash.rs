@@ -968,7 +968,7 @@ impl std::str::FromStr for SchnorrSigHashType {
 mod tests{
     use super::*;
     use crate::encode::deserialize;
-    use bitcoin::hashes::hex::FromHex;
+    use crate::hex::FromHex;
     use bitcoin;
 
     fn test_segwit_sighash(tx: &str, script: &str, input_index: usize, value: &str, hash_type: EcdsaSigHashType, expected_result: &str) {

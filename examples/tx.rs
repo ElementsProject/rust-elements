@@ -7,8 +7,8 @@ use elements::{Transaction, TxOutWitness};
 use elements::{secp256k1_zkp};
 
 use elements::{AssetId, confidential, TxOut};
-use elements::hashes::hex::FromHex;
 use elements::encode::deserialize;
+use elements::hex::FromHex;
 
 fn main() {
 

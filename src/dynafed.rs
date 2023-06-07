@@ -30,7 +30,7 @@ use crate::Script;
 struct HexBytes<'a>(&'a [u8]);
 impl<'a> fmt::Display for HexBytes<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        bitcoin::hashes::hex::format_hex(&self.0[..], f)
+        crate::hex::format_hex(&self.0[..], f)
     }
 }
 impl<'a> fmt::Debug for HexBytes<'a> {
@@ -58,7 +58,7 @@ impl<'a> fmt::Display for HexBytesArray<'a> {
             if i != 0 {
                 write!(f, ", ")?;
             }
-            bitcoin::hashes::hex::format_hex(&e[..], f)?;
+            crate::hex::format_hex(&e[..], f)?;
         }
         write!(f, "]")
     }
@@ -455,7 +455,7 @@ impl<'de> Deserialize<'de> for Params {
                             }
 
                             fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                                use bitcoin::hashes::hex::FromHex;
+                                use crate::hex::FromHex;
 
                                 Ok(HexBytes(FromHex::from_hex(v).map_err(E::custom)?))
                             }
@@ -638,9 +638,9 @@ impl Decodable for Params {
 mod tests {
     use std::fmt::{self, Write};
 
-    use bitcoin::hashes::hex::ToHex;
     use bitcoin::hashes::sha256;
 
+    use crate::hex::ToHex;
     use crate::{BlockHash, TxMerkleNode};
 
     use super::*;

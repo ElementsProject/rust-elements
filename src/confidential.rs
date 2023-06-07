@@ -17,7 +17,8 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
-use crate::hashes::{sha256d, Hash, hex};
+use crate::hashes::{sha256d, Hash};
+use crate::hex;
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
     PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
     compute_adaptive_blinding_factor,
@@ -836,7 +837,7 @@ impl Serialize for AssetBlindingFactor {
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for AssetBlindingFactor {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<AssetBlindingFactor, D::Error> {
-        use bitcoin::hashes::hex::FromHex;
+        use crate::hex::FromHex;
 
         if d.is_human_readable() {
             struct HexVisitor;
@@ -1039,7 +1040,7 @@ impl Serialize for ValueBlindingFactor {
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for ValueBlindingFactor {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<ValueBlindingFactor, D::Error> {
-        use bitcoin::hashes::hex::FromHex;
+        use crate::hex::FromHex;
 
         if d.is_human_readable() {
             struct HexVisitor;
@@ -1255,7 +1256,7 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn asset_serde() {
-        use bitcoin::hashes::hex::FromHex;
+        use crate::hex::FromHex;
         use serde_test::{assert_tokens, Configure, Token};
 
         let asset_id = AssetId::from_hex(

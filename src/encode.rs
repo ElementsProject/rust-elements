@@ -17,7 +17,7 @@
 
 use std::io::Cursor;
 use std::{error, fmt, io, mem};
-use crate::hashes::{self, Hash};
+use crate::hashes::Hash;
 
 use bitcoin::consensus::encode as btcenc;
 use bitcoin::hashes::sha256;
@@ -60,7 +60,7 @@ pub enum Error {
     /// Pset related Errors
     PsetError(pset::Error),
     /// Hex parsing errors
-    HexError(hashes::hex::Error),
+    HexError(crate::hex::Error),
     /// Got a time-based locktime when expecting a height-based one, or vice-versa
     BadLockTime(crate::LockTime)
 }
@@ -134,8 +134,8 @@ impl From<secp256k1_zkp::Error> for Error {
 }
 
 #[doc(hidden)]
-impl From<hashes::hex::Error> for Error {
-    fn from(e: hashes::hex::Error) -> Self {
+impl From<crate::hex::Error> for Error {
+    fn from(e: crate::hex::Error) -> Self {
         Error::HexError(e)
     }
 }
@@ -163,7 +163,7 @@ pub fn serialize<T: Encodable + ?Sized>(data: &T) -> Vec<u8> {
 
 /// Encode an object into a hex-encoded string
 pub fn serialize_hex<T: Encodable + ?Sized>(data: &T) -> String {
-    ::bitcoin::hashes::hex::ToHex::to_hex(&serialize(data)[..])
+    crate::hex::ToHex::to_hex(&serialize(data)[..])
 }
 
 /// Deserialize an object from a vector, will error if said deserialization

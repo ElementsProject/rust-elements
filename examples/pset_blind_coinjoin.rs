@@ -25,8 +25,8 @@ use elements::{
 use elements::{pset, secp256k1_zkp};
 
 use elements::encode::{deserialize, serialize_hex};
-use elements::hashes::hex::FromHex;
 use elements::{confidential, AssetId, TxOut};
+use elements::hex::FromHex;
 use rand::SeedableRng;
 
 // Assume txouts are simple pay to wpkh

@@ -1202,10 +1202,10 @@ impl ::std::error::Error for SighashTypeParseError {}
 #[cfg(test)]
 mod tests {
     use bitcoin;
-    use bitcoin::hashes::hex::FromHex;
 
     use crate::encode::serialize;
     use crate::confidential;
+    use crate::hex::FromHex;
     use secp256k1_zkp::{self, ZERO_TWEAK};
     use crate::script;
 
