@@ -818,12 +818,12 @@ impl<R: DerefMut<Target = Transaction>> SigHashCache<R> {
     ///
     /// This allows in-line signing such as
     /// ```
-    /// use elements::{PackedLockTime, Transaction, EcdsaSigHashType};
+    /// use elements::{LockTime, Transaction, EcdsaSigHashType};
     /// use elements::sighash::SigHashCache;
     /// use elements::Script;
     /// use elements::confidential;
     ///
-    /// let mut tx_to_sign = Transaction { version: 2, lock_time: PackedLockTime::ZERO, input: Vec::new(), output: Vec::new() };
+    /// let mut tx_to_sign = Transaction { version: 2, lock_time: LockTime::ZERO, input: Vec::new(), output: Vec::new() };
     /// let input_count = tx_to_sign.input.len();
     ///
     /// let mut sig_hasher = SigHashCache::new(&mut tx_to_sign);

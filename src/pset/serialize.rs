@@ -59,7 +59,7 @@ impl_pset_de_serialize!(AssetId);
 impl_pset_de_serialize!(u8);
 impl_pset_de_serialize!(u32);
 impl_pset_de_serialize!(u64);
-impl_pset_de_serialize!(crate::PackedLockTime);
+impl_pset_de_serialize!(crate::LockTime);
 impl_pset_de_serialize!(crate::Sequence);
 impl_pset_de_serialize!(crate::locktime::Height);
 impl_pset_de_serialize!(crate::locktime::Time);

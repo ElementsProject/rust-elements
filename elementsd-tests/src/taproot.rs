@@ -16,7 +16,7 @@ use elements::sighash::{self, SigHashCache};
 use elements::taproot::{LeafVersion, TapTweakHash, TaprootBuilder, TaprootSpendInfo, TapLeafHash};
 use elements::OutPoint;
 use elements::{
-    confidential, opcodes, AssetIssuance, BlockHash, PackedLockTime, SchnorrSig, SchnorrSigHashType, Script,
+    confidential, opcodes, AssetIssuance, BlockHash, LockTime, SchnorrSig, SchnorrSigHashType, Script,
     Sequence, TxInWitness, TxOut, Txid,
 };
 use elements::{AddressParams, Transaction, TxIn, TxOutSecrets};
@@ -153,7 +153,7 @@ fn taproot_spend_test(
     // create a new spend that spends the above output
     let mut tx = Transaction {
         version: 2,
-        lock_time: PackedLockTime::ZERO,
+        lock_time: LockTime::ZERO,
         input: vec![],
         output: vec![],
     };

@@ -28,7 +28,7 @@ use crate::issuance::AssetId;
 use crate::opcodes;
 use crate::parse::impl_parse_str_through_int;
 use crate::script::Instruction;
-use crate::{PackedLockTime, Script, Txid, Wtxid};
+use crate::{LockTime, Script, Txid, Wtxid};
 use secp256k1_zkp::{
     RangeProof, SurjectionProof, Tweak, ZERO_TWEAK,
 };
@@ -826,7 +826,7 @@ pub struct Transaction {
     /// Transaction version field (should always be 2)
     pub version: u32,
     /// Transaction locktime
-    pub lock_time: PackedLockTime,
+    pub lock_time: LockTime,
     /// Vector of inputs
     pub input: Vec<TxIn>,
     /// Vector of outputs
@@ -1031,7 +1031,7 @@ impl Decodable for Transaction {
         let wit_flag = u8::consensus_decode(&mut d)?;
         let mut input = Vec::<TxIn>::consensus_decode(&mut d)?;
         let mut output = Vec::<TxOut>::consensus_decode(&mut d)?;
-        let lock_time = PackedLockTime::consensus_decode(&mut d)?;
+        let lock_time = LockTime::consensus_decode(&mut d)?;
 
         match wit_flag {
             0 => Ok(Transaction {
@@ -1235,7 +1235,7 @@ mod tests {
 
         let tx = Transaction {
             version: 0,
-            lock_time: PackedLockTime::ZERO,
+            lock_time: LockTime::ZERO,
             input: vec![],
             output: vec![fee1, fee2],
         };

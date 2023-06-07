@@ -42,113 +42,6 @@ use crate::parse::impl_parse_str_through_int;
 /// [Bitcoin Core]: https://github.com/bitcoin/bitcoin/blob/9ccaee1d5e2e4b79b0a7c29aadb41b97e4741332/src/script/script.h#L39
 pub const LOCK_TIME_THRESHOLD: u32 = 500_000_000;
 
-/// Packed lock time wraps a [`LockTime`] consensus value i.e., the raw `u32` used by the network.
-///
-/// This struct may be preferred in performance-critical applications because it's slightly smaller
-/// than [`LockTime`] and has a bit more performant (de)serialization. In particular, this may be
-/// relevant when the value is not processed, just passed around. Note however that the difference
-/// is super-small, so unless you do something extreme you shouldn't worry about it.
-///
-/// This type implements a naive ordering based on the `u32`, this is _not_ a semantically correct
-/// ordering for a lock time, hence [`LockTime`] does not implement `Ord`. This type is useful if
-/// you want to use a lock time as part of a struct and wish to derive `Ord`. For all other uses,
-/// consider using [`LockTime`] directly.
-///
-/// # Examples
-/// ```
-/// # use bitcoin::{Amount, PackedLockTime, LockTime};
-/// #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-/// struct S {
-///     lock_time: PackedLockTime,
-///     amount: Amount,
-/// }
-///
-/// let _ = S {
-///     lock_time: LockTime::from_consensus(741521).into(),
-///     amount: Amount::from_sat(10_000_000),
-/// };
-/// ```
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
-pub struct PackedLockTime(pub u32);
-
-impl PackedLockTime {
-    /// If [`crate::Transaction::lock_time`] is set to zero it is ignored, in other words a
-    /// transaction with nLocktime==0 is able to be included immediately in any block.
-    pub const ZERO: PackedLockTime = PackedLockTime(0);
-
-    /// Returns the inner `u32`.
-    #[inline]
-    pub fn to_u32(self) -> u32 {
-        self.0
-    }
-}
-
-impl fmt::Display for PackedLockTime {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl Encodable for PackedLockTime {
-    #[inline]
-    fn consensus_encode<W: Write>(&self, w: W) -> Result<usize, encode::Error> {
-        self.0.consensus_encode(w)
-    }
-}
-
-impl Decodable for PackedLockTime {
-    #[inline]
-    fn consensus_decode<R: Read>(r: R) -> Result<Self, encode::Error> {
-        u32::consensus_decode(r).map(PackedLockTime)
-    }
-}
-
-impl From<LockTime> for PackedLockTime {
-    fn from(n: LockTime) -> Self {
-        PackedLockTime(n.to_consensus_u32())
-    }
-}
-
-impl From<PackedLockTime> for LockTime {
-    fn from(n: PackedLockTime) -> Self {
-        LockTime::from_consensus(n.0)
-    }
-}
-
-impl From<&LockTime> for PackedLockTime {
-    fn from(n: &LockTime) -> Self {
-        PackedLockTime(n.to_consensus_u32())
-    }
-}
-
-impl From<&PackedLockTime> for LockTime {
-    fn from(n: &PackedLockTime) -> Self {
-        LockTime::from_consensus(n.0)
-    }
-}
-
-impl From<PackedLockTime> for u32 {
-    fn from(p: PackedLockTime) -> Self {
-        p.0
-    }
-}
-
-impl_parse_str_through_int!(PackedLockTime);
-
-impl fmt::LowerHex for PackedLockTime {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:x}", self.0)
-    }
-}
-
-impl fmt::UpperHex for PackedLockTime {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:X}", self.0)
-    }
-}
-
 /// A lock time value, representing either a block height or a UNIX timestamp (seconds since epoch).
 ///
 /// Used for transaction lock time (`nLockTime` in Bitcoin Core and [`crate::Transaction::lock_time`]
@@ -161,7 +54,7 @@ impl fmt::UpperHex for PackedLockTime {
 ///
 /// # Examples
 /// ```
-/// # use bitcoin::{LockTime, LockTime::*};
+/// # use elements::{LockTime, LockTime::*};
 /// # let n = LockTime::from_consensus(100);          // n OP_CHECKLOCKTIMEVERIFY
 /// # let lock_time = LockTime::from_consensus(100);  // nLockTime
 /// // To compare lock times there are various `is_satisfied_*` methods, you may also use:
@@ -180,7 +73,7 @@ pub enum LockTime {
     ///
     /// # Examples
     /// ```rust
-    /// use bitcoin::LockTime;
+    /// use elements::LockTime;
     ///
     /// let block: u32 = 741521;
     /// let n = LockTime::from_height(block).expect("valid height");
@@ -192,7 +85,7 @@ pub enum LockTime {
     ///
     /// # Examples
     /// ```rust
-    /// use bitcoin::LockTime;
+    /// use elements::LockTime;
     ///
     /// let seconds: u32 = 1653195600; // May 22nd, 5am UTC.
     /// let n = LockTime::from_time(seconds).expect("valid time");
@@ -212,8 +105,8 @@ impl LockTime {
     /// # Examples
     ///
     /// ```rust
-    /// # use bitcoin::LockTime;
-    /// # let n = LockTime::from_consensus(741521); // n OP_CHECKLOCKTIMEVERIFY
+    /// use elements::LockTime;
+    /// let n = LockTime::from_consensus(741521); // n OP_CHECKLOCKTIMEVERIFY
     ///
     /// // `from_consensus` roundtrips as expected with `to_consensus_u32`.
     /// let n_lock_time: u32 = 741521;
@@ -234,7 +127,7 @@ impl LockTime {
     ///
     /// # Examples
     /// ```rust
-    /// # use bitcoin::LockTime;
+    /// use elements::LockTime;
     /// assert!(LockTime::from_height(741521).is_ok());
     /// assert!(LockTime::from_height(1653195600).is_err());
     /// ```
@@ -250,7 +143,7 @@ impl LockTime {
     ///
     /// # Examples
     /// ```rust
-    /// # use bitcoin::LockTime;
+    /// use elements::LockTime;
     /// assert!(LockTime::from_time(1653195600).is_ok());
     /// assert!(LockTime::from_time(741521).is_err());
     /// ```
@@ -292,7 +185,7 @@ impl LockTime {
     ///
     /// # Examples
     /// ```no_run
-    /// # use bitcoin::blockdata::locktime::{LockTime, Height, Time};
+    /// # use elements::locktime::{LockTime, Height, Time};
     /// // Can be implemented if block chain data is available.
     /// fn get_height() -> Height { todo!("return the current block height") }
     /// fn get_time() -> Time { todo!("return the current block time") }
@@ -323,7 +216,7 @@ impl LockTime {
     /// # Examples
     ///
     /// ```rust
-    /// # use bitcoin::{LockTime, LockTime::*};
+    /// # use elements::{LockTime, LockTime::*};
     /// # let n = LockTime::from_consensus(100);          // n OP_CHECKLOCKTIMEVERIFY
     /// # let lock_time = LockTime::from_consensus(100);  // nLockTime
     ///
@@ -419,7 +312,7 @@ impl Height {
     ///
     /// # Examples
     /// ```rust
-    /// use bitcoin::blockdata::locktime::Height;
+    /// use elements::locktime::Height;
     ///
     /// let h: u32 = 741521;
     /// let height = Height::from_consensus(h).expect("invalid height value");
@@ -438,7 +331,7 @@ impl Height {
     ///
     /// # Examples
     /// ```rust
-    /// use bitcoin::LockTime;
+    /// use elements::LockTime;
     ///
     /// let n_lock_time: u32 = 741521;
     /// let lock_time = LockTime::from_consensus(n_lock_time);
@@ -502,7 +395,7 @@ impl Time {
     ///
     /// # Examples
     /// ```rust
-    /// use bitcoin::blockdata::locktime::Time;
+    /// use elements::locktime::Time;
     ///
     /// let t: u32 = 1653195600; // May 22nd, 5am UTC.
     /// let time = Time::from_consensus(t).expect("invalid time value");
@@ -521,7 +414,7 @@ impl Time {
     ///
     /// # Examples
     /// ```rust
-    /// use bitcoin::LockTime;
+    /// use elements::LockTime;
     ///
     /// let n_lock_time: u32 = 1653195600; // May 22nd, 5am UTC.
     /// let lock_time = LockTime::from_consensus(n_lock_time);

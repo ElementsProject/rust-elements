@@ -24,7 +24,7 @@ use crate::encode;
 use crate::encode::Decodable;
 use crate::endian::u32_to_array_le;
 use crate::pset::{self, map::Map, raw, Error};
-use crate::{PackedLockTime, VarInt};
+use crate::{LockTime, VarInt};
 use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint, KeySource};
 use secp256k1_zkp::Tweak;
 
@@ -64,7 +64,7 @@ pub struct TxData {
     pub version: u32,
     /// Locktime to use if no inputs specify a minimum locktime to use.
     /// May be omitted in which case it is interpreted as 0.
-    pub fallback_locktime: Option<crate::PackedLockTime>,
+    pub fallback_locktime: Option<LockTime>,
     /// Number of inputs in the transaction
     /// Not public. Users should not be able to mutate this directly
     /// This will be automatically whenever pset inputs are added
@@ -376,7 +376,7 @@ impl Decodable for Global {
         let mut tx_version: Option<u32> = None;
         let mut input_count: Option<VarInt> = None;
         let mut output_count: Option<VarInt> = None;
-        let mut fallback_locktime: Option<PackedLockTime> = None;
+        let mut fallback_locktime: Option<LockTime> = None;
         let mut tx_modifiable: Option<u8> = None;
         let mut elements_tx_modifiable_flag: Option<u8> = None;
 
@@ -395,7 +395,7 @@ impl Decodable for Global {
                         }
                         PSET_GLOBAL_FALLBACK_LOCKTIME => {
                             impl_pset_insert_pair! {
-                                fallback_locktime <= <raw_key: _>|<raw_value: PackedLockTime>
+                                fallback_locktime <= <raw_key: _>|<raw_value: LockTime>
                             }
                         }
                         PSET_GLOBAL_INPUT_COUNT => {

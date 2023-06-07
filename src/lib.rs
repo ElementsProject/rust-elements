@@ -82,7 +82,7 @@ pub use ::bitcoin::consensus::encode::VarInt;
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;
 pub use crate::issuance::{AssetId, ContractHash};
-pub use crate::locktime::{LockTime, PackedLockTime};
+pub use crate::locktime::LockTime;
 pub use crate::script::Script;
 pub use crate::sighash::SchnorrSigHashType;
 pub use crate::schnorr::{SchnorrSig, SchnorrSigError};
