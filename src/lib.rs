@@ -51,6 +51,7 @@ pub mod encode;
 mod error;
 mod fast_merkle_root;
 pub mod hash_types;
+pub mod hex;
 pub mod locktime;
 pub mod issuance;
 pub mod opcodes;
