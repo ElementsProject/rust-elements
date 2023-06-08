@@ -39,7 +39,6 @@ use crate::{
     TxOutSecrets,
 };
 use crate::{OutPoint, LockTime, Sequence, SurjectionInput, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness, Txid};
-use bitcoin;
 use secp256k1_zkp::rand::{CryptoRng, RngCore};
 use secp256k1_zkp::{self, RangeProof, SecretKey, SurjectionProof};
 
@@ -499,7 +498,7 @@ impl PartiallySignedTransaction {
                 self.outputs[i].amount_comm = txout.value.commitment();
                 self.outputs[i].asset_comm = txout.asset.commitment();
                 self.outputs[i].ecdh_pubkey =
-                    txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
+                    txout.nonce.commitment().map(|pk| bitcoin30::PublicKey {
                         inner: pk,
                         compressed: true,
                     });
@@ -650,7 +649,7 @@ impl PartiallySignedTransaction {
             self.outputs[last_out_index].amount_comm = value_commitment.commitment();
             self.outputs[last_out_index].asset_comm = out_asset_commitment.commitment();
             self.outputs[last_out_index].ecdh_pubkey =
-                nonce.commitment().map(|pk| bitcoin::PublicKey {
+                nonce.commitment().map(|pk| bitcoin30::PublicKey {
                     inner: pk,
                     compressed: true,
                 });

@@ -17,9 +17,10 @@ extern crate serde_json;
 
 use std::{collections::HashMap, str::FromStr};
 
+use bitcoin30::PublicKey;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::{
-    bitcoin::PublicKey, pset::PartiallySignedTransaction as Pset, OutPoint,
+    pset::PartiallySignedTransaction as Pset, OutPoint,
     Script, TxOutSecrets, TxOutWitness, Txid, WScriptHash,
 };
 use elements::{pset, secp256k1_zkp};

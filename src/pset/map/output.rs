@@ -25,7 +25,8 @@ use crate::pset::Error;
 use crate::{confidential, pset};
 use crate::{encode, Script, TxOutWitness};
 use bitcoin::util::bip32::KeySource;
-use bitcoin::{self, PublicKey};
+use bitcoin;
+use bitcoin30::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, Generator, RangeProof, SurjectionProof};
 
 use crate::issuance;
@@ -98,12 +99,12 @@ pub struct Output {
     #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub bip32_derivation: BTreeMap<PublicKey, KeySource>,
     /// The internal pubkey
-    pub tap_internal_key: Option<bitcoin::XOnlyPublicKey>,
+    pub tap_internal_key: Option<XOnlyPublicKey>,
     /// Taproot Output tree
     pub tap_tree: Option<TapTree>,
     /// Map of tap root x only keys to origin info and leaf hashes contained in it
     #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
-    pub tap_key_origins: BTreeMap<bitcoin::XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
+    pub tap_key_origins: BTreeMap<XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
     /// (PSET) The explicit amount of the output
     pub amount: Option<u64>,
     /// (PSET) The out amount commitment
@@ -120,9 +121,9 @@ pub struct Output {
     /// Output Asset surjection proof
     pub asset_surjection_proof: Option<Box<SurjectionProof>>,
     /// Blinding pubkey which is used in receiving address
-    pub blinding_key: Option<bitcoin::PublicKey>,
+    pub blinding_key: Option<bitcoin30::PublicKey>,
     /// The ephermal pk sampled by sender
-    pub ecdh_pubkey: Option<bitcoin::PublicKey>,
+    pub ecdh_pubkey: Option<bitcoin30::PublicKey>,
     /// The index of the input whose owner should blind this output
     pub blinder_index: Option<u32>,
     /// The blind value rangeproof
@@ -192,7 +193,7 @@ impl Output {
         script: Script,
         amount: u64,
         asset: AssetId,
-        blinding_key: Option<bitcoin::PublicKey>,
+        blinding_key: Option<PublicKey>,
     ) -> Self {
         let mut res = pset::Output::default();
         // set the respective values
@@ -222,12 +223,12 @@ impl Output {
             confidential::Asset::Confidential(comm) => rv.asset_comm = Some(comm),
         }
         if txout.is_partially_blinded() {
-            rv.ecdh_pubkey = txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
+            rv.ecdh_pubkey = txout.nonce.commitment().map(|pk| PublicKey {
                 inner: pk,
                 compressed: true, // always serialize none as compressed pk
             });
         } else {
-            rv.blinding_key = txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
+            rv.blinding_key = txout.nonce.commitment().map(|pk| PublicKey {
                 inner: pk,
                 compressed: true, // always serialize none as compressed pk
             });
@@ -326,7 +327,7 @@ impl Map for Output {
 
             PSBT_OUT_TAP_INTERNAL_KEY => {
                 impl_pset_insert_pair! {
-                    self.tap_internal_key <= <raw_key: _>|<raw_value: bitcoin::XOnlyPublicKey>
+                    self.tap_internal_key <= <raw_key: _>|<raw_value: XOnlyPublicKey>
                 }
             }
             PSBT_OUT_TAP_TREE => {
@@ -336,7 +337,7 @@ impl Map for Output {
             }
             PSBT_OUT_TAP_BIP32_DERIVATION => {
                 impl_pset_insert_pair! {
-                    self.tap_key_origins <= <raw_key: bitcoin::XOnlyPublicKey>|< raw_value: (Vec<TapLeafHash>, KeySource)>
+                    self.tap_key_origins <= <raw_key: XOnlyPublicKey>|< raw_value: (Vec<TapLeafHash>, KeySource)>
                 }
             }
 
@@ -360,10 +361,10 @@ impl Map for Output {
                             impl_pset_prop_insert_pair!(self.asset_surjection_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
                         }
                         PSBT_ELEMENTS_OUT_BLINDING_PUBKEY => {
-                            impl_pset_prop_insert_pair!(self.blinding_key <= <raw_key: _> | <raw_value : bitcoin::PublicKey>)
+                            impl_pset_prop_insert_pair!(self.blinding_key <= <raw_key: _> | <raw_value : PublicKey>)
                         }
                         PSBT_ELEMENTS_OUT_ECDH_PUBKEY => {
-                            impl_pset_prop_insert_pair!(self.ecdh_pubkey <= <raw_key: _> | <raw_value : bitcoin::PublicKey>)
+                            impl_pset_prop_insert_pair!(self.ecdh_pubkey <= <raw_key: _> | <raw_value : PublicKey>)
                         }
                         PSBT_ELEMENTS_OUT_BLINDER_INDEX => {
                             impl_pset_prop_insert_pair!(self.blinder_index <= <raw_key: _> | <raw_value : u32>)

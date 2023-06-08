@@ -5,7 +5,8 @@ extern crate rand;
 
 use crate::{Call, setup};
 
-use elements::bitcoin::{Amount, XOnlyPublicKey, KeyPair};
+use bitcoin30::key::{XOnlyPublicKey, KeyPair};
+use elements::bitcoin::Amount;
 use elements::bitcoin::hashes::hex::FromHex;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::encode::{deserialize, serialize_hex};

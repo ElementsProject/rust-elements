@@ -25,7 +25,8 @@ use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
 use crate::hex::ToHex;
 use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
-use bitcoin::{self, PublicKey, VarInt};
+use bitcoin::{self, VarInt};
+use bitcoin30::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use super::map::{PsbtSighashType, TapTree};
@@ -274,15 +275,15 @@ impl Deserialize for Box<SurjectionProof> {
 }
 
 // Taproot related ser/deser
-impl Serialize for bitcoin::XOnlyPublicKey {
+impl Serialize for XOnlyPublicKey {
     fn serialize(&self) -> Vec<u8> {
-        bitcoin::XOnlyPublicKey::serialize(&self).to_vec()
+        XOnlyPublicKey::serialize(&self).to_vec()
     }
 }
 
-impl Deserialize for bitcoin::XOnlyPublicKey {
+impl Deserialize for XOnlyPublicKey {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        bitcoin::XOnlyPublicKey::from_slice(bytes)
+        XOnlyPublicKey::from_slice(bytes)
             .map_err(|_| encode::Error::ParseFailed("Invalid xonly public key"))
     }
 }
@@ -316,7 +317,7 @@ impl Deserialize for schnorr::SchnorrSig {
     }
 }
 
-impl Serialize for (bitcoin::XOnlyPublicKey, TapLeafHash) {
+impl Serialize for (XOnlyPublicKey, TapLeafHash) {
     fn serialize(&self) -> Vec<u8> {
         let ser_pk = self.0.serialize();
         let mut buf = Vec::with_capacity(ser_pk.len() + TapLeafHash::LEN);
@@ -326,12 +327,12 @@ impl Serialize for (bitcoin::XOnlyPublicKey, TapLeafHash) {
     }
 }
 
-impl Deserialize for (bitcoin::XOnlyPublicKey, TapLeafHash) {
+impl Deserialize for (XOnlyPublicKey, TapLeafHash) {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         if bytes.len() < 32 {
             return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
         }
-        let a: bitcoin::XOnlyPublicKey = Deserialize::deserialize(&bytes[..32])?;
+        let a: XOnlyPublicKey = Deserialize::deserialize(&bytes[..32])?;
         let b: TapLeafHash = Deserialize::deserialize(&bytes[32..])?;
         Ok((a, b))
     }

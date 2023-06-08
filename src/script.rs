@@ -34,7 +34,7 @@ use crate::encode::{self, Decodable, Encodable};
 use crate::hashes::Hash;
 use crate::{hex, opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
 
-use bitcoin::PublicKey;
+use bitcoin30::PublicKey;
 
 use crate::schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
 use crate::taproot::TapBranchHash;
@@ -934,7 +934,7 @@ impl Decodable for Script {
 #[cfg(test)]
 mod test {
     use crate::hex::FromHex;
-    use bitcoin::PublicKey;
+    use bitcoin30::PublicKey;
     use std::str::FromStr;
 
     use super::*;

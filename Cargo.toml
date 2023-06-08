@@ -16,14 +16,14 @@ json-contract = [ "serde_json" ]
 "serde" = [
     "bitcoin/serde",
     "bitcoin30/serde",
-    "secp256k1-zkp/use-serde",
+    "secp256k1-zkp/serde",
     "actual-serde"
 ]
 
 [dependencies]
 bitcoin = "0.29.1"
 bitcoin30 = { package = "bitcoin", version = "0.30.0" }
-secp256k1-zkp = { version = "0.7.0", features = [ "global-context", "bitcoin_hashes" ] }
+secp256k1-zkp = { version = "0.9.1", features = [ "global-context", "bitcoin_hashes" ] }
 slip21 = "0.2.0"
 
 # Used for ContractHash::from_json_contract.
