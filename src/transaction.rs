@@ -19,7 +19,7 @@ use std::{io, fmt, str};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use bitcoin::{self, VarInt};
+use bitcoin30::{self, VarInt};
 use crate::hashes::{Hash, sha256};
 
 use crate::{confidential, ContractHash};
@@ -372,13 +372,13 @@ impl TxInWitness {
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash)]
 pub struct PeginData<'tx> {
     /// Reference to the pegin output on the mainchain
-    pub outpoint: bitcoin::OutPoint,
+    pub outpoint: bitcoin30::OutPoint,
     /// The value, in satoshis, of the pegin
     pub value: u64,
     /// Asset type being pegged in
     pub asset: AssetId,
     /// Hash of genesis block of originating blockchain
-    pub genesis_hash: bitcoin::BlockHash,
+    pub genesis_hash: bitcoin30::BlockHash,
     /// The claim script that we should hash to tweak our address. Unparsed
     /// to avoid unnecessary allocation and copying. Typical use is simply
     /// to feed it raw into a hash function.
@@ -392,7 +392,7 @@ pub struct PeginData<'tx> {
     pub merkle_proof: &'tx [u8],
     /// The Bitcoin block that the pegin output appears in; scraped
     /// from the transaction inclusion proof
-    pub referenced_block: bitcoin::BlockHash,
+    pub referenced_block: bitcoin30::BlockHash,
 }
 
 impl<'tx> PeginData<'tx> {
@@ -400,7 +400,7 @@ impl<'tx> PeginData<'tx> {
     /// Returns None if not a valid pegin witness.
     pub fn from_pegin_witness(
         pegin_witness: &'tx [Vec<u8>],
-        prevout: bitcoin::OutPoint,
+        prevout: bitcoin30::OutPoint,
     ) -> Result<PeginData<'tx>, &'static str> {
         if pegin_witness.len() != 6 {
             return Err("size not 6");
@@ -408,25 +408,23 @@ impl<'tx> PeginData<'tx> {
 
         Ok(PeginData {
             outpoint: prevout,
-            value: bitcoin::consensus::deserialize(&pegin_witness[0]).map_err(|_| "invalid value")?,
+            value: bitcoin30::consensus::deserialize(&pegin_witness[0]).map_err(|_| "invalid value")?,
             asset: encode::deserialize(&pegin_witness[1]).map_err(|_| "invalid asset")?,
-            genesis_hash: bitcoin::consensus::deserialize(&pegin_witness[2])
+            genesis_hash: bitcoin30::consensus::deserialize(&pegin_witness[2])
                 .map_err(|_| "invalid genesis hash")?,
             claim_script: &pegin_witness[3],
             tx: &pegin_witness[4],
             merkle_proof: &pegin_witness[5],
-            referenced_block: bitcoin::BlockHash::from_hash(
-                bitcoin::hashes::Hash::hash(&pegin_witness[5][0..80])
-            ),
+            referenced_block: bitcoin30::BlockHash::hash(&pegin_witness[5][0..80]),
         })
     }
 
     /// Construct a pegin witness from the pegin data.
     pub fn to_pegin_witness(&self) -> Vec<Vec<u8>> {
         vec![
-            bitcoin::consensus::serialize(&self.value),
+            bitcoin30::consensus::serialize(&self.value),
             encode::serialize(&self.asset),
-            bitcoin::consensus::serialize(&self.genesis_hash),
+            bitcoin30::consensus::serialize(&self.genesis_hash),
             self.claim_script.to_vec(),
             self.tx.to_vec(),
             self.merkle_proof.to_vec(),
@@ -434,13 +432,13 @@ impl<'tx> PeginData<'tx> {
     }
 
     /// Parse the mainchain tx provided as pegin data.
-    pub fn parse_tx(&self) -> Result<bitcoin::Transaction, bitcoin::consensus::encode::Error> {
-        bitcoin::consensus::encode::deserialize(self.tx)
+    pub fn parse_tx(&self) -> Result<bitcoin30::Transaction, bitcoin30::consensus::encode::Error> {
+        bitcoin30::consensus::encode::deserialize(self.tx)
     }
 
     /// Parse the merkle inclusion proof provided as pegin data.
-    pub fn parse_merkle_proof(&self) -> Result<bitcoin::MerkleBlock, bitcoin::consensus::encode::Error> {
-        bitcoin::consensus::encode::deserialize(self.merkle_proof)
+    pub fn parse_merkle_proof(&self) -> Result<bitcoin30::MerkleBlock, bitcoin30::consensus::encode::Error> {
+        bitcoin30::consensus::encode::deserialize(self.merkle_proof)
     }
 }
 
@@ -553,15 +551,12 @@ impl TxIn {
     }
 
     /// In case of a pegin input, returns the Bitcoin prevout.
-    pub fn pegin_prevout(&self) -> Option<bitcoin::OutPoint> {
+    pub fn pegin_prevout(&self) -> Option<bitcoin30::OutPoint> {
         if self.is_pegin {
             // here we have to cast the previous_output to a bitcoin one
-            // will fix this mess of a hash in a later commit
-            Some(bitcoin::OutPoint {
-                txid: bitcoin::Txid::from_hash(
-                    bitcoin::hashes::Hash::from_inner(
-                        self.previous_output.txid.as_raw_hash().to_byte_array()
-                    )
+            Some(bitcoin30::OutPoint {
+                txid: bitcoin30::Txid::from_byte_array(
+                    self.previous_output.txid.to_byte_array()
                 ),
                 vout: self.previous_output.vout,
             })
@@ -648,9 +643,9 @@ pub struct PegoutData<'txo> {
     /// Asset of pegout
     pub asset: confidential::Asset,
     /// Genesis hash of the target blockchain
-    pub genesis_hash: bitcoin::BlockHash,
+    pub genesis_hash: bitcoin30::BlockHash,
     /// Scriptpubkey to create on the target blockchain
-    pub script_pubkey: bitcoin::Script,
+    pub script_pubkey: bitcoin30::ScriptBuf,
     /// Remaining pegout data used by some forks of Elements
     pub extra_data: Vec<&'txo [u8]>,
 }
@@ -749,12 +744,12 @@ impl TxOut {
         iter.next(); // Skip OP_RETURN
 
         // Parse destination chain's genesis block
-        let genesis_hash = bitcoin::BlockHash::from_hash(
-            bitcoin::hashes::Hash::from_slice(iter.next()?.ok()?.push_bytes()?).ok()?
+        let genesis_hash = bitcoin30::BlockHash::from_raw_hash(
+            crate::hashes::Hash::from_slice(iter.next()?.ok()?.push_bytes()?).ok()?
         );
 
         // Parse destination scriptpubkey
-        let script_pubkey = bitcoin::Script::from(iter.next()?.ok()?.push_bytes()?.to_owned());
+        let script_pubkey = bitcoin30::ScriptBuf::from(iter.next()?.ok()?.push_bytes()?.to_owned());
         if script_pubkey.len() == 0 {
             return None;
         }
@@ -809,11 +804,11 @@ impl TxOut {
                         if !has_min {
                             min_value
                         } else if has_nonzero_range {
-                            bitcoin::consensus::deserialize::<u64>(&prf[2..10])
+                            bitcoin30::consensus::deserialize::<u64>(&prf[2..10])
                                 .expect("any 8 bytes is a u64")
                                 .swap_bytes()  // min-value is BE
                         } else {
-                            bitcoin::consensus::deserialize::<u64>(&prf[1..9])
+                            bitcoin30::consensus::deserialize::<u64>(&prf[1..9])
                                 .expect("any 8 bytes is a u64")
                                 .swap_bytes()  // min-value is BE
                         }
@@ -1210,7 +1205,6 @@ impl ::std::error::Error for SighashTypeParseError {}
 
 #[cfg(test)]
 mod tests {
-    use bitcoin;
     use std::str::FromStr;
 
     use crate::encode::serialize;
@@ -1593,15 +1587,15 @@ mod tests {
         assert_eq!(
             tx.input[0].pegin_data(),
             Some(super::PeginData {
-                outpoint: bitcoin::OutPoint {
-                    txid: bitcoin::Txid::from_str(
+                outpoint: bitcoin30::OutPoint {
+                    txid: bitcoin30::Txid::from_str(
                         "c9d88eb5130365deed045eab11cfd3eea5ba32ad45fa2e156ae6ead5f1fce93f",
                     ).unwrap(),
                     vout: 0,
                 },
                 value: 100000000,
                 asset: tx.output[0].asset.explicit().unwrap(),
-                genesis_hash: bitcoin::BlockHash::from_str(
+                genesis_hash: bitcoin30::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
                 claim_script: &[
@@ -1660,7 +1654,7 @@ mod tests {
                     0x25, 0xf8, 0x55, 0x52, 0x97, 0x11, 0xed, 0x64,
                     0x50, 0xcc, 0x9b, 0x3c, 0x95, 0x01, 0x0b,
                 ],
-                referenced_block: bitcoin::BlockHash::from_str(
+                referenced_block: bitcoin30::BlockHash::from_str(
                     "297852caf43464d8f13a3847bd602184c21474cd06760dbf9fc5e87bade234f1"
                 ).unwrap(),
             })
@@ -1715,10 +1709,10 @@ mod tests {
             Some(super::PegoutData {
                 asset: tx.output[0].asset,
                 value: 99993900,
-                genesis_hash: bitcoin::BlockHash::from_str(
+                genesis_hash: bitcoin30::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
-                script_pubkey: bitcoin::Script::from_hex(
+                script_pubkey: bitcoin30::ScriptBuf::from_hex(
                     "76a914bedb324be05d1a1254afeb3e7ef40fea0368bc1e88ac"
                 ).unwrap(),
                 extra_data: vec![
