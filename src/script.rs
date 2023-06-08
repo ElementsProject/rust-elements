@@ -31,7 +31,7 @@ use secp256k1_zkp::{Verification, Secp256k1};
 #[cfg(feature = "serde")] use serde;
 
 use crate::encode::{self, Decodable, Encodable};
-use bitcoin::hashes::Hash;
+use crate::hashes::Hash;
 use crate::{hex, opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
 
 use bitcoin::PublicKey;
@@ -261,12 +261,12 @@ impl Script {
 
     /// Generates P2WPKH-type of scriptPubkey
     pub fn new_v0_wpkh(pubkey_hash: &WPubkeyHash) -> Script {
-        Script::new_witness_program(crate::bech32::u5::try_from_u8(0).unwrap(), &pubkey_hash.to_vec())
+        Script::new_witness_program(crate::bech32::u5::try_from_u8(0).unwrap(), &pubkey_hash.to_raw_hash().to_byte_array().to_vec())
     }
 
     /// Generates P2WSH-type of scriptPubkey with a given hash of the redeem script
     pub fn new_v0_wsh(script_hash: &WScriptHash) -> Script {
-        Script::new_witness_program(crate::bech32::u5::try_from_u8(0).unwrap(), &script_hash.to_vec())
+        Script::new_witness_program(crate::bech32::u5::try_from_u8(0).unwrap(), &script_hash.to_raw_hash().to_byte_array().to_vec())
     }
 
     /// Generates P2TR for script spending path using an internal public key and some optional

@@ -17,13 +17,13 @@
 use std::{fmt, io};
 
 use bitcoin;
-use bitcoin::hashes::{Hash, sha256, sha256d};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")]
 use serde::ser::{SerializeSeq, SerializeStruct};
 
 use crate::encode::{self, Encodable, Decodable};
+use crate::hashes::{Hash, sha256, sha256d};
 use crate::Script;
 
 /// ad-hoc struct to fmt in hex
@@ -108,9 +108,9 @@ impl FullParams {
         }
 
         let leaves = [
-            serialize_hash(&self.fedpeg_program).into_inner(),
-            serialize_hash(&self.fedpegscript).into_inner(),
-            serialize_hash(&self.extension_space).into_inner(),
+            serialize_hash(&self.fedpeg_program).to_byte_array(),
+            serialize_hash(&self.fedpegscript).to_byte_array(),
+            serialize_hash(&self.extension_space).to_byte_array(),
         ];
         crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
@@ -124,14 +124,14 @@ impl FullParams {
         }
 
         let leaves = [
-            serialize_hash(&self.signblockscript).into_inner(),
-            serialize_hash(&self.signblock_witness_limit).into_inner(),
+            serialize_hash(&self.signblockscript).to_byte_array(),
+            serialize_hash(&self.signblock_witness_limit).to_byte_array(),
         ];
         let compact_root = crate::fast_merkle_root::fast_merkle_root(&leaves[..]);
 
         let leaves = [
-            compact_root.into_inner(),
-            self.extra_root().into_inner(),
+            compact_root.to_byte_array(),
+            self.extra_root().to_byte_array(),
         ];
         crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
@@ -322,7 +322,7 @@ impl Params {
     /// blocksigning: `fedpeg_program`, `fedpegscript` and `extension_space`.
     fn extra_root(&self) -> sha256::Midstate {
         match *self {
-            Params::Null => sha256::Midstate::from_inner([0u8; 32]),
+            Params::Null => sha256::Midstate::from_byte_array([0u8; 32]),
             Params::Compact { ref elided_root, .. } => *elided_root,
             Params::Full(ref f) => f.extra_root(),
         }
@@ -337,18 +337,18 @@ impl Params {
         }
 
         if self.is_null() {
-            return sha256::Midstate::from_inner([0u8; 32]);
+            return sha256::Midstate::from_byte_array([0u8; 32]);
         }
 
         let leaves = [
-            serialize_hash(self.signblockscript().unwrap()).into_inner(),
-            serialize_hash(&self.signblock_witness_limit().unwrap()).into_inner(),
+            serialize_hash(self.signblockscript().unwrap()).to_byte_array(),
+            serialize_hash(&self.signblock_witness_limit().unwrap()).to_byte_array(),
         ];
         let compact_root = crate::fast_merkle_root::fast_merkle_root(&leaves[..]);
 
         let leaves = [
-            compact_root.into_inner(),
-            self.extra_root().into_inner(),
+            compact_root.to_byte_array(),
+            self.extra_root().to_byte_array(),
         ];
         crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
@@ -606,7 +606,7 @@ impl Encodable for Params {
                 Encodable::consensus_encode(&1u8, &mut s)? +
                 Encodable::consensus_encode(signblockscript, &mut s)? +
                 Encodable::consensus_encode(signblock_witness_limit, &mut s)? +
-                Encodable::consensus_encode(&elided_root.into_inner(), &mut s)?
+                Encodable::consensus_encode(&elided_root.to_byte_array(), &mut s)?
             },
             Params::Full(ref f) => {
                 Encodable::consensus_encode(&2u8, &mut s)? +
@@ -624,7 +624,7 @@ impl Decodable for Params {
             1 => Ok(Params::Compact {
                 signblockscript: Decodable::consensus_decode(&mut d)?,
                 signblock_witness_limit: Decodable::consensus_decode(&mut d)?,
-                elided_root: sha256::Midstate::from_inner(Decodable::consensus_decode(&mut d)?),
+                elided_root: sha256::Midstate::from_byte_array(Decodable::consensus_decode(&mut d)?),
             }),
             2 => Ok(Params::Full(Decodable::consensus_decode(&mut d)?)),
             _ => Err(encode::Error::ParseFailed(
@@ -638,8 +638,7 @@ impl Decodable for Params {
 mod tests {
     use std::fmt::{self, Write};
 
-    use bitcoin::hashes::sha256;
-
+    use crate::hashes::sha256;
     use crate::hex::ToHex;
     use crate::{BlockHash, TxMerkleNode};
 
@@ -683,7 +682,7 @@ mod tests {
         let compact_entry = Params::Compact {
             signblockscript: signblockscript.clone(),
             signblock_witness_limit: signblock_wl,
-            elided_root: sha256::Midstate::from_inner([0; 32]),
+            elided_root: sha256::Midstate::from_byte_array([0; 32]),
         };
         assert_eq!(
             compact_entry.calculate_root().to_hex(),
@@ -751,7 +750,7 @@ mod tests {
         let compact = params.into_compact().unwrap();
         assert_eq!(
             to_debug_string(&compact),
-            "Compact { signblockscript: 0102, signblock_witness_limit: 3, elided_root: c3058c822b22a13bb7c47cf50d3f3c7817e7d9075ff55a7d16c85b9673e7e553 }",
+            "Compact { signblockscript: 0102, signblock_witness_limit: 3, elided_root: 0xc3058c822b22a13bb7c47cf50d3f3c7817e7d9075ff55a7d16c85b9673e7e553 }",
         );
         assert_eq!(compact.calculate_root(), full.calculate_root());
         assert_eq!(compact.elided_root(), Some(&extra_root));

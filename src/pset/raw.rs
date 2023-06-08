@@ -23,7 +23,7 @@ use super::Error;
 use crate::encode::{
     self, deserialize, serialize, Decodable, Encodable, ReadExt, WriteExt, MAX_VEC_SIZE,
 };
-use crate::hashes::hex;
+use crate::hex;
 use crate::VarInt;
 /// A PSET key in its raw byte form.
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Ord, PartialOrd)]

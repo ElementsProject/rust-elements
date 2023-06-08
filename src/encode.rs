@@ -17,12 +17,12 @@
 
 use std::io::Cursor;
 use std::{error, fmt, io, mem};
-use crate::hashes::Hash;
 
 use bitcoin::consensus::encode as btcenc;
-use bitcoin::hashes::sha256;
+use bitcoin30::consensus::encode as btcenc30;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
+use crate::hashes::{Hash, sha256};
 use crate::transaction::{Transaction, TxIn, TxOut};
 use crate::pset;
 
@@ -40,6 +40,8 @@ pub enum Error {
     Io(io::Error),
     /// A Bitcoin encoding error.
     Bitcoin(btcenc::Error),
+    /// A Bitcoin encoding error.
+    Bitcoin30(btcenc30::Error),
     /// Tried to allocate an oversized vector
     OversizedVectorAllocation {
         /// The capacity requested
@@ -70,6 +72,7 @@ impl fmt::Display for Error {
         match *self {
             Error::Io(ref e) => write!(f, "I/O error: {}", e),
             Error::Bitcoin(ref e) => write!(f, "a Bitcoin type encoding error: {}", e),
+            Error::Bitcoin30(ref e) => write!(f, "a Bitcoin type encoding error: {}", e),
             Error::OversizedVectorAllocation {
                 requested: ref r,
                 max: ref m,
@@ -102,6 +105,13 @@ impl error::Error for Error {
 impl From<btcenc::Error> for Error {
     fn from(e: btcenc::Error) -> Error {
         Error::Bitcoin(e)
+    }
+}
+
+#[doc(hidden)]
+impl From<btcenc30::Error> for Error {
+    fn from(e: btcenc30::Error) -> Error {
+        Error::Bitcoin30(e)
     }
 }
 
@@ -191,13 +201,13 @@ pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Erro
 
 impl Encodable for sha256::Midstate {
     fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
-        self.into_inner().consensus_encode(e)
+        self.to_byte_array().consensus_encode(e)
     }
 }
 
 impl Decodable for sha256::Midstate {
     fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(Self::from_inner(<[u8; 32]>::consensus_decode(d)?))
+        Ok(Self::from_byte_array(<[u8; 32]>::consensus_decode(d)?))
     }
 }
 
@@ -233,10 +243,26 @@ impl_upstream!([u8; 33]);
 impl_upstream!(Vec<u8>);
 impl_upstream!(Vec<Vec<u8>>);
 impl_upstream!(btcenc::VarInt);
-impl_upstream!(crate::hashes::sha256d::Hash);
 impl_upstream!(bitcoin::Transaction);
 impl_upstream!(bitcoin::BlockHash);
 impl_upstream!(bitcoin::Script);
+
+macro_rules! impl_upstream30 {
+    ($type: ty) => {
+        impl Encodable for $type {
+            fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, Error> {
+                Ok(btcenc30::Encodable::consensus_encode(self, &mut e)?)
+            }
+        }
+
+        impl Decodable for $type {
+            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+                Ok(btcenc30::Decodable::consensus_decode(&mut d)?)
+            }
+        }
+    };
+}
+impl_upstream30!(crate::hashes::sha256d::Hash);
 
 // Specific locktime types (which appear in PSET/PSBT2 but not in rust-bitcoin PSBT)
 impl Encodable for crate::locktime::Height {
@@ -377,25 +403,25 @@ impl Decodable for SurjectionProof {
 
 impl Encodable for sha256::Hash {
     fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
-        self.into_inner().consensus_encode(s)
+        self.to_byte_array().consensus_encode(s)
     }
 }
 
 impl Decodable for sha256::Hash {
     fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(Self::from_inner(<<Self as Hash>::Inner>::consensus_decode(d)?))
+        Ok(Self::from_byte_array(<<Self as Hash>::Bytes>::consensus_decode(d)?))
     }
 }
 
 impl Encodable for TapLeafHash {
     fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
-        self.into_inner().consensus_encode(s)
+        self.to_byte_array().consensus_encode(s)
     }
 }
 
 impl Decodable for TapLeafHash {
     fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(Self::from_inner(<<Self as Hash>::Inner>::consensus_decode(d)?))
+        Ok(Self::from_byte_array(<<Self as Hash>::Bytes>::consensus_decode(d)?))
     }
 }
 

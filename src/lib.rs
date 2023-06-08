@@ -27,8 +27,6 @@
 
 /// Re-export of bitcoin crate
 pub extern crate bitcoin;
-#[macro_use]
-extern crate bitcoin_hashes as just_imported_for_the_macros;
 /// Re-export of slip21 crate
 pub extern crate slip21;
 /// Re-export of secp256k1-zkp crate
@@ -70,7 +68,7 @@ mod serde_utils;
 mod endian;
 // re-export bitcoin deps which we re-use
 pub use bitcoin30::bech32;
-pub use bitcoin::hashes;
+pub use bitcoin30::hashes;
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressParams, AddressError};
 pub use crate::transaction::{OutPoint, PeginData, PegoutData, EcdsaSigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};

@@ -222,7 +222,7 @@ macro_rules! impl_pset_hash_serialize {
     ($hash_type:ty) => {
         impl $crate::pset::serialize::Serialize for $hash_type {
             fn serialize(&self) -> Vec<u8> {
-                self.into_inner().to_vec()
+                self.to_byte_array().to_vec()
             }
         }
     };

@@ -3,7 +3,7 @@
 //!
 //! Spec: https://github.com/satoshilabs/slips/blob/master/slip-0077.md
 
-use bitcoin::hashes::{Hash, HashEngine, hmac, sha256, sha256d};
+use crate::hashes::{Hash, HashEngine, hmac, sha256, sha256d};
 use secp256k1_zkp;
 use slip21;
 
@@ -30,7 +30,7 @@ impl MasterBlindingKey {
         let mut engine: hmac::HmacEngine<sha256::Hash> = hmac::HmacEngine::new(&self.0[..]);
         engine.input(script_pubkey.as_bytes());
 
-        let bytes = hmac::Hmac::<sha256::Hash>::from_engine(engine).into_inner();
+        let bytes = hmac::Hmac::<sha256::Hash>::from_engine(engine).to_byte_array();
         secp256k1_zkp::SecretKey::from_slice(&bytes[..]).expect("len is 32")
     }
 

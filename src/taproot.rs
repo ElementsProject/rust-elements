@@ -16,12 +16,11 @@
 use std::cmp::Reverse;
 use std::{error, io, fmt};
 
-use crate::hashes::{sha256, sha256t, Hash};
+use crate::hashes::{sha256, sha256t_hash_newtype, Hash, HashEngine};
 use crate::schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
 use crate::Script;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 use secp256k1_zkp::{self, Secp256k1, Scalar};
-use crate::hashes::HashEngine;
 use crate::encode::Encodable;
 
 /// The SHA-256 midstate value for the TapLeaf/elements hash.
@@ -52,41 +51,18 @@ const MIDSTATE_TAPSIGHASH: [u8; 32] = [
 ];
 // (rev) 0d7e9f34a40e39ffce5c92e5ee8a69861774bf22ab2214d3a735e4297806e6a6
 
-/// Internal macro to speficy the different taproot tagged hashes.
-macro_rules! sha256t_hash_newtype {
-    ($newtype:ident, $tag:ident, $midstate:ident, $midstate_len:expr, $docs:meta, $reverse: expr) => {
-        sha256t_hash_newtype!($newtype, $tag, $midstate, $midstate_len, $docs, $reverse, stringify!($newtype));
-    };
-
-    ($newtype:ident, $tag:ident, $midstate:ident, $midstate_len:expr, $docs:meta, $reverse: expr, $sname:expr) => {
-        #[doc = "The tag used for ["]
-        #[doc = $sname]
-        #[doc = "]"]
-        pub struct $tag;
-
-        impl sha256t::Tag for $tag {
-            fn engine() -> sha256::HashEngine {
-                let midstate = sha256::Midstate::from_inner($midstate);
-                sha256::HashEngine::from_midstate(midstate, $midstate_len)
-            }
-        }
-
-        hash_newtype!($newtype, sha256t::Hash<$tag>, 32, $docs, $reverse);
-    };
-}
-
 // Taproot test vectors from BIP-341 state the hashes without any reversing
 sha256t_hash_newtype!(TapLeafHash, TapLeafTag, MIDSTATE_TAPLEAF, 64,
-    doc="Taproot-tagged hash for elements tapscript Merkle tree leafs", false
+    doc="Taproot-tagged hash for elements tapscript Merkle tree leafs", forward
 );
 sha256t_hash_newtype!(TapBranchHash, TapBranchTag, MIDSTATE_TAPBRANCH, 64,
-    doc="Taproot-tagged hash for elements tapscript Merkle tree branches", false
+    doc="Taproot-tagged hash for elements tapscript Merkle tree branches", forward
 );
 sha256t_hash_newtype!(TapTweakHash, TapTweakTag, MIDSTATE_TAPTWEAK, 64,
-    doc="Taproot-tagged hash for elements public key tweaks", false
+    doc="Taproot-tagged hash for elements public key tweaks", forward
 );
 sha256t_hash_newtype!(TapSighashHash, TapSighashTag, MIDSTATE_TAPSIGHASH, 64,
-    doc="Taproot-tagged hash for the elements taproot signature hash", false
+    doc="Taproot-tagged hash for the elements taproot signature hash", forward
 );
 
 impl TapTweakHash {
@@ -101,7 +77,7 @@ impl TapTweakHash {
         // always hash the key
         eng.input(&internal_key.serialize());
         if let Some(h) = merkle_root {
-            eng.input(&h);
+            eng.input(h.as_ref());
         } else {
             // nothing to hash
         }
@@ -111,7 +87,7 @@ impl TapTweakHash {
     /// Converts a `TapTweakHash` into a `Scalar` ready for use with key tweaking API.
     pub fn to_scalar(self) -> Scalar {
         // This is statistically extremely unlikely to panic.
-        Scalar::from_be_bytes(self.into_inner()).expect("hash value greater than curve order")
+        Scalar::from_be_bytes(self.to_byte_array()).expect("hash value greater than curve order")
     }
 }
 
@@ -292,7 +268,7 @@ impl TaprootSpendInfo {
         node: NodeInfo,
     ) -> TaprootSpendInfo {
         // Create as if it is a key spend path with the given merkle root
-        let root_hash = Some(TapBranchHash::from_inner(node.hash.into_inner()));
+        let root_hash = Some(TapBranchHash::from_byte_array(node.hash.to_byte_array()));
         let mut info = TaprootSpendInfo::new_key_spend(secp, internal_key, root_hash);
         for leaves in node.leaves {
             let key = (leaves.script, leaves.ver);
@@ -528,11 +504,11 @@ impl NodeInfo {
         }
         let mut eng = TapBranchHash::engine();
         if a.hash < b.hash {
-            eng.input(&a.hash);
-            eng.input(&b.hash);
+            eng.input(a.hash.as_ref());
+            eng.input(b.hash.as_ref());
         } else {
-            eng.input(&b.hash);
-            eng.input(&a.hash);
+            eng.input(b.hash.as_ref());
+            eng.input(a.hash.as_ref());
         };
         Ok(Self {
             hash: sha256::Hash::from_engine(eng),
@@ -566,7 +542,7 @@ impl LeafInfo {
     // Computes a leaf hash for the given leaf
     fn hash(&self) -> sha256::Hash {
         let leaf_hash = TapLeafHash::from_script(&self.script, self.ver);
-        sha256::Hash::from_inner(leaf_hash.into_inner())
+        sha256::Hash::from_byte_array(leaf_hash.to_byte_array())
     }
 }
 
@@ -609,14 +585,14 @@ impl TaprootMerkleBranch {
     pub fn encode<Write: io::Write>(&self, mut writer: Write) -> io::Result<usize> {
         let mut written = 0;
         for hash in self.0.iter() {
-            written += writer.write(hash)?;
+            written += writer.write(hash.as_ref())?;
         }
         Ok(written)
     }
 
     /// Serialize self as bytes
     pub fn serialize(&self) -> Vec<u8> {
-        self.0.iter().map(|e| e.as_inner()).flatten().map(|x| *x).collect::<Vec<u8>>()
+        self.0.iter().map(|e| e.as_byte_array()).flatten().map(|x| *x).collect::<Vec<u8>>()
     }
 
     // Internal function to append elements to proof
@@ -727,23 +703,23 @@ impl ControlBlock {
         // compute the script hash
         // Initially the curr_hash is the leaf hash
         let leaf_hash = TapLeafHash::from_script(&script, self.leaf_version);
-        let mut curr_hash = TapBranchHash::from_inner(leaf_hash.into_inner());
+        let mut curr_hash = TapBranchHash::from_byte_array(leaf_hash.to_byte_array());
         // Verify the proof
         for elem in self.merkle_branch.as_inner() {
             let mut eng = TapBranchHash::engine();
-            if curr_hash.as_inner() < elem.as_inner() {
-                eng.input(&curr_hash);
-                eng.input(elem);
+            if curr_hash.as_byte_array() < elem.as_byte_array() {
+                eng.input(&curr_hash.as_ref());
+                eng.input(elem.as_ref());
             } else {
-                eng.input(elem);
-                eng.input(&curr_hash);
+                eng.input(elem.as_ref());
+                eng.input(&curr_hash.as_ref());
             }
             // Recalculate the curr hash as parent hash
             curr_hash = TapBranchHash::from_engine(eng);
         }
         // compute the taptweak
         let tweak = TapTweakHash::from_key_and_tweak(self.internal_key, Some(curr_hash));
-        let tweak = Scalar::from_be_bytes(tweak.into_inner()).expect("hash value greater than curve order");
+        let tweak = Scalar::from_be_bytes(tweak.to_byte_array()).expect("hash value greater than curve order");
 
         self.internal_key.tweak_add_check(
             secp,
@@ -913,10 +889,10 @@ mod tests{
     #[test]
     fn test_midstates() {
         // check midstate against hard-coded values
-        assert_eq!(MIDSTATE_TAPLEAF, tag_engine("TapLeaf/elements").midstate().into_inner());
-        assert_eq!(MIDSTATE_TAPBRANCH, tag_engine("TapBranch/elements").midstate().into_inner());
-        assert_eq!(MIDSTATE_TAPTWEAK, tag_engine("TapTweak/elements").midstate().into_inner());
-        assert_eq!(MIDSTATE_TAPSIGHASH, tag_engine("TapSighash/elements").midstate().into_inner());
+        assert_eq!(MIDSTATE_TAPLEAF, tag_engine("TapLeaf/elements").midstate().to_byte_array());
+        assert_eq!(MIDSTATE_TAPBRANCH, tag_engine("TapBranch/elements").midstate().to_byte_array());
+        assert_eq!(MIDSTATE_TAPTWEAK, tag_engine("TapTweak/elements").midstate().to_byte_array());
+        assert_eq!(MIDSTATE_TAPSIGHASH, tag_engine("TapSighash/elements").midstate().to_byte_array());
 
         // test that engine creation roundtrips
         assert_eq!(tag_engine("TapLeaf/elements").midstate(), TapLeafTag::engine().midstate());
@@ -928,12 +904,12 @@ mod tests{
         fn empty_hash(tag_name: &str) -> [u8; 32] {
             let mut e = tag_engine(tag_name);
             e.input(&[]);
-            sha256::Hash::from_engine(e).into_inner()
+            sha256::Hash::from_engine(e).to_byte_array()
         }
-        assert_eq!(empty_hash("TapLeaf/elements"), TapLeafHash::hash(&[]).into_inner());
-        assert_eq!(empty_hash("TapBranch/elements"), TapBranchHash::hash(&[]).into_inner());
-        assert_eq!(empty_hash("TapTweak/elements"), TapTweakHash::hash(&[]).into_inner());
-        assert_eq!(empty_hash("TapSighash/elements"), TapSighashHash::hash(&[]).into_inner());
+        assert_eq!(empty_hash("TapLeaf/elements"), TapLeafHash::hash(&[]).to_byte_array());
+        assert_eq!(empty_hash("TapBranch/elements"), TapBranchHash::hash(&[]).to_byte_array());
+        assert_eq!(empty_hash("TapTweak/elements"), TapTweakHash::hash(&[]).to_byte_array());
+        assert_eq!(empty_hash("TapSighash/elements"), TapSighashHash::hash(&[]).to_byte_array());
     }
 
     #[test]

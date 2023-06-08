@@ -70,7 +70,7 @@ fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
             )
             .unwrap()
             .to_sat(),
-            asset: AssetId::from_hex(&v["asset"].as_str().unwrap()).unwrap(),
+            asset: AssetId::from_str(&v["asset"].as_str().unwrap()).unwrap(),
         },
     };
 

@@ -25,7 +25,7 @@ use crate::{schnorr, AssetId, ContractHash};
 
 use crate::{confidential, locktime};
 use crate::encode::{self, Decodable};
-use crate::hashes::{self, hash160, ripemd160, sha256, sha256d};
+use crate::hashes::{self, hash160, ripemd160, sha256, sha256d, Hash};
 use crate::pset::map::Map;
 use crate::pset::raw;
 use crate::pset::serialize;
@@ -34,7 +34,6 @@ use crate::{transaction::SighashTypeParseError, SchnorrSigHashType};
 use crate::{AssetIssuance, BlockHash, EcdsaSigHashType, Script, Transaction, TxIn, TxOut, Txid};
 use bitcoin::util::bip32::KeySource;
 use bitcoin::{self, PublicKey};
-use hashes::Hash;
 use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
 
 use crate::{OutPoint, Sequence};
@@ -472,11 +471,11 @@ impl Input {
                 vout: self.previous_output_index,
             };
             let contract_hash =
-                ContractHash::from_inner(self.issuance_asset_entropy.unwrap_or_default());
+                ContractHash::from_byte_array(self.issuance_asset_entropy.unwrap_or_default());
             AssetId::generate_asset_entropy(prevout, contract_hash)
         } else {
             // re-issuance
-            sha256::Midstate::from_inner(self.issuance_asset_entropy.unwrap_or_default())
+            sha256::Midstate::from_byte_array(self.issuance_asset_entropy.unwrap_or_default())
         };
         let asset_id = AssetId::from_entropy(entropy);
         let token_id =

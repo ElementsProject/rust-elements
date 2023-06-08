@@ -833,7 +833,7 @@ mod tests {
             )
             .unwrap()
             .to_sat(),
-            asset: AssetId::from_hex(&v["asset"].as_str().unwrap()).unwrap(),
+            asset: AssetId::from_str(&v["asset"].as_str().unwrap()).unwrap(),
         };
 
         let mut inp_txout_sec = HashMap::new();

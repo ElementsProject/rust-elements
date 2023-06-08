@@ -7,9 +7,9 @@ extern crate rand;
 use crate::{setup, Call};
 
 use bitcoin30::{self, Address, Amount};
-use elements::bitcoin::hashes::hex::ToHex;
-use elements::bitcoin::hashes::Hash;
+use elements::hex::ToHex;
 use elements::encode::{deserialize, serialize};
+use elements::hashes::Hash;
 use elements::pset::PartiallySignedTransaction;
 use elements::{AssetId, ContractHash};
 use elementsd::bitcoincore_rpc::jsonrpc::serde_json::json;
@@ -52,7 +52,7 @@ fn tx_issuance() {
     let address_lbtc = elementsd.get_new_address();
     let prevout = elementsd.get_first_prevout();
 
-    let contract_hash = ContractHash::from_inner([0u8; 32]);
+    let contract_hash = ContractHash::from_byte_array([0u8; 32]);
     let entropy = AssetId::generate_asset_entropy(prevout, contract_hash);
     let asset_id = AssetId::from_entropy(entropy.clone());
     let reissuance_id = AssetId::reissuance_token_from_entropy(entropy, true);

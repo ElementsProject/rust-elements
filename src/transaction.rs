@@ -128,14 +128,14 @@ impl fmt::Display for OutPoint {
 }
 
 impl ::std::str::FromStr for OutPoint {
-    type Err = bitcoin::blockdata::transaction::ParseOutPointError;
+    type Err = bitcoin30::blockdata::transaction::ParseOutPointError;
     fn from_str(mut s: &str) -> Result<Self, Self::Err> {
         if s.starts_with("[elements]") {
             s = &s[10..];
         }
-        let bitcoin_outpoint = bitcoin::OutPoint::from_str(s)?;
+        let bitcoin_outpoint = bitcoin30::OutPoint::from_str(s)?;
         Ok(OutPoint {
-            txid: Txid::from(bitcoin_outpoint.txid.as_hash()),
+            txid: Txid::from(bitcoin_outpoint.txid.to_raw_hash()),
             vout: bitcoin_outpoint.vout,
         })
     }
@@ -415,7 +415,9 @@ impl<'tx> PeginData<'tx> {
             claim_script: &pegin_witness[3],
             tx: &pegin_witness[4],
             merkle_proof: &pegin_witness[5],
-            referenced_block: bitcoin::BlockHash::hash(&pegin_witness[5][0..80]),
+            referenced_block: bitcoin::BlockHash::from_hash(
+                bitcoin::hashes::Hash::hash(&pegin_witness[5][0..80])
+            ),
         })
     }
 
@@ -554,8 +556,13 @@ impl TxIn {
     pub fn pegin_prevout(&self) -> Option<bitcoin::OutPoint> {
         if self.is_pegin {
             // here we have to cast the previous_output to a bitcoin one
+            // will fix this mess of a hash in a later commit
             Some(bitcoin::OutPoint {
-                txid: bitcoin::Txid::from(self.previous_output.txid.as_hash()),
+                txid: bitcoin::Txid::from_hash(
+                    bitcoin::hashes::Hash::from_inner(
+                        self.previous_output.txid.as_raw_hash().to_byte_array()
+                    )
+                ),
                 vout: self.previous_output.vout,
             })
         } else {
@@ -587,11 +594,11 @@ impl TxIn {
     pub fn issuance_ids(&self) -> (AssetId, AssetId) {
         let entropy = if self.asset_issuance.asset_blinding_nonce == ZERO_TWEAK {
             let contract_hash =
-                ContractHash::from_inner(self.asset_issuance.asset_entropy);
+                ContractHash::from_byte_array(self.asset_issuance.asset_entropy);
             AssetId::generate_asset_entropy(self.previous_output, contract_hash)
         } else {
             // re-issuance
-            sha256::Midstate::from_inner(self.asset_issuance.asset_entropy)
+            sha256::Midstate::from_byte_array(self.asset_issuance.asset_entropy)
         };
         let asset_id = AssetId::from_entropy(entropy);
         let token_id =
@@ -742,7 +749,9 @@ impl TxOut {
         iter.next(); // Skip OP_RETURN
 
         // Parse destination chain's genesis block
-        let genesis_hash = bitcoin::BlockHash::from_slice(iter.next()?.ok()?.push_bytes()?).ok()?;
+        let genesis_hash = bitcoin::BlockHash::from_hash(
+            bitcoin::hashes::Hash::from_slice(iter.next()?.ok()?.push_bytes()?).ok()?
+        );
 
         // Parse destination scriptpubkey
         let script_pubkey = bitcoin::Script::from(iter.next()?.ok()?.push_bytes()?.to_owned());
@@ -1202,6 +1211,7 @@ impl ::std::error::Error for SighashTypeParseError {}
 #[cfg(test)]
 mod tests {
     use bitcoin;
+    use std::str::FromStr;
 
     use crate::encode::serialize;
     use crate::confidential;
@@ -1215,7 +1225,7 @@ mod tests {
     fn outpoint() {
         let txid = "d0a5c455ea7221dead9513596d2f97c09943bad81a386fe61a14a6cda060e422";
         let s = format!("{}:42", txid);
-        let expected = OutPoint::new(Txid::from_hex(&txid).unwrap(), 42);
+        let expected = OutPoint::new(Txid::from_str(&txid).unwrap(), 42);
         let op = ::std::str::FromStr::from_str(&s).ok();
         assert_eq!(op, Some(expected));
         // roundtrip with elements prefix
@@ -1584,14 +1594,14 @@ mod tests {
             tx.input[0].pegin_data(),
             Some(super::PeginData {
                 outpoint: bitcoin::OutPoint {
-                    txid: bitcoin::Txid::from_hex(
+                    txid: bitcoin::Txid::from_str(
                         "c9d88eb5130365deed045eab11cfd3eea5ba32ad45fa2e156ae6ead5f1fce93f",
                     ).unwrap(),
                     vout: 0,
                 },
                 value: 100000000,
                 asset: tx.output[0].asset.explicit().unwrap(),
-                genesis_hash: bitcoin::BlockHash::from_hex(
+                genesis_hash: bitcoin::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
                 claim_script: &[
@@ -1650,7 +1660,7 @@ mod tests {
                     0x25, 0xf8, 0x55, 0x52, 0x97, 0x11, 0xed, 0x64,
                     0x50, 0xcc, 0x9b, 0x3c, 0x95, 0x01, 0x0b,
                 ],
-                referenced_block: bitcoin::BlockHash::from_hex(
+                referenced_block: bitcoin::BlockHash::from_str(
                     "297852caf43464d8f13a3847bd602184c21474cd06760dbf9fc5e87bade234f1"
                 ).unwrap(),
             })
@@ -1705,7 +1715,7 @@ mod tests {
             Some(super::PegoutData {
                 asset: tx.output[0].asset,
                 value: 99993900,
-                genesis_hash: bitcoin::BlockHash::from_hex(
+                genesis_hash: bitcoin::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
                 script_pubkey: bitcoin::Script::from_hex(
@@ -1734,7 +1744,7 @@ mod tests {
             })
         );
 
-        let expected_asset_id = AssetId::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
+        let expected_asset_id = AssetId::from_str("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
         if let confidential::Asset::Explicit(asset_id) = tx.output[0].asset {
             assert_eq!(expected_asset_id, asset_id);
         } else {

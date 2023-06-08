@@ -19,10 +19,10 @@ use std::error;
 use std::fmt;
 use std::str::FromStr;
 
-use bitcoin30::bech32::{self, u5, FromBase32, ToBase32};
 use bitcoin30::base58;
 use bitcoin::PublicKey;
-use bitcoin::hashes::Hash;
+use crate::bech32::{self, u5, FromBase32, ToBase32};
+use crate::hashes::Hash;
 use secp256k1_zkp;
 use secp256k1_zkp::Secp256k1;
 use secp256k1_zkp::Verification;

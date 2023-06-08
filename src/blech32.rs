@@ -42,7 +42,7 @@
 
 use std::fmt;
 
-use bitcoin30::bech32::{u5, Error};
+use crate::bech32::{u5, Error};
 
 /// Used for encode/decode operations for the two variants of Blech32
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -267,7 +267,7 @@ const GEN: [u64; 5] = [
 mod test {
     use super::*;
 
-    use bitcoin30::bech32::ToBase32;
+    use crate::bech32::ToBase32;
     use rand;
 
     #[test]

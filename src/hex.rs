@@ -238,14 +238,14 @@ macro_rules! impl_from_bitcoin29_hex {
             where
                 I: Iterator<Item = Result<u8, Error>> + ExactSizeIterator + DoubleEndedIterator,
             {
-                use bitcoin_hashes::hex::Error as Error29;
+                use bitcoin::hashes::hex::Error as Error29;
 
                 let iter = iter.map(|res| res.map_err(|err| match err {
                     Error::InvalidChar(n) => Error29::InvalidChar(n),
                     Error::OddLengthString(n) => Error29::OddLengthString(n),
                     Error::InvalidLength(m, n) => Error29::InvalidLength(m, n),
                 }));
-                bitcoin_hashes::hex::FromHex::from_byte_iter(iter).map_err(|err| match err {
+                bitcoin::hashes::hex::FromHex::from_byte_iter(iter).map_err(|err| match err {
                     Error29::InvalidChar(n) => Error::InvalidChar(n),
                     Error29::OddLengthString(n) => Error::OddLengthString(n),
                     Error29::InvalidLength(m, n) => Error::InvalidLength(m, n),
@@ -258,11 +258,6 @@ macro_rules! impl_from_bitcoin29_hex {
 impl_from_bitcoin29_hex!(bitcoin::BlockHash);
 impl_from_bitcoin29_hex!(bitcoin::Script);
 impl_from_bitcoin29_hex!(bitcoin::Txid);
-impl_from_bitcoin29_hex!(bitcoin::hashes::sha256::Hash);
-impl_from_bitcoin29_hex!(bitcoin::hashes::sha256::Midstate);
-impl_from_bitcoin29_hex!(bitcoin::hashes::sha256d::Hash);
-impl_from_bitcoin29_hex!(crate::ContractHash);
-impl_from_bitcoin29_hex!(crate::Txid);
 
 impl FromHex for Vec<u8> {
     fn from_byte_iter<I>(iter: I) -> Result<Self, Error>

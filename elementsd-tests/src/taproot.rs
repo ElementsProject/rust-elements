@@ -212,7 +212,7 @@ fn taproot_spend_test(
             test_data.internal_pk,
             test_data.spend_info.merkle_root(),
         );
-        let tweak = secp256k1_zkp::Scalar::from_be_bytes(tweak.into_inner()).expect("hash value greater than curve order");
+        let tweak = secp256k1_zkp::Scalar::from_be_bytes(tweak.to_byte_array()).expect("hash value greater than curve order");
         let sig = secp.sign_schnorr(
             &secp256k1_zkp::Message::from_slice(&sighash_msg[..]).unwrap(),
             &output_keypair.add_xonly_tweak(&secp, &tweak).unwrap(),

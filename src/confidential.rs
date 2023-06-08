@@ -558,7 +558,7 @@ impl Nonce {
             };
             dh_secret[1..].copy_from_slice(&xy[0..32]);
 
-            sha256d::Hash::hash(&dh_secret).into_inner()
+            sha256d::Hash::hash(&dh_secret).to_byte_array()
         };
 
         SecretKey::from_slice(&shared_secret[..32]).expect("always has exactly 32 bytes")
@@ -1105,7 +1105,10 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::hashes::sha256;
+    use crate::hashes::sha256;
+
+    #[cfg(feature = "serde")]
+    use std::str::FromStr;
 
     #[cfg(feature = "serde")]
     use bincode;
@@ -1144,7 +1147,7 @@ mod tests {
 
         let assets = [
             Asset::Null,
-            Asset::Explicit(AssetId::from_inner(sha256::Midstate::from_inner([0; 32]))),
+            Asset::Explicit(AssetId::from_inner(sha256::Midstate::from_byte_array([0; 32]))),
             Asset::from_commitment(&[
                 0x0a, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                 1, 1, 1, 1, 1, 1,
@@ -1256,10 +1259,9 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn asset_serde() {
-        use crate::hex::FromHex;
         use serde_test::{assert_tokens, Configure, Token};
 
-        let asset_id = AssetId::from_hex(
+        let asset_id = AssetId::from_str(
             "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
         ).unwrap();
         let asset = Asset::Explicit(asset_id);

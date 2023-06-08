@@ -17,11 +17,11 @@
 
 use std::io;
 
-use bitcoin::hashes::{Hash, sha256};
 #[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")] use std::fmt;
 
 use crate::dynafed;
+use crate::hashes::{Hash, sha256};
 use crate::Transaction;
 use crate::encode::{self, Encodable, Decodable, serialize};
 use crate::{BlockHash, Script, TxMerkleNode, VarInt};
@@ -280,8 +280,8 @@ impl BlockHeader {
             ExtData::Proof { .. } => None,
             ExtData::Dynafed { ref current, ref proposed, .. } => {
                 let leaves = [
-                    current.calculate_root().into_inner(),
-                    proposed.calculate_root().into_inner(),
+                    current.calculate_root().to_byte_array(),
+                    proposed.calculate_root().to_byte_array(),
                 ];
                 Some(crate::fast_merkle_root::fast_merkle_root(&leaves[..]))
             }

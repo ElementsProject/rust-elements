@@ -23,7 +23,7 @@ use crate::confidential;
 use crate::encode::{self, deserialize, deserialize_partial, serialize, Decodable, Encodable};
 use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
-use bitcoin::hashes::hex::ToHex;
+use crate::hex::ToHex;
 use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
 use bitcoin::{self, PublicKey, VarInt};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
@@ -319,9 +319,9 @@ impl Deserialize for schnorr::SchnorrSig {
 impl Serialize for (bitcoin::XOnlyPublicKey, TapLeafHash) {
     fn serialize(&self) -> Vec<u8> {
         let ser_pk = self.0.serialize();
-        let mut buf = Vec::with_capacity(ser_pk.len() + self.1.as_ref().len());
+        let mut buf = Vec::with_capacity(ser_pk.len() + TapLeafHash::LEN);
         buf.extend(&ser_pk);
-        buf.extend(self.1.as_ref());
+        buf.extend(self.1.to_byte_array());
         buf
     }
 }
