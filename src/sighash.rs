@@ -468,7 +468,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     /// Compute the BIP341 sighash for a script spend
     ///
     /// Assumes the default `OP_CODESEPARATOR` position of `0xFFFFFFFF`. Custom values can be
-    /// provided through the more fine-grained API of [`SighashCache::taproot_encode_signing_data_to`].
+    /// provided through the more fine-grained API of [`SigHashCache::taproot_encode_signing_data_to`].
     pub fn taproot_script_spend_signature_hash<S: Into<TapLeafHash>, T: Borrow<TxOut>>(
         &mut self,
         input_index: usize,

@@ -222,7 +222,7 @@ pub struct Input {
     pub required_height_locktime: Option<locktime::Height>,
     /// Serialized schnorr signature with sighash type for key spend
     pub tap_key_sig: Option<schnorr::SchnorrSig>,
-    /// Map of <xonlypubkey>|<leafhash> with signature
+    /// Map of `<xonlypubkey>|<leafhash>` with signature
     #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub tap_script_sigs: BTreeMap<(XOnlyPublicKey, TapLeafHash), schnorr::SchnorrSig>,
     /// Map of Control blocks to Script version pair
@@ -292,7 +292,7 @@ impl Default for Input {
 }
 
 /// A Signature hash type for the corresponding input. As of taproot upgrade, the signature hash
-/// type can be either [`SigHashType`] or [`SchnorrSigHashType`] but it is not possible to know
+/// type can be either [`EcdsaSigHashType`] or [`SchnorrSigHashType`] but it is not possible to know
 /// directly which signature hash type the user is dealing with. Therefore, the user is responsible
 /// for converting to/from [`PsbtSighashType`] from/to the desired signature hash type they need.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -358,7 +358,7 @@ impl From<SchnorrSigHashType> for PsbtSighashType {
 }
 
 impl PsbtSighashType {
-    /// Returns the [`SigHashType`] if the [`PsbtSighashType`] can be
+    /// Returns the [`EcdsaSigHashType`] if the [`PsbtSighashType`] can be
     /// converted to one.
     pub fn ecdsa_hash_ty(self) -> Option<EcdsaSigHashType> {
         EcdsaSigHashType::from_standard(self.inner).ok()
@@ -376,8 +376,7 @@ impl PsbtSighashType {
 
     /// Creates a [`PsbtSighashType`] from a raw `u32`.
     ///
-    /// Allows construction of a non-standard or non-valid sighash flag
-    /// ([`SigHashType`], [`SchnorrSigHashType`] respectively).
+    /// Allows construction of a non-standard or non-valid sighash flag.
     pub fn from_u32(n: u32) -> PsbtSighashType {
         PsbtSighashType { inner: n }
     }

@@ -1154,7 +1154,7 @@ impl EcdsaSigHashType {
         self as u32
     }
 
-    /// Creates a [`SigHashType`] from a raw `u32`.
+    /// Creates an [`EcdsaSigHashType`] from a raw `u32`.
     ///
     /// # Errors
     ///

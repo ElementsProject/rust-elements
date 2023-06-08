@@ -1,7 +1,7 @@
 //! Implemenation of SLIP-0077: Deterministic blinding key derivation
 //! for Confidential Transactions
 //!
-//! Spec: https://github.com/satoshilabs/slips/blob/master/slip-0077.md
+//! Spec: <https://github.com/satoshilabs/slips/blob/master/slip-0077.md>
 
 use crate::hashes::{Hash, HashEngine, hmac, sha256, sha256d};
 use secp256k1_zkp;
@@ -35,7 +35,7 @@ impl MasterBlindingKey {
     }
 
     /// Derive a shared nonce for a given scriptPubkey and a blinding pubkey.
-    /// This is the same as performing ECDH with the secret key that [derive_blinding_key] returns.
+    /// This is the same as performing ECDH with the secret key that [MasterBlindingKey::derive_blinding_key] returns.
     pub fn derive_shared_nonce(&self,
         script_pubkey: &Script,
         other: &secp256k1_zkp::PublicKey,

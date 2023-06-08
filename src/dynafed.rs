@@ -262,7 +262,7 @@ impl Params {
         }
     }
 
-    /// Get the signblockscript. Is [None] for [Null] params.
+    /// Get the signblockscript. Is [None] for [Params::Null] params.
     pub fn signblockscript(&self) -> Option<&Script> {
         match *self {
             Params::Null => None,
@@ -271,7 +271,7 @@ impl Params {
         }
     }
 
-    /// Get the signblock_witness_limit. Is [None] for [Null] params.
+    /// Get the signblock_witness_limit. Is [None] for [Params::Null] params.
     pub fn signblock_witness_limit(&self) -> Option<u32> {
         match *self {
             Params::Null => None,
@@ -280,7 +280,7 @@ impl Params {
         }
     }
 
-    /// Get the fedpeg_program. Is [None] for non-[Full] params.
+    /// Get the fedpeg_program. Is [None] for non-[Params::Full] params.
     pub fn fedpeg_program(&self) -> Option<&bitcoin::ScriptBuf> {
         match *self {
             Params::Null => None,
@@ -289,7 +289,7 @@ impl Params {
         }
     }
 
-    /// Get the fedpegscript. Is [None] for non-[Full] params.
+    /// Get the fedpegscript. Is [None] for non-[Params::Full] params.
     pub fn fedpegscript(&self) -> Option<&Vec<u8>> {
         match *self {
             Params::Null => None,
@@ -298,7 +298,7 @@ impl Params {
         }
     }
 
-    /// Get the extension_space. Is [None] for non-[Full] params.
+    /// Get the extension_space. Is [None] for non-[Params::Full] params.
     pub fn extension_space(&self) -> Option<&Vec<Vec<u8>>> {
         match *self {
             Params::Null => None,
@@ -307,7 +307,7 @@ impl Params {
         }
     }
 
-    /// Get the elided_root. Is [None] for non-[Compact] params.
+    /// Get the elided_root. Is [None] for non-[Params::Compact] params.
     pub fn elided_root(&self) -> Option<&sha256::Midstate> {
         match *self {
             Params::Null => None,
