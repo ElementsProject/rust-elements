@@ -388,7 +388,7 @@ impl Address {
             Payload::WitnessProgram {
                 version: witver,
                 program: ref witprog,
-            } => script::Builder::new().push_int(witver.to_u8() as i64).push_slice(&witprog),
+            } => script::Builder::new().push_int(witver.to_u8() as i64).push_slice(witprog),
         }
         .into_script()
     }
@@ -602,13 +602,13 @@ impl fmt::Display for Address {
                     if let Some(ref blinder) = self.blinding_pubkey {
                         data.extend_from_slice(&blinder.serialize());
                     }
-                    data.extend_from_slice(&witprog);
+                    data.extend_from_slice(witprog);
                     let mut b32_data = vec![witver];
                     b32_data.extend_from_slice(&data.to_base32());
                     if witver.to_u8() == 0 {
-                        blech32::encode_to_fmt(fmt, &hrp, &b32_data, blech32::Variant::Blech32)
+                        blech32::encode_to_fmt(fmt, hrp, &b32_data, blech32::Variant::Blech32)
                     } else {
-                        blech32::encode_to_fmt(fmt, &hrp, &b32_data, blech32::Variant::Blech32m)
+                        blech32::encode_to_fmt(fmt, hrp, &b32_data, blech32::Variant::Blech32m)
                     }
                 } else {
                     let var = if witver.to_u8() == 0 { bech32::Variant::Bech32 } else { bech32::Variant::Bech32m };

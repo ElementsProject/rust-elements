@@ -18,8 +18,8 @@ pub struct MasterBlindingKey(pub secp256k1_zkp::SecretKey);
 impl MasterBlindingKey {
     /// Create a new master blinding key from a seed.
     pub fn new(seed: &[u8]) -> MasterBlindingKey {
-        let master = slip21::Node::new_master(&seed);
-        let child = master.derive_child(&SLIP77_DERIVATION.as_bytes());
+        let master = slip21::Node::new_master(seed);
+        let child = master.derive_child(SLIP77_DERIVATION.as_bytes());
         let key = child.key();
         assert_eq!(key.len(), 32);
         MasterBlindingKey(secp256k1_zkp::SecretKey::from_slice(key).expect("len is 32"))
@@ -41,7 +41,7 @@ impl MasterBlindingKey {
         other: &secp256k1_zkp::PublicKey,
     ) -> sha256d::Hash {
         let blinding_private_key = self.derive_blinding_key(script_pubkey);
-        let shared_secret = secp256k1_zkp::ecdh::SharedSecret::new(&other, &blinding_private_key);
+        let shared_secret = secp256k1_zkp::ecdh::SharedSecret::new(other, &blinding_private_key);
         sha256d::Hash::hash(shared_secret.as_ref())
     }
 }

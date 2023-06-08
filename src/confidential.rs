@@ -85,26 +85,17 @@ impl Value {
 
     /// Check if the object is null.
     pub fn is_null(&self) -> bool {
-        match self {
-            Value::Null => true,
-            _ => false
-        }
+        matches!(*self, Value::Null)
     }
 
     /// Check if the object is explicit.
     pub fn is_explicit(&self) -> bool {
-        match self {
-            Value::Explicit(_) => true,
-            _ => false
-        }
+        matches!(*self, Value::Explicit(_))
     }
 
     /// Check if the object is confidential.
     pub fn is_confidential(&self) -> bool {
-        match self {
-            Value::Confidential(_) => true,
-            _ => false
-        }
+        matches!(*self, Value::Confidential(_))
     }
 
     /// Returns the explicit inner value.
@@ -301,26 +292,17 @@ impl Asset {
 
     /// Check if the object is null.
     pub fn is_null(&self) -> bool {
-        match *self {
-            Asset::Null => true,
-            _ => false
-        }
+        matches!(*self, Asset::Null)
     }
 
     /// Check if the object is explicit.
     pub fn is_explicit(&self) -> bool {
-        match *self {
-            Asset::Explicit(_) => true,
-            _ => false
-        }
+        matches!(*self, Asset::Explicit(_))
     }
 
     /// Check if the object is confidential.
     pub fn is_confidential(&self) -> bool {
-        match *self {
-            Asset::Confidential(_) => true,
-            _ => false
-        }
+        matches!(*self, Asset::Confidential(_))
     }
 
     /// Returns the explicit inner value.
@@ -353,7 +335,7 @@ impl Asset {
         match self {
             // Only error is Null error which is dealt with later
             // when we have more context information about it.
-            Asset::Null => return None,
+            Asset::Null => None,
             Asset::Explicit(x) => {
                 Some(Generator::new_unblinded(secp, x.into_tag()))
             }
@@ -383,6 +365,7 @@ impl Default for Asset {
         Asset::Null
     }
 }
+
 
 impl Encodable for Asset {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
@@ -528,7 +511,7 @@ impl Nonce {
         ephemeral_sk: SecretKey,
         receiver_blinding_pk: &PublicKey
     ) -> (Self, SecretKey) {
-        let sender_pk = PublicKey::from_secret_key(&secp, &ephemeral_sk);
+        let sender_pk = PublicKey::from_secret_key(secp, &ephemeral_sk);
         let shared_secret = Self::make_shared_secret(receiver_blinding_pk, &ephemeral_sk);
         (Nonce::Confidential(sender_pk), shared_secret)
     }
@@ -537,7 +520,7 @@ impl Nonce {
     pub fn shared_secret(&self, receiver_blinding_sk: &SecretKey) -> Option<SecretKey> {
         match self {
             Nonce::Confidential(sender_pk) => {
-                Some(Self::make_shared_secret(&sender_pk, receiver_blinding_sk))
+                Some(Self::make_shared_secret(sender_pk, receiver_blinding_sk))
             }
             _ => None,
         }
@@ -582,26 +565,17 @@ impl Nonce {
 
     /// Check if the object is null.
     pub fn is_null(&self) -> bool {
-        match *self {
-            Nonce::Null => true,
-            _ => false
-        }
+        matches!(*self, Nonce::Null)
     }
 
     /// Check if the object is explicit.
     pub fn is_explicit(&self) -> bool {
-        match *self {
-            Nonce::Explicit(_) => true,
-            _ => false
-        }
+        matches!(*self, Nonce::Explicit(_))
     }
 
     /// Check if the object is confidential.
     pub fn is_confidential(&self) -> bool {
-        match *self {
-            Nonce::Confidential(_) => true,
-            _ => false
-        }
+        matches!(*self, Nonce::Confidential(_))
     }
 
     /// Returns the explicit inner value.

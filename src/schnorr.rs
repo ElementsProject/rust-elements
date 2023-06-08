@@ -223,9 +223,9 @@ impl SchnorrSig {
             return Ok( SchnorrSig { sig, hash_ty : SchnorrSigHashType::Default });
         }
         let (hash_ty, sig) = sl.split_last()
-            .ok_or_else(|| SchnorrSigError::InvalidSchnorrSig)?;
+            .ok_or(SchnorrSigError::InvalidSchnorrSig)?;
         let hash_ty = SchnorrSigHashType::from_u8(*hash_ty)
-            .ok_or_else(|| SchnorrSigError::InvalidSighashType(*hash_ty))?;
+            .ok_or(SchnorrSigError::InvalidSighashType(*hash_ty))?;
         let sig = secp256k1_zkp::schnorr::Signature::from_slice(sig)
             .map_err(|_| SchnorrSigError::InvalidSchnorrSig)?;
         Ok(SchnorrSig { sig, hash_ty })

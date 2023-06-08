@@ -261,12 +261,12 @@ impl Script {
 
     /// Generates P2WPKH-type of scriptPubkey
     pub fn new_v0_wpkh(pubkey_hash: &WPubkeyHash) -> Script {
-        Script::new_witness_program(crate::bech32::u5::try_from_u8(0).unwrap(), &pubkey_hash.to_raw_hash().to_byte_array().to_vec())
+        Script::new_witness_program(crate::bech32::u5::try_from_u8(0).unwrap(), &pubkey_hash.to_raw_hash().to_byte_array())
     }
 
     /// Generates P2WSH-type of scriptPubkey with a given hash of the redeem script
     pub fn new_v0_wsh(script_hash: &WScriptHash) -> Script {
-        Script::new_witness_program(crate::bech32::u5::try_from_u8(0).unwrap(), &script_hash.to_raw_hash().to_byte_array().to_vec())
+        Script::new_witness_program(crate::bech32::u5::try_from_u8(0).unwrap(), &script_hash.to_raw_hash().to_byte_array())
     }
 
     /// Generates P2TR for script spending path using an internal public key and some optional
@@ -291,7 +291,7 @@ impl Script {
         }
         Builder::new()
             .push_opcode(verop.into())
-            .push_slice(&program)
+            .push_slice(program)
             .into_script()
     }
 
@@ -305,12 +305,12 @@ impl Script {
 
     /// Returns 160-bit hash of the script
     pub fn script_hash(&self) -> ScriptHash {
-        ScriptHash::hash(&self.as_bytes())
+        ScriptHash::hash(self.as_bytes())
     }
 
     /// Returns 256-bit hash of the script for P2WSH outputs
     pub fn wscript_hash(&self) -> WScriptHash {
-        WScriptHash::hash(&self.as_bytes())
+        WScriptHash::hash(self.as_bytes())
     }
 
     /// The length in bytes of the script
@@ -320,7 +320,7 @@ impl Script {
     pub fn is_empty(&self) -> bool { self.0.is_empty() }
 
     /// Returns the script data
-    pub fn as_bytes(&self) -> &[u8] { &*self.0 }
+    pub fn as_bytes(&self) -> &[u8] { &self.0 }
 
     /// Returns a copy of the script data
     pub fn to_bytes(&self) -> Vec<u8> { self.0.clone().into_vec() }
@@ -482,7 +482,7 @@ impl Script {
                             break;
                         }
                         match read_uint(&self.0[index..], 1) {
-                            Ok(n) => { index += 1; n as usize }
+                            Ok(n) => { index += 1; n }
                             Err(_) => { f.write_str("<bad length>")?; break; }
                         }
                     }
@@ -492,7 +492,7 @@ impl Script {
                             break;
                         }
                         match read_uint(&self.0[index..], 2) {
-                            Ok(n) => { index += 2; n as usize }
+                            Ok(n) => { index += 2; n }
                             Err(_) => { f.write_str("<bad length>")?; break; }
                         }
                     }
@@ -502,7 +502,7 @@ impl Script {
                             break;
                         }
                         match read_uint(&self.0[index..], 4) {
-                            Ok(n) => { index += 4; n as usize }
+                            Ok(n) => { index += 4; n }
                             Err(_) => { f.write_str("<bad length>")?; break; }
                         }
                     }

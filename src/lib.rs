@@ -24,6 +24,7 @@
 #![deny(non_snake_case)]
 #![deny(unused_mut)]
 #![deny(missing_docs)]
+#![allow(clippy::manual_range_contains)] // this lint is bullshit
 
 /// Re-export of bitcoin crate
 pub extern crate bitcoin;

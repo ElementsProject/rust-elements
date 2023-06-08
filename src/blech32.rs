@@ -175,7 +175,7 @@ pub fn decode(s: &str) -> Result<(&str, Vec<u5>, Variant), Error> {
     }
 
     // Ensure checksum
-    match verify_checksum(&raw_hrp.as_bytes(), &data) {
+    match verify_checksum(raw_hrp.as_bytes(), &data) {
         Some(variant) => {
             // Remove checksum from data payload
             let dbl: usize = data.len();

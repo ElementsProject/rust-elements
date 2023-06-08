@@ -74,7 +74,7 @@ macro_rules! impl_psetmap_consensus_encoding {
     };
 }
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 macro_rules! impl_pset_prop_insert_pair {
     ($slf:ident.$unkeyed_name:ident <= <$raw_key:ident: _>|<$raw_value:ident: $unkeyed_value_type:ty>) => {
         if $crate::pset::raw::ProprietaryKey::<u8>::from_key($raw_key.clone())?.key.is_empty() {
@@ -102,7 +102,7 @@ macro_rules! impl_pset_prop_insert_pair {
     };
 }
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 macro_rules! impl_pset_insert_pair {
     ($slf:ident.$unkeyed_name:ident <= <$raw_key:ident: _>|<$raw_value:ident: $unkeyed_value_type:ty>) => {
         if $raw_key.key.is_empty() {
@@ -144,7 +144,7 @@ macro_rules! impl_pset_insert_pair {
     };
 }
 
-#[cfg_attr(rustfmt, rustfmt_skip)]
+#[rustfmt::skip]
 macro_rules! impl_pset_get_pair {
     ($rv:ident.push($slf:ident.$unkeyed_name:ident as <$unkeyed_typeval:expr, _>)) => {
         if let Some(ref $unkeyed_name) = $slf.$unkeyed_name {

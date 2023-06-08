@@ -205,7 +205,7 @@ impl TaprootSpendInfo {
         // Therefore, the loop will eventually terminate with exactly 1 element
         debug_assert!(node_weights.len() == 1);
         let node = node_weights.pop().expect("huffman tree algorithm is broken").1;
-        return Ok(Self::from_node_info(secp, internal_key, node));
+        Ok(Self::from_node_info(secp, internal_key, node))
     }
 
     /// Create a new key spend with internal key and proided merkle root.
@@ -227,10 +227,10 @@ impl TaprootSpendInfo {
     ) -> Self {
         let (output_key, parity) = internal_key.tap_tweak(secp, merkle_root);
         Self {
-            internal_key: internal_key,
-            merkle_root: merkle_root,
+            internal_key,
+            merkle_root,
             output_key_parity: parity,
-            output_key: output_key,
+            output_key,
             script_map: BTreeMap::new(),
         }
     }
@@ -273,16 +273,13 @@ impl TaprootSpendInfo {
         for leaves in node.leaves {
             let key = (leaves.script, leaves.ver);
             let value = leaves.merkle_branch;
-            match info.script_map.get_mut(&key) {
-                Some(set) => {
-                    set.insert(value);
-                    continue; // NLL fix
-                }
-                None => {}
+            if let Some(set) = info.script_map.get_mut(&key) {
+                set.insert(value);
+            } else {
+                let mut set = BTreeSet::new();
+                set.insert(value);
+                info.script_map.insert(key, set);
             }
-            let mut set = BTreeSet::new();
-            set.insert(value);
-            info.script_map.insert(key, set);
         }
         info
     }
@@ -314,7 +311,7 @@ impl TaprootSpendInfo {
 /// Builder for building taproot iteratively. Users can specify tap leaf or omitted/hidden
 /// branches in a DFS(Depth first search) walk to construct this tree.
 // Similar to Taproot Builder in bitcoin core
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
 pub struct TaprootBuilder {
     // The following doc-comment is from bitcoin core, but modified for rust
@@ -455,7 +452,7 @@ impl TaprootBuilder {
             // add enough nodes so that we can insert node at depth `depth`
             let num_extra_nodes = depth + 1 - self.branch.len();
             self.branch
-                .extend((0..num_extra_nodes).into_iter().map(|_| None));
+                .extend((0..num_extra_nodes).map(|_| None));
         }
         // Push the last node to the branch
         self.branch[depth] = Some(node);
@@ -477,7 +474,7 @@ impl NodeInfo {
     /// Creates a new NodeInfo with omitted/hidden info
     pub fn new_hidden(hash: sha256::Hash) -> Self {
         Self {
-            hash: hash,
+            hash,
             leaves: vec![],
         }
     }
@@ -533,8 +530,8 @@ impl LeafInfo {
     /// Creates an instance of Self from Script with default version and no merkle branch
     pub fn new(script: Script, ver: LeafVersion) -> Self {
         Self {
-            script: script,
-            ver: ver,
+            script,
+            ver,
             merkle_branch: TaprootMerkleBranch(vec![]),
         }
     }
@@ -592,7 +589,7 @@ impl TaprootMerkleBranch {
 
     /// Serialize self as bytes
     pub fn serialize(&self) -> Vec<u8> {
-        self.0.iter().map(|e| e.as_byte_array()).flatten().map(|x| *x).collect::<Vec<u8>>()
+        self.0.iter().flat_map(|e| e.as_byte_array()).copied().collect::<Vec<u8>>()
     }
 
     // Internal function to append elements to proof
@@ -702,17 +699,17 @@ impl ControlBlock {
     ) -> bool {
         // compute the script hash
         // Initially the curr_hash is the leaf hash
-        let leaf_hash = TapLeafHash::from_script(&script, self.leaf_version);
+        let leaf_hash = TapLeafHash::from_script(script, self.leaf_version);
         let mut curr_hash = TapBranchHash::from_byte_array(leaf_hash.to_byte_array());
         // Verify the proof
         for elem in self.merkle_branch.as_inner() {
             let mut eng = TapBranchHash::engine();
             if curr_hash.as_byte_array() < elem.as_byte_array() {
-                eng.input(&curr_hash.as_ref());
+                eng.input(curr_hash.as_ref());
                 eng.input(elem.as_ref());
             } else {
                 eng.input(elem.as_ref());
-                eng.input(&curr_hash.as_ref());
+                eng.input(curr_hash.as_ref());
             }
             // Recalculate the curr hash as parent hash
             curr_hash = TapBranchHash::from_engine(eng);
@@ -767,9 +764,9 @@ impl LeafVersion {
     }
 }
 
-impl Into<u8> for LeafVersion {
-    fn into(self) -> u8 {
-        self.0
+impl From<LeafVersion> for u8 {
+    fn from(lv: LeafVersion) -> u8 {
+        lv.0
     }
 }
 

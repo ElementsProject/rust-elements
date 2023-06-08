@@ -248,6 +248,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
 
     /// Encode the BIP341 signing data for any flag type into a given object implementing a
     /// io::Write trait.
+    #[allow(clippy::too_many_arguments)]
     pub fn taproot_encode_signing_data_to<Write: io::Write, T: Borrow<TxOut>>(
         &mut self,
         mut writer: Write,
@@ -346,7 +347,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
                     .tx
                     .input
                     .get(input_index)
-                    .ok_or_else(|| Error::IndexOutOfInputsBounds {
+                    .ok_or(Error::IndexOutOfInputsBounds {
                         index: input_index,
                         inputs_size: self.tx.input.len(),
                     })?;
@@ -392,7 +393,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             let out = self.tx
                 .output
                 .get(input_index)
-                .ok_or_else(|| Error::SingleWithoutCorrespondingOutput {
+                .ok_or(Error::SingleWithoutCorrespondingOutput {
                     index: input_index,
                     outputs_size: self.tx.output.len(),
                 })?;
@@ -748,16 +749,16 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             let common_cache = Self::common_cache_minimal_borrow(common_cache, tx);
             SegwitCache {
                 prevouts: sha256d::Hash::from_byte_array(
-                    sha256::Hash::hash(&common_cache.prevouts.as_ref()).to_byte_array(),
+                    sha256::Hash::hash(common_cache.prevouts.as_ref()).to_byte_array(),
                 ),
                 sequences: sha256d::Hash::from_byte_array(
-                    sha256::Hash::hash(&common_cache.sequences.as_ref()).to_byte_array(),
+                    sha256::Hash::hash(common_cache.sequences.as_ref()).to_byte_array(),
                 ),
                 outputs: sha256d::Hash::from_byte_array(
-                    sha256::Hash::hash(&common_cache.outputs.as_ref()).to_byte_array(),
+                    sha256::Hash::hash(common_cache.outputs.as_ref()).to_byte_array(),
                 ),
                 issuances: sha256d::Hash::from_byte_array(
-                    sha256::Hash::hash(&common_cache.issuances.as_ref()).to_byte_array(),
+                    sha256::Hash::hash(common_cache.issuances.as_ref()).to_byte_array(),
                 ),
             }
         })
@@ -861,13 +862,13 @@ impl<'a> Annex<'a> {
 
     /// Returns the Annex bytes data (including first byte `0x50`)
     pub fn as_bytes(&self) -> &[u8] {
-        &*self.0
+        self.0
     }
 }
 
 impl<'a> Encodable for Annex<'a> {
     fn consensus_encode<W: io::Write>(&self, writer: W) -> Result<usize, encode::Error> {
-        encode::consensus_encode_with_size(&self.0, writer)
+        encode::consensus_encode_with_size(self.0, writer)
     }
 }
 

@@ -271,7 +271,7 @@ impl TxOutSecrets {
 
     /// Gets the required fields for last value blinding factor calculation from [`TxOutSecrets`]
     pub fn value_blind_inputs(&self) -> (u64, AssetBlindingFactor, ValueBlindingFactor) {
-        return (self.value, self.asset_bf, self.value_bf);
+        (self.value, self.asset_bf, self.value_bf)
     }
 }
 
@@ -622,7 +622,7 @@ impl TxOut {
         // Only error is Null error which is dealt with later
         // when we have more context information about it.
         match self.value {
-            Value::Null => return Err(TxOutError::UnExpectedNullValue),
+            Value::Null => Err(TxOutError::UnExpectedNullValue),
             Value::Explicit(value) => {
                 if value > Self::MAX_MONEY {
                     return Err(TxOutError::MoneyOutofRange);
@@ -654,6 +654,7 @@ impl TxOut {
     ///
     /// A tuple of ([`AssetBlindingFactor`], [`ValueBlindingFactor`], ephemeral secret key [`SecretKey`])
     /// sampled from the given rng
+    #[allow(clippy::too_many_arguments)]
     pub fn new_last_confidential<R, C>(
         rng: &mut R,
         secp: &Secp256k1<C>,
@@ -688,6 +689,7 @@ impl TxOut {
 
     /// Similar to [TxOut::new_last_confidential], but allows specifying the asset blinding factor
     /// and the ephemeral key. The value-blinding factor is computed adaptively
+    #[allow(clippy::too_many_arguments)]
     pub fn with_secrets_last<R, C>(
         rng: &mut R,
         secp: &Secp256k1<C>,
@@ -1132,7 +1134,7 @@ impl Transaction {
                     out.value.explicit().unwrap(),
                     address,
                     out.asset.explicit().unwrap(),
-                    &spent_utxo_secrets,
+                    spent_utxo_secrets,
                 )?;
 
                 blinds.insert(TxInType::Input(i), (abf, vbf, ephemeral_sk));
@@ -1307,7 +1309,7 @@ impl BlindValueProofs for RangeProof {
         let r = self.verify(secp, value_commit, &[], asset_gen);
         match r {
             Ok(e) => e.start == explicit_val && e.end - 1 == explicit_val,
-            Err(..) => return false,
+            Err(..) => false,
         }
     }
 }

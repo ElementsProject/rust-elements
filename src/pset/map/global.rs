@@ -175,7 +175,7 @@ impl Map for Global {
                             return Err(Error::DuplicateKey(raw_key).into());
                         }
                     } else {
-                        return Err(Error::InvalidKey(raw_key.into()))?;
+                        return Err(Error::InvalidKey(raw_key))?;
                     }
                 } else if prop_key.is_pset_key()
                     && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
@@ -183,7 +183,7 @@ impl Map for Global {
                     if prop_key.key.is_empty() && raw_value.len() == 1 {
                         self.elements_tx_modifiable_flag = Some(raw_value[0]);
                     } else {
-                        return Err(Error::InvalidKey(raw_key.into()))?;
+                        return Err(Error::InvalidKey(raw_key))?;
                     }
                 } else {
                     match self.proprietary.entry(prop_key) {
@@ -295,6 +295,7 @@ impl Map for Global {
 
     // Keep in mind that according to BIP 174 this function must be commutative, i.e.
     // A.merge(B) == B.merge(A)
+    #[allow(clippy::if_same_then_else)] // we have several `else if` branches which are just `continue`
     fn merge(&mut self, other: Self) -> Result<(), pset::Error> {
         // BIP 174: The Combiner must remove any duplicate key-value pairs, in accordance with
         //          the specification. It can pick arbitrarily when conflicts occur.
@@ -341,7 +342,7 @@ impl Map for Global {
                         continue;
                     }
                     return Err(pset::Error::MergeConflict(
-                        format!("global xpub {} has inconsistent key sources", xpub).to_owned(),
+                        format!("global xpub {} has inconsistent key sources", xpub)
                     ));
                 }
             }
@@ -468,7 +469,7 @@ impl Decodable for Global {
                                         return Err(Error::DuplicateKey(raw_key).into());
                                     }
                                 } else {
-                                    return Err(Error::InvalidKey(raw_key.into()))?;
+                                    return Err(Error::InvalidKey(raw_key))?;
                                 }
                             } else if prop_key.is_pset_key()
                                 && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
@@ -476,7 +477,7 @@ impl Decodable for Global {
                                 if prop_key.key.is_empty() && raw_value.len() == 1 {
                                     elements_tx_modifiable_flag = Some(raw_value[0]);
                                 } else {
-                                    return Err(Error::InvalidKey(raw_key.into()))?;
+                                    return Err(Error::InvalidKey(raw_key))?;
                                 }
                             } else {
                                 match proprietary.entry(prop_key) {
@@ -521,12 +522,12 @@ impl Decodable for Global {
                 output_count,
                 tx_modifiable,
             },
-            version: version,
+            version,
             xpub: xpub_map,
-            proprietary: proprietary,
+            proprietary,
             unknown: unknowns,
-            scalars: scalars,
-            elements_tx_modifiable_flag: elements_tx_modifiable_flag,
+            scalars,
+            elements_tx_modifiable_flag,
         };
         Ok(global)
     }

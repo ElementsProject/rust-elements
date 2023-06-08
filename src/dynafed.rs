@@ -29,7 +29,7 @@ use crate::Script;
 struct HexBytes<'a>(&'a [u8]);
 impl<'a> fmt::Display for HexBytes<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        crate::hex::format_hex(&self.0[..], f)
+        crate::hex::format_hex(self.0, f)
     }
 }
 impl<'a> fmt::Debug for HexBytes<'a> {

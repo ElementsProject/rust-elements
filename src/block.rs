@@ -250,14 +250,7 @@ impl BlockHeader {
 
     /// Returns true if this is a block with dynamic federations enabled.
     pub fn is_dynafed(&self) -> bool {
-        if let ExtData::Dynafed {
-            ..
-        } = self.ext
-        {
-            true
-        } else {
-            false
-        }
+        matches!(self.ext, ExtData::Dynafed { .. })
     }
 
     /// Remove the witness data of the block header.

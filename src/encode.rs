@@ -202,7 +202,7 @@ impl Decodable for sha256::Midstate {
 
 pub(crate) fn consensus_encode_with_size<S: io::Write>(data: &[u8], mut s: S) -> Result<usize, Error> {
     let vi_len = bitcoin::VarInt(data.len() as u64).consensus_encode(&mut s)?;
-    s.emit_slice(&data)?;
+    s.emit_slice(data)?;
     Ok(vi_len + data.len())
 }
 

@@ -69,23 +69,24 @@ impl Default for PartiallySignedTransaction {
 impl PartiallySignedTransaction {
     /// Create a new PSET from a raw transaction
     pub fn from_tx(tx: Transaction) -> Self {
-        let mut global = Global::default();
-        global.tx_data.output_count = tx.output.len();
-        global.tx_data.input_count = tx.input.len();
-        global.tx_data.fallback_locktime = Some(tx.lock_time);
-        global.tx_data.version = tx.version;
+        let global = Global {
+            tx_data: GlobalTxData {
+                output_count: tx.output.len(),
+                input_count: tx.input.len(),
+                fallback_locktime: Some(tx.lock_time),
+                version: tx.version,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
 
         let inputs = tx.input.into_iter().map(Input::from_txin).collect();
         let outputs = tx
             .output
             .into_iter()
-            .map(|o| Output::from_txout(o))
+            .map(Output::from_txout)
             .collect();
-        Self {
-            global: global,
-            inputs: inputs,
-            outputs: outputs,
-        }
+        Self { global, inputs, outputs }
     }
     /// Create a PartiallySignedTransaction with zero inputs
     /// zero outputs with a version 2 and tx version 2
@@ -189,6 +190,7 @@ impl PartiallySignedTransaction {
     }
 
     /// Accessor for the locktime to be used in the final transaction
+    #[allow(clippy::match_single_binding)]
     pub fn locktime(&self) -> Result<LockTime, Error> {
         match self.global.tx_data {
             GlobalTxData {
@@ -324,7 +326,7 @@ impl PartiallySignedTransaction {
         }
         Ok(Transaction {
             version: self.global.tx_data.version,
-            lock_time: locktime.into(),
+            lock_time: locktime,
             input: inputs,
             output: outputs,
         })
@@ -353,6 +355,7 @@ impl PartiallySignedTransaction {
     }
 
     // Common pset blinding checks
+    #[allow(clippy::type_complexity)] // FIXME we probably should actually factor out this return type
     fn blind_checks(
         &self,
         inp_txout_sec: &HashMap<usize, TxOutSecrets>,
@@ -747,11 +750,7 @@ impl Decodable for PartiallySignedTransaction {
             outputs
         };
 
-        let pset = PartiallySignedTransaction {
-            global: global,
-            inputs: inputs,
-            outputs: outputs,
-        };
+        let pset = PartiallySignedTransaction { global, inputs, outputs };
         pset.sanity_check()?;
         Ok(pset)
     }

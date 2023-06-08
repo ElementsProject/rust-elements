@@ -418,10 +418,11 @@ impl Input {
     /// Create a psbt input from prevout
     /// without any issuance or pegins
     pub fn from_prevout(outpoint: OutPoint) -> Self {
-        let mut ret = Self::default();
-        ret.previous_output_index = outpoint.vout;
-        ret.previous_txid = outpoint.txid;
-        ret
+        Input {
+            previous_output_index: outpoint.vout,
+            previous_txid: outpoint.txid,
+            ..Default::default()
+        }
     }
 
     /// Create a pset input from TxIn
@@ -1055,13 +1056,13 @@ where
                 return Err(pset::Error::InvalidPreimageHashPair {
                     preimage: val,
                     hash: Vec::from(key_val.borrow()),
-                    hash_type: hash_type,
+                    hash_type,
                 }
                 .into());
             }
             empty_key.insert(val);
             Ok(())
         }
-        Entry::Occupied(_) => return Err(pset::Error::DuplicateKey(raw_key).into()),
+        Entry::Occupied(_) => Err(pset::Error::DuplicateKey(raw_key).into()),
     }
 }

@@ -91,7 +91,7 @@ impl Serialize for Tweak {
 
 impl Deserialize for Tweak {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let x = deserialize::<[u8; 32]>(&bytes)?;
+        let x = deserialize::<[u8; 32]>(bytes)?;
         Tweak::from_slice(&x).map_err(|_| encode::Error::ParseFailed("invalid Tweak"))
     }
 }
@@ -124,7 +124,7 @@ impl Deserialize for PublicKey {
 
 impl Serialize for KeySource {
     fn serialize(&self) -> Vec<u8> {
-        let mut rv: Vec<u8> = Vec::with_capacity(key_source_len(&self));
+        let mut rv: Vec<u8> = Vec::with_capacity(key_source_len(self));
 
         rv.append(&mut self.0.to_bytes().to_vec());
 
@@ -256,7 +256,7 @@ impl Serialize for Box<RangeProof> {
 
 impl Deserialize for Box<RangeProof> {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let prf = RangeProof::from_slice(&bytes)
+        let prf = RangeProof::from_slice(bytes)
             .map_err(|_| encode::Error::ParseFailed("Invalid Rangeproof"))?;
         Ok(Box::new(prf))
     }
@@ -270,7 +270,7 @@ impl Serialize for Box<SurjectionProof> {
 
 impl Deserialize for Box<SurjectionProof> {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let prf = SurjectionProof::from_slice(&bytes)
+        let prf = SurjectionProof::from_slice(bytes)
             .map_err(|_| encode::Error::ParseFailed("Invalid SurjectionProof"))?;
         Ok(Box::new(prf))
     }
@@ -279,7 +279,7 @@ impl Deserialize for Box<SurjectionProof> {
 // Taproot related ser/deser
 impl Serialize for XOnlyPublicKey {
     fn serialize(&self) -> Vec<u8> {
-        XOnlyPublicKey::serialize(&self).to_vec()
+        XOnlyPublicKey::serialize(self).to_vec()
     }
 }
 
@@ -342,7 +342,7 @@ impl Deserialize for (XOnlyPublicKey, TapLeafHash) {
 
 impl Serialize for ControlBlock {
     fn serialize(&self) -> Vec<u8> {
-        ControlBlock::serialize(&self)
+        ControlBlock::serialize(self)
     }
 }
 
@@ -389,7 +389,7 @@ impl Serialize for (Vec<TapLeafHash>, KeySource) {
 
 impl Deserialize for (Vec<TapLeafHash>, KeySource) {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let (leafhash_vec, consumed) = deserialize_partial::<Vec<TapLeafHash>>(&bytes)?;
+        let (leafhash_vec, consumed) = deserialize_partial::<Vec<TapLeafHash>>(bytes)?;
         let key_source = KeySource::deserialize(&bytes[consumed..])?;
         Ok((leafhash_vec, key_source))
     }

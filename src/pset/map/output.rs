@@ -194,13 +194,13 @@ impl Output {
         asset: AssetId,
         blinding_key: Option<PublicKey>,
     ) -> Self {
-        let mut res = pset::Output::default();
-        // set the respective values
-        res.script_pubkey = script;
-        res.amount = Some(amount);
-        res.blinding_key = blinding_key;
-        res.asset = Some(asset);
-        res
+        pset::Output {
+            script_pubkey: script,
+            amount: Some(amount),
+            blinding_key,
+            asset: Some(asset),
+            ..Default::default()
+        }
     }
 
     /// Create a output from txout
@@ -379,7 +379,7 @@ impl Map for Output {
                                 empty_key.insert(raw_value);
                             }
                             Entry::Occupied(_) => {
-                                return Err(Error::DuplicateKey(raw_key.clone()).into())
+                                return Err(Error::DuplicateKey(raw_key).into())
                             }
                         },
                     }
@@ -389,7 +389,7 @@ impl Map for Output {
                             empty_key.insert(raw_value);
                         }
                         Entry::Occupied(_) => {
-                            return Err(Error::DuplicateKey(raw_key.clone()).into())
+                            return Err(Error::DuplicateKey(raw_key).into())
                         }
                     }
                 }

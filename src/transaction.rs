@@ -889,7 +889,7 @@ impl Transaction {
         let input_weight = self.input.iter().map(|input| {
             scale_factor * (
                 32 + 4 + 4 + // output + nSequence
-                VarInt(input.script_sig.len() as u64).len() as usize +
+                VarInt(input.script_sig.len() as u64).len() +
                 input.script_sig.len() + if input.has_issuance() {
                     64 +
                     input.asset_issuance.amount.encoded_length() +
@@ -903,18 +903,18 @@ impl Transaction {
                 let keys_prf_len = input.witness.inflation_keys_rangeproof.as_ref()
                     .map(|x| x.len()).unwrap_or(0);
 
-                VarInt(amt_prf_len as u64).len() as usize +
+                VarInt(amt_prf_len as u64).len() +
                 amt_prf_len +
-                VarInt(keys_prf_len as u64).len() as usize +
+                VarInt(keys_prf_len as u64).len() +
                 keys_prf_len +
-                VarInt(input.witness.script_witness.len() as u64).len() as usize +
+                VarInt(input.witness.script_witness.len() as u64).len() +
                 input.witness.script_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).len() as usize +
+                    VarInt(wit.len() as u64).len() +
                     wit.len()
                 ).sum::<usize>() +
-                VarInt(input.witness.pegin_witness.len() as u64).len() as usize +
+                VarInt(input.witness.pegin_witness.len() as u64).len() +
                 input.witness.pegin_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).len() as usize +
+                    VarInt(wit.len() as u64).len() +
                     wit.len()
                 ).sum::<usize>()
             } else {
@@ -927,14 +927,14 @@ impl Transaction {
                 output.asset.encoded_length() +
                 output.value.encoded_length() +
                 output.nonce.encoded_length() +
-                VarInt(output.script_pubkey.len() as u64).len() as usize +
+                VarInt(output.script_pubkey.len() as u64).len() +
                 output.script_pubkey.len()
             ) + if witness_flag {
                 let range_prf_len = output.witness.rangeproof_len();
                 let surj_prf_len = output.witness.surjectionproof_len();
-                VarInt(surj_prf_len as u64).len() as usize +
+                VarInt(surj_prf_len as u64).len() +
                 surj_prf_len +
-                VarInt(range_prf_len as u64).len() as usize +
+                VarInt(range_prf_len as u64).len() +
                 range_prf_len
             } else {
                 0
@@ -944,8 +944,8 @@ impl Transaction {
         scale_factor * (
             4 + // version
             4 + // locktime
-            VarInt(self.input.len() as u64).len() as usize +
-            VarInt(self.output.len() as u64).len() as usize +
+            VarInt(self.input.len() as u64).len() +
+            VarInt(self.output.len() as u64).len() +
             1 // segwit flag byte (note this is *not* witness data in Elements)
         ) + input_weight + output_weight
     }
@@ -1108,7 +1108,7 @@ impl str::FromStr for EcdsaSigHashType {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.as_ref() {
+        match s {
             "SIGHASH_ALL" => Ok(EcdsaSigHashType::All),
             "SIGHASH_NONE" => Ok(EcdsaSigHashType::None),
             "SIGHASH_SINGLE" => Ok(EcdsaSigHashType::Single),
