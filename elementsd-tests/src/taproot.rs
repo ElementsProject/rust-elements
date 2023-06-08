@@ -283,17 +283,17 @@ fn taproot_tests() {
         SchnorrSigHashType::AllPlusAnyoneCanPay,
     ];
 
-    for conf_prevout in [true, false] {
+    for &conf_prevout in &[true, false] {
         // whether the input is blinded
-        for blind in [true, false] {
+        for &blind in &[true, false] {
             // blind the current tx
             if !blind && conf_prevout {
                 // trying to spend a confidential txout to all explicit transactions
                 // This is not possible to do because we need to balance the blinding factors
                 continue;
             }
-            for script_spend in [true, false] {
-                for sighash_ty in sighash_tys {
+            for &script_spend in &[true, false] {
+                for &sighash_ty in &sighash_tys {
                     taproot_spend_test(
                         &elementsd,
                         &secp,

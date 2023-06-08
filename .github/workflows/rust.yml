@@ -17,14 +17,8 @@ jobs:
             env:
               DO_INTEGRATION: true
           - rust: beta
-            env:
-              DUMMY: true
           - rust: nightly
-            env:
-              DUMMY: true
-          - rust: 1.41.1
-            env:
-              PIN_VERSIONS: true
+          - rust: 1.48.0
     steps:
       - name: Install test dependencies
         run: sudo apt-get install -y binutils-dev libunwind8-dev

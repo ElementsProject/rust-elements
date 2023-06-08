@@ -324,7 +324,7 @@ impl Serialize for (XOnlyPublicKey, TapLeafHash) {
         let ser_pk = self.0.serialize();
         let mut buf = Vec::with_capacity(ser_pk.len() + TapLeafHash::LEN);
         buf.extend(&ser_pk);
-        buf.extend(self.1.to_byte_array());
+        buf.extend(&self.1.to_byte_array());
         buf
     }
 }

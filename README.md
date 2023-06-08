@@ -10,4 +10,4 @@ structures and network messages related to Elements
 
 ## Minimum Supported Rust Version (MSRV)
 
-This library should always compile with any combination of features on **Rust 1.41.1**.
+This library should always compile with any combination of features on **Rust 1.48.0**.
