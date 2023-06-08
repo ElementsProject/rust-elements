@@ -76,7 +76,7 @@ pub use crate::transaction::Sequence;
 pub use crate::blind::{ConfidentialTxOutError, TxOutSecrets, SurjectionInput, TxOutError, VerificationError, BlindError, UnblindError, BlindValueProofs, BlindAssetProofs};
 pub use crate::block::{BlockHeader, Block};
 pub use crate::block::ExtData as BlockExtData;
-pub use ::bitcoin::consensus::encode::VarInt;
+pub use ::bitcoin30::consensus::encode::VarInt;
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;
 pub use crate::issuance::{AssetId, ContractHash};

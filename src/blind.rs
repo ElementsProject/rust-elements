@@ -1369,7 +1369,6 @@ mod tests {
     use crate::encode::deserialize;
     use crate::hex::FromHex;
     use crate::Script;
-    use bitcoin;
     use bitcoin30::{Network, PrivateKey, PublicKey};
     use rand::thread_rng;
     use secp256k1_zkp::SECP256K1;
@@ -1389,9 +1388,9 @@ mod tests {
                 "a5b3d111cdaa5fc111e2723df4caf315864f25fb4610cc737f10d5a55cd4096f",
             )
             .unwrap(),
-            value: bitcoin::Amount::from_str_in(
+            value: bitcoin30::Amount::from_str_in(
                 "20999997.97999114",
-                bitcoin::Denomination::Bitcoin,
+                bitcoin30::Denomination::Bitcoin,
             )
             .unwrap()
             .to_sat(),

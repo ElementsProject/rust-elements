@@ -24,8 +24,7 @@ use crate::pset::raw;
 use crate::pset::Error;
 use crate::{confidential, pset};
 use crate::{encode, Script, TxOutWitness};
-use bitcoin::util::bip32::KeySource;
-use bitcoin;
+use bitcoin30::bip32::KeySource;
 use bitcoin30::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, Generator, RangeProof, SurjectionProof};
 

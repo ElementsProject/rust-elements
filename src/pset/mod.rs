@@ -826,9 +826,9 @@ mod tests {
         let btc_txout_secrets = TxOutSecrets {
             asset_bf: AssetBlindingFactor::from_str(&v["assetblinder"].as_str().unwrap()).unwrap(),
             value_bf: ValueBlindingFactor::from_str(&v["amountblinder"].as_str().unwrap()).unwrap(),
-            value: bitcoin::Amount::from_str_in(
+            value: bitcoin30::Amount::from_str_in(
                 &v["amount"].as_str().unwrap(),
-                bitcoin::Denomination::Bitcoin,
+                bitcoin30::Denomination::Bitcoin,
             )
             .unwrap()
             .to_sat(),

@@ -17,6 +17,7 @@
 //! Defines traits used for (de)serializing PSET values into/from raw
 //! bytes in PSET key-value pairs.
 
+use std::convert::TryFrom;
 use std::io;
 
 use crate::confidential;
@@ -24,8 +25,8 @@ use crate::encode::{self, deserialize, deserialize_partial, serialize, Decodable
 use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
 use crate::hex::ToHex;
-use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
-use bitcoin::{self, VarInt};
+use bitcoin30::bip32::{ChildNumber, Fingerprint, KeySource};
+use bitcoin30::{self, VarInt};
 use bitcoin30::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
@@ -76,8 +77,8 @@ impl_pset_hash_de_serialize!(BlockHash);
 impl_pset_hash_de_serialize!(TapLeafHash);
 impl_pset_hash_de_serialize!(TapBranchHash);
 
-// required for pegin bitcoin::Transactions
-impl_pset_de_serialize!(bitcoin::Transaction);
+// required for pegin bitcoin30::Transactions
+impl_pset_de_serialize!(bitcoin30::Transaction);
 
 // taproot
 impl_pset_de_serialize!(Vec<TapLeafHash>);
@@ -137,11 +138,12 @@ impl Serialize for KeySource {
 
 impl Deserialize for KeySource {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        if bytes.len() < 4 {
-            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
-        }
+        let prefix = match <[u8; 4]>::try_from(&bytes[0..4]) {
+            Ok(prefix) => prefix,
+            Err(_) => return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into()),
+        };
 
-        let fprint: Fingerprint = Fingerprint::from(&bytes[0..4]);
+        let fprint: Fingerprint = Fingerprint::from(prefix);
         let mut dpath: Vec<ChildNumber> = Default::default();
 
         let mut d = &bytes[4..];

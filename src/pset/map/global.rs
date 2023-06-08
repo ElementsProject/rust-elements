@@ -25,7 +25,7 @@ use crate::encode::Decodable;
 use crate::endian::u32_to_array_le;
 use crate::pset::{self, map::Map, raw, Error};
 use crate::{LockTime, VarInt};
-use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint, KeySource};
+use bitcoin30::bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint, KeySource};
 use secp256k1_zkp::Tweak;
 
 // (Not used in pset) Type: Unsigned Transaction PSET_GLOBAL_UNSIGNED_TX = 0x00
@@ -437,7 +437,7 @@ impl Decodable for Global {
                                 let derivation = DerivationPath::from(path);
                                 // Keys, according to BIP-174, must be unique
                                 if xpub_map
-                                    .insert(xpub, (Fingerprint::from(&fingerprint[..]), derivation))
+                                    .insert(xpub, (Fingerprint::from(fingerprint), derivation))
                                     .is_some()
                                 {
                                     return Err(encode::Error::ParseFailed(

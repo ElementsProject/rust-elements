@@ -16,7 +16,6 @@
 
 use std::{fmt, io};
 
-use bitcoin;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")]
@@ -87,7 +86,7 @@ pub struct FullParams {
     /// Maximum, in bytes, of the size of a blocksigning witness
     signblock_witness_limit: u32,
     /// Untweaked `scriptPubKey` used for pegins
-    fedpeg_program: bitcoin::Script,
+    fedpeg_program: bitcoin30::ScriptBuf,
     /// For v0 fedpeg programs, the witness script of the untweaked
     /// pegin address. For future versions, this data has no defined
     /// meaning and will be considered "anyone can spend".
@@ -151,7 +150,7 @@ impl FullParams {
         let mut s = f.debug_struct(name);
         s.field("signblockscript", &HexBytes(&self.signblockscript[..]));
         s.field("signblock_witness_limit", &self.signblock_witness_limit);
-        s.field("fedpeg_program", &HexBytes(&self.fedpeg_program[..]));
+        s.field("fedpeg_program", &HexBytes(self.fedpeg_program.as_ref()));
         s.field("fedpegscript", &HexBytes(&self.fedpegscript[..]));
         s.field("extension_space", &HexBytesArray(&self.extension_space));
         s.finish()
@@ -282,7 +281,7 @@ impl Params {
     }
 
     /// Get the fedpeg_program. Is [None] for non-[Full] params.
-    pub fn fedpeg_program(&self) -> Option<&bitcoin::Script> {
+    pub fn fedpeg_program(&self) -> Option<&bitcoin30::ScriptBuf> {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
@@ -675,7 +674,7 @@ mod tests {
 
         let signblockscript: Script = vec![1].into();
         let signblock_wl = 2;
-        let fp_program: bitcoin::Script = vec![3].into();
+        let fp_program: bitcoin30::ScriptBuf = vec![3].into();
         let fp_script = vec![4];
         let ext = vec![vec![5, 6], vec![7]];
 
