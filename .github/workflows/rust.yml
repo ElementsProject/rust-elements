@@ -1,35 +1,112 @@
-on: [push, pull_request]
+on:
+  push:
+    branches:
+      - master
+  pull_request: {}
 
 name: Continuous integration
 
 jobs:
-  Tests:
-    name: Tests
+  Stable:
+    name: Test - stable toolchain
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - rust: 1.58.0
-            env:
-              DO_FUZZ: true
-          - rust: stable
-            env:
-              DO_INTEGRATION: true
-          - rust: beta
-          - rust: nightly
-          - rust: 1.48.0
     steps:
-      - name: Install test dependencies
-        run: sudo apt-get install -y binutils-dev libunwind8-dev
       - name: Checkout Crate
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Checkout Toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: ${{ matrix.rust }}
-          override: true
+        # https://github.com/dtolnay/rust-toolchain
+        uses: dtolnay/rust-toolchain@stable
       - name: Running test script
-        env: ${{ matrix.env }}
+        env:
+          DO_DOCS: true
+          DO_DOCSRS: false
+          DO_FUZZ: false
+          DO_INTEGRATION: false
+          DO_LINT: true
+          DO_FEATURE_MATRIX: true
         run: ./contrib/test.sh
+
+  Nightly:
+    name: Test - nightly toolchain
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v3
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@nightly
+      - name: Running test script
+        env:
+          DO_DOCS: true
+          DO_DOCSRS: true
+          DO_FUZZ: false
+          DO_INTEGRATION: false
+          DO_LINT: false
+          DO_FEATURE_MATRIX: true
+        run: ./contrib/test.sh
+
+  MSRV:
+    name: Test - 1.48.0 toolchain
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v3
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@1.48.0
+      - name: Running test script
+        env:
+          DO_DOCS: false
+          DO_DOCSRS: false
+          DO_FUZZ: false
+          DO_INTEGRATION: false
+          DO_LINT: false
+          DO_FEATURE_MATRIX: true
+        run: ./contrib/test.sh
+
+  Fuzz:
+    name: Fuzztests - 1.58.0 toolchain
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v3
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@1.58.0
+      - name: Install test dependencies
+        run: sudo apt-get update -y && sudo apt-get install -y binutils-dev libunwind8-dev libcurl4-openssl-dev libelf-dev libdw-dev cmake gcc libiberty-dev
+      - name: Running test script
+        env:
+          DO_DOCS: false
+          DO_DOCSRS: false
+          DO_FUZZ: true
+          DO_INTEGRATION: false
+          DO_LINT: false
+          DO_FEATURE_MATRIX: false
+        run: ./contrib/test.sh
+
+  Integration:
+    name: Integration tests - stable
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v3
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Running test script
+        env:
+          DO_DOCS: false
+          DO_DOCSRS: false
+          DO_FUZZ: false
+          DO_INTEGRATION: true
+          DO_LINT: false
+          DO_FEATURE_MATRIX: false
+        run: ./contrib/test.sh
+
