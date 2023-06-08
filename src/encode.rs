@@ -18,17 +18,17 @@
 use std::io::Cursor;
 use std::{error, fmt, io, mem};
 
-use bitcoin30::consensus::encode as btcenc;
+use bitcoin::consensus::encode as btcenc;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use crate::hashes::{Hash, sha256};
 use crate::transaction::{Transaction, TxIn, TxOut};
 use crate::pset;
 
-pub use bitcoin30::{self, consensus::encode::MAX_VEC_SIZE};
+pub use bitcoin::{self, consensus::encode::MAX_VEC_SIZE};
 
 // Use the ReadExt/WriteExt traits as is from upstream
-pub use bitcoin30::consensus::encode::{ReadExt, WriteExt};
+pub use bitcoin::consensus::encode::{ReadExt, WriteExt};
 
 use crate::taproot::TapLeafHash;
 
@@ -201,7 +201,7 @@ impl Decodable for sha256::Midstate {
 }
 
 pub(crate) fn consensus_encode_with_size<S: io::Write>(data: &[u8], mut s: S) -> Result<usize, Error> {
-    let vi_len = bitcoin30::VarInt(data.len() as u64).consensus_encode(&mut s)?;
+    let vi_len = bitcoin::VarInt(data.len() as u64).consensus_encode(&mut s)?;
     s.emit_slice(&data)?;
     Ok(vi_len + data.len())
 }
@@ -232,9 +232,9 @@ impl_upstream!([u8; 33]);
 impl_upstream!(Vec<u8>);
 impl_upstream!(Vec<Vec<u8>>);
 impl_upstream!(btcenc::VarInt);
-impl_upstream!(bitcoin30::Transaction);
-impl_upstream!(bitcoin30::BlockHash);
-impl_upstream!(bitcoin30::ScriptBuf);
+impl_upstream!(bitcoin::Transaction);
+impl_upstream!(bitcoin::BlockHash);
+impl_upstream!(bitcoin::ScriptBuf);
 impl_upstream!(crate::hashes::sha256d::Hash);
 
 // Specific locktime types (which appear in PSET/PSBT2 but not in rust-bitcoin PSBT)

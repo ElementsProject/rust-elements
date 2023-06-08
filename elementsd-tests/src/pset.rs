@@ -6,7 +6,7 @@ extern crate rand;
 
 use crate::{setup, Call};
 
-use bitcoin30::{self, Address, Amount};
+use bitcoin::{self, Address, Amount};
 use elements::hex::ToHex;
 use elements::encode::{deserialize, serialize};
 use elements::hashes::Hash;
@@ -100,12 +100,12 @@ fn tx_pegin() {
         .send_to_address(&address, amount, None, None, None, None, None, None)
         .unwrap();
     let tx = bitcoind.client.get_raw_transaction(&txid, None).unwrap();
-    let tx_bytes = bitcoin30::consensus::serialize(&tx);
+    let tx_bytes = bitcoin::consensus::serialize(&tx);
     let vout = tx
         .output
         .iter()
         .position(|o| {
-            let addr = Address::from_script(&o.script_pubkey, bitcoin30::Network::Regtest);
+            let addr = Address::from_script(&o.script_pubkey, bitcoin::Network::Regtest);
             addr.unwrap().to_string() == pegin_address
         })
         .unwrap();

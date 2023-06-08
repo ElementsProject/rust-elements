@@ -5,7 +5,7 @@ extern crate serde_json;
 
 use std::{collections::HashMap, str::FromStr};
 
-use bitcoin30::PublicKey;
+use bitcoin::PublicKey;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::{
     pset::PartiallySignedTransaction as Pset, Address, AddressParams, OutPoint,
@@ -31,7 +31,7 @@ static PARAMS: AddressParams = AddressParams::ELEMENTS;
 // confidential txouts
 #[derive(Debug, Clone)]
 struct Secrets {
-    _sk: bitcoin30::PrivateKey,
+    _sk: bitcoin::PrivateKey,
     sec: TxOutSecrets,
 }
 
@@ -61,13 +61,13 @@ fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
     };
 
     let txoutsecrets = Secrets {
-        _sk: bitcoin30::PrivateKey::from_wif(&v["skwif"].as_str().unwrap()).unwrap(),
+        _sk: bitcoin::PrivateKey::from_wif(&v["skwif"].as_str().unwrap()).unwrap(),
         sec: TxOutSecrets {
             asset_bf: AssetBlindingFactor::from_str(&v["assetblinder"].as_str().unwrap()).unwrap(),
             value_bf: ValueBlindingFactor::from_str(&v["amountblinder"].as_str().unwrap()).unwrap(),
-            value: bitcoin30::Amount::from_str_in(
+            value: bitcoin::Amount::from_str_in(
                 &v["amount"].as_str().unwrap(),
-                bitcoin30::Denomination::Bitcoin,
+                bitcoin::Denomination::Bitcoin,
             )
             .unwrap()
             .to_sat(),

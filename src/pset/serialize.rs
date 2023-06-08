@@ -25,9 +25,9 @@ use crate::encode::{self, deserialize, deserialize_partial, serialize, Decodable
 use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
 use crate::hex::ToHex;
-use bitcoin30::bip32::{ChildNumber, Fingerprint, KeySource};
-use bitcoin30::{self, VarInt};
-use bitcoin30::{PublicKey, key::XOnlyPublicKey};
+use bitcoin::bip32::{ChildNumber, Fingerprint, KeySource};
+use bitcoin::{self, VarInt};
+use bitcoin::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use super::map::{PsbtSighashType, TapTree};
@@ -77,8 +77,8 @@ impl_pset_hash_de_serialize!(BlockHash);
 impl_pset_hash_de_serialize!(TapLeafHash);
 impl_pset_hash_de_serialize!(TapBranchHash);
 
-// required for pegin bitcoin30::Transactions
-impl_pset_de_serialize!(bitcoin30::Transaction);
+// required for pegin bitcoin::Transactions
+impl_pset_de_serialize!(bitcoin::Transaction);
 
 // taproot
 impl_pset_de_serialize!(Vec<TapLeafHash>);

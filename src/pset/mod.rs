@@ -498,7 +498,7 @@ impl PartiallySignedTransaction {
                 self.outputs[i].amount_comm = txout.value.commitment();
                 self.outputs[i].asset_comm = txout.asset.commitment();
                 self.outputs[i].ecdh_pubkey =
-                    txout.nonce.commitment().map(|pk| bitcoin30::PublicKey {
+                    txout.nonce.commitment().map(|pk| bitcoin::PublicKey {
                         inner: pk,
                         compressed: true,
                     });
@@ -649,7 +649,7 @@ impl PartiallySignedTransaction {
             self.outputs[last_out_index].amount_comm = value_commitment.commitment();
             self.outputs[last_out_index].asset_comm = out_asset_commitment.commitment();
             self.outputs[last_out_index].ecdh_pubkey =
-                nonce.commitment().map(|pk| bitcoin30::PublicKey {
+                nonce.commitment().map(|pk| bitcoin::PublicKey {
                     inner: pk,
                     compressed: true,
                 });
@@ -826,9 +826,9 @@ mod tests {
         let btc_txout_secrets = TxOutSecrets {
             asset_bf: AssetBlindingFactor::from_str(&v["assetblinder"].as_str().unwrap()).unwrap(),
             value_bf: ValueBlindingFactor::from_str(&v["amountblinder"].as_str().unwrap()).unwrap(),
-            value: bitcoin30::Amount::from_str_in(
+            value: bitcoin::Amount::from_str_in(
                 &v["amount"].as_str().unwrap(),
-                bitcoin30::Denomination::Bitcoin,
+                bitcoin::Denomination::Bitcoin,
             )
             .unwrap()
             .to_sat(),

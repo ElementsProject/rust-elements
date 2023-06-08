@@ -67,8 +67,8 @@ mod serde_utils;
 // consider making upstream public
 mod endian;
 // re-export bitcoin deps which we re-use
-pub use bitcoin30::bech32;
-pub use bitcoin30::hashes;
+pub use bitcoin::bech32;
+pub use bitcoin::hashes;
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressParams, AddressError};
 pub use crate::transaction::{OutPoint, PeginData, PegoutData, EcdsaSigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
@@ -76,7 +76,7 @@ pub use crate::transaction::Sequence;
 pub use crate::blind::{ConfidentialTxOutError, TxOutSecrets, SurjectionInput, TxOutError, VerificationError, BlindError, UnblindError, BlindValueProofs, BlindAssetProofs};
 pub use crate::block::{BlockHeader, Block};
 pub use crate::block::ExtData as BlockExtData;
-pub use ::bitcoin30::consensus::encode::VarInt;
+pub use ::bitcoin::consensus::encode::VarInt;
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;
 pub use crate::issuance::{AssetId, ContractHash};

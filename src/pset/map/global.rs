@@ -25,7 +25,7 @@ use crate::encode::Decodable;
 use crate::endian::u32_to_array_le;
 use crate::pset::{self, map::Map, raw, Error};
 use crate::{LockTime, VarInt};
-use bitcoin30::bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint, KeySource};
+use bitcoin::bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint, KeySource};
 use secp256k1_zkp::Tweak;
 
 // (Not used in pset) Type: Unsigned Transaction PSET_GLOBAL_UNSIGNED_TX = 0x00

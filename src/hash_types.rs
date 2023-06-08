@@ -17,7 +17,7 @@
 //! (transaction id, block hash etc).
 
 use crate:: hashes::{hash_newtype, hash160, sha256, sha256d, Hash};
-use bitcoin30::secp256k1::ThirtyTwoByteHash;
+use bitcoin::secp256k1::ThirtyTwoByteHash;
 
 macro_rules! impl_hashencode {
     ($hashtype:ident) => {

@@ -32,8 +32,8 @@ use crate::pset::serialize;
 use crate::pset::{self, error, Error};
 use crate::{transaction::SighashTypeParseError, SchnorrSigHashType};
 use crate::{AssetIssuance, BlockHash, EcdsaSigHashType, Script, Transaction, TxIn, TxOut, Txid};
-use bitcoin30::bip32::KeySource;
-use bitcoin30::{PublicKey, key::XOnlyPublicKey};
+use bitcoin::bip32::KeySource;
+use bitcoin::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
 
 use crate::{OutPoint, Sequence};
@@ -244,8 +244,8 @@ pub struct Input {
     pub issuance_value_rangeproof: Option<Box<RangeProof>>,
     /// Issuance keys rangeproof
     pub issuance_keys_rangeproof: Option<Box<RangeProof>>,
-    /// Pegin Transaction. Should be a bitcoin30::Transaction
-    pub pegin_tx: Option<bitcoin30::Transaction>,
+    /// Pegin Transaction. Should be a bitcoin::Transaction
+    pub pegin_tx: Option<bitcoin::Transaction>,
     /// Pegin Transaction proof
     // TODO: Look for Merkle proof structs
     pub pegin_txout_proof: Option<Vec<u8>>,
@@ -666,7 +666,7 @@ impl Map for Input {
                             impl_pset_prop_insert_pair!(self.issuance_keys_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
                         PSBT_ELEMENTS_IN_PEG_IN_TX => {
-                            impl_pset_prop_insert_pair!(self.pegin_tx <= <raw_key: _> | <raw_value : bitcoin30::Transaction>)
+                            impl_pset_prop_insert_pair!(self.pegin_tx <= <raw_key: _> | <raw_value : bitcoin::Transaction>)
                         }
                         // No support for TxOutProof struct yet
                         PSBT_ELEMENTS_IN_PEG_IN_TXOUT_PROOF => {

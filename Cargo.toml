@@ -15,14 +15,13 @@ default = [ "json-contract" ]
 json-contract = [ "serde_json" ]
 "serde" = [
     "bitcoin/serde",
-    "bitcoin30/serde",
+    "bitcoin/serde",
     "secp256k1-zkp/serde",
     "actual-serde"
 ]
 
 [dependencies]
-bitcoin = "0.29.1"
-bitcoin30 = { package = "bitcoin", version = "0.30.0" }
+bitcoin = "0.30.0"
 secp256k1-zkp = { version = "0.9.1", features = [ "global-context", "bitcoin_hashes" ] }
 slip21 = "0.2.0"
 

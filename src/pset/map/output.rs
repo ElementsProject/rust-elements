@@ -24,8 +24,8 @@ use crate::pset::raw;
 use crate::pset::Error;
 use crate::{confidential, pset};
 use crate::{encode, Script, TxOutWitness};
-use bitcoin30::bip32::KeySource;
-use bitcoin30::{PublicKey, key::XOnlyPublicKey};
+use bitcoin::bip32::KeySource;
+use bitcoin::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, Generator, RangeProof, SurjectionProof};
 
 use crate::issuance;
@@ -120,9 +120,9 @@ pub struct Output {
     /// Output Asset surjection proof
     pub asset_surjection_proof: Option<Box<SurjectionProof>>,
     /// Blinding pubkey which is used in receiving address
-    pub blinding_key: Option<bitcoin30::PublicKey>,
+    pub blinding_key: Option<bitcoin::PublicKey>,
     /// The ephermal pk sampled by sender
-    pub ecdh_pubkey: Option<bitcoin30::PublicKey>,
+    pub ecdh_pubkey: Option<bitcoin::PublicKey>,
     /// The index of the input whose owner should blind this output
     pub blinder_index: Option<u32>,
     /// The blind value rangeproof

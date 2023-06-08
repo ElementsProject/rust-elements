@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 base64 = "0.13.0"
-bitcoin30 = { package = "bitcoin", version = "0.30" }
+bitcoin = "0.30.0"
 elements = {path = "../"}
 elementsd = "0.8.0"
 rand = "0.8"

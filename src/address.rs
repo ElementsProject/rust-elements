@@ -19,8 +19,8 @@ use std::error;
 use std::fmt;
 use std::str::FromStr;
 
-use bitcoin30::base58;
-use bitcoin30::PublicKey;
+use bitcoin::base58;
+use bitcoin::PublicKey;
 use crate::bech32::{self, u5, FromBase32, ToBase32};
 use crate::hashes::Hash;
 use secp256k1_zkp;
@@ -749,7 +749,7 @@ impl serde::Serialize for Address {
 #[cfg(test)]
 mod test {
     use super::*;
-    use bitcoin30::key;
+    use bitcoin::key;
     use secp256k1_zkp::{PublicKey, Secp256k1};
     use crate::Script;
     #[cfg(feature = "serde")]
