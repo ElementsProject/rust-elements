@@ -1459,7 +1459,7 @@ mod tests {
         let (address, blinding_sk) = {
             let sk = SecretKey::new(&mut thread_rng());
             let pk = PublicKey::from_private_key(
-                &SECP256K1,
+                SECP256K1,
                 &PrivateKey {
                     compressed: true,
                     network: Network::Regtest,
@@ -1468,7 +1468,7 @@ mod tests {
             );
             let blinding_sk = SecretKey::new(&mut thread_rng());
             let blinding_pk = PublicKey::from_private_key(
-                &SECP256K1,
+                SECP256K1,
                 &PrivateKey {
                     compressed: true,
                     network: Network::Regtest,

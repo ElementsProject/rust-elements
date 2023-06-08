@@ -43,7 +43,7 @@ impl<'a> Serialize for HexBytes<'a> {
         if s.is_human_readable() {
             s.collect_str(self)
         } else {
-            s.serialize_bytes(&self.0[..])
+            s.serialize_bytes(self.0)
         }
     }
 }

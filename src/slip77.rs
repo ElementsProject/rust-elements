@@ -62,14 +62,14 @@ mod tests {
         //! Test vector from libwally.
 
         let seed_hex = "731e9b42eb9774f8a6b51af35a06f6ef1cdb6cf04402163ceacf0c8bace2831a";
-        let master = MasterBlindingKey::new(&Vec::<u8>::from_hex(&seed_hex).unwrap());
+        let master = MasterBlindingKey::new(&Vec::<u8>::from_hex(seed_hex).unwrap());
 
         let privkey_hex = "c2f338e32ad1a2bd9cac569e67728163bf4c326a1770ec2293ba65548a581e97";
         let privkey = SecretKey::from_slice(&Vec::<u8>::from_hex(privkey_hex).unwrap()).unwrap();
         assert_eq!(master.0, privkey);
 
         let scriptpk_hex = "a914afa92d77cd3541b443771649572db096cf49bf8c87";
-        let scriptpk: Script = Vec::<u8>::from_hex(&scriptpk_hex).unwrap().into();
+        let scriptpk: Script = Vec::<u8>::from_hex(scriptpk_hex).unwrap().into();
 
         let blindingkey_hex = "02b067c374bb56c54c016fae29218c000ada60f81ef45b4aeebbeb24931bb8bc";
         let blindingkey = SecretKey::from_slice(&Vec::<u8>::from_hex(blindingkey_hex).unwrap()).unwrap();
@@ -81,7 +81,7 @@ mod tests {
         //! test vectors taken from libwally-core
         //! test_confidential_addr.py test_master_blinding_key
         let seed_hex = "c76c4ac4f4e4a00d6b274d5c39c700bb4a7ddc04fbc6f78e85ca75007b5b495f74a9043eeb77bdd53aa6fc3a0e31462270316fa04b8c19114c8798706cd02ac8";
-        let master_blinding_key = MasterBlindingKey::new(&Vec::<u8>::from_hex(&seed_hex).unwrap());
+        let master_blinding_key = MasterBlindingKey::new(&Vec::<u8>::from_hex(seed_hex).unwrap());
 
         let script: Script = Vec::<u8>::from_hex(
             "76a914a579388225827d9f2fe9014add644487808c695d88ac").unwrap().into();

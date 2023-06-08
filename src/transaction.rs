@@ -1219,7 +1219,7 @@ mod tests {
     fn outpoint() {
         let txid = "d0a5c455ea7221dead9513596d2f97c09943bad81a386fe61a14a6cda060e422";
         let s = format!("{}:42", txid);
-        let expected = OutPoint::new(Txid::from_str(&txid).unwrap(), 42);
+        let expected = OutPoint::new(Txid::from_str(txid).unwrap(), 42);
         let op = ::std::str::FromStr::from_str(&s).ok();
         assert_eq!(op, Some(expected));
         // roundtrip with elements prefix
@@ -1276,8 +1276,8 @@ mod tests {
         assert_eq!(tx.output.len(), 2);
         assert_eq!(tx.size(), serialize(&tx).len());
         assert_eq!(tx.weight(), tx.size() * 4);
-        assert_eq!(tx.output[0].is_fee(), false);
-        assert_eq!(tx.output[1].is_fee(), true);
+        assert!(!tx.output[0].is_fee());
+        assert!(tx.output[1].is_fee());
         assert_eq!(tx.output[0].value, confidential::Value::Explicit(9999996700));
         assert_eq!(tx.output[1].value, confidential::Value::Explicit(      3300));
         assert_eq!(tx.output[0].minimum_value(), 9999996700);
@@ -1487,21 +1487,21 @@ mod tests {
         assert_eq!(tx.size(), serialize(&tx).len());
         assert_eq!(tx.weight(), 7296);
         assert_eq!(tx.input.len(), 1);
-        assert_eq!(tx.input[0].is_coinbase(), false);
-        assert_eq!(tx.is_coinbase(), false);
+        assert!(!tx.input[0].is_coinbase());
+        assert!(!tx.is_coinbase());
 
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.output[0].is_fee(), false);
-        assert_eq!(tx.output[1].is_fee(), false);
-        assert_eq!(tx.output[2].is_fee(), true);
+        assert!(!tx.output[0].is_fee());
+        assert!(!tx.output[1].is_fee());
+        assert!(tx.output[2].is_fee());
 
         assert_eq!(tx.output[0].minimum_value(), 1);
         assert_eq!(tx.output[1].minimum_value(), 1);
         assert_eq!(tx.output[2].minimum_value(), 36480);
 
-        assert_eq!(tx.output[0].is_null_data(), false);
-        assert_eq!(tx.output[1].is_null_data(), false);
-        assert_eq!(tx.output[2].is_null_data(), false);
+        assert!(!tx.output[0].is_null_data());
+        assert!(!tx.output[1].is_null_data());
+        assert!(!tx.output[2].is_null_data());
 
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
         assert_eq!(tx.fee_in(fee_asset), 36480);
@@ -1529,16 +1529,16 @@ mod tests {
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.size(), serialize(&tx).len());
         assert_eq!(tx.weight(), 769);
-        assert_eq!(tx.input[0].is_coinbase(), true);
-        assert_eq!(!tx.input[0].is_pegin(), true);
+        assert!(tx.input[0].is_coinbase());
+        assert!(!tx.input[0].is_pegin());
         assert_eq!(tx.input[0].pegin_data(), None);
-        assert_eq!(tx.is_coinbase(), true);
+        assert!(tx.is_coinbase());
 
         assert_eq!(tx.output.len(), 2);
-        assert_eq!(tx.output[0].is_null_data(), true);
-        assert_eq!(tx.output[1].is_null_data(), true);
-        assert_eq!(tx.output[0].is_pegout(), false);
-        assert_eq!(tx.output[1].is_pegout(), false);
+        assert!(tx.output[0].is_null_data());
+        assert!(tx.output[1].is_null_data());
+        assert!(!tx.output[0].is_pegout());
+        assert!(!tx.output[1].is_pegout());
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
@@ -1581,8 +1581,8 @@ mod tests {
             "d1402017060761d77ee516f388134660d31ce9a72e546676303ac2fc3400656f"
         );
         assert_eq!(tx.input.len(), 1);
-        assert_eq!(tx.input[0].is_coinbase(), false);
-        assert_eq!(tx.input[0].is_pegin(), true);
+        assert!(!tx.input[0].is_coinbase());
+        assert!(tx.input[0].is_pegin());
         assert_eq!(tx.input[0].witness.pegin_witness.len(), 6);
         assert_eq!(
             tx.input[0].pegin_data(),
@@ -1667,8 +1667,8 @@ mod tests {
         assert_eq!(tx.output.len(), 2);
         assert!(!tx.output[0].is_null_data());
         assert!(!tx.output[1].is_null_data());
-        assert_eq!(tx.output[0].is_pegout(), false);
-        assert_eq!(tx.output[1].is_pegout(), false);
+        assert!(!tx.output[0].is_pegout());
+        assert!(!tx.output[1].is_pegout());
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
         let fee_asset = "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8".parse().unwrap();
@@ -1699,8 +1699,8 @@ mod tests {
         );
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 1);
-        assert_eq!(tx.output[0].is_null_data(), true);
-        assert_eq!(tx.output[0].is_pegout(), true);
+        assert!(tx.output[0].is_null_data());
+        assert!(tx.output[0].is_pegout());
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
         assert_eq!(tx.fee_in(fee_asset), 0);
         assert!(tx.all_fees().is_empty());
@@ -2054,7 +2054,7 @@ mod tests {
         );
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.input[0].has_issuance(), true);
+        assert!(tx.input[0].has_issuance());
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
         assert_eq!(tx.fee_in(fee_asset), 56400);
         assert_eq!(tx.all_fees()[&fee_asset], 56400);

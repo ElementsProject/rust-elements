@@ -340,26 +340,26 @@ mod test {
         let correct = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
         let expected = ContractHash::hash(correct.as_bytes());
         assert_eq!(tether, expected);
-        assert_eq!(expected, ContractHash::from_json_contract(&correct).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(correct).unwrap());
 
         let invalid_json = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey:"#;
-        assert!(ContractHash::from_json_contract(&invalid_json).is_err());
+        assert!(ContractHash::from_json_contract(invalid_json).is_err());
 
         let unordered = r#"{"precision":8,"ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(&unordered).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap());
 
         let unordered = r#"{"precision":8,"name":"Tether USD","ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(&unordered).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap());
 
         let spaces = r#"{"precision":8, "name" : "Tether USD", "ticker":"USDt",  "entity":{"domain":"tether.to" }, "issuer_pubkey" :"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0} "#;
-        assert_eq!(expected, ContractHash::from_json_contract(&spaces).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(spaces).unwrap());
 
         let nested_correct = r#"{"entity":{"author":"Tether Inc","copyright":2020,"domain":"tether.to","hq":"Mars"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
         let nested_expected = ContractHash::hash(nested_correct.as_bytes());
-        assert_eq!(nested_expected, ContractHash::from_json_contract(&nested_correct).unwrap());
+        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_correct).unwrap());
 
         let nested_unordered = r#"{"ticker":"USDt","entity":{"domain":"tether.to","hq":"Mars","author":"Tether Inc","copyright":2020},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"version":0}"#;
-        assert_eq!(nested_expected, ContractHash::from_json_contract(&nested_unordered).unwrap());
+        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_unordered).unwrap());
     }
 
     #[test]

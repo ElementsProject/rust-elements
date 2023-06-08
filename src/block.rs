@@ -399,7 +399,7 @@ mod tests {
 
     use super::*;
 
-    const SIMPLE_BLOCK: &'static str = "\
+    const SIMPLE_BLOCK: &str = "\
              00000020a66e4a4baff69735267346d12e59e8a0da848b593813554deb16a6f3\
              6cd035e9aab0e2451724598471dd4e45f0dca40ca5f4ac62e61957e50925af08\
              59891fcc8842805b020000000151000102000000010100000000000000000000\
@@ -411,7 +411,7 @@ mod tests {
              7d45000000000000012000000000000000000000000000000000000000000000\
              000000000000000000000000000000\
              ";
-    const DYNAFED_BLOCK: &'static str = "\
+    const DYNAFED_BLOCK: &str = "\
             000000a0da9d569617d1d65c3390a01c18c4fa7c4d0f4738b6fc2b5c5faf2e8a\
             463abbaa46eb9123808e1e2ff75e9472fa0f0589b53b7518a69d3d6fcb9228ed\
             345734ea06b9c45d070000000122002057c555a91edf9552282d88624d1473c2\

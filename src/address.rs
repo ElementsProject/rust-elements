@@ -770,7 +770,7 @@ mod test {
         );
         #[cfg(feature = "serde")]
         assert_eq!(
-            serde_json::from_value::<Address>(serde_json::to_value(&addr).unwrap()).ok().as_ref(),
+            serde_json::from_value::<Address>(serde_json::to_value(addr).unwrap()).ok().as_ref(),
             Some(addr)
         );
     }

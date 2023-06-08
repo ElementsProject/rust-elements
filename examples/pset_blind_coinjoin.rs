@@ -49,38 +49,38 @@ fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
 
     let txout = TxOut {
         asset: deserialize::<confidential::Asset>(
-            &Vec::<u8>::from_hex(&v["assetcommitment"].as_str().unwrap()).unwrap(),
+            &Vec::<u8>::from_hex(v["assetcommitment"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
         value: deserialize::<confidential::Value>(
-            &Vec::<u8>::from_hex(&v["amountcommitment"].as_str().unwrap()).unwrap(),
+            &Vec::<u8>::from_hex(v["amountcommitment"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
         nonce: deserialize::<confidential::Nonce>(
-            &Vec::<u8>::from_hex(&v["commitmentnonce"].as_str().unwrap()).unwrap(),
+            &Vec::<u8>::from_hex(v["commitmentnonce"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
-        script_pubkey: Script::from_hex(&v["scriptPubKey"].as_str().unwrap()).unwrap(),
+        script_pubkey: Script::from_hex(v["scriptPubKey"].as_str().unwrap()).unwrap(),
         witness: TxOutWitness::default(),
     };
 
     let txoutsecrets = Secrets {
-        _sk: bitcoin::PrivateKey::from_wif(&v["skwif"].as_str().unwrap()).unwrap(),
+        _sk: bitcoin::PrivateKey::from_wif(v["skwif"].as_str().unwrap()).unwrap(),
         sec: TxOutSecrets {
-            asset_bf: AssetBlindingFactor::from_str(&v["assetblinder"].as_str().unwrap()).unwrap(),
-            value_bf: ValueBlindingFactor::from_str(&v["amountblinder"].as_str().unwrap()).unwrap(),
+            asset_bf: AssetBlindingFactor::from_str(v["assetblinder"].as_str().unwrap()).unwrap(),
+            value_bf: ValueBlindingFactor::from_str(v["amountblinder"].as_str().unwrap()).unwrap(),
             value: bitcoin::Amount::from_str_in(
-                &v["amount"].as_str().unwrap(),
+                v["amount"].as_str().unwrap(),
                 bitcoin::Denomination::Bitcoin,
             )
             .unwrap()
             .to_sat(),
-            asset: AssetId::from_str(&v["asset"].as_str().unwrap()).unwrap(),
+            asset: AssetId::from_str(v["asset"].as_str().unwrap()).unwrap(),
         },
     };
 
     let inp = pset::Input::from_prevout(OutPoint::new(
-        Txid::from_str(&v["txid"].as_str().unwrap()).unwrap(),
+        Txid::from_str(v["txid"].as_str().unwrap()).unwrap(),
         v["vout"].as_u64().unwrap() as u32,
     ));
 
