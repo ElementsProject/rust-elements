@@ -1,6 +1,6 @@
 [package]
 name = "elements"
-version = "0.21.1"
+version = "0.22.0"
 authors = ["Andrew Poelstra <apoelstra@blockstream.com>"]
 description = "Library with support for de/serialization, parsing and executing on data structures and network messages related to Elements"
 license = "CC0-1.0"
@@ -15,19 +15,15 @@ default = [ "json-contract" ]
 json-contract = [ "serde_json" ]
 "serde" = [
     "bitcoin/serde",
-    "secp256k1-zkp/use-serde",
+    "bitcoin/serde",
+    "secp256k1-zkp/serde",
     "actual-serde"
 ]
 
 [dependencies]
-bitcoin = "0.29.1"
-secp256k1-zkp = { version = "0.7.0", features = [ "global-context", "bitcoin_hashes" ] }
+bitcoin = "0.30.0"
+secp256k1-zkp = { version = "0.9.1", features = [ "global-context", "bitcoin_hashes" ] }
 slip21 = "0.2.0"
-
-# While this dependency is included in bitcoin, we need this to use the macros.
-# We should probably try keep this one in sync with the bitcoin version,
-# to avoid requiring two version of bitcoin_hashes.
-bitcoin_hashes = "0.11.0"
 
 # Used for ContractHash::from_json_contract.
 serde_json = { version = "1.0", optional = true }

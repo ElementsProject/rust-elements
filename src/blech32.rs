@@ -42,7 +42,7 @@
 
 use std::fmt;
 
-use bitcoin::bech32::{u5, Error};
+use crate::bech32::{u5, Error};
 
 /// Used for encode/decode operations for the two variants of Blech32
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -175,7 +175,7 @@ pub fn decode(s: &str) -> Result<(&str, Vec<u5>, Variant), Error> {
     }
 
     // Ensure checksum
-    match verify_checksum(&raw_hrp.as_bytes(), &data) {
+    match verify_checksum(raw_hrp.as_bytes(), &data) {
         Some(variant) => {
             // Remove checksum from data payload
             let dbl: usize = data.len();
@@ -267,7 +267,7 @@ const GEN: [u64; 5] = [
 mod test {
     use super::*;
 
-    use bitcoin::bech32::ToBase32;
+    use crate::bech32::ToBase32;
     use rand;
 
     #[test]

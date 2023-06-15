@@ -28,7 +28,7 @@ use crate::issuance::AssetId;
 use crate::opcodes;
 use crate::parse::impl_parse_str_through_int;
 use crate::script::Instruction;
-use crate::{PackedLockTime, Script, Txid, Wtxid};
+use crate::{LockTime, Script, Txid, Wtxid};
 use secp256k1_zkp::{
     RangeProof, SurjectionProof, Tweak, ZERO_TWEAK,
 };
@@ -135,7 +135,7 @@ impl ::std::str::FromStr for OutPoint {
         }
         let bitcoin_outpoint = bitcoin::OutPoint::from_str(s)?;
         Ok(OutPoint {
-            txid: Txid::from(bitcoin_outpoint.txid.as_hash()),
+            txid: Txid::from(bitcoin_outpoint.txid.to_raw_hash()),
             vout: bitcoin_outpoint.vout,
         })
     }
@@ -555,7 +555,9 @@ impl TxIn {
         if self.is_pegin {
             // here we have to cast the previous_output to a bitcoin one
             Some(bitcoin::OutPoint {
-                txid: bitcoin::Txid::from(self.previous_output.txid.as_hash()),
+                txid: bitcoin::Txid::from_byte_array(
+                    self.previous_output.txid.to_byte_array()
+                ),
                 vout: self.previous_output.vout,
             })
         } else {
@@ -587,11 +589,11 @@ impl TxIn {
     pub fn issuance_ids(&self) -> (AssetId, AssetId) {
         let entropy = if self.asset_issuance.asset_blinding_nonce == ZERO_TWEAK {
             let contract_hash =
-                ContractHash::from_inner(self.asset_issuance.asset_entropy);
+                ContractHash::from_byte_array(self.asset_issuance.asset_entropy);
             AssetId::generate_asset_entropy(self.previous_output, contract_hash)
         } else {
             // re-issuance
-            sha256::Midstate::from_inner(self.asset_issuance.asset_entropy)
+            sha256::Midstate::from_byte_array(self.asset_issuance.asset_entropy)
         };
         let asset_id = AssetId::from_entropy(entropy);
         let token_id =
@@ -643,7 +645,7 @@ pub struct PegoutData<'txo> {
     /// Genesis hash of the target blockchain
     pub genesis_hash: bitcoin::BlockHash,
     /// Scriptpubkey to create on the target blockchain
-    pub script_pubkey: bitcoin::Script,
+    pub script_pubkey: bitcoin::ScriptBuf,
     /// Remaining pegout data used by some forks of Elements
     pub extra_data: Vec<&'txo [u8]>,
 }
@@ -742,10 +744,12 @@ impl TxOut {
         iter.next(); // Skip OP_RETURN
 
         // Parse destination chain's genesis block
-        let genesis_hash = bitcoin::BlockHash::from_slice(iter.next()?.ok()?.push_bytes()?).ok()?;
+        let genesis_hash = bitcoin::BlockHash::from_raw_hash(
+            crate::hashes::Hash::from_slice(iter.next()?.ok()?.push_bytes()?).ok()?
+        );
 
         // Parse destination scriptpubkey
-        let script_pubkey = bitcoin::Script::from(iter.next()?.ok()?.push_bytes()?.to_owned());
+        let script_pubkey = bitcoin::ScriptBuf::from(iter.next()?.ok()?.push_bytes()?.to_owned());
         if script_pubkey.len() == 0 {
             return None;
         }
@@ -826,7 +830,7 @@ pub struct Transaction {
     /// Transaction version field (should always be 2)
     pub version: u32,
     /// Transaction locktime
-    pub lock_time: PackedLockTime,
+    pub lock_time: LockTime,
     /// Vector of inputs
     pub input: Vec<TxIn>,
     /// Vector of outputs
@@ -885,7 +889,7 @@ impl Transaction {
         let input_weight = self.input.iter().map(|input| {
             scale_factor * (
                 32 + 4 + 4 + // output + nSequence
-                VarInt(input.script_sig.len() as u64).len() as usize +
+                VarInt(input.script_sig.len() as u64).len() +
                 input.script_sig.len() + if input.has_issuance() {
                     64 +
                     input.asset_issuance.amount.encoded_length() +
@@ -899,18 +903,18 @@ impl Transaction {
                 let keys_prf_len = input.witness.inflation_keys_rangeproof.as_ref()
                     .map(|x| x.len()).unwrap_or(0);
 
-                VarInt(amt_prf_len as u64).len() as usize +
+                VarInt(amt_prf_len as u64).len() +
                 amt_prf_len +
-                VarInt(keys_prf_len as u64).len() as usize +
+                VarInt(keys_prf_len as u64).len() +
                 keys_prf_len +
-                VarInt(input.witness.script_witness.len() as u64).len() as usize +
+                VarInt(input.witness.script_witness.len() as u64).len() +
                 input.witness.script_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).len() as usize +
+                    VarInt(wit.len() as u64).len() +
                     wit.len()
                 ).sum::<usize>() +
-                VarInt(input.witness.pegin_witness.len() as u64).len() as usize +
+                VarInt(input.witness.pegin_witness.len() as u64).len() +
                 input.witness.pegin_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).len() as usize +
+                    VarInt(wit.len() as u64).len() +
                     wit.len()
                 ).sum::<usize>()
             } else {
@@ -923,14 +927,14 @@ impl Transaction {
                 output.asset.encoded_length() +
                 output.value.encoded_length() +
                 output.nonce.encoded_length() +
-                VarInt(output.script_pubkey.len() as u64).len() as usize +
+                VarInt(output.script_pubkey.len() as u64).len() +
                 output.script_pubkey.len()
             ) + if witness_flag {
                 let range_prf_len = output.witness.rangeproof_len();
                 let surj_prf_len = output.witness.surjectionproof_len();
-                VarInt(surj_prf_len as u64).len() as usize +
+                VarInt(surj_prf_len as u64).len() +
                 surj_prf_len +
-                VarInt(range_prf_len as u64).len() as usize +
+                VarInt(range_prf_len as u64).len() +
                 range_prf_len
             } else {
                 0
@@ -940,8 +944,8 @@ impl Transaction {
         scale_factor * (
             4 + // version
             4 + // locktime
-            VarInt(self.input.len() as u64).len() as usize +
-            VarInt(self.output.len() as u64).len() as usize +
+            VarInt(self.input.len() as u64).len() +
+            VarInt(self.output.len() as u64).len() +
             1 // segwit flag byte (note this is *not* witness data in Elements)
         ) + input_weight + output_weight
     }
@@ -1031,7 +1035,7 @@ impl Decodable for Transaction {
         let wit_flag = u8::consensus_decode(&mut d)?;
         let mut input = Vec::<TxIn>::consensus_decode(&mut d)?;
         let mut output = Vec::<TxOut>::consensus_decode(&mut d)?;
-        let lock_time = PackedLockTime::consensus_decode(&mut d)?;
+        let lock_time = LockTime::consensus_decode(&mut d)?;
 
         match wit_flag {
             0 => Ok(Transaction {
@@ -1104,7 +1108,7 @@ impl str::FromStr for EcdsaSigHashType {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s.as_ref() {
+        match s {
             "SIGHASH_ALL" => Ok(EcdsaSigHashType::All),
             "SIGHASH_NONE" => Ok(EcdsaSigHashType::None),
             "SIGHASH_SINGLE" => Ok(EcdsaSigHashType::Single),
@@ -1150,7 +1154,7 @@ impl EcdsaSigHashType {
         self as u32
     }
 
-    /// Creates a [`SigHashType`] from a raw `u32`.
+    /// Creates an [`EcdsaSigHashType`] from a raw `u32`.
     ///
     /// # Errors
     ///
@@ -1201,11 +1205,11 @@ impl ::std::error::Error for SighashTypeParseError {}
 
 #[cfg(test)]
 mod tests {
-    use bitcoin;
-    use bitcoin::hashes::hex::FromHex;
+    use std::str::FromStr;
 
     use crate::encode::serialize;
     use crate::confidential;
+    use crate::hex::FromHex;
     use secp256k1_zkp::{self, ZERO_TWEAK};
     use crate::script;
 
@@ -1215,7 +1219,7 @@ mod tests {
     fn outpoint() {
         let txid = "d0a5c455ea7221dead9513596d2f97c09943bad81a386fe61a14a6cda060e422";
         let s = format!("{}:42", txid);
-        let expected = OutPoint::new(Txid::from_hex(&txid).unwrap(), 42);
+        let expected = OutPoint::new(Txid::from_str(txid).unwrap(), 42);
         let op = ::std::str::FromStr::from_str(&s).ok();
         assert_eq!(op, Some(expected));
         // roundtrip with elements prefix
@@ -1235,7 +1239,7 @@ mod tests {
 
         let tx = Transaction {
             version: 0,
-            lock_time: PackedLockTime::ZERO,
+            lock_time: LockTime::ZERO,
             input: vec![],
             output: vec![fee1, fee2],
         };
@@ -1272,8 +1276,8 @@ mod tests {
         assert_eq!(tx.output.len(), 2);
         assert_eq!(tx.size(), serialize(&tx).len());
         assert_eq!(tx.weight(), tx.size() * 4);
-        assert_eq!(tx.output[0].is_fee(), false);
-        assert_eq!(tx.output[1].is_fee(), true);
+        assert!(!tx.output[0].is_fee());
+        assert!(tx.output[1].is_fee());
         assert_eq!(tx.output[0].value, confidential::Value::Explicit(9999996700));
         assert_eq!(tx.output[1].value, confidential::Value::Explicit(      3300));
         assert_eq!(tx.output[0].minimum_value(), 9999996700);
@@ -1483,21 +1487,21 @@ mod tests {
         assert_eq!(tx.size(), serialize(&tx).len());
         assert_eq!(tx.weight(), 7296);
         assert_eq!(tx.input.len(), 1);
-        assert_eq!(tx.input[0].is_coinbase(), false);
-        assert_eq!(tx.is_coinbase(), false);
+        assert!(!tx.input[0].is_coinbase());
+        assert!(!tx.is_coinbase());
 
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.output[0].is_fee(), false);
-        assert_eq!(tx.output[1].is_fee(), false);
-        assert_eq!(tx.output[2].is_fee(), true);
+        assert!(!tx.output[0].is_fee());
+        assert!(!tx.output[1].is_fee());
+        assert!(tx.output[2].is_fee());
 
         assert_eq!(tx.output[0].minimum_value(), 1);
         assert_eq!(tx.output[1].minimum_value(), 1);
         assert_eq!(tx.output[2].minimum_value(), 36480);
 
-        assert_eq!(tx.output[0].is_null_data(), false);
-        assert_eq!(tx.output[1].is_null_data(), false);
-        assert_eq!(tx.output[2].is_null_data(), false);
+        assert!(!tx.output[0].is_null_data());
+        assert!(!tx.output[1].is_null_data());
+        assert!(!tx.output[2].is_null_data());
 
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
         assert_eq!(tx.fee_in(fee_asset), 36480);
@@ -1525,16 +1529,16 @@ mod tests {
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.size(), serialize(&tx).len());
         assert_eq!(tx.weight(), 769);
-        assert_eq!(tx.input[0].is_coinbase(), true);
-        assert_eq!(!tx.input[0].is_pegin(), true);
+        assert!(tx.input[0].is_coinbase());
+        assert!(!tx.input[0].is_pegin());
         assert_eq!(tx.input[0].pegin_data(), None);
-        assert_eq!(tx.is_coinbase(), true);
+        assert!(tx.is_coinbase());
 
         assert_eq!(tx.output.len(), 2);
-        assert_eq!(tx.output[0].is_null_data(), true);
-        assert_eq!(tx.output[1].is_null_data(), true);
-        assert_eq!(tx.output[0].is_pegout(), false);
-        assert_eq!(tx.output[1].is_pegout(), false);
+        assert!(tx.output[0].is_null_data());
+        assert!(tx.output[1].is_null_data());
+        assert!(!tx.output[0].is_pegout());
+        assert!(!tx.output[1].is_pegout());
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
@@ -1577,21 +1581,21 @@ mod tests {
             "d1402017060761d77ee516f388134660d31ce9a72e546676303ac2fc3400656f"
         );
         assert_eq!(tx.input.len(), 1);
-        assert_eq!(tx.input[0].is_coinbase(), false);
-        assert_eq!(tx.input[0].is_pegin(), true);
+        assert!(!tx.input[0].is_coinbase());
+        assert!(tx.input[0].is_pegin());
         assert_eq!(tx.input[0].witness.pegin_witness.len(), 6);
         assert_eq!(
             tx.input[0].pegin_data(),
             Some(super::PeginData {
                 outpoint: bitcoin::OutPoint {
-                    txid: bitcoin::Txid::from_hex(
+                    txid: bitcoin::Txid::from_str(
                         "c9d88eb5130365deed045eab11cfd3eea5ba32ad45fa2e156ae6ead5f1fce93f",
                     ).unwrap(),
                     vout: 0,
                 },
                 value: 100000000,
                 asset: tx.output[0].asset.explicit().unwrap(),
-                genesis_hash: bitcoin::BlockHash::from_hex(
+                genesis_hash: bitcoin::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
                 claim_script: &[
@@ -1650,7 +1654,7 @@ mod tests {
                     0x25, 0xf8, 0x55, 0x52, 0x97, 0x11, 0xed, 0x64,
                     0x50, 0xcc, 0x9b, 0x3c, 0x95, 0x01, 0x0b,
                 ],
-                referenced_block: bitcoin::BlockHash::from_hex(
+                referenced_block: bitcoin::BlockHash::from_str(
                     "297852caf43464d8f13a3847bd602184c21474cd06760dbf9fc5e87bade234f1"
                 ).unwrap(),
             })
@@ -1663,8 +1667,8 @@ mod tests {
         assert_eq!(tx.output.len(), 2);
         assert!(!tx.output[0].is_null_data());
         assert!(!tx.output[1].is_null_data());
-        assert_eq!(tx.output[0].is_pegout(), false);
-        assert_eq!(tx.output[1].is_pegout(), false);
+        assert!(!tx.output[0].is_pegout());
+        assert!(!tx.output[1].is_pegout());
         assert_eq!(tx.output[0].pegout_data(), None);
         assert_eq!(tx.output[1].pegout_data(), None);
         let fee_asset = "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8".parse().unwrap();
@@ -1695,8 +1699,8 @@ mod tests {
         );
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 1);
-        assert_eq!(tx.output[0].is_null_data(), true);
-        assert_eq!(tx.output[0].is_pegout(), true);
+        assert!(tx.output[0].is_null_data());
+        assert!(tx.output[0].is_pegout());
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
         assert_eq!(tx.fee_in(fee_asset), 0);
         assert!(tx.all_fees().is_empty());
@@ -1705,10 +1709,10 @@ mod tests {
             Some(super::PegoutData {
                 asset: tx.output[0].asset,
                 value: 99993900,
-                genesis_hash: bitcoin::BlockHash::from_hex(
+                genesis_hash: bitcoin::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),
-                script_pubkey: bitcoin::Script::from_hex(
+                script_pubkey: bitcoin::ScriptBuf::from_hex(
                     "76a914bedb324be05d1a1254afeb3e7ef40fea0368bc1e88ac"
                 ).unwrap(),
                 extra_data: vec![
@@ -1734,7 +1738,7 @@ mod tests {
             })
         );
 
-        let expected_asset_id = AssetId::from_hex("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
+        let expected_asset_id = AssetId::from_str("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8").unwrap();
         if let confidential::Asset::Explicit(asset_id) = tx.output[0].asset {
             assert_eq!(expected_asset_id, asset_id);
         } else {
@@ -2050,7 +2054,7 @@ mod tests {
         );
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.input[0].has_issuance(), true);
+        assert!(tx.input[0].has_issuance());
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
         assert_eq!(tx.fee_in(fee_asset), 56400);
         assert_eq!(tx.all_fees()[&fee_asset], 56400);

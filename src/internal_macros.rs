@@ -440,7 +440,7 @@ macro_rules! hex_deserialize(
 #[cfg(test)]
 macro_rules! hex_script(
     ($e:expr) => ({
-        let v: Vec<u8> = ::bitcoin::hashes::hex::FromHex::from_hex($e)
+        let v: Vec<u8> = crate::hex::FromHex::from_hex($e)
             .expect("hex decoding");
         crate::Script::from(v)
     })

@@ -30,7 +30,6 @@ use crate::{
     confidential::{Asset, AssetBlindingFactor, Nonce, Value, ValueBlindingFactor},
     Address, AssetId, Transaction, TxOut, TxOutWitness,
 };
-
 use crate::hashes;
 
 /// Transaction Output related errors
@@ -272,7 +271,7 @@ impl TxOutSecrets {
 
     /// Gets the required fields for last value blinding factor calculation from [`TxOutSecrets`]
     pub fn value_blind_inputs(&self) -> (u64, AssetBlindingFactor, ValueBlindingFactor) {
-        return (self.value, self.asset_bf, self.value_bf);
+        (self.value, self.asset_bf, self.value_bf)
     }
 }
 
@@ -623,7 +622,7 @@ impl TxOut {
         // Only error is Null error which is dealt with later
         // when we have more context information about it.
         match self.value {
-            Value::Null => return Err(TxOutError::UnExpectedNullValue),
+            Value::Null => Err(TxOutError::UnExpectedNullValue),
             Value::Explicit(value) => {
                 if value > Self::MAX_MONEY {
                     return Err(TxOutError::MoneyOutofRange);
@@ -655,6 +654,7 @@ impl TxOut {
     ///
     /// A tuple of ([`AssetBlindingFactor`], [`ValueBlindingFactor`], ephemeral secret key [`SecretKey`])
     /// sampled from the given rng
+    #[allow(clippy::too_many_arguments)]
     pub fn new_last_confidential<R, C>(
         rng: &mut R,
         secp: &Secp256k1<C>,
@@ -689,6 +689,7 @@ impl TxOut {
 
     /// Similar to [TxOut::new_last_confidential], but allows specifying the asset blinding factor
     /// and the ephemeral key. The value-blinding factor is computed adaptively
+    #[allow(clippy::too_many_arguments)]
     pub fn with_secrets_last<R, C>(
         rng: &mut R,
         secp: &Secp256k1<C>,
@@ -937,7 +938,7 @@ impl Transaction {
     ///
     /// ```
     /// # use std::str::FromStr;
-    /// # use elements::hashes::hex::FromHex;
+    /// # use elements::hex::FromHex;
     /// # use elements::encode::deserialize;
     /// # use elements::secp256k1_zkp;
     /// # use elements::{confidential, script, Transaction, TxOut, TxOutWitness};
@@ -1133,7 +1134,7 @@ impl Transaction {
                     out.value.explicit().unwrap(),
                     address,
                     out.asset.explicit().unwrap(),
-                    &spent_utxo_secrets,
+                    spent_utxo_secrets,
                 )?;
 
                 blinds.insert(TxInType::Input(i), (abf, vbf, ephemeral_sk));
@@ -1308,7 +1309,7 @@ impl BlindValueProofs for RangeProof {
         let r = self.verify(secp, value_commit, &[], asset_gen);
         match r {
             Ok(e) => e.start == explicit_val && e.end - 1 == explicit_val,
-            Err(..) => return false,
+            Err(..) => false,
         }
     }
 }
@@ -1368,11 +1369,12 @@ mod tests {
     use crate::confidential;
     use crate::encode;
     use crate::encode::deserialize;
-    use crate::hashes::hex::FromHex;
+    use crate::hex::FromHex;
     use crate::Script;
-    use bitcoin::{self, Network, PrivateKey, PublicKey};
+    use bitcoin::{Network, PrivateKey, PublicKey};
     use rand::thread_rng;
     use secp256k1_zkp::SECP256K1;
+    use std::str::FromStr;
 
     #[test]
     fn test_blind_tx() {
@@ -1380,7 +1382,7 @@ mod tests {
         let tx_hex = "020000000001741498f6da8f47eb438d0fb9de099b7e29c0e011b9ab64c3e0eb097a09a6a9220100000000fdffffff0301230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201000775f04dedb2d102a11e47fd7a0edfb424a43b2d3cf29d700d4b168c92e115709ff7d15070e201dd16001483641e58db3de6067f010d71c9782874572af9fb01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100000000000f42400206a1039b0fe0d110d2108f2cc49d637f95b6ac18045af5b302b3c14bf8457994160014ad65ebbed8416659141cc788c1b917d6ff3e059901230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100000000000000f9000000000000";
         let mut tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx_hex).unwrap()[..]).unwrap();
         let spent_utxo_secrets = TxOutSecrets {
-            asset: AssetId::from_hex(
+            asset: AssetId::from_str(
                 "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23",
             )
             .unwrap(),
@@ -1457,7 +1459,7 @@ mod tests {
         let (address, blinding_sk) = {
             let sk = SecretKey::new(&mut thread_rng());
             let pk = PublicKey::from_private_key(
-                &SECP256K1,
+                SECP256K1,
                 &PrivateKey {
                     compressed: true,
                     network: Network::Regtest,
@@ -1466,7 +1468,7 @@ mod tests {
             );
             let blinding_sk = SecretKey::new(&mut thread_rng());
             let blinding_pk = PublicKey::from_private_key(
-                &SECP256K1,
+                SECP256K1,
                 &PrivateKey {
                     compressed: true,
                     network: Network::Regtest,

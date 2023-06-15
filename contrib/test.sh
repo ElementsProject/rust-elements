@@ -2,35 +2,49 @@
 
 FEATURES="serde"
 
-# Use toolchain if explicitly specified
-if [ -n "$TOOLCHAIN" ]
-then
-    alias cargo="cargo +$TOOLCHAIN"
-fi
-
 # Pin dependencies as required if we are using MSRV toolchain.
-if cargo --version | grep "1\.41"; then
+if cargo --version | grep "1\.48"; then
     # 1.0.157 uses syn 2.0 which requires edition 2018
     cargo update -p serde --precise 1.0.156
-    # 1.0.108 uses `matches!` macro so does not work with Rust 1.41.1, bad `syn` no biscuit.
-    cargo update -p syn --precise 1.0.107
 fi
 
-# Test without any features first
-cargo test --verbose --no-default-features
-# Then test with the default features
-cargo test --verbose
+if [ "$DO_FEATURE_MATRX" = true ]
+then
+    # Test without any features first
+    cargo test --all --verbose --no-default-features
+    # Then test with the default features
+    cargo test --all --verbose
+    # Then test with the default features
+    cargo test --all --all-features --verbose
 
-# Also build and run each example to catch regressions
-cargo build --examples
-# run all examples
-run-parts ./target/debug/examples
+    # Also build and run each example to catch regressions
+    cargo build --examples
+    # run all examples
+    run-parts ./target/debug/examples
 
-# Test each feature
-for feature in ${FEATURES}
-do
-    cargo test --verbose --features="$feature"
-done
+    # Test each feature
+    for feature in ${FEATURES}
+    do
+        cargo test --verbose --features="$feature"
+    done
+fi
+
+if [ "$DO_LINT" = true ]
+then
+    cargo clippy --all-features --all-targets -- -D warnings
+fi
+
+# Build the docs if told to (this only works with the nightly toolchain)
+if [ "$DO_DOCSRS" = true ]; then
+    RUSTDOCFLAGS="--cfg docsrs -D warnings -D rustdoc::broken-intra-doc-links" cargo +nightly doc --all-features
+fi
+
+# Build the docs with a stable toolchain, in unison with the DO_DOCSRS command
+# above this checks that we feature guarded docs imports correctly.
+if [ "$DO_DOCS" = true ]; then
+    RUSTDOCFLAGS="-D warnings" cargo +stable doc --all-features
+fi
+
 
 # Fuzz if told to
 if [ "$DO_FUZZ" = true ]

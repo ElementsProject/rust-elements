@@ -12,7 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use bitcoin::hashes::{sha256, Hash, HashEngine};
+use crate::hashes::{sha256, Hash, HashEngine};
 
 /// Calculate a single sha256 midstate hash of the given left and right leaves.
 #[inline]
@@ -44,7 +44,7 @@ pub fn fast_merkle_root(leaves: &[[u8; 32]]) -> sha256::Midstate {
     let mut inner: [sha256::Midstate; 32] = Default::default();
     let mut count: u32 = 0;
     while (count as usize) < leaves.len() {
-        let mut temp_hash = sha256::Midstate::from_inner(leaves[count as usize]);
+        let mut temp_hash = sha256::Midstate::from_byte_array(leaves[count as usize]);
         count += 1;
         // For each of the lower bits in count that are 0, do 1 step. Each
         // corresponds to an inner value that existed before processing the
@@ -91,8 +91,8 @@ pub fn fast_merkle_root(leaves: &[[u8; 32]]) -> sha256::Midstate {
 #[cfg(test)]
 mod tests {
     use super::fast_merkle_root;
-    use bitcoin::hashes::hex::FromHex;
-    use bitcoin::hashes::sha256;
+    use crate::hashes::sha256;
+    use std::str::FromStr;
 
     #[test]
     fn test_fast_merkle_root() {
@@ -115,9 +115,9 @@ mod tests {
         let mut leaves = vec![];
         for i in 0..4 {
             let root = fast_merkle_root(&leaves);
-            assert_eq!(root, FromHex::from_hex(&test_roots[i]).unwrap(), "root #{}", i);
-            leaves.push(sha256::Midstate::from_hex(&test_leaves[i]).unwrap().into_inner());
+            assert_eq!(root, FromStr::from_str(test_roots[i]).unwrap(), "root #{}", i);
+            leaves.push(sha256::Midstate::from_str(test_leaves[i]).unwrap().to_byte_array());
         }
-        assert_eq!(fast_merkle_root(&leaves), FromHex::from_hex(test_roots[4]).unwrap());
+        assert_eq!(fast_merkle_root(&leaves), FromStr::from_str(test_roots[4]).unwrap());
     }
 }

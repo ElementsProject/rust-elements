@@ -15,10 +15,10 @@
 //! # Partially Signed Elements Transactions (PSET)
 //!
 //! Implementation of BIP174 Partially Signed Bitcoin Transaction Format as
-//! defined at https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+//! defined at <https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki>
 //! except we define PSETs containing non-standard SigHash types as invalid.
 //! Extension for PSET is based on PSET defined in BIP370.
-//! https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki
+//! <https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki>
 
 use std::collections::HashMap;
 use std::{cmp, io};
@@ -39,7 +39,6 @@ use crate::{
     TxOutSecrets,
 };
 use crate::{OutPoint, LockTime, Sequence, SurjectionInput, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness, Txid};
-use bitcoin;
 use secp256k1_zkp::rand::{CryptoRng, RngCore};
 use secp256k1_zkp::{self, RangeProof, SecretKey, SurjectionProof};
 
@@ -70,23 +69,24 @@ impl Default for PartiallySignedTransaction {
 impl PartiallySignedTransaction {
     /// Create a new PSET from a raw transaction
     pub fn from_tx(tx: Transaction) -> Self {
-        let mut global = Global::default();
-        global.tx_data.output_count = tx.output.len();
-        global.tx_data.input_count = tx.input.len();
-        global.tx_data.fallback_locktime = Some(tx.lock_time);
-        global.tx_data.version = tx.version;
+        let global = Global {
+            tx_data: GlobalTxData {
+                output_count: tx.output.len(),
+                input_count: tx.input.len(),
+                fallback_locktime: Some(tx.lock_time),
+                version: tx.version,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
 
         let inputs = tx.input.into_iter().map(Input::from_txin).collect();
         let outputs = tx
             .output
             .into_iter()
-            .map(|o| Output::from_txout(o))
+            .map(Output::from_txout)
             .collect();
-        Self {
-            global: global,
-            inputs: inputs,
-            outputs: outputs,
-        }
+        Self { global, inputs, outputs }
     }
     /// Create a PartiallySignedTransaction with zero inputs
     /// zero outputs with a version 2 and tx version 2
@@ -190,6 +190,7 @@ impl PartiallySignedTransaction {
     }
 
     /// Accessor for the locktime to be used in the final transaction
+    #[allow(clippy::match_single_binding)]
     pub fn locktime(&self) -> Result<LockTime, Error> {
         match self.global.tx_data {
             GlobalTxData {
@@ -325,7 +326,7 @@ impl PartiallySignedTransaction {
         }
         Ok(Transaction {
             version: self.global.tx_data.version,
-            lock_time: locktime.into(),
+            lock_time: locktime,
             input: inputs,
             output: outputs,
         })
@@ -354,6 +355,7 @@ impl PartiallySignedTransaction {
     }
 
     // Common pset blinding checks
+    #[allow(clippy::type_complexity)] // FIXME we probably should actually factor out this return type
     fn blind_checks(
         &self,
         inp_txout_sec: &HashMap<usize, TxOutSecrets>,
@@ -748,11 +750,7 @@ impl Decodable for PartiallySignedTransaction {
             outputs
         };
 
-        let pset = PartiallySignedTransaction {
-            global: global,
-            inputs: inputs,
-            outputs: outputs,
-        };
+        let pset = PartiallySignedTransaction { global, inputs, outputs };
         pset.sanity_check()?;
         Ok(pset)
     }
@@ -761,7 +759,7 @@ impl Decodable for PartiallySignedTransaction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::hashes::hex::{FromHex, ToHex};
+    use crate::hex::{FromHex, ToHex};
 
     fn tx_pset_rtt(tx_hex: &str) {
         let tx: Transaction =
@@ -814,7 +812,7 @@ mod tests {
 
         let pset_hex = "70736574ff01020402000000010401010105010201fb04020000000001017a0bb9325c276764451bbc2eb82a4c8c4bb6f4007ba803e5a5ba72d0cd7c09848e1a091622d935953bf06e0b7393239c68c6f810a00fe19d11c6ae343cffd3037077da02535fe4ad0fcd675cd0f62bf73b60a554dc1569b80f1f76a2bbfc9f00d439bf4b160014d2cbec8783bd01c9f178348b08500a830a89a7f9010e20805131ba6b37165c026eed9325ac56059ba872fd569e3ed462734098688b4770010f0400000000000103088c83b50d0000000007fc04707365740220230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20104220020e5793ad956ee91ebf3543b37d110701118ed4078ffa0d477eacb8885e486ad8507fc047073657406210212bf0ea45b733dfde8ecb5e896306c4165c666c99fc5d1ab887f71393a975cea07fc047073657408040000000000010308f40100000000000007fc04707365740220230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201040000";
         let mut pset: PartiallySignedTransaction =
-            encode::deserialize(&Vec::<u8>::from_hex(&pset_hex).unwrap()[..]).unwrap();
+            encode::deserialize(&Vec::<u8>::from_hex(pset_hex).unwrap()[..]).unwrap();
 
         let btc_txout_secrets_str = r#"
         {
@@ -825,15 +823,15 @@ mod tests {
         }"#;
         let v: serde_json::Value = serde_json::from_str(btc_txout_secrets_str).unwrap();
         let btc_txout_secrets = TxOutSecrets {
-            asset_bf: AssetBlindingFactor::from_str(&v["assetblinder"].as_str().unwrap()).unwrap(),
-            value_bf: ValueBlindingFactor::from_str(&v["amountblinder"].as_str().unwrap()).unwrap(),
+            asset_bf: AssetBlindingFactor::from_str(v["assetblinder"].as_str().unwrap()).unwrap(),
+            value_bf: ValueBlindingFactor::from_str(v["amountblinder"].as_str().unwrap()).unwrap(),
             value: bitcoin::Amount::from_str_in(
-                &v["amount"].as_str().unwrap(),
+                v["amount"].as_str().unwrap(),
                 bitcoin::Denomination::Bitcoin,
             )
             .unwrap()
             .to_sat(),
-            asset: AssetId::from_hex(&v["asset"].as_str().unwrap()).unwrap(),
+            asset: AssetId::from_str(v["asset"].as_str().unwrap()).unwrap(),
         };
 
         let mut inp_txout_sec = HashMap::new();

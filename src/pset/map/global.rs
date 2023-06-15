@@ -24,8 +24,8 @@ use crate::encode;
 use crate::encode::Decodable;
 use crate::endian::u32_to_array_le;
 use crate::pset::{self, map::Map, raw, Error};
-use crate::{PackedLockTime, VarInt};
-use bitcoin::util::bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint, KeySource};
+use crate::{LockTime, VarInt};
+use bitcoin::bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint, KeySource};
 use secp256k1_zkp::Tweak;
 
 // (Not used in pset) Type: Unsigned Transaction PSET_GLOBAL_UNSIGNED_TX = 0x00
@@ -64,7 +64,7 @@ pub struct TxData {
     pub version: u32,
     /// Locktime to use if no inputs specify a minimum locktime to use.
     /// May be omitted in which case it is interpreted as 0.
-    pub fallback_locktime: Option<crate::PackedLockTime>,
+    pub fallback_locktime: Option<LockTime>,
     /// Number of inputs in the transaction
     /// Not public. Users should not be able to mutate this directly
     /// This will be automatically whenever pset inputs are added
@@ -175,7 +175,7 @@ impl Map for Global {
                             return Err(Error::DuplicateKey(raw_key).into());
                         }
                     } else {
-                        return Err(Error::InvalidKey(raw_key.into()))?;
+                        return Err(Error::InvalidKey(raw_key))?;
                     }
                 } else if prop_key.is_pset_key()
                     && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
@@ -183,7 +183,7 @@ impl Map for Global {
                     if prop_key.key.is_empty() && raw_value.len() == 1 {
                         self.elements_tx_modifiable_flag = Some(raw_value[0]);
                     } else {
-                        return Err(Error::InvalidKey(raw_key.into()))?;
+                        return Err(Error::InvalidKey(raw_key))?;
                     }
                 } else {
                     match self.proprietary.entry(prop_key) {
@@ -295,6 +295,7 @@ impl Map for Global {
 
     // Keep in mind that according to BIP 174 this function must be commutative, i.e.
     // A.merge(B) == B.merge(A)
+    #[allow(clippy::if_same_then_else)] // we have several `else if` branches which are just `continue`
     fn merge(&mut self, other: Self) -> Result<(), pset::Error> {
         // BIP 174: The Combiner must remove any duplicate key-value pairs, in accordance with
         //          the specification. It can pick arbitrarily when conflicts occur.
@@ -341,7 +342,7 @@ impl Map for Global {
                         continue;
                     }
                     return Err(pset::Error::MergeConflict(
-                        format!("global xpub {} has inconsistent key sources", xpub).to_owned(),
+                        format!("global xpub {} has inconsistent key sources", xpub)
                     ));
                 }
             }
@@ -376,7 +377,7 @@ impl Decodable for Global {
         let mut tx_version: Option<u32> = None;
         let mut input_count: Option<VarInt> = None;
         let mut output_count: Option<VarInt> = None;
-        let mut fallback_locktime: Option<PackedLockTime> = None;
+        let mut fallback_locktime: Option<LockTime> = None;
         let mut tx_modifiable: Option<u8> = None;
         let mut elements_tx_modifiable_flag: Option<u8> = None;
 
@@ -395,7 +396,7 @@ impl Decodable for Global {
                         }
                         PSET_GLOBAL_FALLBACK_LOCKTIME => {
                             impl_pset_insert_pair! {
-                                fallback_locktime <= <raw_key: _>|<raw_value: PackedLockTime>
+                                fallback_locktime <= <raw_key: _>|<raw_value: LockTime>
                             }
                         }
                         PSET_GLOBAL_INPUT_COUNT => {
@@ -437,7 +438,7 @@ impl Decodable for Global {
                                 let derivation = DerivationPath::from(path);
                                 // Keys, according to BIP-174, must be unique
                                 if xpub_map
-                                    .insert(xpub, (Fingerprint::from(&fingerprint[..]), derivation))
+                                    .insert(xpub, (Fingerprint::from(fingerprint), derivation))
                                     .is_some()
                                 {
                                     return Err(encode::Error::ParseFailed(
@@ -468,7 +469,7 @@ impl Decodable for Global {
                                         return Err(Error::DuplicateKey(raw_key).into());
                                     }
                                 } else {
-                                    return Err(Error::InvalidKey(raw_key.into()))?;
+                                    return Err(Error::InvalidKey(raw_key))?;
                                 }
                             } else if prop_key.is_pset_key()
                                 && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
@@ -476,7 +477,7 @@ impl Decodable for Global {
                                 if prop_key.key.is_empty() && raw_value.len() == 1 {
                                     elements_tx_modifiable_flag = Some(raw_value[0]);
                                 } else {
-                                    return Err(Error::InvalidKey(raw_key.into()))?;
+                                    return Err(Error::InvalidKey(raw_key))?;
                                 }
                             } else {
                                 match proprietary.entry(prop_key) {
@@ -521,12 +522,12 @@ impl Decodable for Global {
                 output_count,
                 tx_modifiable,
             },
-            version: version,
+            version,
             xpub: xpub_map,
-            proprietary: proprietary,
+            proprietary,
             unknown: unknowns,
-            scalars: scalars,
-            elements_tx_modifiable_flag: elements_tx_modifiable_flag,
+            scalars,
+            elements_tx_modifiable_flag,
         };
         Ok(global)
     }

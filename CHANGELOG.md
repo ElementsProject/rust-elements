@@ -1,4 +1,12 @@
 
+# 0.22.0 - 2023-06-08
+
+* [https://github.com/ElementsProject/rust-elements/pull/159](Update `TapTweak`, and `schnorr` module generally, to match rust-bitcoin)
+* [https://github.com/ElementsProject/rust-elements/pull/160](Make `Prevouts` generic over type of `TxOut`)
+* [https://github.com/ElementsProject/rust-elements/pull/161](Add `Transaction::vsize` method)
+* [https://github.com/ElementsProject/rust-elements/pull/157](dynafed: extract `FullParams` from `Params`)
+* [https://github.com/ElementsProject/rust-elements/pull/166](**Update bitcoin dependency to 0.30.0 and secp256k1-zkp dependency to 0.9.1**)
+
 # 0.21.1 - 2022-10-21
 
 - Add `PeginData::parse_tx`

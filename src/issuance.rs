@@ -17,9 +17,8 @@
 use std::io;
 use std::str::FromStr;
 
-use bitcoin::hashes::{self, hex, sha256, sha256d, Hash};
-
 use crate::encode::{self, Encodable, Decodable};
+use crate::hashes::{self, hash_newtype, sha256, sha256d, Hash};
 use crate::fast_merkle_root::fast_merkle_root;
 use secp256k1_zkp::Tag;
 use crate::transaction::OutPoint;
@@ -37,7 +36,11 @@ const TWO32: [u8; 32] = [
     2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
 
-hash_newtype!(ContractHash, sha256::Hash, 32, doc="The hash of an asset contract.", true);
+hash_newtype!(
+    /// The hash of an asset contract.", tru)
+    #[hash_newtype(backward)]
+    pub struct ContractHash(sha256::Hash);
+);
 
 impl ContractHash {
     /// Calculate the contract hash of a JSON contract object.
@@ -101,7 +104,7 @@ impl AssetId {
             prevout.consensus_encode(&mut enc).unwrap();
             sha256d::Hash::from_engine(enc)
         };
-        fast_merkle_root(&[prevout_hash.into_inner(), contract_hash.into_inner()])
+        fast_merkle_root(&[prevout_hash.to_byte_array(), contract_hash.to_byte_array()])
     }
 
     /// Calculate the asset ID from the asset entropy.
@@ -109,7 +112,7 @@ impl AssetId {
         // H_a : asset tag
         // E   : entropy
         // H_a = H( E || 0 )
-        AssetId(fast_merkle_root(&[entropy.into_inner(), ZERO32]))
+        AssetId(fast_merkle_root(&[entropy.to_byte_array(), ZERO32]))
     }
 
     /// Computes the asset ID when issuing asset from issuing input and contract hash
@@ -136,21 +139,12 @@ impl AssetId {
             false => ONE32,
             true => TWO32,
         };
-        AssetId(fast_merkle_root(&[entropy.into_inner(), second]))
+        AssetId(fast_merkle_root(&[entropy.to_byte_array(), second]))
     }
 
     /// Convert an asset into [Tag]
     pub fn into_tag(self) -> Tag {
-        self.0.into_inner().into()
-    }
-}
-
-impl hex::FromHex for AssetId {
-    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
-    where
-        I: Iterator<Item = Result<u8, hex::Error>> + ExactSizeIterator + DoubleEndedIterator,
-    {
-        sha256::Midstate::from_byte_iter(iter).map(AssetId)
+        self.0.to_byte_array().into()
     }
 }
 
@@ -173,9 +167,9 @@ impl ::std::fmt::LowerHex for AssetId {
 }
 
 impl FromStr for AssetId {
-    type Err = hex::Error;
+    type Err = crate::hashes::hex::Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        hex::FromHex::from_hex(s)
+        sha256::Midstate::from_str(s).map(AssetId)
     }
 }
 
@@ -194,7 +188,7 @@ impl Decodable for AssetId {
 #[cfg(feature = "serde")]
 impl ::serde::Serialize for AssetId {
     fn serialize<S: ::serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        use bitcoin::hashes::hex::ToHex;
+        use crate::hex::ToHex;
         if s.is_human_readable() {
             s.serialize_str(&self.to_hex())
         } else {
@@ -206,8 +200,6 @@ impl ::serde::Serialize for AssetId {
 #[cfg(feature = "serde")]
 impl<'de> ::serde::Deserialize<'de> for AssetId {
     fn deserialize<D: ::serde::Deserializer<'de>>(d: D) -> Result<AssetId, D::Error> {
-        use bitcoin::hashes::hex::FromHex;
-
         if d.is_human_readable() {
             struct HexVisitor;
 
@@ -223,7 +215,7 @@ impl<'de> ::serde::Deserialize<'de> for AssetId {
                     E: ::serde::de::Error,
                 {
                     if let Ok(hex) = ::std::str::from_utf8(v) {
-                        AssetId::from_hex(hex).map_err(E::custom)
+                        AssetId::from_str(hex).map_err(E::custom)
                     } else {
                         return Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self));
                     }
@@ -233,7 +225,7 @@ impl<'de> ::serde::Deserialize<'de> for AssetId {
                 where
                     E: ::serde::de::Error,
                 {
-                    AssetId::from_hex(v).map_err(E::custom)
+                    AssetId::from_str(v).map_err(E::custom)
                 }
             }
 
@@ -257,7 +249,7 @@ impl<'de> ::serde::Deserialize<'de> for AssetId {
                     } else {
                         let mut ret = [0; 32];
                         ret.copy_from_slice(v);
-                        Ok(AssetId(sha256::Midstate::from_inner(ret)))
+                        Ok(AssetId(sha256::Midstate::from_byte_array(ret)))
                     }
                 }
             }
@@ -272,8 +264,7 @@ mod test {
     use super::*;
     use std::str::FromStr;
 
-    use bitcoin::hashes::hex::FromHex;
-    use bitcoin::hashes::sha256;
+    use crate::hashes::sha256;
 
     #[test]
     fn example_elements_core() {
@@ -283,13 +274,13 @@ mod test {
         let asset_id_hex = "dcd60818d863b5c026c40b2bc3ba6fdaf5018bcc8606c18adf7db4da0bcd8533";
         let token_id_hex = "c1adb114f4f87d33bf9ce90dd4f9ca523dd414d6cd010a7917903e2009689530";
 
-        let contract_hash = ContractHash::from_inner(ZERO32);
+        let contract_hash = ContractHash::from_byte_array(ZERO32);
         let prevout = OutPoint::from_str(prevout_str).unwrap();
-        let entropy = sha256::Midstate::from_hex(entropy_hex).unwrap();
+        let entropy = sha256::Midstate::from_str(entropy_hex).unwrap();
         assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
-        let asset_id = AssetId::from_hex(asset_id_hex).unwrap();
+        let asset_id = AssetId::from_str(asset_id_hex).unwrap();
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
-        let token_id = AssetId::from_hex(token_id_hex).unwrap();
+        let token_id = AssetId::from_str(token_id_hex).unwrap();
         assert_eq!(AssetId::reissuance_token_from_entropy(entropy, false), token_id);
 
         // example test data from Elements Core 0.21 with prevout vout = 1
@@ -298,13 +289,13 @@ mod test {
         let asset_id_hex = "2ec6c1a06e895b06fffb8dc36084255f890467fb906565b0c048d4c807b4a129";
         let token_id_hex = "d09d205ff7c626ca98c91fed24787ff747fec62194ed1b7e6ef6cc775a1a1fdc";
 
-        let contract_hash = ContractHash::from_inner(ZERO32);
+        let contract_hash = ContractHash::from_byte_array(ZERO32);
         let prevout = OutPoint::from_str(prevout_str).unwrap();
-        let entropy = sha256::Midstate::from_hex(entropy_hex).unwrap();
+        let entropy = sha256::Midstate::from_str(entropy_hex).unwrap();
         assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
-        let asset_id = AssetId::from_hex(asset_id_hex).unwrap();
+        let asset_id = AssetId::from_str(asset_id_hex).unwrap();
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
-        let token_id = AssetId::from_hex(token_id_hex).unwrap();
+        let token_id = AssetId::from_str(token_id_hex).unwrap();
         assert_eq!(AssetId::reissuance_token_from_entropy(entropy, true), token_id);
 
 
@@ -315,13 +306,13 @@ mod test {
         let asset_id_hex = "8eebf6109bca0331fe559f0cbd1ef846a2bbb6812f3ae3d8b0b610170cc21a4e"; // parsed reverse
         let token_id_hex = "eb02cbc591c9ede071625c129f0a1fab386202cb27a894a45be0d564e961d6bc"; // parsed reverse
 
-        let contract_hash = ContractHash::from_hex(contract_hash_hex).unwrap();
+        let contract_hash = ContractHash::from_str(contract_hash_hex).unwrap();
         let prevout = OutPoint::from_str(prevout_str).unwrap();
-        let entropy = sha256::Midstate::from_hex(entropy_hex).unwrap();
+        let entropy = sha256::Midstate::from_str(entropy_hex).unwrap();
         assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
-        let asset_id = AssetId::from_hex(asset_id_hex).unwrap();
+        let asset_id = AssetId::from_str(asset_id_hex).unwrap();
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
-        let token_id = AssetId::from_hex(token_id_hex).unwrap();
+        let token_id = AssetId::from_str(token_id_hex).unwrap();
         assert_eq!(AssetId::reissuance_token_from_entropy(entropy, false), token_id);
 
         // example test data from Elements Core 0.21
@@ -331,44 +322,44 @@ mod test {
         let asset_id_hex = "bdab916e8cda17781bcdb84505452e44d0ab2f080e9e5dd7765ffd5ce0c07cd9";
         let token_id_hex = "f144868169dfc7afc024c4d8f55607ac8dfe925e67688650a9cdc54c3cfa5b1c";
 
-        let contract_hash = ContractHash::from_inner(ZERO32);
+        let contract_hash = ContractHash::from_byte_array(ZERO32);
         let prevout = OutPoint::from_str(prevout_str).unwrap();
-        let entropy = sha256::Midstate::from_hex(entropy_hex).unwrap();
+        let entropy = sha256::Midstate::from_str(entropy_hex).unwrap();
         assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
-        let asset_id = AssetId::from_hex(asset_id_hex).unwrap();
+        let asset_id = AssetId::from_str(asset_id_hex).unwrap();
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
-        let token_id = AssetId::from_hex(token_id_hex).unwrap();
+        let token_id = AssetId::from_str(token_id_hex).unwrap();
         assert_eq!(AssetId::reissuance_token_from_entropy(entropy, true), token_id);
     }
 
     #[cfg(feature = "json-contract")]
     #[test]
     fn test_json_contract() {
-        let tether = ContractHash::from_hex("3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82").unwrap();
+        let tether = ContractHash::from_str("3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82").unwrap();
 
         let correct = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
         let expected = ContractHash::hash(correct.as_bytes());
         assert_eq!(tether, expected);
-        assert_eq!(expected, ContractHash::from_json_contract(&correct).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(correct).unwrap());
 
         let invalid_json = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey:"#;
-        assert!(ContractHash::from_json_contract(&invalid_json).is_err());
+        assert!(ContractHash::from_json_contract(invalid_json).is_err());
 
         let unordered = r#"{"precision":8,"ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(&unordered).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap());
 
         let unordered = r#"{"precision":8,"name":"Tether USD","ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(&unordered).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap());
 
         let spaces = r#"{"precision":8, "name" : "Tether USD", "ticker":"USDt",  "entity":{"domain":"tether.to" }, "issuer_pubkey" :"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0} "#;
-        assert_eq!(expected, ContractHash::from_json_contract(&spaces).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(spaces).unwrap());
 
         let nested_correct = r#"{"entity":{"author":"Tether Inc","copyright":2020,"domain":"tether.to","hq":"Mars"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
         let nested_expected = ContractHash::hash(nested_correct.as_bytes());
-        assert_eq!(nested_expected, ContractHash::from_json_contract(&nested_correct).unwrap());
+        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_correct).unwrap());
 
         let nested_unordered = r#"{"ticker":"USDt","entity":{"domain":"tether.to","hq":"Mars","author":"Tether Inc","copyright":2020},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"version":0}"#;
-        assert_eq!(nested_expected, ContractHash::from_json_contract(&nested_unordered).unwrap());
+        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_unordered).unwrap());
     }
 
     #[test]

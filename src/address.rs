@@ -19,10 +19,10 @@ use std::error;
 use std::fmt;
 use std::str::FromStr;
 
-use bitcoin::bech32::{self, u5, FromBase32, ToBase32};
-use bitcoin::util::base58;
+use bitcoin::base58;
 use bitcoin::PublicKey;
-use bitcoin::hashes::Hash;
+use crate::bech32::{self, u5, FromBase32, ToBase32};
+use crate::hashes::Hash;
 use secp256k1_zkp;
 use secp256k1_zkp::Secp256k1;
 use secp256k1_zkp::Verification;
@@ -388,7 +388,7 @@ impl Address {
             Payload::WitnessProgram {
                 version: witver,
                 program: ref witprog,
-            } => script::Builder::new().push_int(witver.to_u8() as i64).push_slice(&witprog),
+            } => script::Builder::new().push_int(witver.to_u8() as i64).push_slice(witprog),
         }
         .into_script()
     }
@@ -550,7 +550,7 @@ impl Address {
         if s.len() > 150 {
             return Err(base58::Error::InvalidLength(s.len() * 11 / 15).into());
         }
-        let data = base58::from_check(s)?;
+        let data = base58::decode_check(s)?;
         Address::from_base58(&data, params)
     }
 }
@@ -565,12 +565,12 @@ impl fmt::Display for Address {
                     prefixed[1] = self.params.p2pkh_prefix;
                     prefixed[2..35].copy_from_slice(&blinder.serialize());
                     prefixed[35..].copy_from_slice(&hash[..]);
-                    base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                    base58::encode_check_to_fmt(fmt, &prefixed[..])
                 } else {
                     let mut prefixed = [0; 21];
                     prefixed[0] = self.params.p2pkh_prefix;
                     prefixed[1..].copy_from_slice(&hash[..]);
-                    base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                    base58::encode_check_to_fmt(fmt, &prefixed[..])
                 }
             }
             Payload::ScriptHash(ref hash) => {
@@ -580,12 +580,12 @@ impl fmt::Display for Address {
                     prefixed[1] = self.params.p2sh_prefix;
                     prefixed[2..35].copy_from_slice(&blinder.serialize());
                     prefixed[35..].copy_from_slice(&hash[..]);
-                    base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                    base58::encode_check_to_fmt(fmt, &prefixed[..])
                 } else {
                     let mut prefixed = [0; 21];
                     prefixed[0] = self.params.p2sh_prefix;
                     prefixed[1..].copy_from_slice(&hash[..]);
-                    base58::check_encode_slice_to_fmt(fmt, &prefixed[..])
+                    base58::encode_check_to_fmt(fmt, &prefixed[..])
                 }
             }
             Payload::WitnessProgram {
@@ -602,13 +602,13 @@ impl fmt::Display for Address {
                     if let Some(ref blinder) = self.blinding_pubkey {
                         data.extend_from_slice(&blinder.serialize());
                     }
-                    data.extend_from_slice(&witprog);
+                    data.extend_from_slice(witprog);
                     let mut b32_data = vec![witver];
                     b32_data.extend_from_slice(&data.to_base32());
                     if witver.to_u8() == 0 {
-                        blech32::encode_to_fmt(fmt, &hrp, &b32_data, blech32::Variant::Blech32)
+                        blech32::encode_to_fmt(fmt, hrp, &b32_data, blech32::Variant::Blech32)
                     } else {
-                        blech32::encode_to_fmt(fmt, &hrp, &b32_data, blech32::Variant::Blech32m)
+                        blech32::encode_to_fmt(fmt, hrp, &b32_data, blech32::Variant::Blech32m)
                     }
                 } else {
                     let var = if witver.to_u8() == 0 { bech32::Variant::Bech32 } else { bech32::Variant::Bech32m };
@@ -677,7 +677,7 @@ impl FromStr for Address {
         if s.len() > 150 {
             return Err(base58::Error::InvalidLength(s.len() * 11 / 15).into());
         }
-        let data = base58::from_check(s)?;
+        let data = base58::decode_check(s)?;
         if data.is_empty() {
             return Err(base58::Error::InvalidLength(data.len()).into());
         }
@@ -749,7 +749,7 @@ impl serde::Serialize for Address {
 #[cfg(test)]
 mod test {
     use super::*;
-    use bitcoin::util::key;
+    use bitcoin::key;
     use secp256k1_zkp::{PublicKey, Secp256k1};
     use crate::Script;
     #[cfg(feature = "serde")]
@@ -770,7 +770,7 @@ mod test {
         );
         #[cfg(feature = "serde")]
         assert_eq!(
-            serde_json::from_value::<Address>(serde_json::to_value(&addr).unwrap()).ok().as_ref(),
+            serde_json::from_value::<Address>(serde_json::to_value(addr).unwrap()).ok().as_ref(),
             Some(addr)
         );
     }

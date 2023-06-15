@@ -248,6 +248,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
 
     /// Encode the BIP341 signing data for any flag type into a given object implementing a
     /// io::Write trait.
+    #[allow(clippy::too_many_arguments)]
     pub fn taproot_encode_signing_data_to<Write: io::Write, T: Borrow<TxOut>>(
         &mut self,
         mut writer: Write,
@@ -346,7 +347,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
                     .tx
                     .input
                     .get(input_index)
-                    .ok_or_else(|| Error::IndexOutOfInputsBounds {
+                    .ok_or(Error::IndexOutOfInputsBounds {
                         index: input_index,
                         inputs_size: self.tx.input.len(),
                     })?;
@@ -392,7 +393,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             let out = self.tx
                 .output
                 .get(input_index)
-                .ok_or_else(|| Error::SingleWithoutCorrespondingOutput {
+                .ok_or(Error::SingleWithoutCorrespondingOutput {
                     index: input_index,
                     outputs_size: self.tx.output.len(),
                 })?;
@@ -412,7 +413,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         //         ss += bytes([0])
         //         ss += struct.pack("<i", codeseparator_pos)
         if let Some((hash, code_separator_pos)) = leaf_hash_code_separator {
-            hash.into_inner().consensus_encode(&mut writer)?;
+            hash.to_byte_array().consensus_encode(&mut writer)?;
             KEY_VERSION_0.consensus_encode(&mut writer)?;
             code_separator_pos.consensus_encode(&mut writer)?;
         }
@@ -467,7 +468,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     /// Compute the BIP341 sighash for a script spend
     ///
     /// Assumes the default `OP_CODESEPARATOR` position of `0xFFFFFFFF`. Custom values can be
-    /// provided through the more fine-grained API of [`SighashCache::taproot_encode_signing_data_to`].
+    /// provided through the more fine-grained API of [`SigHashCache::taproot_encode_signing_data_to`].
     pub fn taproot_script_spend_signature_hash<S: Into<TapLeafHash>, T: Borrow<TxOut>>(
         &mut self,
         input_index: usize,
@@ -747,17 +748,17 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         self.segwit_cache.get_or_insert_with(|| {
             let common_cache = Self::common_cache_minimal_borrow(common_cache, tx);
             SegwitCache {
-                prevouts: sha256d::Hash::from_inner(
-                    sha256::Hash::hash(&common_cache.prevouts).into_inner(),
+                prevouts: sha256d::Hash::from_byte_array(
+                    sha256::Hash::hash(common_cache.prevouts.as_ref()).to_byte_array(),
                 ),
-                sequences: sha256d::Hash::from_inner(
-                    sha256::Hash::hash(&common_cache.sequences).into_inner(),
+                sequences: sha256d::Hash::from_byte_array(
+                    sha256::Hash::hash(common_cache.sequences.as_ref()).to_byte_array(),
                 ),
-                outputs: sha256d::Hash::from_inner(
-                    sha256::Hash::hash(&common_cache.outputs).into_inner(),
+                outputs: sha256d::Hash::from_byte_array(
+                    sha256::Hash::hash(common_cache.outputs.as_ref()).to_byte_array(),
                 ),
-                issuances: sha256d::Hash::from_inner(
-                    sha256::Hash::hash(&common_cache.issuances).into_inner(),
+                issuances: sha256d::Hash::from_byte_array(
+                    sha256::Hash::hash(common_cache.issuances.as_ref()).to_byte_array(),
                 ),
             }
         })
@@ -818,12 +819,12 @@ impl<R: DerefMut<Target = Transaction>> SigHashCache<R> {
     ///
     /// This allows in-line signing such as
     /// ```
-    /// use elements::{PackedLockTime, Transaction, EcdsaSigHashType};
+    /// use elements::{LockTime, Transaction, EcdsaSigHashType};
     /// use elements::sighash::SigHashCache;
     /// use elements::Script;
     /// use elements::confidential;
     ///
-    /// let mut tx_to_sign = Transaction { version: 2, lock_time: PackedLockTime::ZERO, input: Vec::new(), output: Vec::new() };
+    /// let mut tx_to_sign = Transaction { version: 2, lock_time: LockTime::ZERO, input: Vec::new(), output: Vec::new() };
     /// let input_count = tx_to_sign.input.len();
     ///
     /// let mut sig_hasher = SigHashCache::new(&mut tx_to_sign);
@@ -861,13 +862,13 @@ impl<'a> Annex<'a> {
 
     /// Returns the Annex bytes data (including first byte `0x50`)
     pub fn as_bytes(&self) -> &[u8] {
-        &*self.0
+        self.0
     }
 }
 
 impl<'a> Encodable for Annex<'a> {
     fn consensus_encode<W: io::Write>(&self, writer: W) -> Result<usize, encode::Error> {
-        encode::consensus_encode_with_size(&self.0, writer)
+        encode::consensus_encode_with_size(self.0, writer)
     }
 }
 
@@ -968,14 +969,14 @@ impl std::str::FromStr for SchnorrSigHashType {
 mod tests{
     use super::*;
     use crate::encode::deserialize;
-    use bitcoin::hashes::hex::FromHex;
-    use bitcoin;
+    use crate::hex::FromHex;
+    use std::str::FromStr;
 
     fn test_segwit_sighash(tx: &str, script: &str, input_index: usize, value: &str, hash_type: EcdsaSigHashType, expected_result: &str) {
         let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
-        let raw_expected = bitcoin::hashes::sha256::Hash::from_hex(expected_result).unwrap();
+        let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
         let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
 
         let mut cache = SigHashCache::new(&tx);
@@ -1009,7 +1010,7 @@ mod tests{
         let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
-        let raw_expected = bitcoin::hashes::sha256::Hash::from_hex(expected_result).unwrap();
+        let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
         let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
         let sighash_cache = SigHashCache::new(&tx);
         let actual_result = sighash_cache.legacy_sighash(input_index, &script, hash_type);

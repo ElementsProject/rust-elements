@@ -140,7 +140,7 @@ impl TweakedPublicKey {
         TweakedPublicKey(xonly)
     }
 
-    /// Create a new [TweakedPublicKey] from a [PublicKey]. No tweak is applied.
+    /// Create a new [`TweakedPublicKey`] from a [`XOnlyPublicKey`]. No tweak is applied.
     pub fn new(key: XOnlyPublicKey) -> TweakedPublicKey {
         TweakedPublicKey(key)
     }
@@ -173,7 +173,7 @@ impl TweakedKeyPair {
         self.0
     }
 
-    /// Returns the [`TweakedPublicKey`] and its [`Parity`] for this [`TweakedKeyPair`].
+    /// Returns the [`TweakedPublicKey`] and its [`secp256k1_zkp::Parity`] for this [`TweakedKeyPair`].
     #[inline]
     pub fn public_parts(&self) -> (TweakedPublicKey, secp256k1_zkp::Parity) {
         let (xonly, parity) = self.0.x_only_public_key();
@@ -223,9 +223,9 @@ impl SchnorrSig {
             return Ok( SchnorrSig { sig, hash_ty : SchnorrSigHashType::Default });
         }
         let (hash_ty, sig) = sl.split_last()
-            .ok_or_else(|| SchnorrSigError::InvalidSchnorrSig)?;
+            .ok_or(SchnorrSigError::InvalidSchnorrSig)?;
         let hash_ty = SchnorrSigHashType::from_u8(*hash_ty)
-            .ok_or_else(|| SchnorrSigError::InvalidSighashType(*hash_ty))?;
+            .ok_or(SchnorrSigError::InvalidSighashType(*hash_ty))?;
         let sig = secp256k1_zkp::schnorr::Signature::from_slice(sig)
             .map_err(|_| SchnorrSigError::InvalidSchnorrSig)?;
         Ok(SchnorrSig { sig, hash_ty })

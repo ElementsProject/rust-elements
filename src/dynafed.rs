@@ -16,21 +16,20 @@
 
 use std::{fmt, io};
 
-use bitcoin;
-use bitcoin::hashes::{Hash, sha256, sha256d};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")]
 use serde::ser::{SerializeSeq, SerializeStruct};
 
 use crate::encode::{self, Encodable, Decodable};
+use crate::hashes::{Hash, sha256, sha256d};
 use crate::Script;
 
 /// ad-hoc struct to fmt in hex
 struct HexBytes<'a>(&'a [u8]);
 impl<'a> fmt::Display for HexBytes<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        bitcoin::hashes::hex::format_hex(&self.0[..], f)
+        crate::hex::format_hex(self.0, f)
     }
 }
 impl<'a> fmt::Debug for HexBytes<'a> {
@@ -44,7 +43,7 @@ impl<'a> Serialize for HexBytes<'a> {
         if s.is_human_readable() {
             s.collect_str(self)
         } else {
-            s.serialize_bytes(&self.0[..])
+            s.serialize_bytes(self.0)
         }
     }
 }
@@ -58,7 +57,7 @@ impl<'a> fmt::Display for HexBytesArray<'a> {
             if i != 0 {
                 write!(f, ", ")?;
             }
-            bitcoin::hashes::hex::format_hex(&e[..], f)?;
+            crate::hex::format_hex(&e[..], f)?;
         }
         write!(f, "]")
     }
@@ -87,7 +86,7 @@ pub struct FullParams {
     /// Maximum, in bytes, of the size of a blocksigning witness
     signblock_witness_limit: u32,
     /// Untweaked `scriptPubKey` used for pegins
-    fedpeg_program: bitcoin::Script,
+    fedpeg_program: bitcoin::ScriptBuf,
     /// For v0 fedpeg programs, the witness script of the untweaked
     /// pegin address. For future versions, this data has no defined
     /// meaning and will be considered "anyone can spend".
@@ -108,9 +107,9 @@ impl FullParams {
         }
 
         let leaves = [
-            serialize_hash(&self.fedpeg_program).into_inner(),
-            serialize_hash(&self.fedpegscript).into_inner(),
-            serialize_hash(&self.extension_space).into_inner(),
+            serialize_hash(&self.fedpeg_program).to_byte_array(),
+            serialize_hash(&self.fedpegscript).to_byte_array(),
+            serialize_hash(&self.extension_space).to_byte_array(),
         ];
         crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
@@ -124,14 +123,14 @@ impl FullParams {
         }
 
         let leaves = [
-            serialize_hash(&self.signblockscript).into_inner(),
-            serialize_hash(&self.signblock_witness_limit).into_inner(),
+            serialize_hash(&self.signblockscript).to_byte_array(),
+            serialize_hash(&self.signblock_witness_limit).to_byte_array(),
         ];
         let compact_root = crate::fast_merkle_root::fast_merkle_root(&leaves[..]);
 
         let leaves = [
-            compact_root.into_inner(),
-            self.extra_root().into_inner(),
+            compact_root.to_byte_array(),
+            self.extra_root().to_byte_array(),
         ];
         crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
@@ -151,7 +150,7 @@ impl FullParams {
         let mut s = f.debug_struct(name);
         s.field("signblockscript", &HexBytes(&self.signblockscript[..]));
         s.field("signblock_witness_limit", &self.signblock_witness_limit);
-        s.field("fedpeg_program", &HexBytes(&self.fedpeg_program[..]));
+        s.field("fedpeg_program", &HexBytes(self.fedpeg_program.as_ref()));
         s.field("fedpegscript", &HexBytes(&self.fedpegscript[..]));
         s.field("extension_space", &HexBytesArray(&self.extension_space));
         s.finish()
@@ -263,7 +262,7 @@ impl Params {
         }
     }
 
-    /// Get the signblockscript. Is [None] for [Null] params.
+    /// Get the signblockscript. Is [None] for [Params::Null] params.
     pub fn signblockscript(&self) -> Option<&Script> {
         match *self {
             Params::Null => None,
@@ -272,7 +271,7 @@ impl Params {
         }
     }
 
-    /// Get the signblock_witness_limit. Is [None] for [Null] params.
+    /// Get the signblock_witness_limit. Is [None] for [Params::Null] params.
     pub fn signblock_witness_limit(&self) -> Option<u32> {
         match *self {
             Params::Null => None,
@@ -281,8 +280,8 @@ impl Params {
         }
     }
 
-    /// Get the fedpeg_program. Is [None] for non-[Full] params.
-    pub fn fedpeg_program(&self) -> Option<&bitcoin::Script> {
+    /// Get the fedpeg_program. Is [None] for non-[Params::Full] params.
+    pub fn fedpeg_program(&self) -> Option<&bitcoin::ScriptBuf> {
         match *self {
             Params::Null => None,
             Params::Compact { .. } => None,
@@ -290,7 +289,7 @@ impl Params {
         }
     }
 
-    /// Get the fedpegscript. Is [None] for non-[Full] params.
+    /// Get the fedpegscript. Is [None] for non-[Params::Full] params.
     pub fn fedpegscript(&self) -> Option<&Vec<u8>> {
         match *self {
             Params::Null => None,
@@ -299,7 +298,7 @@ impl Params {
         }
     }
 
-    /// Get the extension_space. Is [None] for non-[Full] params.
+    /// Get the extension_space. Is [None] for non-[Params::Full] params.
     pub fn extension_space(&self) -> Option<&Vec<Vec<u8>>> {
         match *self {
             Params::Null => None,
@@ -308,7 +307,7 @@ impl Params {
         }
     }
 
-    /// Get the elided_root. Is [None] for non-[Compact] params.
+    /// Get the elided_root. Is [None] for non-[Params::Compact] params.
     pub fn elided_root(&self) -> Option<&sha256::Midstate> {
         match *self {
             Params::Null => None,
@@ -322,7 +321,7 @@ impl Params {
     /// blocksigning: `fedpeg_program`, `fedpegscript` and `extension_space`.
     fn extra_root(&self) -> sha256::Midstate {
         match *self {
-            Params::Null => sha256::Midstate::from_inner([0u8; 32]),
+            Params::Null => sha256::Midstate::from_byte_array([0u8; 32]),
             Params::Compact { ref elided_root, .. } => *elided_root,
             Params::Full(ref f) => f.extra_root(),
         }
@@ -337,18 +336,18 @@ impl Params {
         }
 
         if self.is_null() {
-            return sha256::Midstate::from_inner([0u8; 32]);
+            return sha256::Midstate::from_byte_array([0u8; 32]);
         }
 
         let leaves = [
-            serialize_hash(self.signblockscript().unwrap()).into_inner(),
-            serialize_hash(&self.signblock_witness_limit().unwrap()).into_inner(),
+            serialize_hash(self.signblockscript().unwrap()).to_byte_array(),
+            serialize_hash(&self.signblock_witness_limit().unwrap()).to_byte_array(),
         ];
         let compact_root = crate::fast_merkle_root::fast_merkle_root(&leaves[..]);
 
         let leaves = [
-            compact_root.into_inner(),
-            self.extra_root().into_inner(),
+            compact_root.to_byte_array(),
+            self.extra_root().to_byte_array(),
         ];
         crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
@@ -455,7 +454,7 @@ impl<'de> Deserialize<'de> for Params {
                             }
 
                             fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                                use bitcoin::hashes::hex::FromHex;
+                                use crate::hex::FromHex;
 
                                 Ok(HexBytes(FromHex::from_hex(v).map_err(E::custom)?))
                             }
@@ -606,7 +605,7 @@ impl Encodable for Params {
                 Encodable::consensus_encode(&1u8, &mut s)? +
                 Encodable::consensus_encode(signblockscript, &mut s)? +
                 Encodable::consensus_encode(signblock_witness_limit, &mut s)? +
-                Encodable::consensus_encode(&elided_root.into_inner(), &mut s)?
+                Encodable::consensus_encode(&elided_root.to_byte_array(), &mut s)?
             },
             Params::Full(ref f) => {
                 Encodable::consensus_encode(&2u8, &mut s)? +
@@ -624,7 +623,7 @@ impl Decodable for Params {
             1 => Ok(Params::Compact {
                 signblockscript: Decodable::consensus_decode(&mut d)?,
                 signblock_witness_limit: Decodable::consensus_decode(&mut d)?,
-                elided_root: sha256::Midstate::from_inner(Decodable::consensus_decode(&mut d)?),
+                elided_root: sha256::Midstate::from_byte_array(Decodable::consensus_decode(&mut d)?),
             }),
             2 => Ok(Params::Full(Decodable::consensus_decode(&mut d)?)),
             _ => Err(encode::Error::ParseFailed(
@@ -638,9 +637,8 @@ impl Decodable for Params {
 mod tests {
     use std::fmt::{self, Write};
 
-    use bitcoin::hashes::hex::ToHex;
-    use bitcoin::hashes::sha256;
-
+    use crate::hashes::sha256;
+    use crate::hex::ToHex;
     use crate::{BlockHash, TxMerkleNode};
 
     use super::*;
@@ -676,14 +674,14 @@ mod tests {
 
         let signblockscript: Script = vec![1].into();
         let signblock_wl = 2;
-        let fp_program: bitcoin::Script = vec![3].into();
+        let fp_program: bitcoin::ScriptBuf = vec![3].into();
         let fp_script = vec![4];
         let ext = vec![vec![5, 6], vec![7]];
 
         let compact_entry = Params::Compact {
             signblockscript: signblockscript.clone(),
             signblock_witness_limit: signblock_wl,
-            elided_root: sha256::Midstate::from_inner([0; 32]),
+            elided_root: sha256::Midstate::from_byte_array([0; 32]),
         };
         assert_eq!(
             compact_entry.calculate_root().to_hex(),
@@ -751,7 +749,7 @@ mod tests {
         let compact = params.into_compact().unwrap();
         assert_eq!(
             to_debug_string(&compact),
-            "Compact { signblockscript: 0102, signblock_witness_limit: 3, elided_root: c3058c822b22a13bb7c47cf50d3f3c7817e7d9075ff55a7d16c85b9673e7e553 }",
+            "Compact { signblockscript: 0102, signblock_witness_limit: 3, elided_root: 0xc3058c822b22a13bb7c47cf50d3f3c7817e7d9075ff55a7d16c85b9673e7e553 }",
         );
         assert_eq!(compact.calculate_root(), full.calculate_root());
         assert_eq!(compact.elided_root(), Some(&extra_root));

@@ -17,7 +17,8 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
-use crate::hashes::{sha256d, Hash, hex};
+use crate::hashes::{sha256d, Hash};
+use crate::hex;
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
     PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
     compute_adaptive_blinding_factor,
@@ -84,30 +85,21 @@ impl Value {
 
     /// Check if the object is null.
     pub fn is_null(&self) -> bool {
-        match self {
-            Value::Null => true,
-            _ => false
-        }
+        matches!(*self, Value::Null)
     }
 
     /// Check if the object is explicit.
     pub fn is_explicit(&self) -> bool {
-        match self {
-            Value::Explicit(_) => true,
-            _ => false
-        }
+        matches!(*self, Value::Explicit(_))
     }
 
     /// Check if the object is confidential.
     pub fn is_confidential(&self) -> bool {
-        match self {
-            Value::Confidential(_) => true,
-            _ => false
-        }
+        matches!(*self, Value::Confidential(_))
     }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [is_explicit] returns false.
+    /// Returns [None] if [Value::is_explicit] returns false.
     pub fn explicit(&self) -> Option<u64> {
         match *self {
             Value::Explicit(i) => Some(i),
@@ -116,7 +108,7 @@ impl Value {
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [is_confidential] returns false.
+    /// Returns [None] if [Value::is_confidential] returns false.
     pub fn commitment(&self) -> Option<PedersenCommitment> {
         match *self {
             Value::Confidential(i) => Some(i),
@@ -300,30 +292,21 @@ impl Asset {
 
     /// Check if the object is null.
     pub fn is_null(&self) -> bool {
-        match *self {
-            Asset::Null => true,
-            _ => false
-        }
+        matches!(*self, Asset::Null)
     }
 
     /// Check if the object is explicit.
     pub fn is_explicit(&self) -> bool {
-        match *self {
-            Asset::Explicit(_) => true,
-            _ => false
-        }
+        matches!(*self, Asset::Explicit(_))
     }
 
     /// Check if the object is confidential.
     pub fn is_confidential(&self) -> bool {
-        match *self {
-            Asset::Confidential(_) => true,
-            _ => false
-        }
+        matches!(*self, Asset::Confidential(_))
     }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [is_explicit] returns false.
+    /// Returns [None] if [Asset::is_explicit] returns false.
     pub fn explicit(&self) -> Option<AssetId> {
         match *self {
             Asset::Explicit(i) => Some(i),
@@ -332,7 +315,7 @@ impl Asset {
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [is_confidential] returns false.
+    /// Returns [None] if [Asset::is_confidential] returns false.
     pub fn commitment(&self) -> Option<Generator> {
         match *self {
             Asset::Confidential(i) => Some(i),
@@ -352,7 +335,7 @@ impl Asset {
         match self {
             // Only error is Null error which is dealt with later
             // when we have more context information about it.
-            Asset::Null => return None,
+            Asset::Null => None,
             Asset::Explicit(x) => {
                 Some(Generator::new_unblinded(secp, x.into_tag()))
             }
@@ -382,6 +365,7 @@ impl Default for Asset {
         Asset::Null
     }
 }
+
 
 impl Encodable for Asset {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
@@ -527,7 +511,7 @@ impl Nonce {
         ephemeral_sk: SecretKey,
         receiver_blinding_pk: &PublicKey
     ) -> (Self, SecretKey) {
-        let sender_pk = PublicKey::from_secret_key(&secp, &ephemeral_sk);
+        let sender_pk = PublicKey::from_secret_key(secp, &ephemeral_sk);
         let shared_secret = Self::make_shared_secret(receiver_blinding_pk, &ephemeral_sk);
         (Nonce::Confidential(sender_pk), shared_secret)
     }
@@ -536,7 +520,7 @@ impl Nonce {
     pub fn shared_secret(&self, receiver_blinding_sk: &SecretKey) -> Option<SecretKey> {
         match self {
             Nonce::Confidential(sender_pk) => {
-                Some(Self::make_shared_secret(&sender_pk, receiver_blinding_sk))
+                Some(Self::make_shared_secret(sender_pk, receiver_blinding_sk))
             }
             _ => None,
         }
@@ -557,10 +541,10 @@ impl Nonce {
             };
             dh_secret[1..].copy_from_slice(&xy[0..32]);
 
-            sha256d::Hash::hash(&dh_secret).into_inner()
+            sha256d::Hash::hash(&dh_secret).to_byte_array()
         };
 
-        SecretKey::from_slice(&shared_secret.as_ref()[..32]).expect("always has exactly 32 bytes")
+        SecretKey::from_slice(&shared_secret[..32]).expect("always has exactly 32 bytes")
     }
 
     /// Serialized length, in bytes
@@ -581,30 +565,21 @@ impl Nonce {
 
     /// Check if the object is null.
     pub fn is_null(&self) -> bool {
-        match *self {
-            Nonce::Null => true,
-            _ => false
-        }
+        matches!(*self, Nonce::Null)
     }
 
     /// Check if the object is explicit.
     pub fn is_explicit(&self) -> bool {
-        match *self {
-            Nonce::Explicit(_) => true,
-            _ => false
-        }
+        matches!(*self, Nonce::Explicit(_))
     }
 
     /// Check if the object is confidential.
     pub fn is_confidential(&self) -> bool {
-        match *self {
-            Nonce::Confidential(_) => true,
-            _ => false
-        }
+        matches!(*self, Nonce::Confidential(_))
     }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [is_explicit] returns false.
+    /// Returns [None] if [Nonce::is_explicit] returns false.
     pub fn explicit(&self) -> Option<[u8; 32]> {
         match *self {
             Nonce::Explicit(i) => Some(i),
@@ -613,7 +588,7 @@ impl Nonce {
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [is_confidential] returns false.
+    /// Returns [None] if [Nonce::is_confidential] returns false.
     pub fn commitment(&self) -> Option<PublicKey> {
         match *self {
             Nonce::Confidential(i) => Some(i),
@@ -836,7 +811,7 @@ impl Serialize for AssetBlindingFactor {
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for AssetBlindingFactor {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<AssetBlindingFactor, D::Error> {
-        use bitcoin::hashes::hex::FromHex;
+        use crate::hex::FromHex;
 
         if d.is_human_readable() {
             struct HexVisitor;
@@ -1039,7 +1014,7 @@ impl Serialize for ValueBlindingFactor {
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for ValueBlindingFactor {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<ValueBlindingFactor, D::Error> {
-        use bitcoin::hashes::hex::FromHex;
+        use crate::hex::FromHex;
 
         if d.is_human_readable() {
             struct HexVisitor;
@@ -1104,7 +1079,10 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use bitcoin::hashes::sha256;
+    use crate::hashes::sha256;
+
+    #[cfg(feature = "serde")]
+    use std::str::FromStr;
 
     #[cfg(feature = "serde")]
     use bincode;
@@ -1143,7 +1121,7 @@ mod tests {
 
         let assets = [
             Asset::Null,
-            Asset::Explicit(AssetId::from_inner(sha256::Midstate::from_inner([0; 32]))),
+            Asset::Explicit(AssetId::from_inner(sha256::Midstate::from_byte_array([0; 32]))),
             Asset::from_commitment(&[
                 0x0a, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                 1, 1, 1, 1, 1, 1,
@@ -1255,10 +1233,9 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn asset_serde() {
-        use bitcoin::hashes::hex::FromHex;
         use serde_test::{assert_tokens, Configure, Token};
 
-        let asset_id = AssetId::from_hex(
+        let asset_id = AssetId::from_str(
             "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
         ).unwrap();
         let asset = Asset::Explicit(asset_id);

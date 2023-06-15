@@ -17,15 +17,17 @@
 //! Defines traits used for (de)serializing PSET values into/from raw
 //! bytes in PSET key-value pairs.
 
+use std::convert::TryFrom;
 use std::io;
 
 use crate::confidential;
 use crate::encode::{self, deserialize, deserialize_partial, serialize, Decodable, Encodable};
 use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
-use bitcoin::hashes::hex::ToHex;
-use bitcoin::util::bip32::{ChildNumber, Fingerprint, KeySource};
-use bitcoin::{self, PublicKey, VarInt};
+use crate::hex::ToHex;
+use bitcoin::bip32::{ChildNumber, Fingerprint, KeySource};
+use bitcoin::{self, VarInt};
+use bitcoin::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use super::map::{PsbtSighashType, TapTree};
@@ -59,7 +61,7 @@ impl_pset_de_serialize!(AssetId);
 impl_pset_de_serialize!(u8);
 impl_pset_de_serialize!(u32);
 impl_pset_de_serialize!(u64);
-impl_pset_de_serialize!(crate::PackedLockTime);
+impl_pset_de_serialize!(crate::LockTime);
 impl_pset_de_serialize!(crate::Sequence);
 impl_pset_de_serialize!(crate::locktime::Height);
 impl_pset_de_serialize!(crate::locktime::Time);
@@ -89,7 +91,7 @@ impl Serialize for Tweak {
 
 impl Deserialize for Tweak {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let x = deserialize::<[u8; 32]>(&bytes)?;
+        let x = deserialize::<[u8; 32]>(bytes)?;
         Tweak::from_slice(&x).map_err(|_| encode::Error::ParseFailed("invalid Tweak"))
     }
 }
@@ -122,7 +124,7 @@ impl Deserialize for PublicKey {
 
 impl Serialize for KeySource {
     fn serialize(&self) -> Vec<u8> {
-        let mut rv: Vec<u8> = Vec::with_capacity(key_source_len(&self));
+        let mut rv: Vec<u8> = Vec::with_capacity(key_source_len(self));
 
         rv.append(&mut self.0.to_bytes().to_vec());
 
@@ -136,11 +138,12 @@ impl Serialize for KeySource {
 
 impl Deserialize for KeySource {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        if bytes.len() < 4 {
-            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
-        }
+        let prefix = match <[u8; 4]>::try_from(&bytes[0..4]) {
+            Ok(prefix) => prefix,
+            Err(_) => return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into()),
+        };
 
-        let fprint: Fingerprint = Fingerprint::from(&bytes[0..4]);
+        let fprint: Fingerprint = Fingerprint::from(prefix);
         let mut dpath: Vec<ChildNumber> = Default::default();
 
         let mut d = &bytes[4..];
@@ -253,7 +256,7 @@ impl Serialize for Box<RangeProof> {
 
 impl Deserialize for Box<RangeProof> {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let prf = RangeProof::from_slice(&bytes)
+        let prf = RangeProof::from_slice(bytes)
             .map_err(|_| encode::Error::ParseFailed("Invalid Rangeproof"))?;
         Ok(Box::new(prf))
     }
@@ -267,22 +270,22 @@ impl Serialize for Box<SurjectionProof> {
 
 impl Deserialize for Box<SurjectionProof> {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let prf = SurjectionProof::from_slice(&bytes)
+        let prf = SurjectionProof::from_slice(bytes)
             .map_err(|_| encode::Error::ParseFailed("Invalid SurjectionProof"))?;
         Ok(Box::new(prf))
     }
 }
 
 // Taproot related ser/deser
-impl Serialize for bitcoin::XOnlyPublicKey {
+impl Serialize for XOnlyPublicKey {
     fn serialize(&self) -> Vec<u8> {
-        bitcoin::XOnlyPublicKey::serialize(&self).to_vec()
+        XOnlyPublicKey::serialize(self).to_vec()
     }
 }
 
-impl Deserialize for bitcoin::XOnlyPublicKey {
+impl Deserialize for XOnlyPublicKey {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        bitcoin::XOnlyPublicKey::from_slice(bytes)
+        XOnlyPublicKey::from_slice(bytes)
             .map_err(|_| encode::Error::ParseFailed("Invalid xonly public key"))
     }
 }
@@ -316,22 +319,22 @@ impl Deserialize for schnorr::SchnorrSig {
     }
 }
 
-impl Serialize for (bitcoin::XOnlyPublicKey, TapLeafHash) {
+impl Serialize for (XOnlyPublicKey, TapLeafHash) {
     fn serialize(&self) -> Vec<u8> {
         let ser_pk = self.0.serialize();
-        let mut buf = Vec::with_capacity(ser_pk.len() + self.1.as_ref().len());
+        let mut buf = Vec::with_capacity(ser_pk.len() + TapLeafHash::LEN);
         buf.extend(&ser_pk);
-        buf.extend(self.1.as_ref());
+        buf.extend(&self.1.to_byte_array());
         buf
     }
 }
 
-impl Deserialize for (bitcoin::XOnlyPublicKey, TapLeafHash) {
+impl Deserialize for (XOnlyPublicKey, TapLeafHash) {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         if bytes.len() < 32 {
             return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
         }
-        let a: bitcoin::XOnlyPublicKey = Deserialize::deserialize(&bytes[..32])?;
+        let a: XOnlyPublicKey = Deserialize::deserialize(&bytes[..32])?;
         let b: TapLeafHash = Deserialize::deserialize(&bytes[32..])?;
         Ok((a, b))
     }
@@ -339,7 +342,7 @@ impl Deserialize for (bitcoin::XOnlyPublicKey, TapLeafHash) {
 
 impl Serialize for ControlBlock {
     fn serialize(&self) -> Vec<u8> {
-        ControlBlock::serialize(&self)
+        ControlBlock::serialize(self)
     }
 }
 
@@ -386,7 +389,7 @@ impl Serialize for (Vec<TapLeafHash>, KeySource) {
 
 impl Deserialize for (Vec<TapLeafHash>, KeySource) {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let (leafhash_vec, consumed) = deserialize_partial::<Vec<TapLeafHash>>(&bytes)?;
+        let (leafhash_vec, consumed) = deserialize_partial::<Vec<TapLeafHash>>(bytes)?;
         let key_source = KeySource::deserialize(&bytes[consumed..])?;
         Ok((leafhash_vec, key_source))
     }

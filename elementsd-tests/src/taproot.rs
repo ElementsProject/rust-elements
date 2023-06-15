@@ -5,8 +5,9 @@ extern crate rand;
 
 use crate::{Call, setup};
 
-use elements::bitcoin::{Amount, XOnlyPublicKey, KeyPair};
-use elements::bitcoin::hashes::hex::FromHex;
+use bitcoin::key::{XOnlyPublicKey, KeyPair};
+use bitcoin::Amount;
+use elements::hex::FromHex;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::encode::{deserialize, serialize_hex};
 use elements::hashes::Hash;
@@ -16,7 +17,7 @@ use elements::sighash::{self, SigHashCache};
 use elements::taproot::{LeafVersion, TapTweakHash, TaprootBuilder, TaprootSpendInfo, TapLeafHash};
 use elements::OutPoint;
 use elements::{
-    confidential, opcodes, AssetIssuance, BlockHash, PackedLockTime, SchnorrSig, SchnorrSigHashType, Script,
+    confidential, opcodes, AssetIssuance, BlockHash, LockTime, SchnorrSig, SchnorrSigHashType, Script,
     Sequence, TxInWitness, TxOut, Txid,
 };
 use elements::{AddressParams, Transaction, TxIn, TxOutSecrets};
@@ -153,7 +154,7 @@ fn taproot_spend_test(
     // create a new spend that spends the above output
     let mut tx = Transaction {
         version: 2,
-        lock_time: PackedLockTime::ZERO,
+        lock_time: LockTime::ZERO,
         input: vec![],
         output: vec![],
     };
@@ -212,7 +213,7 @@ fn taproot_spend_test(
             test_data.internal_pk,
             test_data.spend_info.merkle_root(),
         );
-        let tweak = secp256k1_zkp::Scalar::from_be_bytes(tweak.into_inner()).expect("hash value greater than curve order");
+        let tweak = secp256k1_zkp::Scalar::from_be_bytes(tweak.to_byte_array()).expect("hash value greater than curve order");
         let sig = secp.sign_schnorr(
             &secp256k1_zkp::Message::from_slice(&sighash_msg[..]).unwrap(),
             &output_keypair.add_xonly_tweak(&secp, &tweak).unwrap(),
@@ -282,17 +283,17 @@ fn taproot_tests() {
         SchnorrSigHashType::AllPlusAnyoneCanPay,
     ];
 
-    for conf_prevout in [true, false] {
+    for &conf_prevout in &[true, false] {
         // whether the input is blinded
-        for blind in [true, false] {
+        for &blind in &[true, false] {
             // blind the current tx
             if !blind && conf_prevout {
                 // trying to spend a confidential txout to all explicit transactions
                 // This is not possible to do because we need to balance the blinding factors
                 continue;
             }
-            for script_spend in [true, false] {
-                for sighash_ty in sighash_tys {
+            for &script_spend in &[true, false] {
+                for &sighash_ty in &sighash_tys {
                     taproot_spend_test(
                         &elementsd,
                         &secp,

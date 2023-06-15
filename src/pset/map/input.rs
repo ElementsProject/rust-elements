@@ -25,16 +25,15 @@ use crate::{schnorr, AssetId, ContractHash};
 
 use crate::{confidential, locktime};
 use crate::encode::{self, Decodable};
-use crate::hashes::{self, hash160, ripemd160, sha256, sha256d};
+use crate::hashes::{self, hash160, ripemd160, sha256, sha256d, Hash};
 use crate::pset::map::Map;
 use crate::pset::raw;
 use crate::pset::serialize;
 use crate::pset::{self, error, Error};
 use crate::{transaction::SighashTypeParseError, SchnorrSigHashType};
 use crate::{AssetIssuance, BlockHash, EcdsaSigHashType, Script, Transaction, TxIn, TxOut, Txid};
-use bitcoin::util::bip32::KeySource;
-use bitcoin::{self, PublicKey};
-use hashes::Hash;
+use bitcoin::bip32::KeySource;
+use bitcoin::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
 
 use crate::{OutPoint, Sequence};
@@ -223,17 +222,17 @@ pub struct Input {
     pub required_height_locktime: Option<locktime::Height>,
     /// Serialized schnorr signature with sighash type for key spend
     pub tap_key_sig: Option<schnorr::SchnorrSig>,
-    /// Map of <xonlypubkey>|<leafhash> with signature
+    /// Map of `<xonlypubkey>|<leafhash>` with signature
     #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
-    pub tap_script_sigs: BTreeMap<(bitcoin::XOnlyPublicKey, TapLeafHash), schnorr::SchnorrSig>,
+    pub tap_script_sigs: BTreeMap<(XOnlyPublicKey, TapLeafHash), schnorr::SchnorrSig>,
     /// Map of Control blocks to Script version pair
     #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub tap_scripts: BTreeMap<ControlBlock, (Script, LeafVersion)>,
     /// Map of tap root x only keys to origin info and leaf hashes contained in it
     #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
-    pub tap_key_origins: BTreeMap<bitcoin::XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
+    pub tap_key_origins: BTreeMap<XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
     /// Taproot Internal key
-    pub tap_internal_key: Option<bitcoin::XOnlyPublicKey>,
+    pub tap_internal_key: Option<XOnlyPublicKey>,
     /// Taproot Merkle root
     pub tap_merkle_root: Option<TapBranchHash>,
     // Proprietary key-value pairs for this input.
@@ -293,7 +292,7 @@ impl Default for Input {
 }
 
 /// A Signature hash type for the corresponding input. As of taproot upgrade, the signature hash
-/// type can be either [`SigHashType`] or [`SchnorrSigHashType`] but it is not possible to know
+/// type can be either [`EcdsaSigHashType`] or [`SchnorrSigHashType`] but it is not possible to know
 /// directly which signature hash type the user is dealing with. Therefore, the user is responsible
 /// for converting to/from [`PsbtSighashType`] from/to the desired signature hash type they need.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -359,7 +358,7 @@ impl From<SchnorrSigHashType> for PsbtSighashType {
 }
 
 impl PsbtSighashType {
-    /// Returns the [`SigHashType`] if the [`PsbtSighashType`] can be
+    /// Returns the [`EcdsaSigHashType`] if the [`PsbtSighashType`] can be
     /// converted to one.
     pub fn ecdsa_hash_ty(self) -> Option<EcdsaSigHashType> {
         EcdsaSigHashType::from_standard(self.inner).ok()
@@ -377,8 +376,7 @@ impl PsbtSighashType {
 
     /// Creates a [`PsbtSighashType`] from a raw `u32`.
     ///
-    /// Allows construction of a non-standard or non-valid sighash flag
-    /// ([`SigHashType`], [`SchnorrSigHashType`] respectively).
+    /// Allows construction of a non-standard or non-valid sighash flag.
     pub fn from_u32(n: u32) -> PsbtSighashType {
         PsbtSighashType { inner: n }
     }
@@ -419,10 +417,11 @@ impl Input {
     /// Create a psbt input from prevout
     /// without any issuance or pegins
     pub fn from_prevout(outpoint: OutPoint) -> Self {
-        let mut ret = Self::default();
-        ret.previous_output_index = outpoint.vout;
-        ret.previous_txid = outpoint.txid;
-        ret
+        Input {
+            previous_output_index: outpoint.vout,
+            previous_txid: outpoint.txid,
+            ..Default::default()
+        }
     }
 
     /// Create a pset input from TxIn
@@ -472,11 +471,11 @@ impl Input {
                 vout: self.previous_output_index,
             };
             let contract_hash =
-                ContractHash::from_inner(self.issuance_asset_entropy.unwrap_or_default());
+                ContractHash::from_byte_array(self.issuance_asset_entropy.unwrap_or_default());
             AssetId::generate_asset_entropy(prevout, contract_hash)
         } else {
             // re-issuance
-            sha256::Midstate::from_inner(self.issuance_asset_entropy.unwrap_or_default())
+            sha256::Midstate::from_byte_array(self.issuance_asset_entropy.unwrap_or_default())
         };
         let asset_id = AssetId::from_entropy(entropy);
         let token_id =
@@ -627,7 +626,7 @@ impl Map for Input {
             }
             PSBT_IN_TAP_SCRIPT_SIG => {
                 impl_pset_insert_pair! {
-                    self.tap_script_sigs <= <raw_key: (bitcoin::XOnlyPublicKey, TapLeafHash)>|<raw_value: schnorr::SchnorrSig>
+                    self.tap_script_sigs <= <raw_key: (XOnlyPublicKey, TapLeafHash)>|<raw_value: schnorr::SchnorrSig>
                 }
             }
             PSBT_IN_TAP_LEAF_SCRIPT => {
@@ -637,12 +636,12 @@ impl Map for Input {
             }
             PSBT_IN_TAP_BIP32_DERIVATION => {
                 impl_pset_insert_pair! {
-                    self.tap_key_origins <= <raw_key: bitcoin::XOnlyPublicKey>|< raw_value: (Vec<TapLeafHash>, KeySource)>
+                    self.tap_key_origins <= <raw_key: XOnlyPublicKey>|< raw_value: (Vec<TapLeafHash>, KeySource)>
                 }
             }
             PSBT_IN_TAP_INTERNAL_KEY => {
                 impl_pset_insert_pair! {
-                    self.tap_internal_key <= <raw_key: _>|< raw_value: bitcoin::XOnlyPublicKey>
+                    self.tap_internal_key <= <raw_key: _>|< raw_value: XOnlyPublicKey>
                 }
             }
             PSBT_IN_TAP_MERKLE_ROOT => {
@@ -1056,13 +1055,13 @@ where
                 return Err(pset::Error::InvalidPreimageHashPair {
                     preimage: val,
                     hash: Vec::from(key_val.borrow()),
-                    hash_type: hash_type,
+                    hash_type,
                 }
                 .into());
             }
             empty_key.insert(val);
             Ok(())
         }
-        Entry::Occupied(_) => return Err(pset::Error::DuplicateKey(raw_key).into()),
+        Entry::Occupied(_) => Err(pset::Error::DuplicateKey(raw_key).into()),
     }
 }

@@ -15,7 +15,7 @@
 //! # Raw PSET Key-Value Pairs
 //!
 //! Raw PSET key-value pairs as defined at
-//! https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki.
+//! <https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki>.
 
 use std::{fmt, io};
 
@@ -23,7 +23,7 @@ use super::Error;
 use crate::encode::{
     self, deserialize, serialize, Decodable, Encodable, ReadExt, WriteExt, MAX_VEC_SIZE,
 };
-use crate::hashes::hex;
+use crate::hex;
 use crate::VarInt;
 /// A PSET key in its raw byte form.
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Ord, PartialOrd)]
@@ -41,8 +41,8 @@ impl Key {
     pub fn from_pset_key(subtype: ProprietaryType, key: Vec<u8>) -> Self {
         let pset_prop_key = ProprietaryKey {
             prefix: "pset".as_bytes().to_vec(),
-            subtype: subtype,
-            key: key,
+            subtype,
+            key,
         };
         pset_prop_key.to_key()
     }
@@ -94,8 +94,8 @@ impl ProprietaryKey {
         Self {
             // TODO: precompute this
             prefix: String::from("pset").into_bytes(),
-            subtype: subtype,
-            key: key,
+            subtype,
+            key,
         }
     }
 }
@@ -131,10 +131,7 @@ impl Decodable for Key {
             key.push(Decodable::consensus_decode(&mut d)?);
         }
 
-        Ok(Key {
-            type_value: type_value,
-            key: key,
-        })
+        Ok(Key { type_value, key })
     }
 }
 

@@ -24,11 +24,10 @@
 #![deny(non_snake_case)]
 #![deny(unused_mut)]
 #![deny(missing_docs)]
+#![allow(clippy::manual_range_contains)] // this lint is bullshit
 
 /// Re-export of bitcoin crate
 pub extern crate bitcoin;
-#[macro_use]
-extern crate bitcoin_hashes as just_imported_for_the_macros;
 /// Re-export of slip21 crate
 pub extern crate slip21;
 /// Re-export of secp256k1-zkp crate
@@ -51,6 +50,7 @@ pub mod encode;
 mod error;
 mod fast_merkle_root;
 pub mod hash_types;
+pub mod hex;
 pub mod locktime;
 pub mod issuance;
 pub mod opcodes;
@@ -68,7 +68,8 @@ mod serde_utils;
 // consider making upstream public
 mod endian;
 // re-export bitcoin deps which we re-use
-pub use bitcoin::{bech32, hashes};
+pub use bitcoin::bech32;
+pub use bitcoin::hashes;
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressParams, AddressError};
 pub use crate::transaction::{OutPoint, PeginData, PegoutData, EcdsaSigHashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
@@ -80,7 +81,7 @@ pub use ::bitcoin::consensus::encode::VarInt;
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;
 pub use crate::issuance::{AssetId, ContractHash};
-pub use crate::locktime::{LockTime, PackedLockTime};
+pub use crate::locktime::LockTime;
 pub use crate::script::Script;
 pub use crate::sighash::SchnorrSigHashType;
 pub use crate::schnorr::{SchnorrSig, SchnorrSigError};
