@@ -33,7 +33,7 @@ use crate::encode::{self, Decodable, Encodable};
 use crate::issuance::AssetId;
 
 /// A CT commitment to an amount
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Value {
     /// No value
     Null,
@@ -252,7 +252,7 @@ impl<'de> Deserialize<'de> for Value {
 }
 
 /// A CT commitment to an asset
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Asset {
     /// No value
     Null,
