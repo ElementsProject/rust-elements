@@ -31,7 +31,7 @@ use crate::pset::raw;
 use crate::pset::serialize;
 use crate::pset::{self, error, Error};
 use crate::{transaction::SighashTypeParseError, SchnorrSighashType};
-use crate::{AssetIssuance, BlockHash, EcdsaSigHashType, Script, Transaction, TxIn, TxOut, Txid};
+use crate::{AssetIssuance, BlockHash, EcdsaSighashType, Script, Transaction, TxIn, TxOut, Txid};
 use bitcoin::bip32::KeySource;
 use bitcoin::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
@@ -292,7 +292,7 @@ impl Default for Input {
 }
 
 /// A Signature hash type for the corresponding input. As of taproot upgrade, the signature hash
-/// type can be either [`EcdsaSigHashType`] or [`SchnorrSighashType`] but it is not possible to know
+/// type can be either [`EcdsaSighashType`] or [`SchnorrSighashType`] but it is not possible to know
 /// directly which signature hash type the user is dealing with. Therefore, the user is responsible
 /// for converting to/from [`PsbtSighashType`] from/to the desired signature hash type they need.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -341,8 +341,8 @@ impl FromStr for PsbtSighashType {
         })
     }
 }
-impl From<EcdsaSigHashType> for PsbtSighashType {
-    fn from(ecdsa_hash_ty: EcdsaSigHashType) -> Self {
+impl From<EcdsaSighashType> for PsbtSighashType {
+    fn from(ecdsa_hash_ty: EcdsaSighashType) -> Self {
         PsbtSighashType {
             inner: ecdsa_hash_ty as u32,
         }
@@ -358,10 +358,10 @@ impl From<SchnorrSighashType> for PsbtSighashType {
 }
 
 impl PsbtSighashType {
-    /// Returns the [`EcdsaSigHashType`] if the [`PsbtSighashType`] can be
+    /// Returns the [`EcdsaSighashType`] if the [`PsbtSighashType`] can be
     /// converted to one.
-    pub fn ecdsa_hash_ty(self) -> Option<EcdsaSigHashType> {
-        EcdsaSigHashType::from_standard(self.inner).ok()
+    pub fn ecdsa_hash_ty(self) -> Option<EcdsaSighashType> {
+        EcdsaSighashType::from_standard(self.inner).ok()
     }
 
     /// Returns the [`SchnorrSighashType`] if the [`PsbtSighashType`] can be
@@ -390,16 +390,16 @@ impl PsbtSighashType {
 }
 
 impl Input {
-    /// Obtains the [`EcdsaSigHashType`] for this input if one is specified. If no sighash type is
-    /// specified, returns [`EcdsaSigHashType::All`].
+    /// Obtains the [`EcdsaSighashType`] for this input if one is specified. If no sighash type is
+    /// specified, returns [`EcdsaSighashType::All`].
     ///
     /// # Errors
     ///
     /// If the `sighash_type` field is set to a non-standard ECDSA sighash value.
-    pub fn ecdsa_hash_ty(&self) -> Option<EcdsaSigHashType> {
+    pub fn ecdsa_hash_ty(&self) -> Option<EcdsaSighashType> {
         self.sighash_type
             .map(|sighash_type| sighash_type.ecdsa_hash_ty())
-            .unwrap_or(Some(EcdsaSigHashType::All))
+            .unwrap_or(Some(EcdsaSighashType::All))
     }
 
     /// Obtains the [`SchnorrSighashType`] for this input if one is specified. If no sighash type is

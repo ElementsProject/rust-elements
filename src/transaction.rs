@@ -1070,7 +1070,7 @@ impl Decodable for Transaction {
 /// Hashtype of a transaction, encoded in the last byte of a signature
 /// Fixed values so they can be casted as integer types for encoding
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
-pub enum EcdsaSigHashType {
+pub enum EcdsaSighashType {
     /// 0x1: Sign all outputs
     All = 0x01,
     /// 0x2: Sign no outputs --- anyone can choose the destination
@@ -1088,64 +1088,64 @@ pub enum EcdsaSigHashType {
     SinglePlusAnyoneCanPay = 0x83,
 }
 
-serde_string_impl!(EcdsaSigHashType, "a EcdsaSigHashType data");
+serde_string_impl!(EcdsaSighashType, "a EcdsaSighashType data");
 
-impl fmt::Display for EcdsaSigHashType {
+impl fmt::Display for EcdsaSighashType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            EcdsaSigHashType::All => "SIGHASH_ALL",
-            EcdsaSigHashType::None => "SIGHASH_NONE",
-            EcdsaSigHashType::Single => "SIGHASH_SINGLE",
-            EcdsaSigHashType::AllPlusAnyoneCanPay => "SIGHASH_ALL|SIGHASH_ANYONECANPAY",
-            EcdsaSigHashType::NonePlusAnyoneCanPay => "SIGHASH_NONE|SIGHASH_ANYONECANPAY",
-            EcdsaSigHashType::SinglePlusAnyoneCanPay => "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY",
+            EcdsaSighashType::All => "SIGHASH_ALL",
+            EcdsaSighashType::None => "SIGHASH_NONE",
+            EcdsaSighashType::Single => "SIGHASH_SINGLE",
+            EcdsaSighashType::AllPlusAnyoneCanPay => "SIGHASH_ALL|SIGHASH_ANYONECANPAY",
+            EcdsaSighashType::NonePlusAnyoneCanPay => "SIGHASH_NONE|SIGHASH_ANYONECANPAY",
+            EcdsaSighashType::SinglePlusAnyoneCanPay => "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY",
         };
         f.write_str(s)
     }
 }
 
-impl str::FromStr for EcdsaSigHashType {
+impl str::FromStr for EcdsaSighashType {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "SIGHASH_ALL" => Ok(EcdsaSigHashType::All),
-            "SIGHASH_NONE" => Ok(EcdsaSigHashType::None),
-            "SIGHASH_SINGLE" => Ok(EcdsaSigHashType::Single),
-            "SIGHASH_ALL|SIGHASH_ANYONECANPAY" => Ok(EcdsaSigHashType::AllPlusAnyoneCanPay),
-            "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(EcdsaSigHashType::NonePlusAnyoneCanPay),
-            "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(EcdsaSigHashType::SinglePlusAnyoneCanPay),
+            "SIGHASH_ALL" => Ok(EcdsaSighashType::All),
+            "SIGHASH_NONE" => Ok(EcdsaSighashType::None),
+            "SIGHASH_SINGLE" => Ok(EcdsaSighashType::Single),
+            "SIGHASH_ALL|SIGHASH_ANYONECANPAY" => Ok(EcdsaSighashType::AllPlusAnyoneCanPay),
+            "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(EcdsaSighashType::NonePlusAnyoneCanPay),
+            "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(EcdsaSighashType::SinglePlusAnyoneCanPay),
             _ => Err("can't recognize SIGHASH string".to_string())
         }
     }
 }
 
-impl EcdsaSigHashType {
+impl EcdsaSighashType {
     /// Break the sighash flag into the "real" sighash flag and the ANYONECANPAY boolean
-    pub(crate) fn split_anyonecanpay_flag(self) -> (EcdsaSigHashType, bool) {
+    pub(crate) fn split_anyonecanpay_flag(self) -> (EcdsaSighashType, bool) {
         match self {
-            EcdsaSigHashType::All => (EcdsaSigHashType::All, false),
-            EcdsaSigHashType::None => (EcdsaSigHashType::None, false),
-            EcdsaSigHashType::Single => (EcdsaSigHashType::Single, false),
-            EcdsaSigHashType::AllPlusAnyoneCanPay => (EcdsaSigHashType::All, true),
-            EcdsaSigHashType::NonePlusAnyoneCanPay => (EcdsaSigHashType::None, true),
-            EcdsaSigHashType::SinglePlusAnyoneCanPay => (EcdsaSigHashType::Single, true),
+            EcdsaSighashType::All => (EcdsaSighashType::All, false),
+            EcdsaSighashType::None => (EcdsaSighashType::None, false),
+            EcdsaSighashType::Single => (EcdsaSighashType::Single, false),
+            EcdsaSighashType::AllPlusAnyoneCanPay => (EcdsaSighashType::All, true),
+            EcdsaSighashType::NonePlusAnyoneCanPay => (EcdsaSighashType::None, true),
+            EcdsaSighashType::SinglePlusAnyoneCanPay => (EcdsaSighashType::Single, true),
         }
     }
 
     /// Reads a 4-byte uint32 as a sighash type
-    pub fn from_u32(n: u32) -> EcdsaSigHashType {
+    pub fn from_u32(n: u32) -> EcdsaSighashType {
         match n & 0x9f {
             // "real" sighashes
-            0x01 => EcdsaSigHashType::All,
-            0x02 => EcdsaSigHashType::None,
-            0x03 => EcdsaSigHashType::Single,
-            0x81 => EcdsaSigHashType::AllPlusAnyoneCanPay,
-            0x82 => EcdsaSigHashType::NonePlusAnyoneCanPay,
-            0x83 => EcdsaSigHashType::SinglePlusAnyoneCanPay,
+            0x01 => EcdsaSighashType::All,
+            0x02 => EcdsaSighashType::None,
+            0x03 => EcdsaSighashType::Single,
+            0x81 => EcdsaSighashType::AllPlusAnyoneCanPay,
+            0x82 => EcdsaSighashType::NonePlusAnyoneCanPay,
+            0x83 => EcdsaSighashType::SinglePlusAnyoneCanPay,
             // catchalls
-            x if x & 0x80 == 0x80 => EcdsaSigHashType::AllPlusAnyoneCanPay,
-            _ => EcdsaSigHashType::All,
+            x if x & 0x80 == 0x80 => EcdsaSighashType::AllPlusAnyoneCanPay,
+            _ => EcdsaSighashType::All,
         }
     }
 
@@ -1154,20 +1154,20 @@ impl EcdsaSigHashType {
         self as u32
     }
 
-    /// Creates an [`EcdsaSigHashType`] from a raw `u32`.
+    /// Creates an [`EcdsaSighashType`] from a raw `u32`.
     ///
     /// # Errors
     ///
     /// If `n` is a non-standard sighash value.
-    pub fn from_standard(n: u32) -> Result<EcdsaSigHashType, NonStandardSighashType> {
+    pub fn from_standard(n: u32) -> Result<EcdsaSighashType, NonStandardSighashType> {
         match n {
             // Standard sighashes, see https://github.com/bitcoin/bitcoin/blob/b805dbb0b9c90dadef0424e5b3bf86ac308e103e/src/script/interpreter.cpp#L189-L198
-            0x01 => Ok(EcdsaSigHashType::All),
-            0x02 => Ok(EcdsaSigHashType::None),
-            0x03 => Ok(EcdsaSigHashType::Single),
-            0x81 => Ok(EcdsaSigHashType::AllPlusAnyoneCanPay),
-            0x82 => Ok(EcdsaSigHashType::NonePlusAnyoneCanPay),
-            0x83 => Ok(EcdsaSigHashType::SinglePlusAnyoneCanPay),
+            0x01 => Ok(EcdsaSighashType::All),
+            0x02 => Ok(EcdsaSighashType::None),
+            0x03 => Ok(EcdsaSighashType::Single),
+            0x81 => Ok(EcdsaSighashType::AllPlusAnyoneCanPay),
+            0x82 => Ok(EcdsaSighashType::NonePlusAnyoneCanPay),
+            0x83 => Ok(EcdsaSighashType::SinglePlusAnyoneCanPay),
             non_standard => Err(NonStandardSighashType(non_standard))
         }
     }
