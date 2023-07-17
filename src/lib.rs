@@ -83,5 +83,5 @@ pub use crate::hash_types::*;
 pub use crate::issuance::{AssetId, ContractHash};
 pub use crate::locktime::LockTime;
 pub use crate::script::Script;
-pub use crate::sighash::SchnorrSigHashType;
+pub use crate::sighash::SchnorrSighashType;
 pub use crate::schnorr::{SchnorrSig, SchnorrSigError};

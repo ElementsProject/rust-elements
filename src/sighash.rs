@@ -86,7 +86,7 @@ struct TaprootCache {
 }
 
 /// Contains outputs of previous transactions.
-/// In the case [`SchnorrSigHashType`] variant is `ANYONECANPAY`, [`Prevouts::One`] may be provided
+/// In the case [`SchnorrSighashType`] variant is `ANYONECANPAY`, [`Prevouts::One`] may be provided
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Prevouts<'u, T> where T: 'u + Borrow<TxOut> {
     /// `One` variant allows to provide the single Prevout needed. It's useful for example
@@ -256,7 +256,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         prevouts: &Prevouts<T>,
         annex: Option<Annex>,
         leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
-        sighash_type: SchnorrSigHashType,
+        sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<(), Error> {
         prevouts.check_all(&self.tx)?;
@@ -313,7 +313,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         // If hash_type & 3 does not equal SIGHASH_NONE or SIGHASH_SINGLE:
         //     sha_outputs (32): the SHA256 of the serialization of all outputs in CTxOut format.
         //     sha_output_witnesses (32): (ELEMENTS) the SHA256 of the serialization of all output witnesses
-        if sighash != SchnorrSigHashType::None && sighash != SchnorrSigHashType::Single {
+        if sighash != SchnorrSighashType::None && sighash != SchnorrSighashType::Single {
             self.common_cache().outputs.consensus_encode(&mut writer)?;
             self.taproot_cache(prevouts.get_all()?)
                 .output_witnesses
@@ -388,7 +388,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         // If hash_type & 3 equals SIGHASH_SINGLE:
         //      sha_single_output (32): the SHA256 of the corresponding output in CTxOut format.
         //      sha_single_output_witness (32): the sha256 serialization of output witnesses
-        if sighash == SchnorrSigHashType::Single {
+        if sighash == SchnorrSighashType::Single {
             let mut enc = sha256::Hash::engine();
             let out = self.tx
                 .output
@@ -428,7 +428,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         prevouts: &Prevouts<T>,
         annex: Option<Annex>,
         leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
-        sighash_type: SchnorrSigHashType,
+        sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
         let mut enc = TapSighashHash::engine();
@@ -449,7 +449,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         &mut self,
         input_index: usize,
         prevouts: &Prevouts<T>,
-        sighash_type: SchnorrSigHashType,
+        sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
         let mut enc = TapSighashHash::engine();
@@ -474,7 +474,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         input_index: usize,
         prevouts: &Prevouts<T>,
         leaf_hash: S,
-        sighash_type: SchnorrSigHashType,
+        sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
         let mut enc = TapSighashHash::engine();
@@ -875,8 +875,8 @@ impl<'a> Encodable for Annex<'a> {
 /// Hashtype of an input's signature, encoded in the last byte of the signature
 /// Fixed values so they can be casted as integer types for encoding
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum SchnorrSigHashType {
-    /// 0x0: Used when not explicitly specified, defaulting to [`SchnorrSigHashType::All`]
+pub enum SchnorrSighashType {
+    /// 0x0: Used when not explicitly specified, defaulting to [`SchnorrSighashType::All`]
     Default = 0x00,
     /// 0x1: Sign all outputs
     All = 0x01,
@@ -898,67 +898,67 @@ pub enum SchnorrSigHashType {
     Reserved = 0xFF,
 }
 
-serde_string_impl!(SchnorrSigHashType, "a SchnorrSigHashType data");
+serde_string_impl!(SchnorrSighashType, "a SchnorrSighashType data");
 
-impl SchnorrSigHashType {
+impl SchnorrSighashType {
     /// Break the sighash flag into the "real" sighash flag and the ANYONECANPAY boolean
-    pub fn split_anyonecanpay_flag(self) -> (SchnorrSigHashType, bool) {
+    pub fn split_anyonecanpay_flag(self) -> (SchnorrSighashType, bool) {
         match self {
-            SchnorrSigHashType::Default => (SchnorrSigHashType::Default, false),
-            SchnorrSigHashType::All => (SchnorrSigHashType::All, false),
-            SchnorrSigHashType::None => (SchnorrSigHashType::None, false),
-            SchnorrSigHashType::Single => (SchnorrSigHashType::Single, false),
-            SchnorrSigHashType::AllPlusAnyoneCanPay => (SchnorrSigHashType::All, true),
-            SchnorrSigHashType::NonePlusAnyoneCanPay => (SchnorrSigHashType::None, true),
-            SchnorrSigHashType::SinglePlusAnyoneCanPay => (SchnorrSigHashType::Single, true),
-            SchnorrSigHashType::Reserved => (SchnorrSigHashType::Reserved, false),
+            SchnorrSighashType::Default => (SchnorrSighashType::Default, false),
+            SchnorrSighashType::All => (SchnorrSighashType::All, false),
+            SchnorrSighashType::None => (SchnorrSighashType::None, false),
+            SchnorrSighashType::Single => (SchnorrSighashType::Single, false),
+            SchnorrSighashType::AllPlusAnyoneCanPay => (SchnorrSighashType::All, true),
+            SchnorrSighashType::NonePlusAnyoneCanPay => (SchnorrSighashType::None, true),
+            SchnorrSighashType::SinglePlusAnyoneCanPay => (SchnorrSighashType::Single, true),
+            SchnorrSighashType::Reserved => (SchnorrSighashType::Reserved, false),
         }
     }
 
-    /// Create a [`SchnorrSigHashType`] from raw u8
+    /// Create a [`SchnorrSighashType`] from raw u8
     pub fn from_u8(hash_ty: u8) -> Option<Self> {
         match hash_ty {
-            0x00 => Some(SchnorrSigHashType::Default),
-            0x01 => Some(SchnorrSigHashType::All),
-            0x02 => Some(SchnorrSigHashType::None),
-            0x03 => Some(SchnorrSigHashType::Single),
-            0x81 => Some(SchnorrSigHashType::AllPlusAnyoneCanPay),
-            0x82 => Some(SchnorrSigHashType::NonePlusAnyoneCanPay),
-            0x83 => Some(SchnorrSigHashType::SinglePlusAnyoneCanPay),
+            0x00 => Some(SchnorrSighashType::Default),
+            0x01 => Some(SchnorrSighashType::All),
+            0x02 => Some(SchnorrSighashType::None),
+            0x03 => Some(SchnorrSighashType::Single),
+            0x81 => Some(SchnorrSighashType::AllPlusAnyoneCanPay),
+            0x82 => Some(SchnorrSighashType::NonePlusAnyoneCanPay),
+            0x83 => Some(SchnorrSighashType::SinglePlusAnyoneCanPay),
             _x => None,
         }
     }
 }
 
-impl fmt::Display for SchnorrSigHashType {
+impl fmt::Display for SchnorrSighashType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            SchnorrSigHashType::Default => "SIGHASH_DEFAULT",
-            SchnorrSigHashType::All => "SIGHASH_ALL",
-            SchnorrSigHashType::None => "SIGHASH_NONE",
-            SchnorrSigHashType::Single => "SIGHASH_SINGLE",
-            SchnorrSigHashType::AllPlusAnyoneCanPay => "SIGHASH_ALL|SIGHASH_ANYONECANPAY",
-            SchnorrSigHashType::NonePlusAnyoneCanPay => "SIGHASH_NONE|SIGHASH_ANYONECANPAY",
-            SchnorrSigHashType::SinglePlusAnyoneCanPay => "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY",
-            SchnorrSigHashType::Reserved => "SIGHASH_RESERVED",
+            SchnorrSighashType::Default => "SIGHASH_DEFAULT",
+            SchnorrSighashType::All => "SIGHASH_ALL",
+            SchnorrSighashType::None => "SIGHASH_NONE",
+            SchnorrSighashType::Single => "SIGHASH_SINGLE",
+            SchnorrSighashType::AllPlusAnyoneCanPay => "SIGHASH_ALL|SIGHASH_ANYONECANPAY",
+            SchnorrSighashType::NonePlusAnyoneCanPay => "SIGHASH_NONE|SIGHASH_ANYONECANPAY",
+            SchnorrSighashType::SinglePlusAnyoneCanPay => "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY",
+            SchnorrSighashType::Reserved => "SIGHASH_RESERVED",
         };
         f.write_str(s)
     }
 }
 
-impl std::str::FromStr for SchnorrSigHashType {
+impl std::str::FromStr for SchnorrSighashType {
     type Err = SighashTypeParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "SIGHASH_DEFAULT" => Ok(SchnorrSigHashType::Default),
-            "SIGHASH_ALL" => Ok(SchnorrSigHashType::All),
-            "SIGHASH_NONE" => Ok(SchnorrSigHashType::None),
-            "SIGHASH_SINGLE" => Ok(SchnorrSigHashType::Single),
-            "SIGHASH_ALL|SIGHASH_ANYONECANPAY" => Ok(SchnorrSigHashType::AllPlusAnyoneCanPay),
-            "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSigHashType::NonePlusAnyoneCanPay),
-            "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSigHashType::SinglePlusAnyoneCanPay),
-            "SIGHASH_RESERVED" => Ok(SchnorrSigHashType::Reserved),
+            "SIGHASH_DEFAULT" => Ok(SchnorrSighashType::Default),
+            "SIGHASH_ALL" => Ok(SchnorrSighashType::All),
+            "SIGHASH_NONE" => Ok(SchnorrSighashType::None),
+            "SIGHASH_SINGLE" => Ok(SchnorrSighashType::Single),
+            "SIGHASH_ALL|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::AllPlusAnyoneCanPay),
+            "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::NonePlusAnyoneCanPay),
+            "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::SinglePlusAnyoneCanPay),
+            "SIGHASH_RESERVED" => Ok(SchnorrSighashType::Reserved),
             _ => Err(SighashTypeParseError{ unrecognized: s.to_owned() }),
         }
     }

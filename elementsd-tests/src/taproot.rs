@@ -17,7 +17,7 @@ use elements::sighash::{self, SighashCache};
 use elements::taproot::{LeafVersion, TapTweakHash, TaprootBuilder, TaprootSpendInfo, TapLeafHash};
 use elements::OutPoint;
 use elements::{
-    confidential, opcodes, AssetIssuance, BlockHash, LockTime, SchnorrSig, SchnorrSigHashType, Script,
+    confidential, opcodes, AssetIssuance, BlockHash, LockTime, SchnorrSig, SchnorrSighashType, Script,
     Sequence, TxInWitness, TxOut, Txid,
 };
 use elements::{AddressParams, Transaction, TxIn, TxOutSecrets};
@@ -144,7 +144,7 @@ fn taproot_spend_test(
     elementsd: &ElementsD,
     secp: &Secp256k1<secp256k1_zkp::All>,
     genesis_hash: BlockHash,
-    sighash_ty: SchnorrSigHashType,
+    sighash_ty: SchnorrSighashType,
     blind_prevout: bool,
     blind_tx: bool,
     key_spend: bool,
@@ -274,13 +274,13 @@ fn taproot_tests() {
     let genesis_hash = BlockHash::from_str(&genesis_hash_str).unwrap();
 
     let sighash_tys = [
-        SchnorrSigHashType::Default,
-        SchnorrSigHashType::Single,
-        SchnorrSigHashType::SinglePlusAnyoneCanPay,
-        SchnorrSigHashType::None,
-        SchnorrSigHashType::NonePlusAnyoneCanPay,
-        SchnorrSigHashType::All,
-        SchnorrSigHashType::AllPlusAnyoneCanPay,
+        SchnorrSighashType::Default,
+        SchnorrSighashType::Single,
+        SchnorrSighashType::SinglePlusAnyoneCanPay,
+        SchnorrSighashType::None,
+        SchnorrSighashType::NonePlusAnyoneCanPay,
+        SchnorrSighashType::All,
+        SchnorrSighashType::AllPlusAnyoneCanPay,
     ];
 
     for &conf_prevout in &[true, false] {
