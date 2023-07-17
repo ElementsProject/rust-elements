@@ -147,7 +147,7 @@ pub enum Error {
     WrongAnnex,
 
     /// Invalid Sighash type
-    InvalidSigHashType(u8),
+    InvalidSighashType(u8),
 }
 
 impl fmt::Display for Error {
@@ -160,7 +160,7 @@ impl fmt::Display for Error {
             Error::PrevoutIndex => write!(f, "The index requested is greater than available prevouts or different from the provided [Provided::Anyone] index"),
             Error::PrevoutKind => write!(f, "A single prevout has been provided but all prevouts are needed without `ANYONECANPAY`"),
             Error::WrongAnnex => write!(f, "Annex must be at least one byte long and the first bytes must be `0x50`"),
-            Error::InvalidSigHashType(hash_ty) => write!(f, "Invalid schnorr Signature hash type : {} ", hash_ty),
+            Error::InvalidSighashType(hash_ty) => write!(f, "Invalid schnorr Signature hash type : {} ", hash_ty),
         }
     }
 }
@@ -588,7 +588,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
 
     /// Encodes the signing data from which a signature hash for a given input index with a given
     /// sighash flag can be computed.  To actually produce a scriptSig, this hash needs to be run
-    /// through an ECDSA signer, the SigHashType appended to the resulting sig, and a script
+    /// through an ECDSA signer, the SighashType appended to the resulting sig, and a script
     /// written around this, but this is the general (and hard) part.
     ///
     /// *Warning* This does NOT attempt to support OP_CODESEPARATOR. In general this would require
@@ -675,7 +675,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
 
     /// Computes a signature hash for a given input index with a given sighash flag.
     /// To actually produce a scriptSig, this hash needs to be run through an
-    /// ECDSA signer, the SigHashType appended to the resulting sig, and a
+    /// ECDSA signer, the SighashType appended to the resulting sig, and a
     /// script written around this, but this is the general (and hard) part.
     /// Does not take a mutable reference because it does not do any caching.
     ///
