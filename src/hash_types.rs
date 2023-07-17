@@ -44,7 +44,7 @@ hash_newtype! {
     pub struct BlockHash(sha256d::Hash); 
 
     /// "Hash of the transaction according to the signature algorithm"
-    pub struct SigHash(sha256d::Hash); 
+    pub struct Sighash(sha256d::Hash); 
 
     /// A hash of a public key.
     pub struct PubkeyHash(hash160::Hash);
@@ -62,11 +62,11 @@ hash_newtype! {
 
 impl_hashencode!(Txid);
 impl_hashencode!(Wtxid);
-impl_hashencode!(SigHash);
+impl_hashencode!(Sighash);
 impl_hashencode!(BlockHash);
 impl_hashencode!(TxMerkleNode);
 
-impl ThirtyTwoByteHash for SigHash {
+impl ThirtyTwoByteHash for Sighash {
     fn into_32(self) -> [u8; 32] {
         self.0.to_byte_array()
     }

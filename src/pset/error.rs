@@ -64,7 +64,7 @@ pub enum Error {
         /// Actual
         actual: Txid,
     },
-    /// Unable to parse as a standard SigHash type.
+    /// Unable to parse as a standard Sighash type.
     NonStandardSighashType(u32),
     /// Parsing errors from bitcoin_hashes
     HashParseError(hashes::Error),

@@ -21,7 +21,7 @@
 
 use std::borrow::Borrow;
 use crate::encode::{self, Encodable};
-use crate::hash_types::SigHash;
+use crate::hash_types::Sighash;
 use crate::hashes::{sha256d, Hash, sha256};
 use crate::script::Script;
 use std::ops::{Deref, DerefMut};
@@ -552,9 +552,9 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         if sighash != EcdsaSighashType::Single && sighash != EcdsaSighashType::None {
             self.segwit_cache().outputs.consensus_encode(&mut writer)?;
         } else if sighash == EcdsaSighashType::Single && input_index < self.tx.output.len() {
-            let mut single_enc = SigHash::engine();
+            let mut single_enc = Sighash::engine();
             self.tx.output[input_index].consensus_encode(&mut single_enc)?;
-            SigHash::from_engine(single_enc).consensus_encode(&mut writer)?;
+            Sighash::from_engine(single_enc).consensus_encode(&mut writer)?;
         } else {
             zero_hash.consensus_encode(&mut writer)?;
         }
@@ -579,11 +579,11 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         script_code: &Script,
         value: confidential::Value,
         sighash_type: EcdsaSighashType
-    ) -> SigHash {
-        let mut enc = SigHash::engine();
+    ) -> Sighash {
+        let mut enc = Sighash::engine();
         self.encode_segwitv0_signing_data_to(&mut enc, input_index, script_code, value, sighash_type)
             .expect("engines don't error");
-        SigHash::from_engine(enc)
+        Sighash::from_engine(enc)
     }
 
     /// Encodes the signing data from which a signature hash for a given input index with a given
@@ -692,11 +692,11 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         input_index: usize,
         script_pubkey: &Script,
         sighash_type: EcdsaSighashType,
-    ) -> SigHash {
-        let mut engine = SigHash::engine();
+    ) -> Sighash {
+        let mut engine = Sighash::engine();
         self.encode_legacy_signing_data_to(&mut engine, input_index, script_pubkey, sighash_type)
             .expect("engines don't error");
-        SigHash::from_engine(engine)
+        Sighash::from_engine(engine)
     }
 
     #[inline]
@@ -977,7 +977,7 @@ mod tests{
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
         let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
-        let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
+        let expected_result = Sighash::from_slice(&raw_expected[..]).unwrap();
 
         let mut cache = SighashCache::new(&tx);
         let value : confidential::Value = deserialize(&Vec::<u8>::from_hex(value).unwrap()[..]).unwrap();
@@ -1011,7 +1011,7 @@ mod tests{
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
         let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
-        let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
+        let expected_result = Sighash::from_slice(&raw_expected[..]).unwrap();
         let sighash_cache = SighashCache::new(&tx);
         let actual_result = sighash_cache.legacy_sighash(input_index, &script, hash_type);
         assert_eq!(actual_result, expected_result);
