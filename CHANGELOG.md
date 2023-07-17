@@ -1,4 +1,8 @@
 
+# 0.23.0 - 
+
+* rename all Sighash types downcasing the middle "h", for example: SigHash -> Sighash
+
 # 0.22.0 - 2023-06-08
 
 * [https://github.com/ElementsProject/rust-elements/pull/159](Update `TapTweak`, and `schnorr` module generally, to match rust-bitcoin)
