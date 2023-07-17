@@ -20,7 +20,7 @@
 use std::fmt;
 
 use crate::taproot::{TapBranchHash, TapTweakHash};
-use crate::SchnorrSigHashType;
+use crate::SchnorrSighashType;
 use secp256k1_zkp::{self, constants::SCHNORR_SIGNATURE_SIZE, Secp256k1, Verification};
 pub use secp256k1_zkp::{KeyPair, XOnlyPublicKey};
 
@@ -209,7 +209,7 @@ pub struct SchnorrSig {
     /// The underlying schnorr signature
     pub sig: secp256k1_zkp::schnorr::Signature,
     /// The corresponding hash type
-    pub hash_ty: SchnorrSigHashType,
+    pub hash_ty: SchnorrSighashType,
 }
 
 impl SchnorrSig {
@@ -220,11 +220,11 @@ impl SchnorrSig {
             // default type
             let sig = secp256k1_zkp::schnorr::Signature::from_slice(sl)
                 .map_err(|_| SchnorrSigError::InvalidSchnorrSig)?;
-            return Ok( SchnorrSig { sig, hash_ty : SchnorrSigHashType::Default });
+            return Ok( SchnorrSig { sig, hash_ty : SchnorrSighashType::Default });
         }
         let (hash_ty, sig) = sl.split_last()
             .ok_or(SchnorrSigError::InvalidSchnorrSig)?;
-        let hash_ty = SchnorrSigHashType::from_u8(*hash_ty)
+        let hash_ty = SchnorrSighashType::from_u8(*hash_ty)
             .ok_or(SchnorrSigError::InvalidSighashType(*hash_ty))?;
         let sig = secp256k1_zkp::schnorr::Signature::from_slice(sig)
             .map_err(|_| SchnorrSigError::InvalidSchnorrSig)?;
@@ -235,7 +235,7 @@ impl SchnorrSig {
     pub fn to_vec(&self) -> Vec<u8> {
         // TODO: add support to serialize to a writer to SerializedSig
         let mut ser_sig = self.sig.as_ref().to_vec();
-        if let SchnorrSigHashType::Default = self.hash_ty {
+        if let SchnorrSighashType::Default = self.hash_ty {
             // default sighash type, don't add extra sighash byte
         } else {
             ser_sig.push(self.hash_ty as u8);

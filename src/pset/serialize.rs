@@ -34,7 +34,7 @@ use super::map::{PsbtSighashType, TapTree};
 use crate::schnorr;
 use crate::taproot::{ControlBlock, LeafVersion, TapBranchHash, TapLeafHash};
 
-use crate::sighash::SchnorrSigHashType;
+use crate::sighash::SchnorrSighashType;
 use crate::taproot::TaprootBuilder;
 
 /// A trait for serializing a value as raw data for insertion into PSET
@@ -300,7 +300,7 @@ impl Deserialize for schnorr::SchnorrSig {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         match bytes.len() {
             65 => {
-                let hash_ty = SchnorrSigHashType::from_u8(bytes[64])
+                let hash_ty = SchnorrSighashType::from_u8(bytes[64])
                     .ok_or(encode::Error::ParseFailed("Invalid Sighash type"))?;
                 let sig = secp256k1_zkp::schnorr::Signature::from_slice(&bytes[..64])
                     .map_err(|_| encode::Error::ParseFailed("Invalid Schnorr signature"))?;
@@ -311,7 +311,7 @@ impl Deserialize for schnorr::SchnorrSig {
                     .map_err(|_| encode::Error::ParseFailed("Invalid Schnorr signature"))?;
                 Ok(schnorr::SchnorrSig {
                     sig,
-                    hash_ty: SchnorrSigHashType::Default,
+                    hash_ty: SchnorrSighashType::Default,
                 })
             }
             _ => Err(encode::Error::ParseFailed("Invalid Schnorr signature len")),

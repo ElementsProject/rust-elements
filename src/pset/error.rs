@@ -64,8 +64,8 @@ pub enum Error {
         /// Actual
         actual: Txid,
     },
-    /// Unable to parse as a standard SigHash type.
-    NonStandardSigHashType(u32),
+    /// Unable to parse as a standard Sighash type.
+    NonStandardSighashType(u32),
     /// Parsing errors from bitcoin_hashes
     HashParseError(hashes::Error),
     /// The pre-image must hash to the correponding pset hash
@@ -129,7 +129,7 @@ impl fmt::Display for Error {
                 expected: ref e,
                 actual: ref a,
             } => write!(f, "different id: expected {}, actual {}", e, a),
-            Error::NonStandardSigHashType(ref sht) => {
+            Error::NonStandardSighashType(ref sht) => {
                 write!(f, "non-standard sighash type: {}", sht)
             }
             Error::InvalidMagic => f.write_str("invalid magic"),

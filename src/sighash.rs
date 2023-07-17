@@ -21,13 +21,13 @@
 
 use std::borrow::Borrow;
 use crate::encode::{self, Encodable};
-use crate::hash_types::SigHash;
+use crate::hash_types::Sighash;
 use crate::hashes::{sha256d, Hash, sha256};
 use crate::script::Script;
 use std::ops::{Deref, DerefMut};
 use std::io;
 use crate::endian;
-use crate::transaction::{EcdsaSigHashType, Transaction, TxIn, TxOut, TxInWitness};
+use crate::transaction::{EcdsaSighashType, Transaction, TxIn, TxOut, TxInWitness};
 use crate::confidential;
 use crate::Sequence;
 use std::fmt;
@@ -38,10 +38,10 @@ use crate::BlockHash;
 use crate::transaction::SighashTypeParseError;
 /// Efficiently calculates signature hash message for legacy, segwit and taproot inputs.
 #[derive(Debug)]
-pub struct SigHashCache<T: Deref<Target = Transaction>> {
+pub struct SighashCache<T: Deref<Target = Transaction>> {
     /// Access to transaction required for various introspection, moreover type
     /// `T: Deref<Target=Transaction>` allows to accept borrow and mutable borrow, the
-    /// latter in particular is necessary for [`SigHashCache::witness_mut`]
+    /// latter in particular is necessary for [`SighashCache::witness_mut`]
     tx: T,
 
     /// Common cache for taproot and segwit inputs. It's an option because it's not needed for legacy inputs
@@ -86,7 +86,7 @@ struct TaprootCache {
 }
 
 /// Contains outputs of previous transactions.
-/// In the case [`SchnorrSigHashType`] variant is `ANYONECANPAY`, [`Prevouts::One`] may be provided
+/// In the case [`SchnorrSighashType`] variant is `ANYONECANPAY`, [`Prevouts::One`] may be provided
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Prevouts<'u, T> where T: 'u + Borrow<TxOut> {
     /// `One` variant allows to provide the single Prevout needed. It's useful for example
@@ -147,7 +147,7 @@ pub enum Error {
     WrongAnnex,
 
     /// Invalid Sighash type
-    InvalidSigHashType(u8),
+    InvalidSighashType(u8),
 }
 
 impl fmt::Display for Error {
@@ -160,7 +160,7 @@ impl fmt::Display for Error {
             Error::PrevoutIndex => write!(f, "The index requested is greater than available prevouts or different from the provided [Provided::Anyone] index"),
             Error::PrevoutKind => write!(f, "A single prevout has been provided but all prevouts are needed without `ANYONECANPAY`"),
             Error::WrongAnnex => write!(f, "Annex must be at least one byte long and the first bytes must be `0x50`"),
-            Error::InvalidSigHashType(hash_ty) => write!(f, "Invalid schnorr Signature hash type : {} ", hash_ty),
+            Error::InvalidSighashType(hash_ty) => write!(f, "Invalid schnorr Signature hash type : {} ", hash_ty),
         }
     }
 }
@@ -232,13 +232,13 @@ impl<'s> From<ScriptPath<'s>> for TapLeafHash {
     }
 }
 
-impl<R: Deref<Target = Transaction>> SigHashCache<R> {
+impl<R: Deref<Target = Transaction>> SighashCache<R> {
     /// Compute the sighash components from an unsigned transaction and auxiliary
     /// in a lazy manner when required.
     /// For the generated sighashes to be valid, no fields in the transaction may change except for
     /// script_sig and witnesses.
     pub fn new(tx: R) -> Self {
-        SigHashCache {
+        SighashCache {
             tx,
             common_cache: None,
             taproot_cache: None,
@@ -256,7 +256,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         prevouts: &Prevouts<T>,
         annex: Option<Annex>,
         leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
-        sighash_type: SchnorrSigHashType,
+        sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<(), Error> {
         prevouts.check_all(&self.tx)?;
@@ -313,7 +313,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         // If hash_type & 3 does not equal SIGHASH_NONE or SIGHASH_SINGLE:
         //     sha_outputs (32): the SHA256 of the serialization of all outputs in CTxOut format.
         //     sha_output_witnesses (32): (ELEMENTS) the SHA256 of the serialization of all output witnesses
-        if sighash != SchnorrSigHashType::None && sighash != SchnorrSigHashType::Single {
+        if sighash != SchnorrSighashType::None && sighash != SchnorrSighashType::Single {
             self.common_cache().outputs.consensus_encode(&mut writer)?;
             self.taproot_cache(prevouts.get_all()?)
                 .output_witnesses
@@ -388,7 +388,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         // If hash_type & 3 equals SIGHASH_SINGLE:
         //      sha_single_output (32): the SHA256 of the corresponding output in CTxOut format.
         //      sha_single_output_witness (32): the sha256 serialization of output witnesses
-        if sighash == SchnorrSigHashType::Single {
+        if sighash == SchnorrSighashType::Single {
             let mut enc = sha256::Hash::engine();
             let out = self.tx
                 .output
@@ -428,7 +428,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         prevouts: &Prevouts<T>,
         annex: Option<Annex>,
         leaf_hash_code_separator: Option<(TapLeafHash, u32)>,
-        sighash_type: SchnorrSigHashType,
+        sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
         let mut enc = TapSighashHash::engine();
@@ -449,7 +449,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         &mut self,
         input_index: usize,
         prevouts: &Prevouts<T>,
-        sighash_type: SchnorrSigHashType,
+        sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
         let mut enc = TapSighashHash::engine();
@@ -468,13 +468,13 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     /// Compute the BIP341 sighash for a script spend
     ///
     /// Assumes the default `OP_CODESEPARATOR` position of `0xFFFFFFFF`. Custom values can be
-    /// provided through the more fine-grained API of [`SigHashCache::taproot_encode_signing_data_to`].
+    /// provided through the more fine-grained API of [`SighashCache::taproot_encode_signing_data_to`].
     pub fn taproot_script_spend_signature_hash<S: Into<TapLeafHash>, T: Borrow<TxOut>>(
         &mut self,
         input_index: usize,
         prevouts: &Prevouts<T>,
         leaf_hash: S,
-        sighash_type: SchnorrSigHashType,
+        sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
         let mut enc = TapSighashHash::engine();
@@ -507,7 +507,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         input_index: usize,
         script_code: &Script,
         value: confidential::Value,
-        sighash_type: EcdsaSigHashType,
+        sighash_type: EcdsaSighashType,
     ) -> Result<(), encode::Error> {
         let zero_hash = sha256d::Hash::all_zeros();
 
@@ -521,7 +521,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
             zero_hash.consensus_encode(&mut writer)?;
         }
 
-        if !anyone_can_pay && sighash != EcdsaSigHashType::Single && sighash != EcdsaSigHashType::None {
+        if !anyone_can_pay && sighash != EcdsaSighashType::Single && sighash != EcdsaSighashType::None {
             self.segwit_cache().sequences.consensus_encode(&mut writer)?;
         } else {
             zero_hash.consensus_encode(&mut writer)?;
@@ -549,12 +549,12 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         }
 
         // hashoutputs
-        if sighash != EcdsaSigHashType::Single && sighash != EcdsaSigHashType::None {
+        if sighash != EcdsaSighashType::Single && sighash != EcdsaSighashType::None {
             self.segwit_cache().outputs.consensus_encode(&mut writer)?;
-        } else if sighash == EcdsaSigHashType::Single && input_index < self.tx.output.len() {
-            let mut single_enc = SigHash::engine();
+        } else if sighash == EcdsaSighashType::Single && input_index < self.tx.output.len() {
+            let mut single_enc = Sighash::engine();
             self.tx.output[input_index].consensus_encode(&mut single_enc)?;
-            SigHash::from_engine(single_enc).consensus_encode(&mut writer)?;
+            Sighash::from_engine(single_enc).consensus_encode(&mut writer)?;
         } else {
             zero_hash.consensus_encode(&mut writer)?;
         }
@@ -578,17 +578,17 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         input_index: usize,
         script_code: &Script,
         value: confidential::Value,
-        sighash_type: EcdsaSigHashType
-    ) -> SigHash {
-        let mut enc = SigHash::engine();
+        sighash_type: EcdsaSighashType
+    ) -> Sighash {
+        let mut enc = Sighash::engine();
         self.encode_segwitv0_signing_data_to(&mut enc, input_index, script_code, value, sighash_type)
             .expect("engines don't error");
-        SigHash::from_engine(enc)
+        Sighash::from_engine(enc)
     }
 
     /// Encodes the signing data from which a signature hash for a given input index with a given
     /// sighash flag can be computed.  To actually produce a scriptSig, this hash needs to be run
-    /// through an ECDSA signer, the SigHashType appended to the resulting sig, and a script
+    /// through an ECDSA signer, the SighashType appended to the resulting sig, and a script
     /// written around this, but this is the general (and hard) part.
     ///
     /// *Warning* This does NOT attempt to support OP_CODESEPARATOR. In general this would require
@@ -602,14 +602,14 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         mut writer: Write,
         input_index: usize,
         script_pubkey: &Script,
-        sighash_type: EcdsaSigHashType,
+        sighash_type: EcdsaSighashType,
     ) -> Result<(), encode::Error> {
         assert!(input_index < self.tx.input.len());  // Panic on OOB
 
         let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
 
         // Special-case sighash_single bug because this is easy enough.
-        if sighash == EcdsaSigHashType::Single && input_index >= self.tx.output.len() {
+        if sighash == EcdsaSighashType::Single && input_index >= self.tx.output.len() {
             writer.write_all(&[1, 0, 0, 0, 0, 0, 0, 0,
                                0, 0, 0, 0, 0, 0, 0, 0,
                                0, 0, 0, 0, 0, 0, 0, 0,
@@ -641,7 +641,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
                     previous_output: input.previous_output,
                     is_pegin: input.is_pegin,
                     script_sig: if n == input_index { script_pubkey.clone() } else { Script::new() },
-                    sequence: if n != input_index && (sighash == EcdsaSigHashType::Single || sighash == EcdsaSigHashType::None) { Sequence::ZERO } else { input.sequence },
+                    sequence: if n != input_index && (sighash == EcdsaSighashType::Single || sighash == EcdsaSighashType::None) { Sequence::ZERO } else { input.sequence },
                     asset_issuance: input.asset_issuance,
                     witness: TxInWitness::default(),
                 });
@@ -649,15 +649,15 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         }
         // ..then all outputs
         tx.output = match sighash {
-            EcdsaSigHashType::All => self.tx.output.clone(),
-            EcdsaSigHashType::Single => {
+            EcdsaSighashType::All => self.tx.output.clone(),
+            EcdsaSighashType::Single => {
                 let output_iter = self.tx.output.iter()
                                       .take(input_index + 1)  // sign all outputs up to and including this one, but erase
                                       .enumerate()            // all of them except for this one
                                       .map(|(n, out)| if n == input_index { out.clone() } else { TxOut::default() });
                 output_iter.collect()
             }
-            EcdsaSigHashType::None => vec![],
+            EcdsaSighashType::None => vec![],
             _ => unreachable!()
         };
         // hash the result
@@ -675,7 +675,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
 
     /// Computes a signature hash for a given input index with a given sighash flag.
     /// To actually produce a scriptSig, this hash needs to be run through an
-    /// ECDSA signer, the SigHashType appended to the resulting sig, and a
+    /// ECDSA signer, the SighashType appended to the resulting sig, and a
     /// script written around this, but this is the general (and hard) part.
     /// Does not take a mutable reference because it does not do any caching.
     ///
@@ -691,12 +691,12 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
         &self,
         input_index: usize,
         script_pubkey: &Script,
-        sighash_type: EcdsaSigHashType,
-    ) -> SigHash {
-        let mut engine = SigHash::engine();
+        sighash_type: EcdsaSighashType,
+    ) -> Sighash {
+        let mut engine = Sighash::engine();
         self.encode_legacy_signing_data_to(&mut engine, input_index, script_pubkey, sighash_type)
             .expect("engines don't error");
-        SigHash::from_engine(engine)
+        Sighash::from_engine(engine)
     }
 
     #[inline]
@@ -813,24 +813,24 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     }
 }
 
-impl<R: DerefMut<Target = Transaction>> SigHashCache<R> {
-    /// When the SigHashCache is initialized with a mutable reference to a transaction instead of a
+impl<R: DerefMut<Target = Transaction>> SighashCache<R> {
+    /// When the SighashCache is initialized with a mutable reference to a transaction instead of a
     /// regular reference, this method is available to allow modification to the witnesses.
     ///
     /// This allows in-line signing such as
     /// ```
-    /// use elements::{LockTime, Transaction, EcdsaSigHashType};
-    /// use elements::sighash::SigHashCache;
+    /// use elements::{LockTime, Transaction, EcdsaSighashType};
+    /// use elements::sighash::SighashCache;
     /// use elements::Script;
     /// use elements::confidential;
     ///
     /// let mut tx_to_sign = Transaction { version: 2, lock_time: LockTime::ZERO, input: Vec::new(), output: Vec::new() };
     /// let input_count = tx_to_sign.input.len();
     ///
-    /// let mut sig_hasher = SigHashCache::new(&mut tx_to_sign);
+    /// let mut sig_hasher = SighashCache::new(&mut tx_to_sign);
     /// for inp in 0..input_count {
     ///     let prevout_script = Script::new();
-    ///     let _sighash = sig_hasher.segwitv0_sighash(inp, &prevout_script, confidential::Value::Explicit(42), EcdsaSigHashType::All);
+    ///     let _sighash = sig_hasher.segwitv0_sighash(inp, &prevout_script, confidential::Value::Explicit(42), EcdsaSighashType::All);
     ///     // ... sign the sighash
     ///     sig_hasher.witness_mut(inp).unwrap().push(Vec::new());
     /// }
@@ -875,8 +875,8 @@ impl<'a> Encodable for Annex<'a> {
 /// Hashtype of an input's signature, encoded in the last byte of the signature
 /// Fixed values so they can be casted as integer types for encoding
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum SchnorrSigHashType {
-    /// 0x0: Used when not explicitly specified, defaulting to [`SchnorrSigHashType::All`]
+pub enum SchnorrSighashType {
+    /// 0x0: Used when not explicitly specified, defaulting to [`SchnorrSighashType::All`]
     Default = 0x00,
     /// 0x1: Sign all outputs
     All = 0x01,
@@ -898,67 +898,67 @@ pub enum SchnorrSigHashType {
     Reserved = 0xFF,
 }
 
-serde_string_impl!(SchnorrSigHashType, "a SchnorrSigHashType data");
+serde_string_impl!(SchnorrSighashType, "a SchnorrSighashType data");
 
-impl SchnorrSigHashType {
+impl SchnorrSighashType {
     /// Break the sighash flag into the "real" sighash flag and the ANYONECANPAY boolean
-    pub fn split_anyonecanpay_flag(self) -> (SchnorrSigHashType, bool) {
+    pub fn split_anyonecanpay_flag(self) -> (SchnorrSighashType, bool) {
         match self {
-            SchnorrSigHashType::Default => (SchnorrSigHashType::Default, false),
-            SchnorrSigHashType::All => (SchnorrSigHashType::All, false),
-            SchnorrSigHashType::None => (SchnorrSigHashType::None, false),
-            SchnorrSigHashType::Single => (SchnorrSigHashType::Single, false),
-            SchnorrSigHashType::AllPlusAnyoneCanPay => (SchnorrSigHashType::All, true),
-            SchnorrSigHashType::NonePlusAnyoneCanPay => (SchnorrSigHashType::None, true),
-            SchnorrSigHashType::SinglePlusAnyoneCanPay => (SchnorrSigHashType::Single, true),
-            SchnorrSigHashType::Reserved => (SchnorrSigHashType::Reserved, false),
+            SchnorrSighashType::Default => (SchnorrSighashType::Default, false),
+            SchnorrSighashType::All => (SchnorrSighashType::All, false),
+            SchnorrSighashType::None => (SchnorrSighashType::None, false),
+            SchnorrSighashType::Single => (SchnorrSighashType::Single, false),
+            SchnorrSighashType::AllPlusAnyoneCanPay => (SchnorrSighashType::All, true),
+            SchnorrSighashType::NonePlusAnyoneCanPay => (SchnorrSighashType::None, true),
+            SchnorrSighashType::SinglePlusAnyoneCanPay => (SchnorrSighashType::Single, true),
+            SchnorrSighashType::Reserved => (SchnorrSighashType::Reserved, false),
         }
     }
 
-    /// Create a [`SchnorrSigHashType`] from raw u8
+    /// Create a [`SchnorrSighashType`] from raw u8
     pub fn from_u8(hash_ty: u8) -> Option<Self> {
         match hash_ty {
-            0x00 => Some(SchnorrSigHashType::Default),
-            0x01 => Some(SchnorrSigHashType::All),
-            0x02 => Some(SchnorrSigHashType::None),
-            0x03 => Some(SchnorrSigHashType::Single),
-            0x81 => Some(SchnorrSigHashType::AllPlusAnyoneCanPay),
-            0x82 => Some(SchnorrSigHashType::NonePlusAnyoneCanPay),
-            0x83 => Some(SchnorrSigHashType::SinglePlusAnyoneCanPay),
+            0x00 => Some(SchnorrSighashType::Default),
+            0x01 => Some(SchnorrSighashType::All),
+            0x02 => Some(SchnorrSighashType::None),
+            0x03 => Some(SchnorrSighashType::Single),
+            0x81 => Some(SchnorrSighashType::AllPlusAnyoneCanPay),
+            0x82 => Some(SchnorrSighashType::NonePlusAnyoneCanPay),
+            0x83 => Some(SchnorrSighashType::SinglePlusAnyoneCanPay),
             _x => None,
         }
     }
 }
 
-impl fmt::Display for SchnorrSigHashType {
+impl fmt::Display for SchnorrSighashType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let s = match self {
-            SchnorrSigHashType::Default => "SIGHASH_DEFAULT",
-            SchnorrSigHashType::All => "SIGHASH_ALL",
-            SchnorrSigHashType::None => "SIGHASH_NONE",
-            SchnorrSigHashType::Single => "SIGHASH_SINGLE",
-            SchnorrSigHashType::AllPlusAnyoneCanPay => "SIGHASH_ALL|SIGHASH_ANYONECANPAY",
-            SchnorrSigHashType::NonePlusAnyoneCanPay => "SIGHASH_NONE|SIGHASH_ANYONECANPAY",
-            SchnorrSigHashType::SinglePlusAnyoneCanPay => "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY",
-            SchnorrSigHashType::Reserved => "SIGHASH_RESERVED",
+            SchnorrSighashType::Default => "SIGHASH_DEFAULT",
+            SchnorrSighashType::All => "SIGHASH_ALL",
+            SchnorrSighashType::None => "SIGHASH_NONE",
+            SchnorrSighashType::Single => "SIGHASH_SINGLE",
+            SchnorrSighashType::AllPlusAnyoneCanPay => "SIGHASH_ALL|SIGHASH_ANYONECANPAY",
+            SchnorrSighashType::NonePlusAnyoneCanPay => "SIGHASH_NONE|SIGHASH_ANYONECANPAY",
+            SchnorrSighashType::SinglePlusAnyoneCanPay => "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY",
+            SchnorrSighashType::Reserved => "SIGHASH_RESERVED",
         };
         f.write_str(s)
     }
 }
 
-impl std::str::FromStr for SchnorrSigHashType {
+impl std::str::FromStr for SchnorrSighashType {
     type Err = SighashTypeParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "SIGHASH_DEFAULT" => Ok(SchnorrSigHashType::Default),
-            "SIGHASH_ALL" => Ok(SchnorrSigHashType::All),
-            "SIGHASH_NONE" => Ok(SchnorrSigHashType::None),
-            "SIGHASH_SINGLE" => Ok(SchnorrSigHashType::Single),
-            "SIGHASH_ALL|SIGHASH_ANYONECANPAY" => Ok(SchnorrSigHashType::AllPlusAnyoneCanPay),
-            "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSigHashType::NonePlusAnyoneCanPay),
-            "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSigHashType::SinglePlusAnyoneCanPay),
-            "SIGHASH_RESERVED" => Ok(SchnorrSigHashType::Reserved),
+            "SIGHASH_DEFAULT" => Ok(SchnorrSighashType::Default),
+            "SIGHASH_ALL" => Ok(SchnorrSighashType::All),
+            "SIGHASH_NONE" => Ok(SchnorrSighashType::None),
+            "SIGHASH_SINGLE" => Ok(SchnorrSighashType::Single),
+            "SIGHASH_ALL|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::AllPlusAnyoneCanPay),
+            "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::NonePlusAnyoneCanPay),
+            "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::SinglePlusAnyoneCanPay),
+            "SIGHASH_RESERVED" => Ok(SchnorrSighashType::Reserved),
             _ => Err(SighashTypeParseError{ unrecognized: s.to_owned() }),
         }
     }
@@ -972,14 +972,14 @@ mod tests{
     use crate::hex::FromHex;
     use std::str::FromStr;
 
-    fn test_segwit_sighash(tx: &str, script: &str, input_index: usize, value: &str, hash_type: EcdsaSigHashType, expected_result: &str) {
+    fn test_segwit_sighash(tx: &str, script: &str, input_index: usize, value: &str, hash_type: EcdsaSighashType, expected_result: &str) {
         let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
         let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
-        let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
+        let expected_result = Sighash::from_slice(&raw_expected[..]).unwrap();
 
-        let mut cache = SigHashCache::new(&tx);
+        let mut cache = SighashCache::new(&tx);
         let value : confidential::Value = deserialize(&Vec::<u8>::from_hex(value).unwrap()[..]).unwrap();
         let actual_result = cache.segwitv0_sighash(input_index, &script, value, hash_type);
         assert_eq!(actual_result, expected_result);
@@ -988,31 +988,31 @@ mod tests{
     #[test]
     fn test_segwit_sighashes(){
         // generated by script(example_test.py) at https://github.com/sanket1729/elements/commit/8fb4eb9e6020adaf20f3ec25055ffa905ba5b5c4
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSigHashType::All, "e201b4019129a03ca0304989731c6dccde232c854d86fce999b7411da1e90048");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSigHashType::None, "bfc6599816673083334ae82ac3459a2d0fef478d3e580e3ae203a28347502cb4");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSigHashType::Single, "4bc8546e32d31c5415444138184696e80f49e537a083bfcc89be2ab41d962e76");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSigHashType::AllPlusAnyoneCanPay, "b70ba5f4a1c2c48cd7f2104b2baa6a5c97987eb560916d39a5d427deb8b1dc2a");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSigHashType::NonePlusAnyoneCanPay, "6d6a4749c09ffd9a8df4c5de5d939325d896009e18f94bb095c9d7d695a8465e");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSigHashType::SinglePlusAnyoneCanPay, "7fc34367b42bf0e2bb78d8c20f45a64b81b2d4fbb59cbff8649322f619e88a0f");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSigHashType::All, "71141639d982f1a1a8901e32fb1a9e15a0ea168b37d33300a3c9619fc3767388");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSigHashType::None, "00730922d0e1d55b4b5fffafd087b06aeb44c4cedb58d8e182cbb9b87382cddb");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSigHashType::Single, "100063ea0923ef4432dd51c5756383530f28b31ffe9d50b59a11b94a63c84c78");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSigHashType::AllPlusAnyoneCanPay, "e1c4ddf5f723759f7d99d4f162155119160b1c6b765fdbdb25aedb2059769b74");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSigHashType::NonePlusAnyoneCanPay, "b0be275e0c69e89ef5c482fdf330038c3b2994ebce3e3639bb81456d15a95a7a");
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSigHashType::SinglePlusAnyoneCanPay, "27c293da7a0f08e161fa2a77aeefa6743c929905597b5bcb28f2015fe648aa0c");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::All, "e201b4019129a03ca0304989731c6dccde232c854d86fce999b7411da1e90048");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::None, "bfc6599816673083334ae82ac3459a2d0fef478d3e580e3ae203a28347502cb4");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::Single, "4bc8546e32d31c5415444138184696e80f49e537a083bfcc89be2ab41d962e76");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::AllPlusAnyoneCanPay, "b70ba5f4a1c2c48cd7f2104b2baa6a5c97987eb560916d39a5d427deb8b1dc2a");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::NonePlusAnyoneCanPay, "6d6a4749c09ffd9a8df4c5de5d939325d896009e18f94bb095c9d7d695a8465e");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::SinglePlusAnyoneCanPay, "7fc34367b42bf0e2bb78d8c20f45a64b81b2d4fbb59cbff8649322f619e88a0f");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSighashType::All, "71141639d982f1a1a8901e32fb1a9e15a0ea168b37d33300a3c9619fc3767388");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSighashType::None, "00730922d0e1d55b4b5fffafd087b06aeb44c4cedb58d8e182cbb9b87382cddb");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSighashType::Single, "100063ea0923ef4432dd51c5756383530f28b31ffe9d50b59a11b94a63c84c78");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSighashType::AllPlusAnyoneCanPay, "e1c4ddf5f723759f7d99d4f162155119160b1c6b765fdbdb25aedb2059769b74");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSighashType::NonePlusAnyoneCanPay, "b0be275e0c69e89ef5c482fdf330038c3b2994ebce3e3639bb81456d15a95a7a");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "010000000005f5e100", EcdsaSighashType::SinglePlusAnyoneCanPay, "27c293da7a0f08e161fa2a77aeefa6743c929905597b5bcb28f2015fe648aa0c");
 
         // Test a issuance test with only sighash all
-        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003e801000000000000000a0201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSigHashType::All, "ea946ee417d5a16a1038b2c3b54d1b7b12a9f98c0dcb4684bf005eb1c27d0c92");
+        test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003e801000000000000000a0201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::All, "ea946ee417d5a16a1038b2c3b54d1b7b12a9f98c0dcb4684bf005eb1c27d0c92");
     }
 
 
-    fn test_legacy_sighash(tx: &str, script: &str, input_index: usize, hash_type: EcdsaSigHashType, expected_result: &str) {
+    fn test_legacy_sighash(tx: &str, script: &str, input_index: usize, hash_type: EcdsaSighashType, expected_result: &str) {
         let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
         let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
-        let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
-        let sighash_cache = SigHashCache::new(&tx);
+        let expected_result = Sighash::from_slice(&raw_expected[..]).unwrap();
+        let sighash_cache = SighashCache::new(&tx);
         let actual_result = sighash_cache.legacy_sighash(input_index, &script, hash_type);
         assert_eq!(actual_result, expected_result);
     }
@@ -1020,14 +1020,14 @@ mod tests{
     #[test]
     fn test_legacy_sighashes(){
         // generated by script(example_test.py) at https://github.com/sanket1729/elements/commit/5ddfb5a749e85b71c961d29d5689d692ef7cee4b
-        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSigHashType::All, "769ad754a77282712895475eb17251bcb8f3cc35dc13406fa1188ef2707556cf");
-        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSigHashType::None, "b399ca018b4fec7d94e47092b72d25983db2d0d16eaa6a672050add66077ef40");
-        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSigHashType::Single, "4efef74996f840ed104c0b69461f33da2e364288f3015c55b2516a68e3ee60bc");
-        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSigHashType::AllPlusAnyoneCanPay, "a70a59ae29f1d9f4461f12e730e5cb75d3a75312666e8d911584aebb8e4afc5c");
-        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSigHashType::NonePlusAnyoneCanPay, "5f3694a35f3b994639d3fb1f6214ec166f9e0721c7ab3f216e465b9b2728d834");
-        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSigHashType::SinglePlusAnyoneCanPay, "4c18486c473dc31c264c477c55e9c17d70fddb9f567c7d411ce922261577167c");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSighashType::All, "769ad754a77282712895475eb17251bcb8f3cc35dc13406fa1188ef2707556cf");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSighashType::None, "b399ca018b4fec7d94e47092b72d25983db2d0d16eaa6a672050add66077ef40");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSighashType::Single, "4efef74996f840ed104c0b69461f33da2e364288f3015c55b2516a68e3ee60bc");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSighashType::AllPlusAnyoneCanPay, "a70a59ae29f1d9f4461f12e730e5cb75d3a75312666e8d911584aebb8e4afc5c");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSighashType::NonePlusAnyoneCanPay, "5f3694a35f3b994639d3fb1f6214ec166f9e0721c7ab3f216e465b9b2728d834");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSighashType::SinglePlusAnyoneCanPay, "4c18486c473dc31c264c477c55e9c17d70fddb9f567c7d411ce922261577167c");
 
         // Test a issuance test with only sighash all
-        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003e801000000000000000a0201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSigHashType::All, "9f00e1758a230aaf6c9bce777701a604f50b2ac5f2a07e1cd478d8a0e70fc195");
+        test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003e801000000000000000a0201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSighashType::All, "9f00e1758a230aaf6c9bce777701a604f50b2ac5f2a07e1cd478d8a0e70fc195");
     }
 }

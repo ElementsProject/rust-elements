@@ -16,7 +16,7 @@
 //!
 //! Implementation of BIP174 Partially Signed Bitcoin Transaction Format as
 //! defined at <https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki>
-//! except we define PSETs containing non-standard SigHash types as invalid.
+//! except we define PSETs containing non-standard Sighash types as invalid.
 //! Extension for PSET is based on PSET defined in BIP370.
 //! <https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki>
 
