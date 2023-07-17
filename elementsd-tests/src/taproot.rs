@@ -13,7 +13,7 @@ use elements::encode::{deserialize, serialize_hex};
 use elements::hashes::Hash;
 use elements::script::Builder;
 use elements::secp256k1_zkp;
-use elements::sighash::{self, SigHashCache};
+use elements::sighash::{self, SighashCache};
 use elements::taproot::{LeafVersion, TapTweakHash, TaprootBuilder, TaprootSpendInfo, TapLeafHash};
 use elements::OutPoint;
 use elements::{
@@ -193,7 +193,7 @@ fn taproot_spend_test(
         .unwrap();
     }
 
-    let mut cache = SigHashCache::new(&tx);
+    let mut cache = SighashCache::new(&tx);
 
     if key_spend {
         // test key spend

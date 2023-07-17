@@ -38,10 +38,10 @@ use crate::BlockHash;
 use crate::transaction::SighashTypeParseError;
 /// Efficiently calculates signature hash message for legacy, segwit and taproot inputs.
 #[derive(Debug)]
-pub struct SigHashCache<T: Deref<Target = Transaction>> {
+pub struct SighashCache<T: Deref<Target = Transaction>> {
     /// Access to transaction required for various introspection, moreover type
     /// `T: Deref<Target=Transaction>` allows to accept borrow and mutable borrow, the
-    /// latter in particular is necessary for [`SigHashCache::witness_mut`]
+    /// latter in particular is necessary for [`SighashCache::witness_mut`]
     tx: T,
 
     /// Common cache for taproot and segwit inputs. It's an option because it's not needed for legacy inputs
@@ -232,13 +232,13 @@ impl<'s> From<ScriptPath<'s>> for TapLeafHash {
     }
 }
 
-impl<R: Deref<Target = Transaction>> SigHashCache<R> {
+impl<R: Deref<Target = Transaction>> SighashCache<R> {
     /// Compute the sighash components from an unsigned transaction and auxiliary
     /// in a lazy manner when required.
     /// For the generated sighashes to be valid, no fields in the transaction may change except for
     /// script_sig and witnesses.
     pub fn new(tx: R) -> Self {
-        SigHashCache {
+        SighashCache {
             tx,
             common_cache: None,
             taproot_cache: None,
@@ -468,7 +468,7 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     /// Compute the BIP341 sighash for a script spend
     ///
     /// Assumes the default `OP_CODESEPARATOR` position of `0xFFFFFFFF`. Custom values can be
-    /// provided through the more fine-grained API of [`SigHashCache::taproot_encode_signing_data_to`].
+    /// provided through the more fine-grained API of [`SighashCache::taproot_encode_signing_data_to`].
     pub fn taproot_script_spend_signature_hash<S: Into<TapLeafHash>, T: Borrow<TxOut>>(
         &mut self,
         input_index: usize,
@@ -813,21 +813,21 @@ impl<R: Deref<Target = Transaction>> SigHashCache<R> {
     }
 }
 
-impl<R: DerefMut<Target = Transaction>> SigHashCache<R> {
-    /// When the SigHashCache is initialized with a mutable reference to a transaction instead of a
+impl<R: DerefMut<Target = Transaction>> SighashCache<R> {
+    /// When the SighashCache is initialized with a mutable reference to a transaction instead of a
     /// regular reference, this method is available to allow modification to the witnesses.
     ///
     /// This allows in-line signing such as
     /// ```
     /// use elements::{LockTime, Transaction, EcdsaSigHashType};
-    /// use elements::sighash::SigHashCache;
+    /// use elements::sighash::SighashCache;
     /// use elements::Script;
     /// use elements::confidential;
     ///
     /// let mut tx_to_sign = Transaction { version: 2, lock_time: LockTime::ZERO, input: Vec::new(), output: Vec::new() };
     /// let input_count = tx_to_sign.input.len();
     ///
-    /// let mut sig_hasher = SigHashCache::new(&mut tx_to_sign);
+    /// let mut sig_hasher = SighashCache::new(&mut tx_to_sign);
     /// for inp in 0..input_count {
     ///     let prevout_script = Script::new();
     ///     let _sighash = sig_hasher.segwitv0_sighash(inp, &prevout_script, confidential::Value::Explicit(42), EcdsaSigHashType::All);
@@ -979,7 +979,7 @@ mod tests{
         let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
         let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
 
-        let mut cache = SigHashCache::new(&tx);
+        let mut cache = SighashCache::new(&tx);
         let value : confidential::Value = deserialize(&Vec::<u8>::from_hex(value).unwrap()[..]).unwrap();
         let actual_result = cache.segwitv0_sighash(input_index, &script, value, hash_type);
         assert_eq!(actual_result, expected_result);
@@ -1012,7 +1012,7 @@ mod tests{
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
         let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
         let expected_result = SigHash::from_slice(&raw_expected[..]).unwrap();
-        let sighash_cache = SigHashCache::new(&tx);
+        let sighash_cache = SighashCache::new(&tx);
         let actual_result = sighash_cache.legacy_sighash(input_index, &script, hash_type);
         assert_eq!(actual_result, expected_result);
     }
