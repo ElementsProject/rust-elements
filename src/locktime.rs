@@ -304,6 +304,9 @@ impl Decodable for LockTime {
 pub struct Height(u32);
 
 impl Height {
+    /// Height zero
+    pub const ZERO: Self = Height(0);
+
     /// Constructs a new block height.
     ///
     /// # Errors
