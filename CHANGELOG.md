@@ -1,7 +1,9 @@
 
-# 0.23.0 - 
+# 0.23.0 - 2023-06-18
 
-* rename all Sighash types downcasing the middle "h", for example: SigHash -> Sighash
+* https://github.com/ElementsProject/rust-elements/pull/167 Implement Ord for Transaction
+* https://github.com/ElementsProject/rust-elements/pull/168 add Height::ZERO associated constant
+* https://github.com/ElementsProject/rust-elements/pull/169 rename all Sighash types downcasing the middle "h", for example: SigHash -> Sighash
 
 # 0.22.0 - 2023-06-08
 
