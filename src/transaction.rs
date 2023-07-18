@@ -15,7 +15,7 @@
 //! # Transactions
 //!
 
-use std::{io, fmt, str};
+use std::{io, fmt, str, cmp};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
@@ -34,7 +34,7 @@ use secp256k1_zkp::{
 };
 
 /// Description of an asset issuance in a transaction input
-#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct AssetIssuance {
     /// Zero for a new asset issuance; otherwise a blinding factor for the input
     pub asset_blinding_nonce: Tweak,
@@ -343,7 +343,7 @@ impl std::error::Error for RelativeLockTimeError {
 
 
 /// Transaction input witness
-#[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Default, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct TxInWitness {
     /// Amount rangeproof
     pub amount_rangeproof: Option<Box<RangeProof>>,
@@ -443,7 +443,7 @@ impl<'tx> PeginData<'tx> {
 }
 
 /// A transaction input, which defines old coins to be consumed
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct TxIn {
     /// The reference to the previous output that is being used an an input
     pub previous_output: OutPoint,
@@ -604,7 +604,7 @@ impl TxIn {
 }
 
 /// Transaction output witness
-#[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Default, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct TxOutWitness {
     /// Surjection proof showing that the asset commitment is legitimate
     // We Box it because surjection proof internally is an array [u8; N] that
@@ -651,7 +651,7 @@ pub struct PegoutData<'txo> {
 }
 
 /// Transaction output
-#[derive(Clone, Default, PartialEq, Eq, Debug, Hash)]
+#[derive(Clone, Default, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct TxOut {
     /// Committed asset
     pub asset: confidential::Asset,
@@ -1067,6 +1067,26 @@ impl Decodable for Transaction {
         }
     }
 }
+
+impl cmp::PartialOrd for Transaction {
+    fn partial_cmp(&self, other: &Self) -> Option<cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+impl cmp::Ord for Transaction {
+    fn cmp(&self, other: &Self) -> cmp::Ordering {
+        self.version
+            .cmp(&other.version)
+            .then(
+                self.lock_time
+                    .to_consensus_u32()
+                    .cmp(&other.lock_time.to_consensus_u32()),
+            )
+            .then(self.input.cmp(&other.input))
+            .then(self.output.cmp(&other.output))
+    }
+}
+
 /// Hashtype of a transaction, encoded in the last byte of a signature
 /// Fixed values so they can be casted as integer types for encoding
 #[derive(PartialEq, Eq, Debug, Copy, Clone)]
