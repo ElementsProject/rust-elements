@@ -176,7 +176,7 @@ impl fmt::Debug for FullParams {
 }
 
 impl Encodable for FullParams {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         let ret = Encodable::consensus_encode(&self.signblockscript, &mut s)? +
             Encodable::consensus_encode(&self.signblock_witness_limit, &mut s)? +
             Encodable::consensus_encode(&self.fedpeg_program, &mut s)? +
@@ -594,7 +594,7 @@ impl Serialize for Params {
 }
 
 impl Encodable for Params {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         Ok(match *self {
             Params::Null => Encodable::consensus_encode(&0u8, &mut s)?,
             Params::Compact {

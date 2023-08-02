@@ -17,7 +17,7 @@
 //! whether `LockTime < LOCKTIME_THRESHOLD`.
 //!
 
-use std::{mem, fmt};
+use std::{io, mem, fmt};
 use std::cmp::{PartialOrd, Ordering};
 use std::convert::TryFrom;
 use std::str::FromStr;
@@ -284,7 +284,7 @@ impl fmt::Display for LockTime {
 
 impl Encodable for LockTime {
     #[inline]
-    fn consensus_encode<W: Write>(&self, w: W) -> Result<usize, encode::Error> {
+    fn consensus_encode<W: Write>(&self, w: W) -> Result<usize, io::Error> {
         let v = self.to_consensus_u32();
         v.consensus_encode(w)
     }

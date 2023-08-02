@@ -103,7 +103,7 @@ impl Default for OutPoint {
 }
 
 impl Encodable for OutPoint {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         Ok(self.txid.consensus_encode(&mut s)? +
         self.vout.consensus_encode(&mut s)?)
     }
@@ -481,7 +481,7 @@ impl Default for TxIn {
 serde_struct_impl!(TxIn, previous_output, is_pegin, script_sig, sequence, asset_issuance, witness);
 
 impl Encodable for TxIn {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         let mut ret = 0;
         let mut vout = self.previous_output.vout;
         if self.is_pegin {
@@ -669,7 +669,7 @@ pub struct TxOut {
 serde_struct_impl!(TxOut, asset, value, nonce, script_pubkey, witness);
 
 impl Encodable for TxOut {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         Ok(self.asset.consensus_encode(&mut s)? +
         self.value.consensus_encode(&mut s)? +
         self.nonce.consensus_encode(&mut s)? +
@@ -991,7 +991,7 @@ impl Transaction {
 }
 
 impl Encodable for Sequence {
-    fn consensus_encode<W: io::Write>(&self, w: W) -> Result<usize, encode::Error> {
+    fn consensus_encode<W: io::Write>(&self, w: W) -> Result<usize, io::Error> {
         self.0.consensus_encode(w)
     }
 }
@@ -1003,7 +1003,7 @@ impl Decodable for Sequence {
 }
 
 impl Encodable for Transaction {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         let mut ret = 0;
         ret += self.version.consensus_encode(&mut s)?;
 

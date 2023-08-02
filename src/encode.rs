@@ -144,7 +144,7 @@ pub trait Encodable {
     /// Encode an object with a well-defined format, should only ever error if
     /// the underlying `Write` errors. Returns the number of bytes written on
     /// success
-    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error>;
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, io::Error>;
 }
 
 /// Data which can be encoded in a consensus-consistent way
@@ -189,7 +189,7 @@ pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Erro
 }
 
 impl Encodable for sha256::Midstate {
-    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, io::Error> {
         self.to_byte_array().consensus_encode(e)
     }
 }
@@ -200,7 +200,7 @@ impl Decodable for sha256::Midstate {
     }
 }
 
-pub(crate) fn consensus_encode_with_size<S: io::Write>(data: &[u8], mut s: S) -> Result<usize, Error> {
+pub(crate) fn consensus_encode_with_size<S: io::Write>(data: &[u8], mut s: S) -> Result<usize, io::Error> {
     let vi_len = bitcoin::VarInt(data.len() as u64).consensus_encode(&mut s)?;
     s.emit_slice(data)?;
     Ok(vi_len + data.len())
@@ -210,7 +210,7 @@ pub(crate) fn consensus_encode_with_size<S: io::Write>(data: &[u8], mut s: S) ->
 macro_rules! impl_upstream {
     ($type: ty) => {
         impl Encodable for $type {
-            fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, Error> {
+            fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, io::Error> {
                 Ok(btcenc::Encodable::consensus_encode(self, &mut e)?)
             }
         }
@@ -239,7 +239,7 @@ impl_upstream!(crate::hashes::sha256d::Hash);
 
 // Specific locktime types (which appear in PSET/PSBT2 but not in rust-bitcoin PSBT)
 impl Encodable for crate::locktime::Height {
-    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, io::Error> {
         crate::LockTime::from(*self).consensus_encode(s)
     }
 }
@@ -254,7 +254,7 @@ impl Decodable for crate::locktime::Height {
 
 
 impl Encodable for crate::locktime::Time {
-    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, io::Error> {
         crate::LockTime::from(*self).consensus_encode(s)
     }
 }
@@ -273,7 +273,7 @@ macro_rules! impl_vec {
     ($type: ty) => {
         impl Encodable for Vec<$type> {
             #[inline]
-            fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
+            fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
                 let mut len = 0;
                 len += btcenc::VarInt(self.len() as u64).consensus_encode(&mut s)?;
                 for c in self.iter() {
@@ -315,7 +315,7 @@ macro_rules! impl_box_option {
     ($type: ty) => {
         impl Encodable for Option<Box<$type>> {
             #[inline]
-            fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+            fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, io::Error> {
                 match self {
                     None => Vec::<u8>::new().consensus_encode(e),
                     Some(v) => v.serialize().consensus_encode(e),
@@ -338,7 +338,7 @@ macro_rules! impl_box_option {
 }
 // special implementations for elements only fields
 impl Encodable for Tweak {
-    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, io::Error> {
         self.as_ref().consensus_encode(e)
     }
 }
@@ -350,7 +350,7 @@ impl Decodable for Tweak {
 }
 
 impl Encodable for RangeProof {
-    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, io::Error> {
         self.serialize().consensus_encode(e)
     }
 }
@@ -362,7 +362,7 @@ impl Decodable for RangeProof {
 }
 
 impl Encodable for SurjectionProof {
-    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, io::Error> {
         self.serialize().consensus_encode(e)
     }
 }
@@ -375,7 +375,7 @@ impl Decodable for SurjectionProof {
 
 
 impl Encodable for sha256::Hash {
-    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, io::Error> {
         self.to_byte_array().consensus_encode(s)
     }
 }
@@ -387,7 +387,7 @@ impl Decodable for sha256::Hash {
 }
 
 impl Encodable for TapLeafHash {
-    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, io::Error> {
         self.to_byte_array().consensus_encode(s)
     }
 }

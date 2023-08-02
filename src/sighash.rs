@@ -113,7 +113,7 @@ pub struct ScriptPath<'s> {
 pub enum Error {
     /// Could happen only by using `*_encode_signing_*` methods with custom writers, engines writers
     /// like the ones used in methods `*_signature_hash` don't error
-    Encode(encode::Error),
+    Io(io::Error),
 
     /// Requested index is greater or equal than the number of inputs in the transaction
     IndexOutOfInputsBounds {
@@ -153,7 +153,7 @@ pub enum Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Error::Encode(ref e) => write!(f, "Writer errored: {:?}", e),
+            Error::Io(ref e) => write!(f, "Writer errored: {:?}", e),
             Error::IndexOutOfInputsBounds { index, inputs_size } => write!(f, "Requested index ({}) is greater or equal than the number of transaction inputs ({})", index, inputs_size),
             Error::SingleWithoutCorrespondingOutput { index, outputs_size } => write!(f, "SIGHASH_SINGLE for input ({}) haven't a corresponding output (#outputs:{})", index, outputs_size),
             Error::PrevoutsSize => write!(f, "Number of supplied prevouts differs from the number of inputs in transaction"),
@@ -166,6 +166,12 @@ impl fmt::Display for Error {
 }
 
 impl ::std::error::Error for Error {}
+
+impl From<io::Error> for Error {
+    fn from(e: io::Error) -> Error {
+        Error::Io(e)
+    }
+}
 
 impl<'u, T> Prevouts<'u, T> where T: Borrow<TxOut> {
     fn check_all(&self, tx: &Transaction) -> Result<(), Error> {
@@ -508,7 +514,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         script_code: &Script,
         value: confidential::Value,
         sighash_type: EcdsaSighashType,
-    ) -> Result<(), encode::Error> {
+    ) -> Result<(), io::Error> {
         let zero_hash = sha256d::Hash::all_zeros();
 
         let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
@@ -603,7 +609,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         input_index: usize,
         script_pubkey: &Script,
         sighash_type: EcdsaSighashType,
-    ) -> Result<(), encode::Error> {
+    ) -> Result<(), io::Error> {
         assert!(input_index < self.tx.input.len());  // Panic on OOB
 
         let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
@@ -840,12 +846,6 @@ impl<R: DerefMut<Target = Transaction>> SighashCache<R> {
     }
 }
 
-impl From<encode::Error> for Error {
-    fn from(e: encode::Error) -> Self {
-        Error::Encode(e)
-    }
-}
-
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 /// The `Annex` struct is a slice wrapper enforcing first byte to be `0x50`
 pub struct Annex<'a>(&'a [u8]);
@@ -867,7 +867,7 @@ impl<'a> Annex<'a> {
 }
 
 impl<'a> Encodable for Annex<'a> {
-    fn consensus_encode<W: io::Write>(&self, writer: W) -> Result<usize, encode::Error> {
+    fn consensus_encode<W: io::Write>(&self, writer: W) -> Result<usize, io::Error> {
         encode::consensus_encode_with_size(self.0, writer)
     }
 }

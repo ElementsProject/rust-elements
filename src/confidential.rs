@@ -140,7 +140,7 @@ impl Default for Value {
 }
 
 impl Encodable for Value {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         match *self {
             Value::Null => 0u8.consensus_encode(s),
             Value::Explicit(n) => {
@@ -153,7 +153,7 @@ impl Encodable for Value {
 }
 
 impl Encodable for PedersenCommitment {
-    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
+    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, io::Error> {
         e.write_all(&self.serialize())?;
         Ok(33)
     }
@@ -368,7 +368,7 @@ impl Default for Asset {
 
 
 impl Encodable for Asset {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         match *self {
             Asset::Null => 0u8.consensus_encode(s),
             Asset::Explicit(n) => {
@@ -381,7 +381,7 @@ impl Encodable for Asset {
 }
 
 impl Encodable for Generator {
-    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
+    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, io::Error> {
         e.write_all(&self.serialize())?;
         Ok(33)
     }
@@ -625,7 +625,7 @@ impl Default for Nonce {
 }
 
 impl Encodable for Nonce {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         match *self {
             Nonce::Null => 0u8.consensus_encode(s),
             Nonce::Explicit(n) => {
@@ -638,7 +638,7 @@ impl Encodable for Nonce {
 }
 
 impl Encodable for PublicKey {
-    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
+    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, io::Error> {
         e.write_all(&self.serialize())?;
         Ok(33)
     }

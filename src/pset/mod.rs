@@ -682,7 +682,7 @@ impl PartiallySignedTransaction {
 }
 
 impl Encodable for PartiallySignedTransaction {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         let mut len = 0;
         len += b"pset".consensus_encode(&mut s)?;
 
