@@ -34,7 +34,7 @@ use secp256k1_zkp::{
 };
 
 /// Description of an asset issuance in a transaction input
-#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct AssetIssuance {
     /// Zero for a new asset issuance; otherwise a blinding factor for the input
     pub asset_blinding_nonce: Tweak,
@@ -47,6 +47,15 @@ pub struct AssetIssuance {
 }
 
 impl AssetIssuance {
+    /// Create a null issuance.
+    pub fn null() -> Self {
+        AssetIssuance {
+            asset_blinding_nonce: ZERO_TWEAK,
+            asset_entropy: [0; 32],
+            amount: confidential::Value::Null,
+            inflation_keys: confidential::Value::Null,
+        }
+    }
 
     /// Checks whether the [`AssetIssuance`] is null
     pub fn is_null(&self) -> bool {
@@ -55,6 +64,12 @@ impl AssetIssuance {
 }
 serde_struct_impl!(AssetIssuance, asset_blinding_nonce, asset_entropy, amount, inflation_keys);
 impl_consensus_encoding!(AssetIssuance, asset_blinding_nonce, asset_entropy, amount, inflation_keys);
+
+impl Default for AssetIssuance {
+    fn default() -> Self {
+        Self::null()
+    }
+}
 
 /// A reference to a transaction output
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -343,7 +358,7 @@ impl std::error::Error for RelativeLockTimeError {
 
 
 /// Transaction input witness
-#[derive(Clone, Default, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct TxInWitness {
     /// Amount rangeproof
     pub amount_rangeproof: Option<Box<RangeProof>>,
@@ -358,12 +373,28 @@ serde_struct_impl!(TxInWitness, amount_rangeproof, inflation_keys_rangeproof, sc
 impl_consensus_encoding!(TxInWitness, amount_rangeproof, inflation_keys_rangeproof, script_witness, pegin_witness);
 
 impl TxInWitness {
+    /// Create an empty input witness.
+    pub fn empty() -> Self {
+        TxInWitness {
+            amount_rangeproof: None,
+            inflation_keys_rangeproof: None,
+            script_witness: Vec::new(),
+            pegin_witness: Vec::new(),
+        }
+    }
+
     /// Whether this witness is null
     pub fn is_empty(&self) -> bool {
         self.amount_rangeproof.is_none() &&
             self.inflation_keys_rangeproof.is_none() &&
             self.script_witness.is_empty() &&
             self.pegin_witness.is_empty()
+    }
+}
+
+impl Default for TxInWitness {
+    fn default() -> Self {
+        Self::empty()
     }
 }
 
@@ -604,7 +635,7 @@ impl TxIn {
 }
 
 /// Transaction output witness
-#[derive(Clone, Default, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
+#[derive(Clone, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct TxOutWitness {
     /// Surjection proof showing that the asset commitment is legitimate
     // We Box it because surjection proof internally is an array [u8; N] that
@@ -619,6 +650,14 @@ serde_struct_impl!(TxOutWitness, surjection_proof, rangeproof);
 impl_consensus_encoding!(TxOutWitness, surjection_proof, rangeproof);
 
 impl TxOutWitness {
+    /// Create an empty output witness.
+    pub fn empty() -> Self {
+        TxOutWitness {
+            surjection_proof: None,
+            rangeproof: None,
+        }
+    }
+
     /// Whether this witness is null
     pub fn is_empty(&self) -> bool {
         self.surjection_proof.is_none() && self.rangeproof.is_none()
@@ -632,6 +671,12 @@ impl TxOutWitness {
     /// The surjection proof len if is present, otherwise 0
     pub fn surjectionproof_len(&self) -> usize {
         self.surjection_proof.as_ref().map(|prf| prf.len()).unwrap_or(0)
+    }
+}
+
+impl Default for TxOutWitness {
+    fn default() -> Self {
+        Self::empty()
     }
 }
 
@@ -690,7 +735,6 @@ impl Decodable for TxOut {
 }
 
 impl TxOut {
-
     /// Create a new fee output.
     pub fn new_fee(amount: u64, asset: AssetId) -> TxOut {
         TxOut {
