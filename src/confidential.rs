@@ -202,7 +202,7 @@ impl Serialize for Value {
             Value::Null => seq.serialize_element(&0u8)?,
             Value::Explicit(n) => {
                 seq.serialize_element(&1u8)?;
-                seq.serialize_element(&u64::swap_bytes(n))?;
+                seq.serialize_element(&n)?;
             }
             Value::Confidential(commitment) => {
                 seq.serialize_element(&2u8)?;
@@ -232,7 +232,7 @@ impl<'de> Deserialize<'de> for Value {
                     Some(0) => Ok(Value::Null),
                     Some(1) => {
                         match access.next_element()? {
-                            Some(x) => Ok(Value::Explicit(u64::swap_bytes(x))),
+                            Some(x) => Ok(Value::Explicit(x)),
                             None => Err(A::Error::custom("missing explicit value")),
                         }
                     }
