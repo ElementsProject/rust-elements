@@ -289,7 +289,7 @@ mod test {
     fn test_checksum() {
         let data = vec![7,2,3,4,5,6,7,8,9,234,123,213,16];
         let cs = create_checksum(b"lq", &data.to_base32(), Variant::Blech32);
-        let expected_cs = vec![22,13,13,5,4,4,23,7,28,21,30,12];
+        let expected_cs = [22,13,13,5,4,4,23,7,28,21,30,12];
         for i in 0..expected_cs.len() {
             assert_eq!(expected_cs[i], *cs[i].as_ref());
         }
