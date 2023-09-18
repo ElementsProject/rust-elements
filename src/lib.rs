@@ -58,7 +58,6 @@ pub mod script;
 mod transaction;
 mod blind;
 mod parse;
-pub mod slip77;
 pub mod sighash;
 pub mod pset;
 pub mod taproot;
