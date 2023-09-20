@@ -30,6 +30,9 @@ mod map;
 pub mod raw;
 pub mod serialize;
 
+#[cfg(feature = "base64")]
+mod str;
+
 use crate::blind::{BlindAssetProofs, BlindValueProofs};
 use crate::confidential;
 use crate::encode::{self, Decodable, Encodable};

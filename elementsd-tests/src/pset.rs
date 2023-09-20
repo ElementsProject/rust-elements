@@ -8,7 +8,7 @@ use crate::{setup, Call};
 
 use bitcoin::{self, Address, Amount};
 use elements::hex::ToHex;
-use elements::encode::{deserialize, serialize};
+use elements::encode::serialize;
 use elements::hashes::Hash;
 use elements::pset::PartiallySignedTransaction;
 use elements::{AssetId, ContractHash};
@@ -131,15 +131,16 @@ fn tx_pegin() {
 }
 
 fn rtt(base64: &str) -> String {
-    base64::encode(serialize(&psbt_from_base64(&base64)))
+    let pset: PartiallySignedTransaction = base64.parse().unwrap();
+    pset.to_string()
 }
 
 fn psbt_rtt(elementsd: &ElementsD, base64: &str) {
     let a = elementsd.decode_psbt(&base64).unwrap();
 
-    let b_psbt = psbt_from_base64(&base64);
+    let b_psbt: PartiallySignedTransaction = base64.parse().unwrap();
     let mut b_bytes = serialize(&b_psbt);
-    let b_base64 = base64::encode(&b_bytes);
+    let b_base64 = bitcoin::base64::encode(&b_bytes);
     let b = elementsd.decode_psbt(&b_base64).unwrap();
 
     assert_eq!(a, b);
@@ -151,16 +152,10 @@ fn psbt_rtt(elementsd: &ElementsD, base64: &str) {
         // ensuring decode prints all data inside psbt, randomly changing a byte,
         // if the results is still decodable it should not be equal to initial value
         b_bytes[i] = b_bytes[i].wrapping_add(1);
-        let base64 = base64::encode(&b_bytes);
+        let base64 = bitcoin::base64::encode(&b_bytes);
         if let Some(decoded) = elementsd.decode_psbt(&base64) {
             assert_ne!(a, decoded, "{} with changed byte {}", b_bytes.to_hex(), i);
         }
         b_bytes[i] = b_bytes[i].wrapping_sub(1);
     }
 }
-
-fn psbt_from_base64(base64: &str) -> PartiallySignedTransaction {
-    let bytes = base64::decode(&base64).unwrap();
-    deserialize(&bytes).unwrap()
-}
-

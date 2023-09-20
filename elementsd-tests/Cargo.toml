@@ -7,9 +7,8 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.13.0"
 bitcoin = "0.30.0"
-elements = {path = "../"}
+elements = {path = "../", features = ["base64"]}
 elementsd = "0.8.0"
 rand = "0.8"
 
