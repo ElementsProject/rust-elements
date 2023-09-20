@@ -28,8 +28,6 @@
 
 /// Re-export of bitcoin crate
 pub extern crate bitcoin;
-/// Re-export of slip21 crate
-pub extern crate slip21;
 /// Re-export of secp256k1-zkp crate
 pub extern crate secp256k1_zkp;
 /// Re-export of serde crate
@@ -58,7 +56,6 @@ pub mod script;
 mod transaction;
 mod blind;
 mod parse;
-pub mod slip77;
 pub mod sighash;
 pub mod pset;
 pub mod taproot;
