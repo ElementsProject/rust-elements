@@ -33,6 +33,9 @@ pub mod serialize;
 #[cfg(feature = "base64")]
 mod str;
 
+#[cfg(feature = "base64")]
+pub use self::str::ParseError;
+
 use crate::blind::{BlindAssetProofs, BlindValueProofs};
 use crate::confidential;
 use crate::encode::{self, Decodable, Encodable};
