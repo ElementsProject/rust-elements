@@ -178,7 +178,7 @@ impl PartiallySignedTransaction {
     /// Remove the output at `index` and return it if any, otherwise returns None
     /// This also updates the pset global output count
     pub fn remove_output(&mut self, index: usize) -> Option<Output> {
-        if self.inputs.get(index).is_some() {
+        if self.outputs.get(index).is_some() {
             self.global.tx_data.output_count -= 1;
             return Some(self.outputs.remove(index));
         }
