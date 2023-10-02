@@ -955,4 +955,19 @@ mod tests {
         let pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
         assert_eq!(&back_hex, &encode::serialize(&pset).to_hex());
     }
+
+    #[test]
+    fn pset_remove_in_out() {
+        let pset_str = include_str!("../../tests/data/pset_swap_tutorial.hex");
+
+        let bytes = Vec::<u8>::from_hex(pset_str).unwrap();
+        let mut pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
+
+        let n_inputs = pset.n_inputs();
+        let n_outputs = pset.n_outputs();
+        pset.remove_input(n_inputs - 1).unwrap();
+        pset.remove_output(n_outputs - 1).unwrap();
+        assert_eq!(pset.n_inputs(), n_inputs - 1);
+        assert_eq!(pset.n_outputs(), n_outputs - 1);
+    }
 }
