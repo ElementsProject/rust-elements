@@ -178,7 +178,7 @@ impl PartiallySignedTransaction {
     /// Remove the output at `index` and return it if any, otherwise returns None
     /// This also updates the pset global output count
     pub fn remove_output(&mut self, index: usize) -> Option<Output> {
-        if self.inputs.get(index).is_some() {
+        if self.outputs.get(index).is_some() {
             self.global.tx_data.output_count -= 1;
             return Some(self.outputs.remove(index));
         }
@@ -954,5 +954,20 @@ mod tests {
         let bytes = Vec::<u8>::from_hex(&back_hex).unwrap();
         let pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
         assert_eq!(&back_hex, &encode::serialize(&pset).to_hex());
+    }
+
+    #[test]
+    fn pset_remove_in_out() {
+        let pset_str = include_str!("../../tests/data/pset_swap_tutorial.hex");
+
+        let bytes = Vec::<u8>::from_hex(pset_str).unwrap();
+        let mut pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
+
+        let n_inputs = pset.n_inputs();
+        let n_outputs = pset.n_outputs();
+        pset.remove_input(n_inputs - 1).unwrap();
+        pset.remove_output(n_outputs - 1).unwrap();
+        assert_eq!(pset.n_inputs(), n_inputs - 1);
+        assert_eq!(pset.n_outputs(), n_outputs - 1);
     }
 }
