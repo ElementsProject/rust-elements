@@ -13,6 +13,7 @@
 //
 
 use std::collections::btree_map::Entry;
+use std::convert::TryInto;
 use std::{collections::BTreeMap, io};
 
 use crate::taproot::TapLeafHash;
@@ -343,35 +344,35 @@ impl Map for Output {
             PSET_OUT_PROPRIETARY => {
                 let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
                 if prop_key.is_pset_key() {
-                    match prop_key.subtype {
-                        PSBT_ELEMENTS_OUT_VALUE_COMMITMENT => {
+                    match prop_key.subtype.try_into() {
+                        Ok(PSBT_ELEMENTS_OUT_VALUE_COMMITMENT)  => {
                             impl_pset_prop_insert_pair!(self.amount_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>)
                         }
-                        PSBT_ELEMENTS_OUT_ASSET => {
+                        Ok(PSBT_ELEMENTS_OUT_ASSET) => {
                             impl_pset_prop_insert_pair!(self.asset <= <raw_key: _> | <raw_value : AssetId>)
                         }
-                        PSBT_ELEMENTS_OUT_ASSET_COMMITMENT => {
+                        Ok(PSBT_ELEMENTS_OUT_ASSET_COMMITMENT) => {
                             impl_pset_prop_insert_pair!(self.asset_comm <= <raw_key: _> | <raw_value : Generator>)
                         }
-                        PSBT_ELEMENTS_OUT_VALUE_RANGEPROOF => {
+                        Ok(PSBT_ELEMENTS_OUT_VALUE_RANGEPROOF) => {
                             impl_pset_prop_insert_pair!(self.value_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
-                        PSBT_ELEMENTS_OUT_ASSET_SURJECTION_PROOF => {
+                        Ok(PSBT_ELEMENTS_OUT_ASSET_SURJECTION_PROOF) => {
                             impl_pset_prop_insert_pair!(self.asset_surjection_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
                         }
-                        PSBT_ELEMENTS_OUT_BLINDING_PUBKEY => {
+                        Ok(PSBT_ELEMENTS_OUT_BLINDING_PUBKEY) => {
                             impl_pset_prop_insert_pair!(self.blinding_key <= <raw_key: _> | <raw_value : PublicKey>)
                         }
-                        PSBT_ELEMENTS_OUT_ECDH_PUBKEY => {
+                        Ok(PSBT_ELEMENTS_OUT_ECDH_PUBKEY) => {
                             impl_pset_prop_insert_pair!(self.ecdh_pubkey <= <raw_key: _> | <raw_value : PublicKey>)
                         }
-                        PSBT_ELEMENTS_OUT_BLINDER_INDEX => {
+                        Ok(PSBT_ELEMENTS_OUT_BLINDER_INDEX) => {
                             impl_pset_prop_insert_pair!(self.blinder_index <= <raw_key: _> | <raw_value : u32>)
                         }
-                        PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF => {
+                        Ok(PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF) => {
                             impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
-                        PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF => {
+                        Ok(PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF) => {
                             impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
                         }
                         _ => match self.proprietary.entry(prop_key) {
@@ -439,15 +440,15 @@ impl Map for Output {
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.amount_comm as <PSBT_ELEMENTS_OUT_VALUE_COMMITMENT, _>)
+            rv.push_prop(self.amount_comm as <PSBT_ELEMENTS_OUT_VALUE_COMMITMENT.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.asset as <PSBT_ELEMENTS_OUT_ASSET, _>)
+            rv.push_prop(self.asset as <PSBT_ELEMENTS_OUT_ASSET.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.asset_comm as <PSBT_ELEMENTS_OUT_ASSET_COMMITMENT, _>)
+            rv.push_prop(self.asset_comm as <PSBT_ELEMENTS_OUT_ASSET_COMMITMENT.into(), _>)
         }
 
         // Mandatory field: Script
@@ -461,31 +462,31 @@ impl Map for Output {
 
         // Prop Output fields
         impl_pset_get_pair! {
-            rv.push_prop(self.value_rangeproof as <PSBT_ELEMENTS_OUT_VALUE_RANGEPROOF, _>)
+            rv.push_prop(self.value_rangeproof as <PSBT_ELEMENTS_OUT_VALUE_RANGEPROOF.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.asset_surjection_proof as <PSBT_ELEMENTS_OUT_ASSET_SURJECTION_PROOF, _>)
+            rv.push_prop(self.asset_surjection_proof as <PSBT_ELEMENTS_OUT_ASSET_SURJECTION_PROOF.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.blinding_key as <PSBT_ELEMENTS_OUT_BLINDING_PUBKEY, _>)
+            rv.push_prop(self.blinding_key as <PSBT_ELEMENTS_OUT_BLINDING_PUBKEY.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.ecdh_pubkey as <PSBT_ELEMENTS_OUT_ECDH_PUBKEY, _>)
+            rv.push_prop(self.ecdh_pubkey as <PSBT_ELEMENTS_OUT_ECDH_PUBKEY.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.blinder_index as <PSBT_ELEMENTS_OUT_BLINDER_INDEX, _>)
+            rv.push_prop(self.blinder_index as <PSBT_ELEMENTS_OUT_BLINDER_INDEX.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.blind_value_proof as <PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF, _>)
+            rv.push_prop(self.blind_value_proof as <PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.blind_asset_proof as <PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF, _>)
+            rv.push_prop(self.blind_asset_proof as <PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF.into(), _>)
         }
 
         for (key, value) in self.proprietary.iter() {

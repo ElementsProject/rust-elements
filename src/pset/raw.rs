@@ -17,11 +17,12 @@
 //! Raw PSET key-value pairs as defined at
 //! <https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki>.
 
+use std::convert::TryFrom;
 use std::{fmt, io};
 
 use super::Error;
 use crate::encode::{
-    self, deserialize, serialize, Decodable, Encodable, ReadExt, WriteExt, MAX_VEC_SIZE,
+    self, deserialize, serialize, Decodable, Encodable, MAX_VEC_SIZE,
 };
 use crate::hex;
 use crate::VarInt;
@@ -59,8 +60,41 @@ pub struct Pair {
     pub value: Vec<u8>,
 }
 
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 /// Default implementation for proprietary key subtyping
-pub type ProprietaryType = u8;
+pub struct ProprietaryType(u64);
+
+impl From<u8> for ProprietaryType {
+    fn from(value: u8) -> Self {
+        ProprietaryType(value as u64)
+    }
+}
+
+impl TryFrom<ProprietaryType> for u8 {
+    type Error=();
+
+    fn try_from(value: ProprietaryType) -> Result<Self, Self::Error> {
+        if VarInt(value.0).len() == 1 {
+            Ok(value.0 as u8)
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl Encodable for ProprietaryType {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, encode::Error> {
+        VarInt(self.0).consensus_encode(e)
+    }
+}
+
+impl Decodable for ProprietaryType {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
+        let v = VarInt::consensus_decode(d)?;
+        Ok(Self(v.0))
+    }
+}
 
 /// Proprietary keys (i.e. keys starting with 0xFC byte) with their internal
 /// structure according to BIP 174.
@@ -68,7 +102,7 @@ pub type ProprietaryType = u8;
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ProprietaryKey<Subtype = ProprietaryType>
 where
-    Subtype: Copy + From<u8> + Into<u8>,
+    Subtype: Copy,
 {
     /// Proprietary type prefix used for grouping together keys under some
     /// application and avoid namespace collision
@@ -168,11 +202,11 @@ impl Decodable for Pair {
 
 impl<Subtype> Encodable for ProprietaryKey<Subtype>
 where
-    Subtype: Copy + From<u8> + Into<u8>,
+    Subtype: Copy + Encodable,
 {
     fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
         let mut len = self.prefix.consensus_encode(&mut e)? + 1;
-        e.emit_u8(self.subtype.into())?;
+        self.subtype.consensus_encode(&mut e)?;
         len += e.write(&self.key)?;
         Ok(len)
     }
@@ -180,13 +214,13 @@ where
 
 impl<Subtype> Decodable for ProprietaryKey<Subtype>
 where
-    Subtype: Copy + From<u8> + Into<u8>,
+    Subtype: Copy + Decodable,
 {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
         let prefix = Vec::<u8>::consensus_decode(&mut d)?;
         let mut key = vec![];
 
-        let subtype = Subtype::from(d.read_u8()?);
+        let subtype = Subtype::consensus_decode(&mut d)?;
         d.read_to_end(&mut key)?;
 
         Ok(ProprietaryKey {
@@ -199,7 +233,7 @@ where
 
 impl<Subtype> ProprietaryKey<Subtype>
 where
-    Subtype: Copy + From<u8> + Into<u8>,
+    Subtype: Copy + Encodable + Decodable,
 {
     /// Constructs [ProprietaryKey] from [Key]; returns
     /// [Error::InvalidProprietaryKey] if `key` do not starts with 0xFC byte

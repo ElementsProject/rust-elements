@@ -166,7 +166,7 @@ impl Map for Global {
             | PSET_GLOBAL_TX_VERSION => return Err(Error::DuplicateKey(raw_key).into()),
             PSET_GLOBAL_PROPRIETARY => {
                 let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
-                if prop_key.is_pset_key() && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR {
+                if prop_key.is_pset_key() && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR.into() {
                     if raw_value.is_empty() && prop_key.key.len() == 32 {
                         let scalar = Tweak::from_slice(&prop_key.key)?;
                         if !self.scalars.contains(&scalar) {
@@ -178,7 +178,7 @@ impl Map for Global {
                         return Err(Error::InvalidKey(raw_key))?;
                     }
                 } else if prop_key.is_pset_key()
-                    && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
+                    && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE.into()
                 {
                     if prop_key.key.is_empty() && raw_value.len() == 1 {
                         self.elements_tx_modifiable_flag = Some(raw_value[0]);
@@ -263,7 +263,7 @@ impl Map for Global {
         // Serialize scalars and elements tx modifiable
         for scalar in &self.scalars {
             let key = raw::ProprietaryKey::from_pset_pair(
-                PSBT_ELEMENTS_GLOBAL_SCALAR,
+                PSBT_ELEMENTS_GLOBAL_SCALAR.into(),
                 scalar.as_ref().to_vec(),
             );
             rv.push(raw::Pair {
@@ -273,7 +273,7 @@ impl Map for Global {
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.elements_tx_modifiable_flag as <PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE, _>)
+            rv.push_prop(self.elements_tx_modifiable_flag as <PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE.into(), _>)
         }
 
         for (key, value) in self.proprietary.iter() {
@@ -459,7 +459,7 @@ impl Decodable for Global {
                         PSET_GLOBAL_PROPRIETARY => {
                             let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
                             if prop_key.is_pset_key()
-                                && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR
+                                && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR.into()
                             {
                                 if raw_value.is_empty() && prop_key.key.len() == 32 {
                                     let scalar = Tweak::from_slice(&prop_key.key)?;
@@ -472,7 +472,7 @@ impl Decodable for Global {
                                     return Err(Error::InvalidKey(raw_key))?;
                                 }
                             } else if prop_key.is_pset_key()
-                                && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
+                                && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE.into()
                             {
                                 if prop_key.key.is_empty() && raw_value.len() == 1 {
                                     elements_tx_modifiable_flag = Some(raw_value[0]);

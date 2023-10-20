@@ -12,6 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
+use std::convert::TryInto;
 use std::fmt;
 use std::{
     cmp,
@@ -27,7 +28,7 @@ use crate::{confidential, locktime};
 use crate::encode::{self, Decodable};
 use crate::hashes::{self, hash160, ripemd160, sha256, sha256d, Hash};
 use crate::pset::map::Map;
-use crate::pset::raw;
+use crate::pset::raw::{self};
 use crate::pset::serialize;
 use crate::pset::{self, error, Error};
 use crate::{transaction::SighashTypeParseError, SchnorrSighashType};
@@ -652,57 +653,57 @@ impl Map for Input {
             PSET_IN_PROPRIETARY => {
                 let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
                 if prop_key.is_pset_key() {
-                    match prop_key.subtype {
-                        PSBT_ELEMENTS_IN_ISSUANCE_VALUE => {
+                    match prop_key.subtype.try_into() {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_VALUE) => {
                             impl_pset_prop_insert_pair!(self.issuance_value_amount <= <raw_key: _> | <raw_value : u64>)
                         }
-                        PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT => {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT) => {
                             impl_pset_prop_insert_pair!(self.issuance_value_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>)
                         }
-                        PSBT_ELEMENTS_IN_ISSUANCE_VALUE_RANGEPROOF => {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_VALUE_RANGEPROOF) => {
                             impl_pset_prop_insert_pair!(self.issuance_value_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
-                        PSBT_ELEMENTS_IN_ISSUANCE_KEYS_RANGEPROOF => {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_KEYS_RANGEPROOF) => {
                             impl_pset_prop_insert_pair!(self.issuance_keys_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
-                        PSBT_ELEMENTS_IN_PEG_IN_TX => {
+                        Ok(PSBT_ELEMENTS_IN_PEG_IN_TX) => {
                             impl_pset_prop_insert_pair!(self.pegin_tx <= <raw_key: _> | <raw_value : bitcoin::Transaction>)
                         }
                         // No support for TxOutProof struct yet
-                        PSBT_ELEMENTS_IN_PEG_IN_TXOUT_PROOF => {
+                        Ok(PSBT_ELEMENTS_IN_PEG_IN_TXOUT_PROOF) => {
                             impl_pset_prop_insert_pair!(self.pegin_txout_proof <= <raw_key: _> | <raw_value : Vec<u8>>)
                         }
-                        PSBT_ELEMENTS_IN_PEG_IN_GENESIS => {
+                        Ok(PSBT_ELEMENTS_IN_PEG_IN_GENESIS) => {
                             impl_pset_prop_insert_pair!(self.pegin_genesis_hash <= <raw_key: _> | <raw_value : BlockHash>)
                         }
-                        PSBT_ELEMENTS_IN_PEG_IN_CLAIM_SCRIPT => {
+                        Ok(PSBT_ELEMENTS_IN_PEG_IN_CLAIM_SCRIPT) => {
                             impl_pset_prop_insert_pair!(self.pegin_claim_script <= <raw_key: _> | <raw_value : Script>)
                         }
-                        PSBT_ELEMENTS_IN_PEG_IN_VALUE => {
+                        Ok(PSBT_ELEMENTS_IN_PEG_IN_VALUE) => {
                             impl_pset_prop_insert_pair!(self.pegin_value <= <raw_key: _> | <raw_value : u64>)
                         }
-                        PSBT_ELEMENTS_IN_PEG_IN_WITNESS => {
+                        Ok(PSBT_ELEMENTS_IN_PEG_IN_WITNESS) => {
                             impl_pset_prop_insert_pair!(self.pegin_witness <= <raw_key: _> | <raw_value : Vec<Vec<u8>>>)
                         }
-                        PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS => {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS) => {
                             impl_pset_prop_insert_pair!(self.issuance_inflation_keys <= <raw_key: _> | <raw_value : u64>)
                         }
-                        PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT => {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT) => {
                             impl_pset_prop_insert_pair!(self.issuance_inflation_keys_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>)
                         }
-                        PSBT_ELEMENTS_IN_ISSUANCE_BLINDING_NONCE => {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_BLINDING_NONCE) => {
                             impl_pset_prop_insert_pair!(self.issuance_blinding_nonce <= <raw_key: _> | <raw_value : Tweak>)
                         }
-                        PSBT_ELEMENTS_IN_ISSUANCE_ASSET_ENTROPY => {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_ASSET_ENTROPY) => {
                             impl_pset_prop_insert_pair!(self.issuance_asset_entropy <= <raw_key: _> | <raw_value : [u8;32]>)
                         }
-                        PSBT_ELEMENTS_IN_UTXO_RANGEPROOF => {
+                        Ok(PSBT_ELEMENTS_IN_UTXO_RANGEPROOF) => {
                             impl_pset_prop_insert_pair!(self.in_utxo_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
-                        PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF => {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF) => {
                             impl_pset_prop_insert_pair!(self.in_issuance_blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
-                        PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF => {
+                        Ok(PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF) => {
                             impl_pset_prop_insert_pair!(self.in_issuance_blind_inflation_keys_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
                         _ => match self.proprietary.entry(prop_key) {
@@ -815,92 +816,92 @@ impl Map for Input {
         }
 
         impl_pset_get_pair! {
-            rv.push(self.tap_script_sigs as <PSBT_IN_TAP_SCRIPT_SIG, (schnorr::PublicKey, TapLeafHash)>)
+            rv.push(self.tap_script_sigs as <PSBT_IN_TAP_SCRIPT_SIG.into(), (schnorr::PublicKey, TapLeafHash)>)
         }
 
         impl_pset_get_pair! {
-            rv.push(self.tap_scripts as <PSBT_IN_TAP_LEAF_SCRIPT, ControlBlock>)
+            rv.push(self.tap_scripts as <PSBT_IN_TAP_LEAF_SCRIPT.into(), ControlBlock>)
         }
 
         impl_pset_get_pair! {
-            rv.push(self.tap_key_origins as <PSBT_IN_TAP_BIP32_DERIVATION,
+            rv.push(self.tap_key_origins as <PSBT_IN_TAP_BIP32_DERIVATION.into(),
                 schnorr::PublicKey>)
         }
 
         impl_pset_get_pair! {
-            rv.push(self.tap_internal_key as <PSBT_IN_TAP_INTERNAL_KEY, _>)
+            rv.push(self.tap_internal_key as <PSBT_IN_TAP_INTERNAL_KEY.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push(self.tap_merkle_root as <PSBT_IN_TAP_MERKLE_ROOT, _>)
+            rv.push(self.tap_merkle_root as <PSBT_IN_TAP_MERKLE_ROOT.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.issuance_value_amount as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE, _>)
+            rv.push_prop(self.issuance_value_amount as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.issuance_value_comm as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT, _>)
+            rv.push_prop(self.issuance_value_comm as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.issuance_value_rangeproof as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE_RANGEPROOF, _>)
+            rv.push_prop(self.issuance_value_rangeproof as <PSBT_ELEMENTS_IN_ISSUANCE_VALUE_RANGEPROOF.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.issuance_keys_rangeproof as <PSBT_ELEMENTS_IN_ISSUANCE_KEYS_RANGEPROOF, _>)
+            rv.push_prop(self.issuance_keys_rangeproof as <PSBT_ELEMENTS_IN_ISSUANCE_KEYS_RANGEPROOF.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.pegin_tx as <PSBT_ELEMENTS_IN_PEG_IN_TX, _>)
+            rv.push_prop(self.pegin_tx as <PSBT_ELEMENTS_IN_PEG_IN_TX.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.pegin_txout_proof as <PSBT_ELEMENTS_IN_PEG_IN_TXOUT_PROOF, _>)
+            rv.push_prop(self.pegin_txout_proof as <PSBT_ELEMENTS_IN_PEG_IN_TXOUT_PROOF.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.pegin_genesis_hash as <PSBT_ELEMENTS_IN_PEG_IN_GENESIS, _>)
+            rv.push_prop(self.pegin_genesis_hash as <PSBT_ELEMENTS_IN_PEG_IN_GENESIS.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.pegin_claim_script as <PSBT_ELEMENTS_IN_PEG_IN_CLAIM_SCRIPT, _>)
+            rv.push_prop(self.pegin_claim_script as <PSBT_ELEMENTS_IN_PEG_IN_CLAIM_SCRIPT.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.pegin_value as <PSBT_ELEMENTS_IN_PEG_IN_VALUE, _>)
+            rv.push_prop(self.pegin_value as <PSBT_ELEMENTS_IN_PEG_IN_VALUE.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.pegin_witness as <PSBT_ELEMENTS_IN_PEG_IN_WITNESS, _>)
+            rv.push_prop(self.pegin_witness as <PSBT_ELEMENTS_IN_PEG_IN_WITNESS.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.issuance_inflation_keys as <PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS, _>)
+            rv.push_prop(self.issuance_inflation_keys as <PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.issuance_inflation_keys_comm as <PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT, _>)
+            rv.push_prop(self.issuance_inflation_keys_comm as <PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.issuance_blinding_nonce as <PSBT_ELEMENTS_IN_ISSUANCE_BLINDING_NONCE, _>)
+            rv.push_prop(self.issuance_blinding_nonce as <PSBT_ELEMENTS_IN_ISSUANCE_BLINDING_NONCE.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.issuance_asset_entropy as <PSBT_ELEMENTS_IN_ISSUANCE_ASSET_ENTROPY, _>)
+            rv.push_prop(self.issuance_asset_entropy as <PSBT_ELEMENTS_IN_ISSUANCE_ASSET_ENTROPY.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.in_utxo_rangeproof as <PSBT_ELEMENTS_IN_UTXO_RANGEPROOF, _>)
+            rv.push_prop(self.in_utxo_rangeproof as <PSBT_ELEMENTS_IN_UTXO_RANGEPROOF.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.in_issuance_blind_value_proof as <PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF, _>)
+            rv.push_prop(self.in_issuance_blind_value_proof as <PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF.into(), _>)
         }
 
         impl_pset_get_pair! {
-            rv.push_prop(self.in_issuance_blind_inflation_keys_proof as <PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF, _>)
+            rv.push_prop(self.in_issuance_blind_inflation_keys_proof as <PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF.into(), _>)
         }
 
         for (key, value) in self.proprietary.iter() {
