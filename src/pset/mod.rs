@@ -29,6 +29,7 @@ mod macros;
 mod map;
 pub mod raw;
 pub mod serialize;
+pub mod elip100;
 
 #[cfg(feature = "base64")]
 mod str;
