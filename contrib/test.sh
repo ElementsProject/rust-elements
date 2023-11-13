@@ -14,6 +14,7 @@ if cargo --version | grep "1\.48"; then
 
     cargo update -p log --precise 0.4.18
     cargo update -p tempfile --precise 3.6.0
+    cargo update -p byteorder --precise 1.4.3
 fi
 
 if [ "$DO_FEATURE_MATRIX" = true ]
