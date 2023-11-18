@@ -20,11 +20,11 @@ fi
 if [ "$DO_FEATURE_MATRIX" = true ]
 then
     # Test without any features first
-    cargo test --all --verbose --no-default-features
+    cargo test --verbose --no-default-features
     # Then test with the default features
-    cargo test --all --verbose
+    cargo test --verbose
     # Then test with the default features
-    cargo test --all --all-features --verbose
+    cargo test --all-features --verbose
 
     # Also build and run each example to catch regressions
     cargo build --examples
