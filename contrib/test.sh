@@ -14,16 +14,17 @@ if cargo --version | grep "1\.48"; then
 
     cargo update -p log --precise 0.4.18
     cargo update -p tempfile --precise 3.6.0
+    cargo update -p byteorder --precise 1.4.3
 fi
 
 if [ "$DO_FEATURE_MATRIX" = true ]
 then
     # Test without any features first
-    cargo test --all --verbose --no-default-features
+    cargo test --verbose --no-default-features
     # Then test with the default features
-    cargo test --all --verbose
+    cargo test --verbose
     # Then test with the default features
-    cargo test --all --all-features --verbose
+    cargo test --all-features --verbose
 
     # Also build and run each example to catch regressions
     cargo build --examples
