@@ -76,6 +76,12 @@ fn prop_key(asset_id: &AssetId) -> ProprietaryKey {
 }
 
 impl AssetMetadata {
+
+    /// Create a new [`AssetMetadata`]
+    pub fn new(contract: String, issuance_prevout: OutPoint) -> Self {
+        Self { contract, issuance_prevout }
+    }
+
     /// Returns the contract as string containing a json
     pub fn contract(&self) -> &str {
         &self.contract
