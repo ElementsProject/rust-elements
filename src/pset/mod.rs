@@ -765,8 +765,12 @@ impl Decodable for PartiallySignedTransaction {
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
+    use bitcoin::hashes::Hash;
+
     use super::*;
-    use crate::hex::{FromHex, ToHex};
+    use crate::{hex::{FromHex, ToHex}, AssetId};
 
     fn tx_pset_rtt(tx_hex: &str) {
         let tx: Transaction =
@@ -785,6 +789,30 @@ mod tests {
             encode::deserialize(&Vec::<u8>::from_hex(pset_hex).unwrap()[..]).unwrap();
 
         assert_eq!(encode::serialize_hex(&pset), pset_hex);
+    }
+
+
+    #[test]
+    #[ignore]
+    fn test_txout_in_input_roundtrip() {
+        let mut pset = PartiallySignedTransaction::new_v2();
+
+        let rangeproof = RangeProof::from_str("01000145f4fc34649b922528645803d39c0bc4748b190660af64a7bb8d7c240d12d141467813e3326116ad8cfbb47082256417552107ce71c9b39c701cf4c2f4882db8").unwrap();
+        let txout = TxOut {
+            witness: TxOutWitness { surjection_proof: None, rangeproof: Some(Box::new(rangeproof))},
+            ..Default::default()
+        };
+        let input = Input {
+            previous_output_index: 0,
+            previous_txid: Txid::all_zeros(),
+            witness_utxo: Some(txout),
+            ..Default::default()
+        };
+
+        pset.add_input(input);
+
+        let ser_pset = encode::serialize(&pset);
+        assert_eq!(pset, encode::deserialize(&ser_pset).unwrap());
     }
 
     #[test]
