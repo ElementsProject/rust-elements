@@ -973,7 +973,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn pset_from_elements() {
         let pset_str = include_str!("../../tests/data/pset_swap_tutorial.hex");
 
@@ -990,7 +989,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore]
     fn pset_remove_in_out() {
         let pset_str = include_str!("../../tests/data/pset_swap_tutorial.hex");
 
