@@ -794,7 +794,6 @@ mod tests {
 
 
     #[test]
-    #[ignore]
     fn test_txout_in_input_roundtrip() {
         let mut pset = PartiallySignedTransaction::new_v2();
 
