@@ -1267,6 +1267,49 @@ impl fmt::Display for SighashTypeParseError {
 
 impl ::std::error::Error for SighashTypeParseError {}
 
+
+/// Logically equivalent to [`TxOut`] but encode/decode also the witness
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[derive(Clone, Debug, PartialEq)]
+pub struct TxOutWithWitness(TxOut);
+
+impl Encodable for TxOutWithWitness {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+        Ok(self.0.asset.consensus_encode(&mut s)? +
+        self.0.value.consensus_encode(&mut s)? +
+        self.0.nonce.consensus_encode(&mut s)? +
+        self.0.script_pubkey.consensus_encode(&mut s)? +
+        self.0.witness.consensus_encode(&mut s)?)
+    }
+}
+
+impl Decodable for TxOutWithWitness {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<TxOutWithWitness, encode::Error> {
+        Ok(TxOutWithWitness(TxOut {
+            asset: Decodable::consensus_decode(&mut d)?,
+            value: Decodable::consensus_decode(&mut d)?,
+            nonce: Decodable::consensus_decode(&mut d)?,
+            script_pubkey: Decodable::consensus_decode(&mut d)?,
+            witness: Decodable::consensus_decode(&mut d)?,
+        }))
+    }
+}
+impl From<TxOutWithWitness> for TxOut {
+    fn from(value: TxOutWithWitness) -> Self {
+        value.0
+    }
+}
+impl From<TxOut> for TxOutWithWitness {
+    fn from(value: TxOut) -> Self {
+        Self(value)
+    }
+}
+impl AsRef<TxOut> for TxOutWithWitness {
+    fn as_ref(&self) -> &TxOut {
+        &self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;

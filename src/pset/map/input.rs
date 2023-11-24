@@ -21,6 +21,7 @@ use std::{
 };
 
 use crate::taproot::{ControlBlock, LeafVersion, TapBranchHash, TapLeafHash};
+use crate::transaction::TxOutWithWitness;
 use crate::{schnorr, AssetId, ContractHash};
 
 use crate::{confidential, locktime};
@@ -31,7 +32,7 @@ use crate::pset::raw;
 use crate::pset::serialize;
 use crate::pset::{self, error, Error};
 use crate::{transaction::SighashTypeParseError, SchnorrSighashType};
-use crate::{AssetIssuance, BlockHash, EcdsaSighashType, Script, Transaction, TxIn, TxOut, Txid};
+use crate::{AssetIssuance, BlockHash, EcdsaSighashType, Script, Transaction, TxIn, Txid};
 use bitcoin::bip32::KeySource;
 use bitcoin::{PublicKey, key::XOnlyPublicKey};
 use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
@@ -160,7 +161,7 @@ pub struct Input {
     /// The transaction output this input spends from. Should only be
     /// [std::option::Option::Some] for inputs which spend segwit outputs,
     /// including P2SH embedded ones.
-    pub witness_utxo: Option<TxOut>,
+    pub witness_utxo: Option<TxOutWithWitness>,
     /// A map from public keys to their corresponding signature as would be
     /// pushed to the stack from a scriptSig or witness.
     #[cfg_attr(
@@ -531,7 +532,7 @@ impl Map for Input {
             }
             PSET_IN_WITNESS_UTXO => {
                 impl_pset_insert_pair! {
-                    self.witness_utxo <= <raw_key: _>|<raw_value: TxOut>
+                    self.witness_utxo <= <raw_key: _>|<raw_value: TxOutWithWitness>
                 }
             }
             PSET_IN_PARTIAL_SIG => {

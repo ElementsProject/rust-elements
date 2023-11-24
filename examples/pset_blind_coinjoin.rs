@@ -153,7 +153,7 @@ fn main() {
 
     // Add the btc asset input
     let mut btc_inp = btc_inp;
-    btc_inp.witness_utxo = Some(btc_txout.clone());
+    btc_inp.witness_utxo = Some(btc_txout.clone().into());
     pset.add_input(btc_inp);
 
     // Create the first txout
@@ -213,7 +213,7 @@ fn main() {
 
     // Add the asset input
     let mut asset_inp = asset_inp;
-    asset_inp.witness_utxo = Some(asset_txout.clone());
+    asset_inp.witness_utxo = Some(asset_txout.clone().into());
     pset.add_input(asset_inp);
 
     // Add outputs

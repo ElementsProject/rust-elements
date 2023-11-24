@@ -154,7 +154,7 @@ fn main() {
 
     // Add the btc asset input
     let mut btc_inp = btc_inp;
-    btc_inp.witness_utxo = Some(btc_txout.clone());
+    btc_inp.witness_utxo = Some(btc_txout.clone().into());
     pset.add_input(btc_inp);
 
     // pset after adding the information about the bitcoin input
@@ -162,7 +162,7 @@ fn main() {
     assert_eq!(pset, deser_pset(&tests["one_inp_zero_out"]));
     // Add the asset input
     let mut asset_inp = asset_inp;
-    asset_inp.witness_utxo = Some(asset_txout.clone());
+    asset_inp.witness_utxo = Some(asset_txout.clone().into());
     pset.add_input(asset_inp);
     assert_eq!(pset, deser_pset(&tests["two_inp_zero_out"]));
 

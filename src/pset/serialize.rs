@@ -23,6 +23,7 @@ use std::io;
 use crate::confidential;
 use crate::encode::{self, deserialize, deserialize_partial, serialize, Decodable, Encodable};
 use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
+use crate::transaction::TxOutWithWitness;
 use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
 use crate::hex::ToHex;
 use bitcoin::bip32::{ChildNumber, Fingerprint, KeySource};
@@ -57,6 +58,7 @@ pub fn serialize_hex<T: Serialize + ?Sized>(data: &T) -> String {
 
 impl_pset_de_serialize!(Transaction);
 impl_pset_de_serialize!(TxOut);
+impl_pset_de_serialize!(TxOutWithWitness);
 impl_pset_de_serialize!(AssetId);
 impl_pset_de_serialize!(u8);
 impl_pset_de_serialize!(u32);
