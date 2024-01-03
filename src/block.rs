@@ -373,7 +373,7 @@ impl Block {
     /// Get the size of the block
     pub fn size(&self) -> usize {
         // The size of the header + the size of the varint with the tx count + the txs themselves
-        let base_size = serialize(&self.header).len() + VarInt(self.txdata.len() as u64).len();
+        let base_size = serialize(&self.header).len() + VarInt(self.txdata.len() as u64).size();
         let txs_size: usize = self.txdata.iter().map(Transaction::size).sum();
         base_size + txs_size
     }
@@ -386,7 +386,7 @@ impl Block {
 
     /// Get the weight of the block
     pub fn weight(&self) -> usize {
-        let base_weight = 4 * (serialize(&self.header).len() + VarInt(self.txdata.len() as u64).len());
+        let base_weight = 4 * (serialize(&self.header).len() + VarInt(self.txdata.len() as u64).size());
         let txs_weight: usize = self.txdata.iter().map(Transaction::weight).sum();
         base_weight + txs_weight
     }
