@@ -32,15 +32,18 @@ impl std::str::FromStr for PartiallySignedTransaction {
     type Err=ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let bytes = bitcoin::base64::decode(s).map_err(ParseError::Base64)?;
+        use bitcoin::base64::prelude::{Engine as _, BASE64_STANDARD};
+        let bytes = BASE64_STANDARD.decode(s).map_err(ParseError::Base64)?;
         crate::encode::deserialize(&bytes).map_err(ParseError::Deserialize)
     }
 }
 
 impl std::fmt::Display for PartiallySignedTransaction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use bitcoin::base64::prelude::BASE64_STANDARD;
+
         let bytes = crate::encode::serialize(self);
-        let base64 = bitcoin::base64::encode(bytes);
+        let base64 = bitcoin::base64::display::Base64Display::new(&bytes, &BASE64_STANDARD);
         write!(f, "{}", base64)
     }
 }
