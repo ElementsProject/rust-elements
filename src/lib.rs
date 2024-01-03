@@ -71,7 +71,7 @@ pub use bitcoin::hashes;
 pub use crate::address::{Address, AddressParams, AddressError};
 pub use crate::transaction::{OutPoint, PeginData, PegoutData, EcdsaSighashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
 pub use crate::transaction::Sequence;
-pub use crate::blind::{ConfidentialTxOutError, TxOutSecrets, SurjectionInput, TxOutError, VerificationError, BlindError, UnblindError, BlindValueProofs, BlindAssetProofs};
+pub use crate::blind::{ConfidentialTxOutError, TxOutSecrets, SurjectionInput, TxOutError, VerificationError, BlindError, UnblindError, BlindValueProofs, BlindAssetProofs, RangeProofMessage};
 pub use crate::block::{BlockHeader, Block};
 pub use crate::block::ExtData as BlockExtData;
 pub use ::bitcoin::consensus::encode::VarInt;
