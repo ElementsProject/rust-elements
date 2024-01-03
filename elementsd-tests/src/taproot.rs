@@ -5,7 +5,7 @@ extern crate rand;
 
 use crate::{Call, setup};
 
-use bitcoin::key::{XOnlyPublicKey, KeyPair};
+use bitcoin::key::{XOnlyPublicKey, Keypair};
 use bitcoin::Amount;
 use elements::hex::FromHex;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
@@ -31,8 +31,8 @@ static PARAMS: AddressParams = AddressParams::ELEMENTS;
 fn gen_keypair(
     secp: &secp256k1_zkp::Secp256k1<secp256k1_zkp::All>,
     rng: &mut rngs::ThreadRng,
-) -> (XOnlyPublicKey, KeyPair) {
-    let keypair = KeyPair::new(secp, rng);
+) -> (XOnlyPublicKey, Keypair) {
+    let keypair = Keypair::new(secp, rng);
     let (pk, _) = XOnlyPublicKey::from_keypair(&keypair);
     (pk, keypair)
 }
@@ -42,10 +42,10 @@ fn gen_keypair(
 struct TapTxOutData {
     _blind_sk: Option<secp256k1_zkp::SecretKey>,
     _blind_pk: Option<secp256k1_zkp::PublicKey>,
-    leaf1_keypair: KeyPair,
+    leaf1_keypair: Keypair,
     _leaf1_pk: XOnlyPublicKey,
     leaf1_script: Script,
-    internal_keypair: KeyPair,
+    internal_keypair: Keypair,
     internal_pk: XOnlyPublicKey,
     spend_info: TaprootSpendInfo,
     utxo: TxOut,

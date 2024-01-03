@@ -33,7 +33,7 @@ use secp256k1_zkp::Verification;
 use serde;
 
 use crate::schnorr::{TapTweak, TweakedPublicKey, UntweakedPublicKey};
-use crate::taproot::TapBranchHash;
+use crate::taproot::TapNodeHash;
 
 use crate::{PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 use crate::{opcodes, script};
@@ -316,7 +316,7 @@ impl Address {
     pub fn p2tr<C: Verification>(
         secp: &Secp256k1<C>,
         internal_key: UntweakedPublicKey,
-        merkle_root: Option<TapBranchHash>,
+        merkle_root: Option<TapNodeHash>,
         blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {

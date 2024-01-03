@@ -32,7 +32,7 @@ use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use super::map::{PsbtSighashType, TapTree};
 use crate::schnorr;
-use crate::taproot::{ControlBlock, LeafVersion, TapBranchHash, TapLeafHash};
+use crate::taproot::{ControlBlock, LeafVersion, TapNodeHash, TapLeafHash};
 
 use crate::sighash::SchnorrSighashType;
 use crate::taproot::TaprootBuilder;
@@ -75,7 +75,7 @@ impl_pset_hash_de_serialize!(hash160::Hash);
 impl_pset_hash_de_serialize!(sha256d::Hash);
 impl_pset_hash_de_serialize!(BlockHash);
 impl_pset_hash_de_serialize!(TapLeafHash);
-impl_pset_hash_de_serialize!(TapBranchHash);
+impl_pset_hash_de_serialize!(TapNodeHash);
 
 // required for pegin bitcoin::Transactions
 impl_pset_de_serialize!(bitcoin::Transaction);

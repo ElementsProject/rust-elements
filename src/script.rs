@@ -37,7 +37,7 @@ use crate::{hex, opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
 use bitcoin::PublicKey;
 
 use crate::schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
-use crate::taproot::TapBranchHash;
+use crate::taproot::TapNodeHash;
 
 const MAX_SCRIPT_SIZE : usize = 10_000;
 
@@ -271,7 +271,7 @@ impl Script {
 
     /// Generates P2TR for script spending path using an internal public key and some optional
     /// script tree merkle root.
-    pub fn new_v1_p2tr<C: Verification>(secp: &Secp256k1<C>, internal_key: UntweakedPublicKey, merkle_root: Option<TapBranchHash>) -> Script {
+    pub fn new_v1_p2tr<C: Verification>(secp: &Secp256k1<C>, internal_key: UntweakedPublicKey, merkle_root: Option<TapNodeHash>) -> Script {
         let (output_key, _) = internal_key.tap_tweak(secp, merkle_root);
         Script::new_witness_program(crate::bech32::Fe32::P, &output_key.as_inner().serialize())
     }

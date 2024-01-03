@@ -20,7 +20,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::taproot::{ControlBlock, LeafVersion, TapBranchHash, TapLeafHash};
+use crate::taproot::{ControlBlock, LeafVersion, TapNodeHash, TapLeafHash};
 use crate::{schnorr, AssetId, ContractHash};
 
 use crate::{confidential, locktime};
@@ -234,7 +234,7 @@ pub struct Input {
     /// Taproot Internal key
     pub tap_internal_key: Option<XOnlyPublicKey>,
     /// Taproot Merkle root
-    pub tap_merkle_root: Option<TapBranchHash>,
+    pub tap_merkle_root: Option<TapNodeHash>,
     // Proprietary key-value pairs for this input.
     /// The issuance value
     pub issuance_value_amount: Option<u64>,
@@ -646,7 +646,7 @@ impl Map for Input {
             }
             PSBT_IN_TAP_MERKLE_ROOT => {
                 impl_pset_insert_pair! {
-                    self.tap_merkle_root <= <raw_key: _>|< raw_value: TapBranchHash>
+                    self.tap_merkle_root <= <raw_key: _>|< raw_value: TapNodeHash>
                 }
             }
             PSET_IN_PROPRIETARY => {
