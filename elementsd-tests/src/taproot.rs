@@ -215,7 +215,7 @@ fn taproot_spend_test(
         );
         let tweak = secp256k1_zkp::Scalar::from_be_bytes(tweak.to_byte_array()).expect("hash value greater than curve order");
         let sig = secp.sign_schnorr(
-            &secp256k1_zkp::Message::from_slice(&sighash_msg[..]).unwrap(),
+            &secp256k1_zkp::Message::from_digest_slice(&sighash_msg[..]).unwrap(),
             &output_keypair.add_xonly_tweak(&secp, &tweak).unwrap(),
         );
 
@@ -239,7 +239,7 @@ fn taproot_spend_test(
             .unwrap();
 
         let sig = secp.sign_schnorr(
-            &secp256k1_zkp::Message::from_slice(&sighash_msg[..]).unwrap(),
+            &secp256k1_zkp::Message::from_digest_slice(&sighash_msg[..]).unwrap(),
             &test_data.leaf1_keypair,
         );
 
