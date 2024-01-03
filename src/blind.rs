@@ -399,7 +399,7 @@ impl Value {
     ///
     /// # Returns:
     ///
-    /// A pair of blinded asset, nonce and corresponding proof as ([`Value`], [`Nonce`], [`RangeProof`])
+    /// A pair of blinded value, nonce and corresponding proof as ([`Value`], [`Nonce`], [`RangeProof`])
     /// The nonce here refers to public key corresponding to the input `ephemeral_sk`
     pub fn blind<C: Signing>(
         self,
