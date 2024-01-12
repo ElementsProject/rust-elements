@@ -1,4 +1,18 @@
 
+# 0.24.0 - 2024-01-12
+
+* [https://github.com/ElementsProject/rust-elements/pull/188](Update rust-bitcoin to 0.31.0, and associated dependencies)
+* [https://github.com/ElementsProject/rust-elements/pull/186](Updated doc for impl Value blind method - returns blinded value*)
+* [https://github.com/ElementsProject/rust-elements/pull/185](Exposed RangeProofMessage publically)
+* [https://github.com/ElementsProject/rust-elements/pull/183](elip100: add missing AssetMetadata::new method)
+* [https://github.com/ElementsProject/rust-elements/pull/182](ELIP-0100 implementation)
+* [https://github.com/ElementsProject/rust-elements/pull/178](pset: fix remove_output)
+* [https://github.com/ElementsProject/rust-elements/pull/177](rename pset::str::Error to ParseError and expose it)
+* [https://github.com/ElementsProject/rust-elements/pull/176](Remove slip77)
+* [https://github.com/ElementsProject/rust-elements/pull/175](Add to and from base64 string to pset)
+* [https://github.com/ElementsProject/rust-elements/pull/173](Fix examples)
+* [https://github.com/ElementsProject/rust-elements/pull/171](Create explicit empty and null values for some types)
+
 # 0.23.0 - 2023-06-18
 
 * https://github.com/ElementsProject/rust-elements/pull/167 Implement Ord for Transaction
