@@ -136,11 +136,12 @@ fn rtt(base64: &str) -> String {
 }
 
 fn psbt_rtt(elementsd: &ElementsD, base64: &str) {
+    use bitcoin::base64::prelude::{Engine as _, BASE64_STANDARD};
     let a = elementsd.decode_psbt(&base64).unwrap();
 
     let b_psbt: PartiallySignedTransaction = base64.parse().unwrap();
     let mut b_bytes = serialize(&b_psbt);
-    let b_base64 = bitcoin::base64::encode(&b_bytes);
+    let b_base64 = BASE64_STANDARD.encode(&b_bytes);
     let b = elementsd.decode_psbt(&b_base64).unwrap();
 
     assert_eq!(a, b);
@@ -152,7 +153,7 @@ fn psbt_rtt(elementsd: &ElementsD, base64: &str) {
         // ensuring decode prints all data inside psbt, randomly changing a byte,
         // if the results is still decodable it should not be equal to initial value
         b_bytes[i] = b_bytes[i].wrapping_add(1);
-        let base64 = bitcoin::base64::encode(&b_bytes);
+        let base64 = BASE64_STANDARD.encode(&b_bytes);
         if let Some(decoded) = elementsd.decode_psbt(&base64) {
             assert_ne!(a, decoded, "{} with changed byte {}", b_bytes.to_hex(), i);
         }

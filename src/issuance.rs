@@ -86,7 +86,7 @@ impl AssetId {
     }
 
     /// Copies a byte slice into an AssetId object
-    pub fn from_slice(sl: &[u8]) -> Result<AssetId, hashes::Error> {
+    pub fn from_slice(sl: &[u8]) -> Result<AssetId, hashes::FromSliceError> {
         sha256::Midstate::from_slice(sl).map(AssetId)
     }
 
@@ -167,7 +167,7 @@ impl ::std::fmt::LowerHex for AssetId {
 }
 
 impl FromStr for AssetId {
-    type Err = crate::hashes::hex::Error;
+    type Err = crate::hashes::hex::HexToArrayError;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         sha256::Midstate::from_str(s).map(AssetId)
     }

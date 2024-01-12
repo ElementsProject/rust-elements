@@ -933,7 +933,7 @@ impl Transaction {
         let input_weight = self.input.iter().map(|input| {
             scale_factor * (
                 32 + 4 + 4 + // output + nSequence
-                VarInt(input.script_sig.len() as u64).len() +
+                VarInt(input.script_sig.len() as u64).size() +
                 input.script_sig.len() + if input.has_issuance() {
                     64 +
                     input.asset_issuance.amount.encoded_length() +
@@ -947,18 +947,18 @@ impl Transaction {
                 let keys_prf_len = input.witness.inflation_keys_rangeproof.as_ref()
                     .map(|x| x.len()).unwrap_or(0);
 
-                VarInt(amt_prf_len as u64).len() +
+                VarInt(amt_prf_len as u64).size() +
                 amt_prf_len +
-                VarInt(keys_prf_len as u64).len() +
+                VarInt(keys_prf_len as u64).size() +
                 keys_prf_len +
-                VarInt(input.witness.script_witness.len() as u64).len() +
+                VarInt(input.witness.script_witness.len() as u64).size() +
                 input.witness.script_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).len() +
+                    VarInt(wit.len() as u64).size() +
                     wit.len()
                 ).sum::<usize>() +
-                VarInt(input.witness.pegin_witness.len() as u64).len() +
+                VarInt(input.witness.pegin_witness.len() as u64).size() +
                 input.witness.pegin_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).len() +
+                    VarInt(wit.len() as u64).size() +
                     wit.len()
                 ).sum::<usize>()
             } else {
@@ -971,14 +971,14 @@ impl Transaction {
                 output.asset.encoded_length() +
                 output.value.encoded_length() +
                 output.nonce.encoded_length() +
-                VarInt(output.script_pubkey.len() as u64).len() +
+                VarInt(output.script_pubkey.len() as u64).size() +
                 output.script_pubkey.len()
             ) + if witness_flag {
                 let range_prf_len = output.witness.rangeproof_len();
                 let surj_prf_len = output.witness.surjectionproof_len();
-                VarInt(surj_prf_len as u64).len() +
+                VarInt(surj_prf_len as u64).size() +
                 surj_prf_len +
-                VarInt(range_prf_len as u64).len() +
+                VarInt(range_prf_len as u64).size() +
                 range_prf_len
             } else {
                 0
@@ -988,8 +988,8 @@ impl Transaction {
         scale_factor * (
             4 + // version
             4 + // locktime
-            VarInt(self.input.len() as u64).len() +
-            VarInt(self.output.len() as u64).len() +
+            VarInt(self.input.len() as u64).size() +
+            VarInt(self.output.len() as u64).size() +
             1 // segwit flag byte (note this is *not* witness data in Elements)
         ) + input_weight + output_weight
     }
@@ -2374,10 +2374,9 @@ mod tests {
     #[test]
     fn superfluous_asset_issuance() {
         let tx = Vec::<u8>::from_hex("1ae80068000109fee1000000000000000000000000000000000000000000000000000000000000005acf37f60000c7280028a7000000006e000000010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010115190000b9bfb80000000100000000d8d8d8d8d8d8d8d8d8d8d8d8d8d80000000000b8bfb8").unwrap();
-        if let encode::Error::ParseFailed("superfluous asset issuance") = Transaction::consensus_decode(&tx[..]).unwrap_err() {
-            // ok. FIXME replace this with matches! when we move to 1.48.0
-        } else {
-            panic!("Incorrect error for bad transaction");
-        }
+        assert!(matches!(
+            Transaction::consensus_decode(&tx[..]),
+            Err(encode::Error::ParseFailed("superfluous asset issuance")),
+        ));
     }
 }

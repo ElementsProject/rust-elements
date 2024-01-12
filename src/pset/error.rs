@@ -67,7 +67,7 @@ pub enum Error {
     /// Unable to parse as a standard Sighash type.
     NonStandardSighashType(u32),
     /// Parsing errors from bitcoin_hashes
-    HashParseError(hashes::Error),
+    HashParseError(hashes::FromSliceError),
     /// The pre-image must hash to the correponding pset hash
     InvalidPreimageHashPair {
         /// Hash-type
@@ -214,8 +214,8 @@ impl fmt::Display for Error {
 impl error::Error for Error {}
 
 #[doc(hidden)]
-impl From<hashes::Error> for Error {
-    fn from(e: hashes::Error) -> Error {
+impl From<hashes::FromSliceError> for Error {
+    fn from(e: hashes::FromSliceError) -> Error {
         Error::HashParseError(e)
     }
 }

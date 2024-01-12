@@ -25,7 +25,7 @@ use crate::encode::Decodable;
 use crate::endian::u32_to_array_le;
 use crate::pset::{self, map::Map, raw, Error};
 use crate::{LockTime, VarInt};
-use bitcoin::bip32::{ChildNumber, DerivationPath, ExtendedPubKey, Fingerprint, KeySource};
+use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub, Fingerprint, KeySource};
 use secp256k1_zkp::Tweak;
 
 // (Not used in pset) Type: Unsigned Transaction PSET_GLOBAL_UNSIGNED_TX = 0x00
@@ -102,7 +102,7 @@ pub struct Global {
     pub version: u32,
     /// A global map from extended public keys to the used key fingerprint and
     /// derivation path as defined by BIP 32
-    pub xpub: BTreeMap<ExtendedPubKey, KeySource>,
+    pub xpub: BTreeMap<Xpub, KeySource>,
     // Global proprietary key-value pairs.
     /// Scalars used for blinding
     pub scalars: Vec<Tweak>,
@@ -369,7 +369,7 @@ impl Decodable for Global {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
         let mut version: Option<u32> = None;
         let mut unknowns: BTreeMap<raw::Key, Vec<u8>> = Default::default();
-        let mut xpub_map: BTreeMap<ExtendedPubKey, (Fingerprint, DerivationPath)> =
+        let mut xpub_map: BTreeMap<Xpub, (Fingerprint, DerivationPath)> =
             Default::default();
         let mut proprietary = BTreeMap::new();
         let mut scalars = Vec::new();
@@ -416,9 +416,9 @@ impl Decodable for Global {
                         }
                         PSET_GLOBAL_XPUB => {
                             if !raw_key.key.is_empty() {
-                                let xpub = ExtendedPubKey::decode(&raw_key.key)
+                                let xpub = Xpub::decode(&raw_key.key)
                                     .map_err(|_| encode::Error::ParseFailed(
-                                        "Can't deserialize ExtendedPublicKey from global XPUB key data"
+                                        "Can't deserialize Xpub from global XPUB key data"
                                     ))?;
 
                                 if raw_value.is_empty() || raw_value.len() % 4 != 0 {

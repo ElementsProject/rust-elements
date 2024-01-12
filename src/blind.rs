@@ -794,7 +794,7 @@ pub enum UnblindError {
     /// Transaction output does not have a rangeproof.
     MissingRangeproof,
     /// Malformed asset ID.
-    MalformedAssetId(hashes::Error),
+    MalformedAssetId(hashes::FromSliceError),
     /// Error originated in `secp256k1_zkp`.
     Upstream(secp256k1_zkp::Error),
 }
@@ -829,8 +829,8 @@ impl From<secp256k1_zkp::Error> for UnblindError {
     }
 }
 
-impl From<hashes::Error> for UnblindError {
-    fn from(from: hashes::Error) -> Self {
+impl From<hashes::FromSliceError> for UnblindError {
+    fn from(from: hashes::FromSliceError) -> Self {
         UnblindError::MalformedAssetId(from)
     }
 }

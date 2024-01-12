@@ -19,10 +19,10 @@
 
 use std::fmt;
 
-use crate::taproot::{TapBranchHash, TapTweakHash};
+use crate::taproot::{TapNodeHash, TapTweakHash};
 use crate::SchnorrSighashType;
 use secp256k1_zkp::{self, constants::SCHNORR_SIGNATURE_SIZE, Secp256k1, Verification};
-pub use secp256k1_zkp::{KeyPair, XOnlyPublicKey};
+pub use secp256k1_zkp::{Keypair, XOnlyPublicKey};
 
 /// Untweaked Schnorr public key
 pub type UntweakedPublicKey = XOnlyPublicKey;
@@ -32,11 +32,11 @@ pub type UntweakedPublicKey = XOnlyPublicKey;
 pub struct TweakedPublicKey(XOnlyPublicKey);
 
 /// Untweaked Schnorr key pair
-pub type UntweakedKeyPair = KeyPair;
+pub type UntweakedKeypair = Keypair;
 
 /// Tweaked Schnorr key pair
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub struct TweakedKeyPair(KeyPair);
+pub struct TweakedKeypair(Keypair);
 
 /// A trait for tweaking Schnorr key types (x-only public keys and key pairs).
 pub trait TapTweak {
@@ -46,7 +46,7 @@ pub trait TapTweak {
     type TweakedKey;
 
     /// Tweaks an untweaked key with corresponding public key value and optional script tree merkle
-    /// root. For the [`KeyPair`] type this also tweaks the private key in the pair.
+    /// root. For the [`Keypair`] type this also tweaks the private key in the pair.
     ///
     /// This is done by using the equation Q = P + H(P|c)G, where
     ///  * Q is the tweaked public key
@@ -60,7 +60,7 @@ pub trait TapTweak {
     fn tap_tweak<C: Verification>(
         self,
         secp: &Secp256k1<C>,
-        merkle_root: Option<TapBranchHash>,
+        merkle_root: Option<TapNodeHash>,
     ) -> Self::TweakedAux;
 
     /// Directly converts to a `TweakedKey`
@@ -89,7 +89,7 @@ impl TapTweak for UntweakedPublicKey {
     fn tap_tweak<C: Verification>(
         self,
         secp: &Secp256k1<C>,
-        merkle_root: Option<TapBranchHash>,
+        merkle_root: Option<TapNodeHash>,
     ) -> (TweakedPublicKey, secp256k1_zkp::Parity) {
         let tweak = TapTweakHash::from_key_and_tweak(self, merkle_root).to_scalar();
         let (output_key, parity) = self.add_tweak(secp, &tweak).expect("Tap tweak failed");
@@ -104,11 +104,11 @@ impl TapTweak for UntweakedPublicKey {
     }
 }
 
-impl TapTweak for UntweakedKeyPair {
-    type TweakedAux = TweakedKeyPair;
-    type TweakedKey = TweakedKeyPair;
+impl TapTweak for UntweakedKeypair {
+    type TweakedAux = TweakedKeypair;
+    type TweakedKey = TweakedKeypair;
 
-    /// Tweaks private and public keys within an untweaked [`KeyPair`] with corresponding public key
+    /// Tweaks private and public keys within an untweaked [`Keypair`] with corresponding public key
     /// value and optional script tree merkle root.
     ///
     /// This is done by tweaking private key within the pair using the equation q = p + H(P|c), where
@@ -120,22 +120,22 @@ impl TapTweak for UntweakedKeyPair {
     ///
     /// # Returns
     /// The tweaked key and its parity.
-    fn tap_tweak<C: Verification>(self, secp: &Secp256k1<C>, merkle_root: Option<TapBranchHash>) -> TweakedKeyPair {
+    fn tap_tweak<C: Verification>(self, secp: &Secp256k1<C>, merkle_root: Option<TapNodeHash>) -> TweakedKeypair {
         let (pubkey, _parity) = XOnlyPublicKey::from_keypair(&self);
         let tweak = TapTweakHash::from_key_and_tweak(pubkey, merkle_root).to_scalar();
         let tweaked = self.add_xonly_tweak(secp, &tweak).expect("Tap tweak failed");
-        TweakedKeyPair(tweaked)
+        TweakedKeypair(tweaked)
     }
 
-    fn dangerous_assume_tweaked(self) -> TweakedKeyPair {
-        TweakedKeyPair(self)
+    fn dangerous_assume_tweaked(self) -> TweakedKeypair {
+        TweakedKeypair(self)
     }
 }
 
 impl TweakedPublicKey {
     /// Returns the [`TweakedPublicKey`] for `keypair`.
     #[inline]
-    pub fn from_keypair(keypair: TweakedKeyPair) -> Self {
+    pub fn from_keypair(keypair: TweakedKeypair) -> Self {
         let (xonly, _parity) = keypair.0.x_only_public_key();
         TweakedPublicKey(xonly)
     }
@@ -156,24 +156,24 @@ impl TweakedPublicKey {
     }
 }
 
-impl TweakedKeyPair {
-    /// Creates a new [`TweakedKeyPair`] from a [`KeyPair`]. No tweak is applied, consider
-    /// calling `tap_tweak` on an [`UntweakedKeyPair`] instead of using this constructor.
+impl TweakedKeypair {
+    /// Creates a new [`TweakedKeypair`] from a [`Keypair`]. No tweak is applied, consider
+    /// calling `tap_tweak` on an [`UntweakedKeypair`] instead of using this constructor.
     ///
     /// This method is dangerous and can lead to loss of funds if used incorrectly.
     /// Specifically, in multi-party protocols a peer can provide a value that allows them to steal.
     #[inline]
-    pub fn dangerous_assume_tweaked(pair: KeyPair) -> TweakedKeyPair {
-        TweakedKeyPair(pair)
+    pub fn dangerous_assume_tweaked(pair: Keypair) -> TweakedKeypair {
+        TweakedKeypair(pair)
     }
 
     /// Returns the underlying key pair.
     #[inline]
-    pub fn to_inner(self) -> KeyPair {
+    pub fn to_inner(self) -> Keypair {
         self.0
     }
 
-    /// Returns the [`TweakedPublicKey`] and its [`secp256k1_zkp::Parity`] for this [`TweakedKeyPair`].
+    /// Returns the [`TweakedPublicKey`] and its [`secp256k1_zkp::Parity`] for this [`TweakedKeypair`].
     #[inline]
     pub fn public_parts(&self) -> (TweakedPublicKey, secp256k1_zkp::Parity) {
         let (xonly, parity) = self.0.x_only_public_key();
@@ -188,16 +188,16 @@ impl From<TweakedPublicKey> for XOnlyPublicKey {
     }
 }
 
-impl From<TweakedKeyPair> for KeyPair {
+impl From<TweakedKeypair> for Keypair {
     #[inline]
-    fn from(pair: TweakedKeyPair) -> Self {
+    fn from(pair: TweakedKeypair) -> Self {
         pair.0
     }
 }
 
-impl From<TweakedKeyPair> for TweakedPublicKey {
+impl From<TweakedKeypair> for TweakedPublicKey {
     #[inline]
-    fn from(pair: TweakedKeyPair) -> Self {
+    fn from(pair: TweakedKeypair) -> Self {
         TweakedPublicKey::from_keypair(pair)
     }
 }
