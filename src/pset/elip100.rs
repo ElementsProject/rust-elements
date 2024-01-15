@@ -252,7 +252,7 @@ mod test {
             .get_pairs()
             .unwrap()
             .into_iter()
-            .filter(|p| serialize(&p.key)[1..] == expected_key[..]) // NOTE key serialization contains an initial varint with the lenght of the key which is not present in the test vector
+            .filter(|p| serialize(&p.key)[1..] == expected_key[..]) // NOTE key serialization contains an initial varint with the length of the key which is not present in the test vector
             .map(|p| p.value)
             .collect();
         assert_eq!(values.len(), 1);

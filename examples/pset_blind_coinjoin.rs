@@ -31,7 +31,7 @@ use elements::hex::FromHex;
 use rand::SeedableRng;
 
 // Assume txouts are simple pay to wpkh
-// and keep the secrets correponding to
+// and keep the secrets corresponding to
 // confidential txouts
 #[derive(Debug, Clone)]
 struct Secrets {

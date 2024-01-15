@@ -68,7 +68,7 @@ pub enum Error {
     NonStandardSighashType(u32),
     /// Parsing errors from bitcoin_hashes
     HashParseError(hashes::FromSliceError),
-    /// The pre-image must hash to the correponding pset hash
+    /// The pre-image must hash to the corresponding pset hash
     InvalidPreimageHashPair {
         /// Hash-type
         hash_type: PsetHash,

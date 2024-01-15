@@ -27,7 +27,7 @@ use rand::SeedableRng;
 static PARAMS: AddressParams = AddressParams::ELEMENTS;
 
 // Assume txouts are simple pay to wpkh
-// and keep the secrets correponding to
+// and keep the secrets corresponding to
 // confidential txouts
 #[derive(Debug, Clone)]
 struct Secrets {

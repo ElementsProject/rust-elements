@@ -199,7 +199,7 @@ impl ToHex for [u8] {
 /// but if you have an encodable object, by using this you avoid the
 /// serialization to `Vec<u8>` by going directly to `String`.
 ///
-/// Note that to achieve better perfomance than [`ToHex`] the struct must be
+/// Note that to achieve better performance than [`ToHex`] the struct must be
 /// created with the right `capacity` of the final hex string so that the inner
 /// `String` doesn't re-allocate.
 pub struct HexWriter(String);
