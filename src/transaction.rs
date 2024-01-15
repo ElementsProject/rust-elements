@@ -212,7 +212,7 @@ impl Sequence {
     /// BIP-68 relative lock-time type flag mask
     const LOCK_TYPE_MASK: u32 = 0x00400000;
 
-    /// Retuns `true` if the sequence number indicates that the transaction is finalised.
+    /// Returns `true` if the sequence number indicates that the transaction is finalised.
     ///
     /// The sequence number being equal to 0xffffffff on all txin sequences indicates
     /// that the transaction is finalised.
@@ -415,7 +415,7 @@ pub struct PeginData<'tx> {
     /// to feed it raw into a hash function.
     pub claim_script: &'tx [u8],
     /// Mainchain transaction; not parsed to save time/memory since the
-    /// parsed transaction is typically not useful without auxillary
+    /// parsed transaction is typically not useful without auxiliary
     /// data (e.g. knowing how to compute pegin addresses for the
     /// sidechain).
     pub tx: &'tx [u8],

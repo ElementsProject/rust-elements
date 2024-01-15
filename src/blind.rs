@@ -924,7 +924,7 @@ impl Transaction {
     /// Verify that the transaction has correctly calculated blinding
     /// factors and they CT verification equation holds.
     /// This is *NOT* a complete Transaction verification check
-    /// It does *NOT* check whether input witness/script satifies
+    /// It does *NOT* check whether input witness/script satisfies
     /// the script pubkey, or inputs are double-spent and other
     /// consensus checks.
     /// This method only checks if the [Transaction] verification

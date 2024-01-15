@@ -52,7 +52,7 @@ impl fmt::Display for ParseIntError {
     }
 }
 
-/// Not strictly neccessary but serves as a lint - avoids weird behavior if someone accidentally
+/// Not strictly necessary but serves as a lint - avoids weird behavior if someone accidentally
 /// passes non-integer to the `parse()` function.
 pub(crate) trait Integer: FromStr<Err=std::num::ParseIntError> + TryFrom<i8> + Sized {}
 
