@@ -878,4 +878,87 @@ mod test {
             "base58 error: invalid base58 character 0x30",
         );
     }
+
+
+    #[test]
+    fn test_fixed_addresses() {
+        let pk = bitcoin::PublicKey::from_str("0212bf0ea45b733dfde8ecb5e896306c4165c666c99fc5d1ab887f71393a975cea")
+            .unwrap();
+        let script = Script::default();
+        let secp = Secp256k1::verification_only();
+        let internal_key = UntweakedPublicKey::from_str("93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51").unwrap();
+        let tap_node_hash = TapNodeHash::all_zeros();
+
+        let mut expected = IntoIterator::into_iter([
+            "2dszRCFv8Ub4ytKo1Q1vXXGgSx7mekNDwSJ",
+            "XToMocNywBYNSiXUe5xvoa2naAps9Ek1hq",
+            "ert1qew0l0emv7449u7hqgc8utzdzryhse79yhq2sxv",
+            "XZF6k8S6eoVxXMB4NpWjh2s7LjQUP7pw2R",
+            "ert1quwcvgs5clswpfxhm7nyfjmaeysn6us0yvjdexn9yjkv3k7zjhp2szaqlpq",
+            "ert1p8qs0qcn25l2y6yvtc5t95rr8w9pndcj64c8rkutnvkcvdp6gh02q2cqvj9",
+            "ert1pxrrurkg8j8pve97lffvv2y67cf7ux478h077c87qacqzhue7390sqkjp06",
+            "CTEkC79sYAvWNcxd8iTYnYo226FqRBbzBcMppq7L2dA8jVXJWoo1kKWB3UBLY6gBjiXf87ibs8c6mQyZ",
+            "AzpjUhKMLJi9y2oLt3ZdM3BP9nHdLPJfGMVxRBaRc2gDpeNqPMVpShTszJW7bX42vT2KoejYy8GtbcxH",
+            "el1qqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww4jul7lnkeat2teawq3s0cky6yxf0pnu2gmz9ej9kyq5yc",
+            "AzpjUhKMLJi9y2oLt3ZdM3BP9nHdLPJfGMVxRBaRc2gDpeNvq6SLVpBVwtakF6nmUFundyW7YjUdVkpr",
+            "el1qqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww4casc3pf3lquzjd0haxgn9hmjfp84eq7geymjdx2f9verdu99wz4h79u87cnxdzq",
+            "el1pqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww5wpq7p3x4f75f5gch3gktgxxwu2rxm394tsw8dchxedsc6r53w75cj24fq2u2ls5",
+            "el1pqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww5vx8c8vs0ywzejta7jjcc5f4asnacdtu0wlaas0upmsq90enaz2lhjd0k0q7qn4h",
+            "QFq3vvrr6Ub2KAyb3LdoCxEQvKukB6nN9i",
+            "GydeMhecNgrq17WMkyyTM4ETv1YubMVtLN",
+            "ex1qew0l0emv7449u7hqgc8utzdzryhse79ydjqgek",
+            "H55PJDhj6JpR5k9wViXGEX4nga8WmhXtnD",
+            "ex1quwcvgs5clswpfxhm7nyfjmaeysn6us0yvjdexn9yjkv3k7zjhp2s4sla8h",
+            "ex1p8qs0qcn25l2y6yvtc5t95rr8w9pndcj64c8rkutnvkcvdp6gh02qa4lw5j",
+            "ex1pxrrurkg8j8pve97lffvv2y67cf7ux478h077c87qacqzhue7390shmdrfd",
+            "VTptY6cqJbusNpL5xvo8VL38nLX9PGDjfYQfqhu9EaA7FtuidkWyQzMHY9jzZrpBcCXT437vM6V4N8kh",
+            "VJL64Ep3rcngP4cScRme15q9i8MCNiuqWeiG3YbtduUidVyorg7nRsgmmF714QtH3sNpWB2CqsVVciQh",
+            "lq1qqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww4jul7lnkeat2teawq3s0cky6yxf0pnu2gs2923tg58xcz",
+            "VJL64Ep3rcngP4cScRme15q9i8MCNiuqWeiG3YbtduUidVyuJR4JUzQPiqBdhzd1bgGHLVnmRUjfHc68",
+            "lq1qqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww4casc3pf3lquzjd0haxgn9hmjfp84eq7geymjdx2f9verdu99wz47jmkmgmr9a4s",
+            "lq1pqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww5wpq7p3x4f75f5gch3gktgxxwu2rxm394tsw8dchxedsc6r53w75375l4kfvf08y",
+            "lq1pqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww5vx8c8vs0ywzejta7jjcc5f4asnacdtu0wlaas0upmsq90enaz2l77n92erwrrz8",
+            "FojPFeboBgrd953mXXe72KWthjVwHWozqN",
+            "8vsafXgrB5bJeSidGbK5eYnjKvQ3RiB4BB",
+            "tex1qew0l0emv7449u7hqgc8utzdzryhse79yh5jp9a",
+            "92KKc3jxthYtj5ND1KrtY1d46UyeWV6XbP",
+            "tex1quwcvgs5clswpfxhm7nyfjmaeysn6us0yvjdexn9yjkv3k7zjhp2s5fd6kc",
+            "tex1p8qs0qcn25l2y6yvtc5t95rr8w9pndcj64c8rkutnvkcvdp6gh02quvdf9a",
+            "tex1pxrrurkg8j8pve97lffvv2y67cf7ux478h077c87qacqzhue7390skzlycz",
+            "vtS71VhcpFt978sha5d1L2gCzp3UL5kXacRpb3N4GTW5MwvBzz5HwxYyB8Pns4yM2dd2osmQkHSkp88u",
+            "vjTuLJ76nGi8PUopBVmGK8bLKPfBpaBWf6wKfn8z9Vdz6ubVhpvmMr6TK2RcqAYiujN1g1uwg8kejrM3",
+            "tlq1qqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww4jul7lnkeat2teawq3s0cky6yxf0pnu2gq8g2kuxfj8ft",
+            "vjTuLJ76nGi8PUopBVmGK8bLKPfBpaBWf6wKfn8z9Vdz6ubb9ZsHQxp5GcWFUkHTTYFUWLgWFk1DN5Fe",
+            "tlq1qqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww4casc3pf3lquzjd0haxgn9hmjfp84eq7geymjdx2f9verdu99wz4e6vcdfcyp5m8",
+            "tlq1pqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww5wpq7p3x4f75f5gch3gktgxxwu2rxm394tsw8dchxedsc6r53w75kkr3rh2tdxfn",
+            "tlq1pqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww5vx8c8vs0ywzejta7jjcc5f4asnacdtu0wlaas0upmsq90enaz2lekytucqf82vs",
+        ]);
+
+        for params in [&AddressParams::ELEMENTS, &AddressParams::LIQUID, &AddressParams::LIQUID_TESTNET] {
+            for blinder in [None, Some(pk.inner)] {
+
+                let addr = Address::p2pkh(&pk, blinder, params);
+                assert_eq!(&addr.to_string(), expected.next().unwrap());
+
+                let addr = Address::p2sh(&script, blinder, params);
+                assert_eq!(&addr.to_string(), expected.next().unwrap());
+
+                let addr = Address::p2wpkh(&pk, blinder, params);
+                assert_eq!(&addr.to_string(), expected.next().unwrap());
+
+                let addr = Address::p2shwpkh(&pk, blinder, params);
+                assert_eq!(&addr.to_string(), expected.next().unwrap());
+
+                let addr = Address::p2wsh(&script, blinder, params);
+                assert_eq!(&addr.to_string(), expected.next().unwrap());
+
+                let addr = Address::p2tr(&secp, internal_key, None, blinder, params);
+                assert_eq!(&addr.to_string(), expected.next().unwrap());
+
+                let addr = Address::p2tr(&secp, internal_key, Some(tap_node_hash), blinder, params);
+                assert_eq!(&addr.to_string(), expected.next().unwrap());
+            }
+        }
+
+    }
 }
