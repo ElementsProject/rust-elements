@@ -3,7 +3,7 @@
 //! <https://github.com/ElementsProject/ELIPs/blob/main/elip-0100.mediawiki>
 //! but excluding contract validation.
 //!
-//! ELIP0100 defines how to inlcude assets metadata, such as the contract defining the asset and
+//! ELIP0100 defines how to include assets metadata, such as the contract defining the asset and
 //! the issuance prevout inside a PSET
 //!
 //! To use check [`PartiallySignedTransaction::add_asset_metadata`] and

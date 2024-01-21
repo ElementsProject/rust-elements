@@ -553,7 +553,7 @@ impl PartiallySignedTransaction {
         // Push the scalar
         // BUG in pset
         // Bug in Pset, scalars can be the same value, but there is no place
-        // in pset to place them as it would break the uniqueness constriant.
+        // in pset to place them as it would break the uniqueness constraint.
         self.global.scalars.push(vbf2.into_inner());
         Ok(ret)
     }

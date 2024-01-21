@@ -83,7 +83,7 @@ pub enum Error {
     ConsensusEncoding,
     /// Too Large Pset
     TooLargePset,
-    /// Specified a feild in from psbt v0. Disallowed in psbtv2(pset)
+    /// Specified a field in from psbt v0. Disallowed in psbtv2(pset)
     ExpiredPsbtv0Field,
     /// Cannot change pset version
     IncorrectPsetVersion,
