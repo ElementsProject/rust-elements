@@ -1,6 +1,6 @@
 //! PSET coinjoin example
-//! 1. Person `A` create a transcation with 1 input and 3 outputs(1 fee output)
-//! 2. Person `B` takes the transcation from A and adds one input and two outputs
+//! 1. Person `A` create a transaction with 1 input and 3 outputs(1 fee output)
+//! 2. Person `B` takes the transaction from A and adds one input and two outputs
 //!    which transact another confidential asset
 //! 3. Person `B` blinds it's own outputs and gives the pset back to A
 //! 4. B completly blinds the transaction
