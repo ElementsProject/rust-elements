@@ -531,7 +531,7 @@ pub mod all {
     /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a >= b.
     /// Note that this operation cannot fail
     pub const OP_GREATERTHANOREQUAL64: All = All {code: 0xdf};
-    /// pop the stack as minimal CSciptNum, push 8 byte signed LE corresponding to that number.
+    /// pop the stack as minimal CScriptNum, push 8 byte signed LE corresponding to that number.
     pub const OP_SCRIPTNUMTOLE64: All = All {code: 0xe0};
     /// pop the stack as a 8 byte signed LE. Convert to CScriptNum and push it, abort on fail.
     /// Please check the range of the operand before calling the opcode.
