@@ -96,6 +96,23 @@ pub struct FullParams {
 }
 
 impl FullParams {
+    /// Construct a set of FullParams
+    pub fn new(
+        signblockscript: Script,
+        signblock_witness_limit: u32,
+        fedpeg_program: bitcoin::ScriptBuf,
+        fedpegscript: Vec<u8>,
+        extension_space: Vec<Vec<u8>>,
+    ) -> Self {
+        Self {
+            signblockscript,
+            signblock_witness_limit,
+            fedpeg_program,
+            fedpegscript,
+            extension_space,
+        }
+    }
+
     /// Return the `extra root` of this params.
     /// The extra root commits to the consensus parameters unrelated to
     /// blocksigning: `fedpeg_program`, `fedpegscript` and `extension_space`.
@@ -688,13 +705,13 @@ mod tests {
             "f98f149fd11da6fbe26d0ee53cadd28372fa9eed2cb7080f41da7ca311531777"
         );
 
-        let full_entry = Params::Full(FullParams {
+        let full_entry = Params::Full(FullParams::new(
             signblockscript,
-            signblock_witness_limit: signblock_wl,
-            fedpeg_program: fp_program,
-            fedpegscript: fp_script,
-            extension_space: ext,
-        });
+            signblock_wl,
+            fp_program,
+            fp_script,
+            ext,
+        ));
         assert_eq!(
             full_entry.calculate_root().to_hex(),
             "8eb1b83cce69a3d8b0bfb7fbe77ae8f1d24b57a9cae047b8c0aba084ad878249"
