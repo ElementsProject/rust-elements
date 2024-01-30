@@ -1,4 +1,8 @@
 
+# 0.24.1 - 2024-01-30
+
+* [https://github.com/ElementsProject/rust-elements/pull/196](Add constructor to `FullParams`)
+
 # 0.24.0 - 2024-01-12
 
 * [https://github.com/ElementsProject/rust-elements/pull/188](Update rust-bitcoin to 0.31.0, and associated dependencies)
