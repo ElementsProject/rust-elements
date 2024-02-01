@@ -3,7 +3,7 @@
 //! 2. Person `B` takes the transaction from A and adds one input and two outputs
 //!    which transact another confidential asset
 //! 3. Person `B` blinds it's own outputs and gives the pset back to A
-//! 4. B completly blinds the transaction
+//! 4. B completely blinds the transaction
 //! 5. B signs the blinded Transaction and sends it back to A
 //! 6. A signs it's input
 //! 7. A finalizes the pset
