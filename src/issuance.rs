@@ -174,7 +174,7 @@ impl FromStr for AssetId {
 }
 
 impl Encodable for AssetId {
-    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, encode::Error> {
+    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, io::Error> {
         self.0.consensus_encode(e)
     }
 }

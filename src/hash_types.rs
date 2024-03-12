@@ -22,7 +22,7 @@ use bitcoin::secp256k1::ThirtyTwoByteHash;
 macro_rules! impl_hashencode {
     ($hashtype:ident) => {
         impl $crate::encode::Encodable for $hashtype {
-            fn consensus_encode<W: std::io::Write>(&self, w: W) -> Result<usize, crate::encode::Error> {
+            fn consensus_encode<W: std::io::Write>(&self, w: W) -> Result<usize, std::io::Error> {
                 self.0.consensus_encode(w)
             }
         }
