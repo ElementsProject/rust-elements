@@ -8,6 +8,7 @@ if cargo --version | grep "1\.56"; then
     cargo update -p once_cell --precise 1.13.1
     cargo update -p which --precise 4.4.0
     cargo update -p byteorder --precise 1.4.3
+    cargo update -p cc --precise 1.0.94
 fi
 
 if [ "$DO_FEATURE_MATRIX" = true ]
@@ -53,6 +54,9 @@ if [ "$DO_FUZZ" = true ]
 then
     (
         cd fuzz
+        if cargo --version | grep "1\.58"; then
+            cargo update -p cc --precise 1.0.94
+        fi
         cargo test --verbose
         ./travis-fuzz.sh
     )
