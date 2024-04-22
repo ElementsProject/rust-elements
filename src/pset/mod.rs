@@ -976,4 +976,71 @@ mod tests {
         assert_eq!(pset.n_inputs(), n_inputs - 1);
         assert_eq!(pset.n_outputs(), n_outputs - 1);
     }
+
+    #[test]
+    fn pset_issuance() {
+        use std::str::FromStr;
+        use rand::{self, SeedableRng};
+        let secp = secp256k1_zkp::Secp256k1::new();
+        #[allow(deprecated)]
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0);
+
+        let policy = crate::AssetId::from_str("5ac9f65c0efcc4775e0baec4ec03abdde22473cd3cf33c0419ca290e0751b225").unwrap();
+        let pk = bitcoin::key::PublicKey::from_str("020202020202020202020202020202020202020202020202020202020202020202").unwrap();
+        let script = crate::Script::from_hex("0014d2bcde17e7744f6377466ca1bd35d212954674c8").unwrap();
+        let sats_in = 10000;
+        let sats_fee = 1000;
+        let btc_txout_secrets = TxOutSecrets {
+            asset_bf: AssetBlindingFactor::from_str("1111111111111111111111111111111111111111111111111111111111111111").unwrap(),
+            value_bf: ValueBlindingFactor::from_str("2222222222222222222222222222222222222222222222222222222222222222").unwrap(),
+            value: sats_in,
+            asset: policy,
+        };
+        let previous_output = TxOut::default();  // Does not match btc_txout_secrets
+        let prevout = OutPoint::default();
+        let sats_asset = 10;
+        let sats_token = 1;
+
+        let mut pset = PartiallySignedTransaction::new_v2();
+        let mut input = Input::from_prevout(prevout);
+        input.witness_utxo = Some(previous_output);
+        input.issuance_value_amount = Some(sats_asset);
+        input.issuance_inflation_keys = Some(sats_token);
+        let (asset, token) = input.issuance_ids();
+        pset.add_input(input);
+
+        // Add asset
+        let mut output = Output::new_explicit(script.clone(), sats_asset, asset, Some(pk));
+        output.blinder_index = Some(0);
+        pset.add_output(output);
+        // Add token
+        let mut output = Output::new_explicit(script.clone(), sats_token, token, Some(pk));
+        output.blinder_index = Some(0);
+        pset.add_output(output);
+        // Add L-BTC
+        let mut output = Output::new_explicit(script.clone(), sats_in - sats_fee, policy, Some(pk));
+        output.blinder_index = Some(0);
+        pset.add_output(output);
+        // Add fee
+        let output = Output::new_explicit(crate::Script::new(), sats_fee, policy, None);
+        pset.add_output(output);
+
+        let mut inp_txout_sec = HashMap::new();
+        inp_txout_sec.insert(0, btc_txout_secrets);
+
+        let err = pset.blind_last(&mut rng, &secp, &inp_txout_sec).unwrap_err();
+        assert_eq!(err, PsetBlindError::BlindingIssuanceUnsupported(0));
+
+        let input = &mut pset.inputs_mut()[0];
+        input.blinded_issuance = Some(0x01);
+        let err = pset.blind_last(&mut rng, &secp, &inp_txout_sec).unwrap_err();
+        assert_eq!(err, PsetBlindError::BlindingIssuanceUnsupported(0));
+
+        let input = &mut pset.inputs_mut()[0];
+        input.blinded_issuance = Some(0x00);
+        pset.blind_last(&mut rng, &secp, &inp_txout_sec).unwrap();
+        let pset_bytes = encode::serialize(&pset);
+        let pset_des = encode::deserialize(&pset_bytes).unwrap();
+        assert_eq!(pset, pset_des);
+    }
 }
