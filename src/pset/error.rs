@@ -250,6 +250,8 @@ pub enum PsetBlindError {
     ConfidentialTxOutError(usize, ConfidentialTxOutError),
     /// Blinding proof creation error
     BlindingProofsCreationError(usize, secp256k1_zkp::Error),
+    /// Blinding issuance unsupported
+    BlindingIssuanceUnsupported(usize),
 }
 
 impl fmt::Display for PsetBlindError {
@@ -290,6 +292,9 @@ impl fmt::Display for PsetBlindError {
                     "Blinding proof creation error {} at output index {}",
                     e, i
                 )
+            }
+            PsetBlindError::BlindingIssuanceUnsupported(i) => {
+                write!(f, "Blinding issuance is not supported, set blinded_issuance to 0 at input index {}", i)
             }
         }
     }

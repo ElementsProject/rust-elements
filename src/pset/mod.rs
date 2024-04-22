@@ -373,6 +373,11 @@ impl PartiallySignedTransaction {
         ),
         PsetBlindError,
     > {
+        for (i, inp) in self.inputs.iter().enumerate() {
+            if inp.has_issuance() && inp.blinded_issuance.unwrap_or(1) == 1 {
+                return Err(PsetBlindError::BlindingIssuanceUnsupported(i));
+            }
+        }
         let mut blind_out_indices = Vec::new();
         for (i, out) in self.outputs.iter().enumerate() {
             if out.blinding_key.is_none() {
