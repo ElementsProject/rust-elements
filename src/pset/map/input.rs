@@ -163,6 +163,11 @@ const PSBT_ELEMENTS_IN_EXPLICIT_ASSET: u8 = 0x13;
 /// the explicit asset in PSBT_ELEMENTS_IN_EXPLICIT_ASSET. If provided,
 /// PSBT_ELEMENTS_IN_EXPLICIT_ASSET must be provided too.
 const PSBT_ELEMENTS_IN_ASSET_PROOF: u8 = 0x14;
+/// A boolean flag. 0x00 indicates the issuance should not be blinded,
+/// 0x01 indicates it should be. If not specified, assumed to be 0x01.
+/// Note that this does not indicate actual blinding status,
+/// but rather the expected blinding status prior to signing.
+const PSBT_ELEMENTS_IN_BLINDED_ISSUANCE: u8 = 0x15;
 /// A key-value map for an input of the corresponding index in the unsigned
 /// transaction.
 #[derive(Clone, Debug, PartialEq)]
@@ -294,6 +299,8 @@ pub struct Input {
     pub asset: Option<AssetId>,
     /// The blind asset surjection proof
     pub blind_asset_proof: Option<Box<SurjectionProof>>,
+    /// Whether the issuance is blinded
+    pub blinded_issuance: Option<u8>,
     /// Other fields
     #[cfg_attr(
         feature = "serde",
@@ -310,7 +317,7 @@ pub struct Input {
 
 impl Default for Input {
     fn default() -> Self {
-        Self { non_witness_utxo: Default::default(), witness_utxo: Default::default(), partial_sigs: Default::default(), sighash_type: Default::default(), redeem_script: Default::default(), witness_script: Default::default(), bip32_derivation: Default::default(), final_script_sig: Default::default(), final_script_witness: Default::default(), ripemd160_preimages: Default::default(), sha256_preimages: Default::default(), hash160_preimages: Default::default(), hash256_preimages: Default::default(), previous_txid: Txid::all_zeros(), previous_output_index: Default::default(), sequence: Default::default(), required_time_locktime: Default::default(), required_height_locktime: Default::default(), tap_key_sig: Default::default(), tap_script_sigs: Default::default(), tap_scripts: Default::default(), tap_key_origins: Default::default(), tap_internal_key: Default::default(), tap_merkle_root: Default::default(), issuance_value_amount: Default::default(), issuance_value_comm: Default::default(), issuance_value_rangeproof: Default::default(), issuance_keys_rangeproof: Default::default(), pegin_tx: Default::default(), pegin_txout_proof: Default::default(), pegin_genesis_hash: Default::default(), pegin_claim_script: Default::default(), pegin_value: Default::default(), pegin_witness: Default::default(), issuance_inflation_keys: Default::default(), issuance_inflation_keys_comm: Default::default(), issuance_blinding_nonce: Default::default(), issuance_asset_entropy: Default::default(), in_utxo_rangeproof: Default::default(), in_issuance_blind_value_proof: Default::default(), in_issuance_blind_inflation_keys_proof: Default::default(), amount: Default::default(), blind_value_proof: Default::default(), asset: Default::default(), blind_asset_proof: Default::default(), proprietary: Default::default(), unknown: Default::default() }
+        Self { non_witness_utxo: Default::default(), witness_utxo: Default::default(), partial_sigs: Default::default(), sighash_type: Default::default(), redeem_script: Default::default(), witness_script: Default::default(), bip32_derivation: Default::default(), final_script_sig: Default::default(), final_script_witness: Default::default(), ripemd160_preimages: Default::default(), sha256_preimages: Default::default(), hash160_preimages: Default::default(), hash256_preimages: Default::default(), previous_txid: Txid::all_zeros(), previous_output_index: Default::default(), sequence: Default::default(), required_time_locktime: Default::default(), required_height_locktime: Default::default(), tap_key_sig: Default::default(), tap_script_sigs: Default::default(), tap_scripts: Default::default(), tap_key_origins: Default::default(), tap_internal_key: Default::default(), tap_merkle_root: Default::default(), issuance_value_amount: Default::default(), issuance_value_comm: Default::default(), issuance_value_rangeproof: Default::default(), issuance_keys_rangeproof: Default::default(), pegin_tx: Default::default(), pegin_txout_proof: Default::default(), pegin_genesis_hash: Default::default(), pegin_claim_script: Default::default(), pegin_value: Default::default(), pegin_witness: Default::default(), issuance_inflation_keys: Default::default(), issuance_inflation_keys_comm: Default::default(), issuance_blinding_nonce: Default::default(), issuance_asset_entropy: Default::default(), in_utxo_rangeproof: Default::default(), in_issuance_blind_value_proof: Default::default(), in_issuance_blind_inflation_keys_proof: Default::default(), amount: Default::default(), blind_value_proof: Default::default(), asset: Default::default(), blind_asset_proof: Default::default(), blinded_issuance: Default::default(), proprietary: Default::default(), unknown: Default::default() }
     }
 }
 
@@ -740,6 +747,9 @@ impl Map for Input {
                         PSBT_ELEMENTS_IN_ASSET_PROOF => {
                             impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
                         }
+                        PSBT_ELEMENTS_IN_BLINDED_ISSUANCE => {
+                            impl_pset_prop_insert_pair!(self.blinded_issuance <= <raw_key: _> | <raw_value : u8>)
+                        }
                         _ => match self.proprietary.entry(prop_key) {
                             Entry::Vacant(empty_key) => {
                                 empty_key.insert(raw_value);
@@ -952,6 +962,10 @@ impl Map for Input {
 
         impl_pset_get_pair! {
             rv.push_prop(self.blind_asset_proof as <PSBT_ELEMENTS_IN_ASSET_PROOF, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push_prop(self.blinded_issuance as <PSBT_ELEMENTS_IN_BLINDED_ISSUANCE, _>)
         }
 
         for (key, value) in self.proprietary.iter() {
