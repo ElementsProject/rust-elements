@@ -20,7 +20,7 @@
 use std::convert::TryFrom;
 use std::io;
 
-use crate::confidential;
+use crate::confidential::{self, AssetBlindingFactor};
 use crate::encode::{self, deserialize, deserialize_partial, serialize, Decodable, Encodable};
 use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
 use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
@@ -93,6 +93,19 @@ impl Deserialize for Tweak {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         let x = deserialize::<[u8; 32]>(bytes)?;
         Tweak::from_slice(&x).map_err(|_| encode::Error::ParseFailed("invalid Tweak"))
+    }
+}
+
+impl Serialize for AssetBlindingFactor {
+    fn serialize(&self) -> Vec<u8> {
+        encode::serialize(self.into_inner().as_ref())
+    }
+}
+
+impl Deserialize for AssetBlindingFactor {
+    fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
+        let x = deserialize::<[u8; 32]>(bytes)?;
+        AssetBlindingFactor::from_slice(&x).map_err(|_| encode::Error::ParseFailed("invalid AssetBlindingFactor"))
     }
 }
 
