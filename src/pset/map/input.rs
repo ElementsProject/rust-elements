@@ -1042,6 +1042,11 @@ impl Map for Input {
         merge!(in_utxo_rangeproof, self, other);
         merge!(in_issuance_blind_value_proof, self, other);
         merge!(in_issuance_blind_inflation_keys_proof, self, other);
+        merge!(amount, self, other);
+        merge!(blind_value_proof, self, other);
+        merge!(asset, self, other);
+        merge!(blind_asset_proof, self, other);
+        merge!(blinded_issuance, self, other);
         Ok(())
     }
 }
