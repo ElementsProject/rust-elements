@@ -34,7 +34,7 @@ use crate::{transaction::SighashTypeParseError, SchnorrSighashType};
 use crate::{AssetIssuance, BlockHash, EcdsaSighashType, Script, Transaction, TxIn, TxOut, Txid};
 use bitcoin::bip32::KeySource;
 use bitcoin::{PublicKey, key::XOnlyPublicKey};
-use secp256k1_zkp::{self, RangeProof, Tweak, ZERO_TWEAK};
+use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak, ZERO_TWEAK};
 
 use crate::{OutPoint, Sequence};
 
@@ -148,6 +148,21 @@ const PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF: u8 = 0x0f;
 /// in PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS. If provided,
 /// PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT must be provided too.
 const PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF: u8 = 0x10;
+/// The explicit value for the input being spent. If provided,
+/// PSBT_ELEMENTS_IN_VALUE_PROOF must be provided too.
+const PSBT_ELEMENTS_IN_EXPLICIT_VALUE: u8 = 0x11;
+/// An explicit value rangeproof that proves that the value commitment in this
+/// input's UTXO matches the explicit value in PSBT_ELEMENTS_IN_EXPLICIT_VALUE.
+/// If provided, PSBT_ELEMENTS_IN_EXPLICIT_VALUE must be provided too.
+const PSBT_ELEMENTS_IN_VALUE_PROOF: u8 = 0x12;
+/// The explicit asset for the input being spent. If provided,
+/// PSBT_ELEMENTS_IN_ASSET_PROOF must be provided too.
+const PSBT_ELEMENTS_IN_EXPLICIT_ASSET: u8 = 0x13;
+/// An asset surjection proof with this input's asset as the only asset in the
+/// input set in order to prove that the asset commitment in the UTXO matches
+/// the explicit asset in PSBT_ELEMENTS_IN_EXPLICIT_ASSET. If provided,
+/// PSBT_ELEMENTS_IN_EXPLICIT_ASSET must be provided too.
+const PSBT_ELEMENTS_IN_ASSET_PROOF: u8 = 0x14;
 /// A key-value map for an input of the corresponding index in the unsigned
 /// transaction.
 #[derive(Clone, Debug, PartialEq)]
@@ -271,6 +286,14 @@ pub struct Input {
     pub in_issuance_blind_value_proof: Option<Box<RangeProof>>,
     /// Proof that blinded inflation keys matches the corresponding commitment
     pub in_issuance_blind_inflation_keys_proof: Option<Box<RangeProof>>,
+    /// The explicit amount of the input
+    pub amount: Option<u64>,
+    /// The blind value rangeproof
+    pub blind_value_proof: Option<Box<RangeProof>>,
+    /// The input explicit asset
+    pub asset: Option<AssetId>,
+    /// The blind asset surjection proof
+    pub blind_asset_proof: Option<Box<SurjectionProof>>,
     /// Other fields
     #[cfg_attr(
         feature = "serde",
@@ -287,7 +310,7 @@ pub struct Input {
 
 impl Default for Input {
     fn default() -> Self {
-        Self { non_witness_utxo: Default::default(), witness_utxo: Default::default(), partial_sigs: Default::default(), sighash_type: Default::default(), redeem_script: Default::default(), witness_script: Default::default(), bip32_derivation: Default::default(), final_script_sig: Default::default(), final_script_witness: Default::default(), ripemd160_preimages: Default::default(), sha256_preimages: Default::default(), hash160_preimages: Default::default(), hash256_preimages: Default::default(), previous_txid: Txid::all_zeros(), previous_output_index: Default::default(), sequence: Default::default(), required_time_locktime: Default::default(), required_height_locktime: Default::default(), tap_key_sig: Default::default(), tap_script_sigs: Default::default(), tap_scripts: Default::default(), tap_key_origins: Default::default(), tap_internal_key: Default::default(), tap_merkle_root: Default::default(), issuance_value_amount: Default::default(), issuance_value_comm: Default::default(), issuance_value_rangeproof: Default::default(), issuance_keys_rangeproof: Default::default(), pegin_tx: Default::default(), pegin_txout_proof: Default::default(), pegin_genesis_hash: Default::default(), pegin_claim_script: Default::default(), pegin_value: Default::default(), pegin_witness: Default::default(), issuance_inflation_keys: Default::default(), issuance_inflation_keys_comm: Default::default(), issuance_blinding_nonce: Default::default(), issuance_asset_entropy: Default::default(), in_utxo_rangeproof: Default::default(), in_issuance_blind_value_proof: Default::default(), in_issuance_blind_inflation_keys_proof: Default::default(), proprietary: Default::default(), unknown: Default::default() }
+        Self { non_witness_utxo: Default::default(), witness_utxo: Default::default(), partial_sigs: Default::default(), sighash_type: Default::default(), redeem_script: Default::default(), witness_script: Default::default(), bip32_derivation: Default::default(), final_script_sig: Default::default(), final_script_witness: Default::default(), ripemd160_preimages: Default::default(), sha256_preimages: Default::default(), hash160_preimages: Default::default(), hash256_preimages: Default::default(), previous_txid: Txid::all_zeros(), previous_output_index: Default::default(), sequence: Default::default(), required_time_locktime: Default::default(), required_height_locktime: Default::default(), tap_key_sig: Default::default(), tap_script_sigs: Default::default(), tap_scripts: Default::default(), tap_key_origins: Default::default(), tap_internal_key: Default::default(), tap_merkle_root: Default::default(), issuance_value_amount: Default::default(), issuance_value_comm: Default::default(), issuance_value_rangeproof: Default::default(), issuance_keys_rangeproof: Default::default(), pegin_tx: Default::default(), pegin_txout_proof: Default::default(), pegin_genesis_hash: Default::default(), pegin_claim_script: Default::default(), pegin_value: Default::default(), pegin_witness: Default::default(), issuance_inflation_keys: Default::default(), issuance_inflation_keys_comm: Default::default(), issuance_blinding_nonce: Default::default(), issuance_asset_entropy: Default::default(), in_utxo_rangeproof: Default::default(), in_issuance_blind_value_proof: Default::default(), in_issuance_blind_inflation_keys_proof: Default::default(), amount: Default::default(), blind_value_proof: Default::default(), asset: Default::default(), blind_asset_proof: Default::default(), proprietary: Default::default(), unknown: Default::default() }
     }
 }
 
@@ -705,6 +728,18 @@ impl Map for Input {
                         PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF => {
                             impl_pset_prop_insert_pair!(self.in_issuance_blind_inflation_keys_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
                         }
+                        PSBT_ELEMENTS_IN_EXPLICIT_VALUE => {
+                            impl_pset_prop_insert_pair!(self.amount <= <raw_key: _> | <raw_value : u64>)
+                        }
+                        PSBT_ELEMENTS_IN_VALUE_PROOF => {
+                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
+                        }
+                        PSBT_ELEMENTS_IN_EXPLICIT_ASSET => {
+                            impl_pset_prop_insert_pair!(self.asset <= <raw_key: _> | <raw_value : AssetId>)
+                        }
+                        PSBT_ELEMENTS_IN_ASSET_PROOF => {
+                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
+                        }
                         _ => match self.proprietary.entry(prop_key) {
                             Entry::Vacant(empty_key) => {
                                 empty_key.insert(raw_value);
@@ -901,6 +936,22 @@ impl Map for Input {
 
         impl_pset_get_pair! {
             rv.push_prop(self.in_issuance_blind_inflation_keys_proof as <PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push_prop(self.amount as <PSBT_ELEMENTS_IN_EXPLICIT_VALUE, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push_prop(self.blind_value_proof as <PSBT_ELEMENTS_IN_VALUE_PROOF, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push_prop(self.asset as <PSBT_ELEMENTS_IN_EXPLICIT_ASSET, _>)
+        }
+
+        impl_pset_get_pair! {
+            rv.push_prop(self.blind_asset_proof as <PSBT_ELEMENTS_IN_ASSET_PROOF, _>)
         }
 
         for (key, value) in self.proprietary.iter() {
