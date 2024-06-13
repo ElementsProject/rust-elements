@@ -169,7 +169,7 @@ impl Serialize for ExtData {
 }
 
 impl Encodable for ExtData {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         Ok(match *self {
             ExtData::Proof {
                 ref challenge,
@@ -299,7 +299,7 @@ impl BlockHeader {
 }
 
 impl Encodable for BlockHeader {
-    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, io::Error> {
         let version = if let ExtData::Dynafed { .. } = self.ext {
             self.version | 0x8000_0000
         } else {

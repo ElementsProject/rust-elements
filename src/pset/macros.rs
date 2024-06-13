@@ -62,7 +62,7 @@ macro_rules! impl_psetmap_consensus_encoding {
             fn consensus_encode<S: ::std::io::Write>(
                 &self,
                 mut s: S,
-            ) -> Result<usize, $crate::encode::Error> {
+            ) -> Result<usize, std::io::Error> {
                 let mut len = 0;
                 for pair in $crate::pset::Map::get_pairs(self)? {
                     len += $crate::encode::Encodable::consensus_encode(&pair, &mut s)?;

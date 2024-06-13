@@ -16,7 +16,7 @@ macro_rules! impl_consensus_encoding {
     ($thing:ident, $($field:ident),+) => (
         impl $crate::encode::Encodable for $thing {
             #[inline]
-            fn consensus_encode<S: std::io::Write>(&self, mut s: S) -> Result<usize, $crate::encode::Error> {
+            fn consensus_encode<S: std::io::Write>(&self, mut s: S) -> Result<usize, std::io::Error> {
                 let mut ret = 0;
                 $( ret += self.$field.consensus_encode(&mut s)?; )+
                 Ok(ret)
