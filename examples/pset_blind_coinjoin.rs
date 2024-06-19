@@ -8,6 +8,7 @@
 //! 6. A signs it's input
 //! 7. A finalizes the pset
 //! 8. A extracts and broadcasts the transaction
+//!
 //! During the entire interaction, the output blinding factors for A and B are not
 //! shared with each other.
 extern crate bitcoin;
