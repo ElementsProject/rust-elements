@@ -434,7 +434,7 @@ mod tests {
             000000000000000000000000000000000000\
             ";
 
-    #[cfg(feature = "serde-feature")]
+    #[cfg(feature = "serde")]
     #[test]
     fn blockheader_serde() {
         let block: Block = hex_deserialize!(&SIMPLE_BLOCK);
@@ -442,7 +442,7 @@ mod tests {
         let block: Block = hex_deserialize!(&DYNAFED_BLOCK);
         roundtrip_header(&block.header);
     }
-    #[cfg(feature = "serde-feature")]
+    #[cfg(feature = "serde")]
     fn roundtrip_header(header: &BlockHeader) {
         let header_ser = serde_json::to_string(header).unwrap();
         let header_deser: BlockHeader = serde_json::from_str(&header_ser).unwrap();

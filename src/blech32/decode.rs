@@ -889,13 +889,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "alloc")]
     fn check_hrp_max_length() {
         let hrps =
             "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio";
 
         let hrp = Hrp::parse_unchecked(hrps);
-        let s = crate::encode::<Blech32>(hrp, &[]).expect("failed to encode empty buffer");
+        let s = crate::bech32::encode::<Blech32>(hrp, &[]).expect("failed to encode empty buffer");
 
         let unchecked = UncheckedHrpstring::new(&s).expect("failed to parse address");
         assert_eq!(unchecked.hrp(), hrp);
