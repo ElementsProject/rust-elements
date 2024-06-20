@@ -621,7 +621,7 @@ impl ControlBlock {
     ///
     /// # Errors:
     /// - If the control block size is not of the form 33 + 32m where
-    /// 0 <= m <= 128, InvalidControlBlock is returned
+    ///   0 <= m <= 128, InvalidControlBlock is returned
     pub fn from_slice(sl: &[u8]) -> Result<ControlBlock, TaprootError> {
         if sl.len() < TAPROOT_CONTROL_BASE_SIZE
             || (sl.len() - TAPROOT_CONTROL_BASE_SIZE) % TAPROOT_CONTROL_NODE_SIZE != 0

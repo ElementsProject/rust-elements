@@ -459,10 +459,10 @@ pub mod all {
     pub const OP_INSPECTINPUTVALUE: All = All {code: 0xc9};
     /// Pop a CScriptNum input index idx and push the following depending the type of scriptPubkey:
     /// - If the scriptPubKey is not a native segwit program, push a single sha256
-    /// hash of the scriptPubKey on stack top. Next, push a CScriptNum(-1) to
-    /// indicate a non-native segwit scriptPubKey.
+    ///   hash of the scriptPubKey on stack top. Next, push a CScriptNum(-1) to
+    ///   indicate a non-native segwit scriptPubKey.
     /// - If the scriptPubKey is a native segwit program, push the witness program(2-40)
-    /// followed by a push for segwit version(0-1).
+    ///   followed by a push for segwit version(0-1).
     pub const OP_INSPECTINPUTSCRIPTPUBKEY: All = All {code: 0xca};
     /// Pop a CScriptNum input index idx and push the nSequence(4) as little-endian number.
     pub const OP_INSPECTINPUTSEQUENCE: All = All {code: 0xcb};
@@ -544,6 +544,7 @@ pub mod all {
     /// 1) a 32 byte big endian, unsigned scalar k.
     /// 2) Compressed EC point P, and
     /// 3) compressed EC point Q.
+    ///
     /// Abort if P, Q is invalid or k is not 32 bytes and outside of secp256k1 curve order.
     /// Abort if Q != k*P.
     pub const OP_ECMULSCALARVERIFY: All = All {code: 0xe3};

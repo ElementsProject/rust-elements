@@ -452,19 +452,6 @@ impl<'s> ExactSizeIterator for ByteIter<'s> {
     fn len(&self) -> usize { self.iter.len() }
 }
 
-/// An iterator over a parsed HRP string data as field elements.
-pub struct Fe32Iter<'s> {
-    iter: AsciiToFe32Iter<iter::Copied<slice::Iter<'s, u8>>>,
-}
-
-impl<'s> Iterator for Fe32Iter<'s> {
-    type Item = Fe32;
-    #[inline]
-    fn next(&mut self) -> Option<Fe32> { self.iter.next() }
-    #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) { self.iter.size_hint() }
-}
-
 /// Helper iterator adaptor that maps an iterator of valid bech32 character ASCII bytes to an
 /// iterator of field elements.
 ///
@@ -889,13 +876,12 @@ mod tests {
     }
 
     #[test]
-    #[cfg(feature = "alloc")]
     fn check_hrp_max_length() {
         let hrps =
             "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio";
 
         let hrp = Hrp::parse_unchecked(hrps);
-        let s = crate::encode::<Blech32>(hrp, &[]).expect("failed to encode empty buffer");
+        let s = crate::bech32::encode::<Blech32>(hrp, &[]).expect("failed to encode empty buffer");
 
         let unchecked = UncheckedHrpstring::new(&s).expect("failed to parse address");
         assert_eq!(unchecked.hrp(), hrp);
