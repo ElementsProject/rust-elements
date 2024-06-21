@@ -436,6 +436,9 @@ impl<'tx> PeginData<'tx> {
         if pegin_witness.len() != 6 {
             return Err("size not 6");
         }
+        if pegin_witness[5].len() < 80 {
+            return Err("merkle proof too short");
+        }
 
         Ok(PeginData {
             outpoint: prevout,
@@ -2378,5 +2381,22 @@ mod tests {
             Transaction::consensus_decode(&tx[..]),
             Err(encode::Error::ParseFailed("superfluous asset issuance")),
         ));
+    }
+
+    #[test]
+    fn malformed_pegin() {
+        let mut input: TxIn = hex_deserialize!("\
+            0004000000000000ffffffff0000040000c0c0c0c0c0c0c0c0c0000000000000\
+            00805555555555555505c0c0c0c0c03fc0c0c0c0c0c0c0c0c0c0c0c00200ff01\
+            0000000000fd0000000000000000010000000000ffffffffffffffff00000000\
+            000000ff000000000000010000000000000000000001002d342d35313700\
+        ");
+        input.witness = hex_deserialize!("\
+            0000000608202020202020202020202020202020202020202020202020202020\
+            2020202020202020202020202020202020202020202020202020202020202020\
+            2020202020202020202020202020202020202020202020202020202020200000\
+            00000000000000000000000000000002000400000000\
+        ");
+        assert!(input.pegin_data().is_none());
     }
 }
