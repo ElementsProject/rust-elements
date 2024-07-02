@@ -21,6 +21,9 @@ use crate::{
 /// keytype as defined in ELIP0100
 pub const PSBT_ELEMENTS_HWW_GLOBAL_ASSET_METADATA: u8 = 0x00u8;
 
+/// Token keytype as defined in ELIP0100
+pub const PSBT_ELEMENTS_HWW_GLOBAL_REISSUANCE_TOKEN: u8 = 0x01u8;
+
 /// Prefix for PSET hardware wallet extension as defined in ELIP0100
 pub const PSET_HWW_PREFIX: &[u8] = b"pset_hww";
 
@@ -33,7 +36,7 @@ impl PartiallySignedTransaction {
         asset_id: AssetId,
         asset_meta: &AssetMetadata,
     ) -> Option<Result<AssetMetadata, encode::Error>> {
-        let key = prop_key(&asset_id);
+        let key = prop_key(&asset_id, PSBT_ELEMENTS_HWW_GLOBAL_ASSET_METADATA);
         self.global
             .proprietary
             .insert(key, asset_meta.serialize())
@@ -46,12 +49,40 @@ impl PartiallySignedTransaction {
         &self,
         asset_id: AssetId,
     ) -> Option<Result<AssetMetadata, encode::Error>> {
-        let key = prop_key(&asset_id);
+        let key = prop_key(&asset_id, PSBT_ELEMENTS_HWW_GLOBAL_ASSET_METADATA);
 
         self.global
             .proprietary
             .get(&key)
             .map(|data| AssetMetadata::deserialize(data))
+    }
+
+    /// Add token information to the PSET, returns None if it wasn't present or Some with the old
+    /// data if already in the PSET
+    pub fn add_token_metadata(
+        &mut self,
+        token_id: AssetId,
+        token_meta: &TokenMetadata
+    ) -> Option<Result<TokenMetadata, encode::Error>> {
+        let key = prop_key(&token_id, PSBT_ELEMENTS_HWW_GLOBAL_REISSUANCE_TOKEN);
+        self.global
+            .proprietary
+            .insert(key, token_meta.serialize())
+            .map(|old| TokenMetadata::deserialize(&old))
+    }
+
+    /// Get token information from the PSET, returns None if there are no information regarding
+    /// the given `token_id`` in the PSET
+    pub fn get_token_metadata(
+        &self,
+        token_id: AssetId
+    ) -> Option<Result<TokenMetadata, encode::Error>> {
+        let key = prop_key(&token_id, PSBT_ELEMENTS_HWW_GLOBAL_REISSUANCE_TOKEN);
+
+        self.global
+            .proprietary
+            .get(&key)
+            .map(|data| TokenMetadata::deserialize(data))
     }
 }
 
@@ -62,7 +93,14 @@ pub struct AssetMetadata {
     issuance_prevout: OutPoint,
 }
 
-fn prop_key(asset_id: &AssetId) -> ProprietaryKey {
+/// Token metadata, the asset id and whether the issuance was blinded
+#[derive(Debug, PartialEq, Eq)]
+pub struct TokenMetadata {
+    asset_id: AssetId,
+    issuance_blinded: bool,
+}
+
+fn prop_key(asset_id: &AssetId, keytype: u8) -> ProprietaryKey {
     let mut key = Vec::with_capacity(32);
     asset_id
         .consensus_encode(&mut key)
@@ -70,7 +108,7 @@ fn prop_key(asset_id: &AssetId) -> ProprietaryKey {
 
     ProprietaryKey {
         prefix: PSET_HWW_PREFIX.to_vec(),
-        subtype: 0x00,
+        subtype: keytype,
         key,
     }
 }
@@ -126,6 +164,57 @@ impl AssetMetadata {
     }
 }
 
+impl TokenMetadata {
+
+    /// Create a new [`TokenMetadata`]
+    pub fn new(asset_id: AssetId, issuance_blinded: bool) -> Self {
+        Self { asset_id, issuance_blinded }
+    }
+
+    /// Returns the asset_id
+    pub fn asset_id(&self) -> &AssetId {
+        &self.asset_id
+    }
+
+    /// Returns whether the issuance was blinded or not
+    pub fn issuance_blinded(&self) -> bool {
+        self.issuance_blinded
+    }
+
+    /// Serialize this metadata as defined by ELIP0100
+    ///
+    /// `<1 byte boolean issuanceBlinded><32-byte asset tag>`
+    pub fn serialize(&self) -> Vec<u8> {
+        let mut result = vec![];
+
+        result.push(self.issuance_blinded as u8);
+
+        self.asset_id
+            .consensus_encode(&mut result)
+            .expect("vec doesn't err");
+
+        result
+    }
+
+    /// Deserialize this metadata as defined by ELIP0100
+    pub fn deserialize(data: &[u8]) -> Result<TokenMetadata, encode::Error> {
+        let mut cursor = Cursor::new(data);
+
+        let byte = u8::consensus_decode(&mut cursor)?;
+        if byte > 1 {
+            return Err(encode::Error::ParseFailed("invalid issuanceBlinded"));
+        }
+        let issuance_blinded = byte == 1;
+
+        let asset_id = AssetId::consensus_decode(&mut cursor)?;
+
+        Ok(TokenMetadata {
+            asset_id,
+            issuance_blinded
+        })
+    }
+}
+
 #[cfg(test)]
 mod test {
     use std::str::FromStr;
@@ -142,7 +231,7 @@ mod test {
         AssetId,
     };
 
-    use super::{prop_key, AssetMetadata};
+    use super::{prop_key, AssetMetadata, PSBT_ELEMENTS_HWW_GLOBAL_ASSET_METADATA, TokenMetadata};
 
     #[cfg(feature = "json-contract")]
     const CONTRACT_HASH: &str = "3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82";
@@ -155,6 +244,9 @@ mod test {
     const ELIP0100_IDENTIFIER: &str = "fc08707365745f68777700";
     const ELIP0100_ASSET_TAG: &str =
         "48f835622f34e8fdc313c90d4a8659aa4afe993e32dcb03ae6ec9ccdc6fcbe18";
+    const ELIP0100_TOKEN_ID: &str =
+        "d739234098f77172cb22f0de8affd6826d6b9d23d97e04575764786a5b0056e1";
+    const ELIP0100_ISSUANCE_BLINDED: bool = true;
 
     const ELIP0100_CONTRACT: &str = r#"{"entity":{"domain":"example.com"},"issuer_pubkey":"03455ee7cedc97b0ba435b80066fc92c963a34c600317981d135330c4ee43ac7a3","name":"Testcoin","precision":2,"ticker":"TEST","version":0}"#;
     const ELIP0100_PREVOUT_TXID: &str =
@@ -163,9 +255,12 @@ mod test {
     const ELIP0100_PREVOUT_VOUT: u32 = 1;
     const ELIP0100_ASSET_METADATA_RECORD_KEY: &str =
         "fc08707365745f6877770018befcc6cd9cece63ab0dc323e99fe4aaa59864a0dc913c3fde8342f6235f848";
+    const ELIP0100_TOKEN_METADATA_RECORD_KEY: &str =
+        "fc08707365745f68777701e156005b6a78645757047ed9239d6b6d82d6ff8adef022cb7271f798402339d7";
     const ELIP0100_ASSET_METADATA_RECORD_VALUE_WRONG: &str = "b47b22656e74697479223a7b22646f6d61696e223a226578616d706c652e636f6d227d2c226973737565725f7075626b6579223a22303334353565653763656463393762306261343335623830303636666339326339363361333463363030333137393831643133353333306334656534336163376133222c226e616d65223a2254657374636f696e222c22707265636973696f6e223a322c227469636b6572223a2254455354222c2276657273696f6e223a307d3514a07cf4812272c24a898c482f587a51126beef8c9b76a9e30bf41b0cbe53c01000000";
 
     const ELIP0100_ASSET_METADATA_RECORD_VALUE: &str = "b47b22656e74697479223a7b22646f6d61696e223a226578616d706c652e636f6d227d2c226973737565725f7075626b6579223a22303334353565653763656463393762306261343335623830303636666339326339363361333463363030333137393831643133353333306334656534336163376133222c226e616d65223a2254657374636f696e222c22707265636973696f6e223a322c227469636b6572223a2254455354222c2276657273696f6e223a307d3ce5cbb041bf309e6ab7c9f8ee6b12517a582f488c894ac2722281f47ca0143501000000";
+    const ELIP0100_TOKEN_METADATA_RECORD_VALUE: &str = "0118befcc6cd9cece63ab0dc323e99fe4aaa59864a0dc913c3fde8342f6235f848";
     fn mockup_asset_metadata() -> (AssetId, AssetMetadata) {
         (
             AssetId::from_str(ASSET_ID).unwrap(),
@@ -197,7 +292,7 @@ mod test {
     fn prop_key_serialize() {
         let asset_id = AssetId::from_str(ASSET_ID).unwrap();
 
-        let key = prop_key(&asset_id);
+        let key = prop_key(&asset_id, PSBT_ELEMENTS_HWW_GLOBAL_ASSET_METADATA);
         let mut vec = vec![];
         key.consensus_encode(&mut vec).unwrap();
 
@@ -265,6 +360,27 @@ mod test {
                 .replace(ELIP0100_PREVOUT_TXID, &txid_hex_non_convention),
             "only change in the value is the txid"
         );
+
+        let token_id = AssetId::from_str(ELIP0100_TOKEN_ID).unwrap();
+        let token_meta = TokenMetadata {
+            asset_id,
+            issuance_blinded: ELIP0100_ISSUANCE_BLINDED,
+        };
+
+        pset.add_token_metadata(token_id, &token_meta);
+
+        let expected_key = Vec::<u8>::from_hex(ELIP0100_TOKEN_METADATA_RECORD_KEY).unwrap();
+
+        let values: Vec<Vec<u8>> = pset
+            .global
+            .get_pairs()
+            .unwrap()
+            .into_iter()
+            .filter(|p| serialize(&p.key)[1..] == expected_key[..]) // NOTE key serialization contains an initial varint with the length of the key which is not present in the test vector
+            .map(|p| p.value)
+            .collect();
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].to_hex(), ELIP0100_TOKEN_METADATA_RECORD_VALUE);
     }
 
     #[cfg(feature = "json-contract")]
