@@ -22,7 +22,7 @@ use crate::encode::Decodable;
 use crate::pset::map::Map;
 use crate::pset::raw;
 use crate::pset::Error;
-use crate::{confidential::{self, AssetBlindingFactor}, pset};
+use crate::{confidential, pset};
 use crate::{encode, Script, TxOutWitness};
 use bitcoin::bip32::KeySource;
 use bitcoin::{PublicKey, key::XOnlyPublicKey};
@@ -83,8 +83,6 @@ const PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF: u8 = 0x09;
 /// PSBT_ELEMENTS_OUT_ASSET. If provided, PSBT_ELEMENTS_OUT_ASSET_COMMITMENT must
 /// be provided too.
 const PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF: u8 = 0x0a;
-/// The 32 byte asset blinding factor for this output.
-const PSBT_ELEMENTS_OUT_ASSET_BLINDING_FACTOR: u8 = 0x0b;
 
 /// A key-value map for an output of the corresponding index in the unsigned
 /// transaction.
@@ -131,8 +129,6 @@ pub struct Output {
     pub blind_value_proof: Option<Box<RangeProof>>,
     /// The blind asset surjection proof
     pub blind_asset_proof: Option<Box<SurjectionProof>>,
-    /// The 32 byte asset blinding factor
-    pub asset_blinding_factor: Option<AssetBlindingFactor>,
     /// Pset
     /// Other fields
     #[cfg_attr(
@@ -378,9 +374,6 @@ impl Map for Output {
                         PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF => {
                             impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
                         }
-                        PSBT_ELEMENTS_OUT_ASSET_BLINDING_FACTOR => {
-                            impl_pset_prop_insert_pair!(self.asset_blinding_factor <= <raw_key: _> | <raw_value : AssetBlindingFactor>)
-                        }
                         _ => match self.proprietary.entry(prop_key) {
                             Entry::Vacant(empty_key) => {
                                 empty_key.insert(raw_value);
@@ -495,10 +488,6 @@ impl Map for Output {
             rv.push_prop(self.blind_asset_proof as <PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF, _>)
         }
 
-        impl_pset_get_pair! {
-            rv.push_prop(self.asset_blinding_factor as <PSBT_ELEMENTS_OUT_ASSET_BLINDING_FACTOR, _>)
-        }
-
         for (key, value) in self.proprietary.iter() {
             rv.push(raw::Pair {
                 key: key.to_key(),
@@ -536,7 +525,6 @@ impl Map for Output {
         merge!(blinder_index, self, other);
         merge!(blind_value_proof, self, other);
         merge!(blind_asset_proof, self, other);
-        merge!(asset_blinding_factor, self, other);
         Ok(())
     }
 }
