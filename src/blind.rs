@@ -26,11 +26,11 @@ use secp256k1_zkp::{Generator, RangeProof, Secp256k1, Signing, SurjectionProof};
 
 use crate::{AddressParams, Script, TxIn};
 
+use crate::hashes;
 use crate::{
     confidential::{Asset, AssetBlindingFactor, Nonce, Value, ValueBlindingFactor},
     Address, AssetId, Transaction, TxOut, TxOutWitness,
 };
-use crate::hashes;
 
 /// Transaction Output related errors
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -229,7 +229,11 @@ impl RangeProofMessage {
 }
 
 /// Information about Transaction Input Asset
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
 pub struct TxOutSecrets {
     /// Asset
