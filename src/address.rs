@@ -21,11 +21,11 @@ use std::fmt;
 use std::fmt::Write as _;
 use std::str::FromStr;
 
-use bitcoin::base58;
-use bitcoin::PublicKey;
-use crate::bech32::{Bech32, Bech32m, ByteIterExt, Fe32, Hrp, Fe32IterExt};
+use crate::bech32::{Bech32, Bech32m, ByteIterExt, Fe32, Fe32IterExt, Hrp};
 use crate::blech32::{Blech32, Blech32m};
 use crate::hashes::Hash;
+use bitcoin::base58;
+use bitcoin::PublicKey;
 use secp256k1_zkp;
 use secp256k1_zkp::Secp256k1;
 use secp256k1_zkp::Verification;
@@ -35,8 +35,8 @@ use serde;
 use crate::schnorr::{TapTweak, TweakedPublicKey, UntweakedPublicKey};
 use crate::taproot::TapNodeHash;
 
-use crate::{PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 use crate::{opcodes, script};
+use crate::{PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
 
 /// Encoding error
 #[derive(Debug, PartialEq)]
@@ -89,10 +89,18 @@ impl fmt::Display for AddressError {
                 write!(f, "invalid witness script version: {}", wver)
             }
             AddressError::InvalidWitnessProgramLength(ref len) => {
-                write!(f, "the witness program must be between 2 and 40 bytes in length, not {}", len)
+                write!(
+                    f,
+                    "the witness program must be between 2 and 40 bytes in length, not {}",
+                    len
+                )
             }
             AddressError::InvalidSegwitV0ProgramLength(ref len) => {
-                write!(f, "a v0 witness program must be length 20 or 32, not {}", len)
+                write!(
+                    f,
+                    "a v0 witness program must be length 20 or 32, not {}",
+                    len
+                )
             }
             AddressError::InvalidBlindingPubKey(ref e) => {
                 write!(f, "an invalid blinding pubkey was encountered: {}", e)
@@ -212,7 +220,8 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = PubkeyHash::engine();
-        pk.write_into(&mut hash_engine).expect("engines don't error");
+        pk.write_into(&mut hash_engine)
+            .expect("engines don't error");
 
         Address {
             params,
@@ -244,7 +253,8 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = WPubkeyHash::engine();
-        pk.write_into(&mut hash_engine).expect("engines don't error");
+        pk.write_into(&mut hash_engine)
+            .expect("engines don't error");
 
         Address {
             params,
@@ -264,7 +274,8 @@ impl Address {
         params: &'static AddressParams,
     ) -> Address {
         let mut hash_engine = ScriptHash::engine();
-        pk.write_into(&mut hash_engine).expect("engines don't error");
+        pk.write_into(&mut hash_engine)
+            .expect("engines don't error");
 
         let builder = script::Builder::new()
             .push_int(0)
@@ -401,7 +412,9 @@ impl Address {
             Payload::WitnessProgram {
                 version: witver,
                 program: ref witprog,
-            } => script::Builder::new().push_int(witver.to_u8() as i64).push_slice(witprog),
+            } => script::Builder::new()
+                .push_int(witver.to_u8() as i64)
+                .push_slice(witprog),
         }
         .into_script()
     }
@@ -450,10 +463,7 @@ impl Address {
 
         Ok(Address {
             params,
-            payload: Payload::WitnessProgram {
-                version,
-                program,
-            },
+            payload: Payload::WitnessProgram { version, program },
             blinding_pubkey,
         })
     }
@@ -574,14 +584,23 @@ impl fmt::Display for Address {
                 // FIXME: surely we can fix this logic to not be so repetitive.
                 if self.is_blinded() {
                     if let Some(ref blinder) = self.blinding_pubkey {
-                        let byte_iter = IntoIterator::into_iter(blinder.serialize()).chain(witprog.iter().copied());
+                        let byte_iter = IntoIterator::into_iter(blinder.serialize())
+                            .chain(witprog.iter().copied());
                         let fe_iter = byte_iter.bytes_to_fes();
                         if witver.to_u8() == 0 {
-                            for c in fe_iter.with_checksum::<Blech32>(&hrp).with_witness_version(witver).chars() {
+                            for c in fe_iter
+                                .with_checksum::<Blech32>(&hrp)
+                                .with_witness_version(witver)
+                                .chars()
+                            {
                                 fmt.write_char(c)?;
                             }
                         } else {
-                            for c in fe_iter.with_checksum::<Blech32m>(&hrp).with_witness_version(witver).chars() {
+                            for c in fe_iter
+                                .with_checksum::<Blech32m>(&hrp)
+                                .with_witness_version(witver)
+                                .chars()
+                            {
                                 fmt.write_char(c)?;
                             }
                         }
@@ -592,11 +611,19 @@ impl fmt::Display for Address {
                 let byte_iter = witprog.iter().copied();
                 let fe_iter = byte_iter.bytes_to_fes();
                 if witver.to_u8() == 0 {
-                    for c in fe_iter.with_checksum::<Bech32>(&hrp).with_witness_version(witver).chars() {
+                    for c in fe_iter
+                        .with_checksum::<Bech32>(&hrp)
+                        .with_witness_version(witver)
+                        .chars()
+                    {
                         fmt.write_char(c)?;
                     }
                 } else {
-                    for c in fe_iter.with_checksum::<Bech32m>(&hrp).with_witness_version(witver).chars() {
+                    for c in fe_iter
+                        .with_checksum::<Bech32m>(&hrp)
+                        .with_witness_version(witver)
+                        .chars()
+                    {
                         fmt.write_char(c)?;
                     }
                 }
@@ -734,9 +761,9 @@ impl serde::Serialize for Address {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::Script;
     use bitcoin::key;
     use secp256k1_zkp::{PublicKey, Secp256k1};
-    use crate::Script;
     #[cfg(feature = "serde")]
     use serde_json;
 
@@ -755,7 +782,9 @@ mod test {
         );
         #[cfg(feature = "serde")]
         assert_eq!(
-            serde_json::from_value::<Address>(serde_json::to_value(addr).unwrap()).ok().as_ref(),
+            serde_json::from_value::<Address>(serde_json::to_value(addr).unwrap())
+                .ok()
+                .as_ref(),
             Some(addr)
         );
     }
@@ -831,7 +860,12 @@ mod test {
 
         for &(a, blinded, ref params) in &addresses {
             let result = a.parse();
-            assert!(result.is_ok(), "vector: {}, err: \"{}\"", a, result.unwrap_err());
+            assert!(
+                result.is_ok(),
+                "vector: {}, err: \"{}\"",
+                a,
+                result.unwrap_err()
+            );
             let addr: Address = result.unwrap();
             assert_eq!(a, &addr.to_string(), "vector: {}", a);
             assert_eq!(blinded, addr.is_blinded());
@@ -858,7 +892,8 @@ mod test {
             "blech32 error: invalid checksum", // is valid blech32m, but should be blech32
         );
 
-        let address: Result<Address, _> = "ert130xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqqu2tys".parse();
+        let address: Result<Address, _> =
+            "ert130xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqqu2tys".parse();
         assert_eq!(
             address.err().unwrap().to_string(),
             "bech32 error: invalid segwit witness version: 3", // FIXME https://github.com/rust-bitcoin/rust-bech32/issues/162 should be 17
@@ -879,14 +914,18 @@ mod test {
         );
     }
 
-
     #[test]
     fn test_fixed_addresses() {
-        let pk = bitcoin::PublicKey::from_str("0212bf0ea45b733dfde8ecb5e896306c4165c666c99fc5d1ab887f71393a975cea")
-            .unwrap();
+        let pk = bitcoin::PublicKey::from_str(
+            "0212bf0ea45b733dfde8ecb5e896306c4165c666c99fc5d1ab887f71393a975cea",
+        )
+        .unwrap();
         let script = Script::default();
         let secp = Secp256k1::verification_only();
-        let internal_key = UntweakedPublicKey::from_str("93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51").unwrap();
+        let internal_key = UntweakedPublicKey::from_str(
+            "93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51",
+        )
+        .unwrap();
         let tap_node_hash = TapNodeHash::all_zeros();
 
         let mut expected = IntoIterator::into_iter([
@@ -934,9 +973,12 @@ mod test {
             "tlq1pqgft7r4ytdenml0gaj67393sd3qkt3nxex0ut5dt3plhzwf6jaww5vx8c8vs0ywzejta7jjcc5f4asnacdtu0wlaas0upmsq90enaz2lekytucqf82vs",
         ]);
 
-        for params in [&AddressParams::ELEMENTS, &AddressParams::LIQUID, &AddressParams::LIQUID_TESTNET] {
+        for params in [
+            &AddressParams::ELEMENTS,
+            &AddressParams::LIQUID,
+            &AddressParams::LIQUID_TESTNET,
+        ] {
             for blinder in [None, Some(pk.inner)] {
-
                 let addr = Address::p2pkh(&pk, blinder, params);
                 assert_eq!(&addr.to_string(), expected.next().unwrap());
 
@@ -959,6 +1001,5 @@ mod test {
                 assert_eq!(&addr.to_string(), expected.next().unwrap());
             }
         }
-
     }
 }
