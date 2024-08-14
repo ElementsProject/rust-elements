@@ -55,4 +55,3 @@ impl crate::bech32::Checksum for Blech32m {
     ];
     const TARGET_RESIDUE: u64 = 0x455972a3350f7a1;
 }
-

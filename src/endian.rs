@@ -5,11 +5,11 @@ macro_rules! define_le_to_array {
             debug_assert_eq!(::std::mem::size_of::<$type>(), $byte_len); // size_of isn't a constfn in 1.22
             let mut res = [0; $byte_len];
             for i in 0..$byte_len {
-                res[i] = ((val >> i*8) & 0xff) as u8;
+                res[i] = ((val >> i * 8) & 0xff) as u8;
             }
             res
         }
-    }
+    };
 }
 
 define_le_to_array!(u32_to_array_le, u32, 4);

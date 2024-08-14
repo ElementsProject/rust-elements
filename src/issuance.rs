@@ -17,11 +17,11 @@
 use std::io;
 use std::str::FromStr;
 
-use crate::encode::{self, Encodable, Decodable};
-use crate::hashes::{self, hash_newtype, sha256, sha256d, Hash};
+use crate::encode::{self, Decodable, Encodable};
 use crate::fast_merkle_root::fast_merkle_root;
-use secp256k1_zkp::Tag;
+use crate::hashes::{self, hash_newtype, sha256, sha256d, Hash};
 use crate::transaction::OutPoint;
+use secp256k1_zkp::Tag;
 
 /// The zero hash.
 const ZERO32: [u8; 32] = [
@@ -69,10 +69,9 @@ pub struct AssetId(sha256::Midstate);
 impl AssetId {
     /// The asset ID for L-BTC, Bitcoin on the Liquid network.
     pub const LIQUID_BTC: AssetId = AssetId(sha256::Midstate([
-        0x6d, 0x52, 0x1c, 0x38, 0xec, 0x1e, 0xa1, 0x57,
-        0x34, 0xae, 0x22, 0xb7, 0xc4, 0x60, 0x64, 0x41,
-        0x28, 0x29, 0xc0, 0xd0, 0x57, 0x9f, 0x0a, 0x71,
-        0x3d, 0x1c, 0x04, 0xed, 0xe9, 0x79, 0x02, 0x6f,
+        0x6d, 0x52, 0x1c, 0x38, 0xec, 0x1e, 0xa1, 0x57, 0x34, 0xae, 0x22, 0xb7, 0xc4, 0x60, 0x64,
+        0x41, 0x28, 0x29, 0xc0, 0xd0, 0x57, 0x9f, 0x0a, 0x71, 0x3d, 0x1c, 0x04, 0xed, 0xe9, 0x79,
+        0x02, 0x6f,
     ]));
 
     /// Create an [AssetId] from its inner type.
@@ -122,7 +121,11 @@ impl AssetId {
     }
 
     /// Computes the re-issuance token from input and contract hash
-    pub fn new_reissuance_token(prevout: OutPoint, contract_hash: ContractHash, confidential: bool) -> Self {
+    pub fn new_reissuance_token(
+        prevout: OutPoint,
+        contract_hash: ContractHash,
+        confidential: bool,
+    ) -> Self {
         let entropy = AssetId::generate_asset_entropy(prevout, contract_hash);
         AssetId::reissuance_token_from_entropy(entropy, confidential)
     }
@@ -277,11 +280,17 @@ mod test {
         let contract_hash = ContractHash::from_byte_array(ZERO32);
         let prevout = OutPoint::from_str(prevout_str).unwrap();
         let entropy = sha256::Midstate::from_str(entropy_hex).unwrap();
-        assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
+        assert_eq!(
+            AssetId::generate_asset_entropy(prevout, contract_hash),
+            entropy
+        );
         let asset_id = AssetId::from_str(asset_id_hex).unwrap();
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
         let token_id = AssetId::from_str(token_id_hex).unwrap();
-        assert_eq!(AssetId::reissuance_token_from_entropy(entropy, false), token_id);
+        assert_eq!(
+            AssetId::reissuance_token_from_entropy(entropy, false),
+            token_id
+        );
 
         // example test data from Elements Core 0.21 with prevout vout = 1
         let prevout_str = "c76664aa4be760056dcc39b59637eeea8f3c3c3b2aeefb9f23a7b99945a2931e:1";
@@ -292,12 +301,17 @@ mod test {
         let contract_hash = ContractHash::from_byte_array(ZERO32);
         let prevout = OutPoint::from_str(prevout_str).unwrap();
         let entropy = sha256::Midstate::from_str(entropy_hex).unwrap();
-        assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
+        assert_eq!(
+            AssetId::generate_asset_entropy(prevout, contract_hash),
+            entropy
+        );
         let asset_id = AssetId::from_str(asset_id_hex).unwrap();
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
         let token_id = AssetId::from_str(token_id_hex).unwrap();
-        assert_eq!(AssetId::reissuance_token_from_entropy(entropy, true), token_id);
-
+        assert_eq!(
+            AssetId::reissuance_token_from_entropy(entropy, true),
+            token_id
+        );
 
         // example test data from Elements Core 0.21 with a given contract hash and non-blinded issuance
         let prevout_str = "ee45365ddb62e8822182fbdd132fb156b4991e0b7411cff4aab576fd964f2edb:0"; // txid parsed reverse
@@ -309,11 +323,17 @@ mod test {
         let contract_hash = ContractHash::from_str(contract_hash_hex).unwrap();
         let prevout = OutPoint::from_str(prevout_str).unwrap();
         let entropy = sha256::Midstate::from_str(entropy_hex).unwrap();
-        assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
+        assert_eq!(
+            AssetId::generate_asset_entropy(prevout, contract_hash),
+            entropy
+        );
         let asset_id = AssetId::from_str(asset_id_hex).unwrap();
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
         let token_id = AssetId::from_str(token_id_hex).unwrap();
-        assert_eq!(AssetId::reissuance_token_from_entropy(entropy, false), token_id);
+        assert_eq!(
+            AssetId::reissuance_token_from_entropy(entropy, false),
+            token_id
+        );
 
         // example test data from Elements Core 0.21
         // with confidential re-issuance
@@ -325,17 +345,26 @@ mod test {
         let contract_hash = ContractHash::from_byte_array(ZERO32);
         let prevout = OutPoint::from_str(prevout_str).unwrap();
         let entropy = sha256::Midstate::from_str(entropy_hex).unwrap();
-        assert_eq!(AssetId::generate_asset_entropy(prevout, contract_hash), entropy);
+        assert_eq!(
+            AssetId::generate_asset_entropy(prevout, contract_hash),
+            entropy
+        );
         let asset_id = AssetId::from_str(asset_id_hex).unwrap();
         assert_eq!(AssetId::from_entropy(entropy), asset_id);
         let token_id = AssetId::from_str(token_id_hex).unwrap();
-        assert_eq!(AssetId::reissuance_token_from_entropy(entropy, true), token_id);
+        assert_eq!(
+            AssetId::reissuance_token_from_entropy(entropy, true),
+            token_id
+        );
     }
 
     #[cfg(feature = "json-contract")]
     #[test]
     fn test_json_contract() {
-        let tether = ContractHash::from_str("3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82").unwrap();
+        let tether = ContractHash::from_str(
+            "3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82",
+        )
+        .unwrap();
 
         let correct = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
         let expected = ContractHash::hash(correct.as_bytes());
@@ -346,20 +375,32 @@ mod test {
         assert!(ContractHash::from_json_contract(invalid_json).is_err());
 
         let unordered = r#"{"precision":8,"ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap());
+        assert_eq!(
+            expected,
+            ContractHash::from_json_contract(unordered).unwrap()
+        );
 
         let unordered = r#"{"precision":8,"name":"Tether USD","ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap());
+        assert_eq!(
+            expected,
+            ContractHash::from_json_contract(unordered).unwrap()
+        );
 
         let spaces = r#"{"precision":8, "name" : "Tether USD", "ticker":"USDt",  "entity":{"domain":"tether.to" }, "issuer_pubkey" :"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0} "#;
         assert_eq!(expected, ContractHash::from_json_contract(spaces).unwrap());
 
         let nested_correct = r#"{"entity":{"author":"Tether Inc","copyright":2020,"domain":"tether.to","hq":"Mars"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
         let nested_expected = ContractHash::hash(nested_correct.as_bytes());
-        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_correct).unwrap());
+        assert_eq!(
+            nested_expected,
+            ContractHash::from_json_contract(nested_correct).unwrap()
+        );
 
         let nested_unordered = r#"{"ticker":"USDt","entity":{"domain":"tether.to","hq":"Mars","author":"Tether Inc","copyright":2020},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"version":0}"#;
-        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_unordered).unwrap());
+        assert_eq!(
+            nested_expected,
+            ContractHash::from_json_contract(nested_unordered).unwrap()
+        );
     }
 
     #[test]

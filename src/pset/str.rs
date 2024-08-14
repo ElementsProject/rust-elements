@@ -6,7 +6,7 @@ pub enum ParseError {
     /// Base64 decoding error
     Base64(bitcoin::base64::DecodeError),
     /// PSET binary encoding error
-    Deserialize(crate::encode::Error)
+    Deserialize(crate::encode::Error),
 }
 
 impl core::fmt::Display for ParseError {
@@ -25,11 +25,10 @@ impl std::error::Error for ParseError {
             ParseError::Deserialize(e) => Some(e),
         }
     }
-
 }
 
 impl std::str::FromStr for PartiallySignedTransaction {
-    type Err=ParseError;
+    type Err = ParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         use bitcoin::base64::prelude::{Engine as _, BASE64_STANDARD};

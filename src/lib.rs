@@ -31,16 +31,24 @@ pub extern crate bitcoin;
 /// Re-export of secp256k1-zkp crate
 pub extern crate secp256k1_zkp;
 /// Re-export of serde crate
-#[cfg(feature = "serde")] #[macro_use] pub extern crate actual_serde as serde;
-#[cfg(all(test, feature = "serde"))] extern crate serde_test;
+#[cfg(feature = "serde")]
+#[macro_use]
+pub extern crate actual_serde as serde;
+#[cfg(all(test, feature = "serde"))]
+extern crate serde_test;
 
-#[cfg(test)] extern crate rand;
-#[cfg(test)] extern crate bincode;
-#[cfg(any(test, feature = "serde_json"))] extern crate serde_json;
+#[cfg(test)]
+extern crate bincode;
+#[cfg(test)]
+extern crate rand;
+#[cfg(any(test, feature = "serde_json"))]
+extern crate serde_json;
 
-#[macro_use] mod internal_macros;
+#[macro_use]
+mod internal_macros;
 pub mod address;
 pub mod blech32;
+mod blind;
 mod block;
 pub mod confidential;
 pub mod dynafed;
@@ -49,36 +57,41 @@ mod error;
 mod fast_merkle_root;
 pub mod hash_types;
 pub mod hex;
-pub mod locktime;
 pub mod issuance;
+pub mod locktime;
 pub mod opcodes;
-pub mod script;
-mod transaction;
-mod blind;
 mod parse;
-pub mod sighash;
 pub mod pset;
-pub mod taproot;
 pub mod schnorr;
+pub mod script;
 #[cfg(feature = "serde")]
 mod serde_utils;
+pub mod sighash;
+pub mod taproot;
+mod transaction;
 // consider making upstream public
 mod endian;
 // re-export bitcoin deps which we re-use
 pub use bitcoin::bech32;
 pub use bitcoin::hashes;
 // export everything at the top level so it can be used as `elements::Transaction` etc.
-pub use crate::address::{Address, AddressParams, AddressError};
-pub use crate::transaction::{OutPoint, PeginData, PegoutData, EcdsaSighashType, TxIn, TxOut, TxInWitness, TxOutWitness, Transaction, AssetIssuance};
-pub use crate::transaction::Sequence;
-pub use crate::blind::{ConfidentialTxOutError, TxOutSecrets, SurjectionInput, TxOutError, VerificationError, BlindError, UnblindError, BlindValueProofs, BlindAssetProofs, RangeProofMessage};
-pub use crate::block::{BlockHeader, Block};
+pub use crate::address::{Address, AddressError, AddressParams};
+pub use crate::blind::{
+    BlindAssetProofs, BlindError, BlindValueProofs, ConfidentialTxOutError, RangeProofMessage,
+    SurjectionInput, TxOutError, TxOutSecrets, UnblindError, VerificationError,
+};
 pub use crate::block::ExtData as BlockExtData;
-pub use ::bitcoin::consensus::encode::VarInt;
+pub use crate::block::{Block, BlockHeader};
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;
 pub use crate::issuance::{AssetId, ContractHash};
 pub use crate::locktime::LockTime;
+pub use crate::schnorr::{SchnorrSig, SchnorrSigError};
 pub use crate::script::Script;
 pub use crate::sighash::SchnorrSighashType;
-pub use crate::schnorr::{SchnorrSig, SchnorrSigError};
+pub use crate::transaction::Sequence;
+pub use crate::transaction::{
+    AssetIssuance, EcdsaSighashType, OutPoint, PeginData, PegoutData, Transaction, TxIn,
+    TxInWitness, TxOut, TxOutWitness,
+};
+pub use bitcoin::consensus::encode::VarInt;

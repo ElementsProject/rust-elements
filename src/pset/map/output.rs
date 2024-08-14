@@ -25,7 +25,7 @@ use crate::pset::Error;
 use crate::{confidential, pset};
 use crate::{encode, Script, TxOutWitness};
 use bitcoin::bip32::KeySource;
-use bitcoin::{PublicKey, key::XOnlyPublicKey};
+use bitcoin::{key::XOnlyPublicKey, PublicKey};
 use secp256k1_zkp::{self, Generator, RangeProof, SurjectionProof};
 
 use crate::issuance;
@@ -87,7 +87,11 @@ const PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF: u8 = 0x0a;
 /// A key-value map for an output of the corresponding index in the unsigned
 /// transaction.
 #[derive(Clone, Default, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct Output {
     /// The redeem script for this output.
     pub redeem_script: Option<Script>,
@@ -146,7 +150,11 @@ pub struct Output {
 
 /// Taproot Tree representing a finalized [`TaprootBuilder`] (a complete binary tree)
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct TapTree(pub(crate) TaprootBuilder);
 
 impl PartialEq for TapTree {
@@ -378,9 +386,7 @@ impl Map for Output {
                             Entry::Vacant(empty_key) => {
                                 empty_key.insert(raw_value);
                             }
-                            Entry::Occupied(_) => {
-                                return Err(Error::DuplicateKey(raw_key).into())
-                            }
+                            Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
                         },
                     }
                 } else {
@@ -388,9 +394,7 @@ impl Map for Output {
                         Entry::Vacant(empty_key) => {
                             empty_key.insert(raw_value);
                         }
-                        Entry::Occupied(_) => {
-                            return Err(Error::DuplicateKey(raw_key).into())
-                        }
+                        Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
                     }
                 }
             }

@@ -19,15 +19,20 @@
 
 use crate::hashes::{sha256d, Hash};
 use crate::hex;
-use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
-    PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
-    compute_adaptive_blinding_factor,
-    rand::{CryptoRng, Rng, RngCore}
+use secp256k1_zkp::{
+    self, compute_adaptive_blinding_factor,
+    rand::{CryptoRng, Rng, RngCore},
+    CommitmentSecrets, Generator, PedersenCommitment, PublicKey, Secp256k1, SecretKey, Signing,
+    Tweak, ZERO_TWEAK,
 };
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use std::{fmt, io, ops::{AddAssign, Neg}, str};
+use std::{
+    fmt, io,
+    ops::{AddAssign, Neg},
+    str,
+};
 
 use crate::encode::{self, Decodable, Encodable};
 use crate::issuance::AssetId;
@@ -194,7 +199,7 @@ impl Serialize for Value {
 
         let seq_len = match *self {
             Value::Null => 1,
-            Value::Explicit(_) | Value::Confidential(_) => 2
+            Value::Explicit(_) | Value::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
@@ -230,18 +235,14 @@ impl<'de> Deserialize<'de> for Value {
                 let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Value::Null),
-                    Some(1) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Value::Explicit(u64::swap_bytes(x))),
-                            None => Err(A::Error::custom("missing explicit value")),
-                        }
-                    }
-                    Some(2) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Value::Confidential(x)),
-                            None => Err(A::Error::custom("missing pedersen commitment")),
-                        }
-                    }
+                    Some(1) => match access.next_element()? {
+                        Some(x) => Ok(Value::Explicit(u64::swap_bytes(x))),
+                        None => Err(A::Error::custom("missing explicit value")),
+                    },
+                    Some(2) => match access.next_element()? {
+                        Some(x) => Ok(Value::Confidential(x)),
+                        None => Err(A::Error::custom("missing pedersen commitment")),
+                    },
                     _ => Err(A::Error::custom("wrong or missing prefix")),
                 }
             }
@@ -328,7 +329,7 @@ impl Asset {
     /// Returns [`None`] is the asset is [`Asset::Null`]
     /// Converts a explicit asset into a generator and returns the confidential
     /// generator as is.
-    pub fn into_asset_gen<C: secp256k1_zkp::Signing> (
+    pub fn into_asset_gen<C: secp256k1_zkp::Signing>(
         self,
         secp: &Secp256k1<C>,
     ) -> Option<Generator> {
@@ -336,9 +337,7 @@ impl Asset {
             // Only error is Null error which is dealt with later
             // when we have more context information about it.
             Asset::Null => None,
-            Asset::Explicit(x) => {
-                Some(Generator::new_unblinded(secp, x.into_tag()))
-            }
+            Asset::Explicit(x) => Some(Generator::new_unblinded(secp, x.into_tag())),
             Asset::Confidential(gen) => Some(gen),
         }
     }
@@ -366,7 +365,6 @@ impl Default for Asset {
     }
 }
 
-
 impl Encodable for Asset {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
         match *self {
@@ -375,7 +373,7 @@ impl Encodable for Asset {
                 1u8.consensus_encode(&mut s)?;
                 Ok(1 + n.consensus_encode(&mut s)?)
             }
-            Asset::Confidential(generator) => generator.consensus_encode(&mut s)
+            Asset::Confidential(generator) => generator.consensus_encode(&mut s),
         }
     }
 }
@@ -415,7 +413,6 @@ impl Decodable for Generator {
     }
 }
 
-
 #[cfg(feature = "serde")]
 impl Serialize for Asset {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
@@ -423,7 +420,7 @@ impl Serialize for Asset {
 
         let seq_len = match *self {
             Asset::Null => 1,
-            Asset::Explicit(_) | Asset::Confidential(_) => 2
+            Asset::Explicit(_) | Asset::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
@@ -459,18 +456,14 @@ impl<'de> Deserialize<'de> for Asset {
                 let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Asset::Null),
-                    Some(1) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Asset::Explicit(x)),
-                            None => Err(A::Error::custom("missing explicit asset")),
-                        }
-                    }
-                    Some(2) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Asset::Confidential(x)),
-                            None => Err(A::Error::custom("missing generator")),
-                        }
-                    }
+                    Some(1) => match access.next_element()? {
+                        Some(x) => Ok(Asset::Explicit(x)),
+                        None => Err(A::Error::custom("missing explicit asset")),
+                    },
+                    Some(2) => match access.next_element()? {
+                        Some(x) => Ok(Asset::Confidential(x)),
+                        None => Err(A::Error::custom("missing generator")),
+                    },
                     _ => Err(A::Error::custom("wrong or missing prefix")),
                 }
             }
@@ -509,7 +502,7 @@ impl Nonce {
     pub fn with_ephemeral_sk<C: Signing>(
         secp: &Secp256k1<C>,
         ephemeral_sk: SecretKey,
-        receiver_blinding_pk: &PublicKey
+        receiver_blinding_pk: &PublicKey,
     ) -> (Self, SecretKey) {
         let sender_pk = PublicKey::from_secret_key(secp, &ephemeral_sk);
         let shared_secret = Self::make_shared_secret(receiver_blinding_pk, &ephemeral_sk);
@@ -679,7 +672,7 @@ impl Serialize for Nonce {
 
         let seq_len = match *self {
             Nonce::Null => 1,
-            Nonce::Explicit(_) | Nonce::Confidential(_) => 2
+            Nonce::Explicit(_) | Nonce::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
@@ -715,19 +708,15 @@ impl<'de> Deserialize<'de> for Nonce {
                 let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Nonce::Null),
-                    Some(1) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Nonce::Explicit(x)),
-                            None => Err(A::Error::custom("missing explicit nonce")),
-                        }
-                    }
-                    Some(2) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Nonce::Confidential(x)),
-                            None => Err(A::Error::custom("missing nonce")),
-                        }
-                    }
-                    _ => Err(A::Error::custom("wrong or missing prefix"))
+                    Some(1) => match access.next_element()? {
+                        Some(x) => Ok(Nonce::Explicit(x)),
+                        None => Err(A::Error::custom("missing explicit nonce")),
+                    },
+                    Some(2) => match access.next_element()? {
+                        Some(x) => Ok(Nonce::Confidential(x)),
+                        None => Err(A::Error::custom("missing nonce")),
+                    },
+                    _ => Err(A::Error::custom("wrong or missing prefix")),
                 }
             }
         }
@@ -764,15 +753,13 @@ impl AssetBlindingFactor {
 
 impl hex::FromHex for AssetBlindingFactor {
     fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
-        where I: Iterator<Item=Result<u8, hex::Error>> +
-            ExactSizeIterator +
-            DoubleEndedIterator
+    where
+        I: Iterator<Item = Result<u8, hex::Error>> + ExactSizeIterator + DoubleEndedIterator,
     {
         let slice = <[u8; 32]>::from_byte_iter(iter.rev())?;
         // Incorrect Return Error
         // See: https://github.com/rust-bitcoin/bitcoin_hashes/issues/124
-        let inner = Tweak::from_inner(slice)
-            .map_err(|_e| hex::Error::InvalidChar(0))?;
+        let inner = Tweak::from_inner(slice).map_err(|_e| hex::Error::InvalidChar(0))?;
         Ok(AssetBlindingFactor(inner))
     }
 }
@@ -945,8 +932,11 @@ impl AddAssign for ValueBlindingFactor {
             // is when the keys add up to zero since we have already checked
             // keys are in valid secret keys
             match sk.add_tweak(&sk2.into()) {
-                Ok(sk_tweaked) => *self = ValueBlindingFactor::from_slice(sk_tweaked.as_ref()).expect("Valid Tweak"),
-                Err(_) =>  *self = Self::zero(),
+                Ok(sk_tweaked) => {
+                    *self =
+                        ValueBlindingFactor::from_slice(sk_tweaked.as_ref()).expect("Valid Tweak")
+                }
+                Err(_) => *self = Self::zero(),
             }
         }
     }
@@ -959,7 +949,9 @@ impl Neg for ValueBlindingFactor {
         if self.0.as_ref() == &[0u8; 32] {
             self
         } else {
-            let sk = SecretKey::from_slice(self.into_inner().as_ref()).expect("Valid key").negate();
+            let sk = SecretKey::from_slice(self.into_inner().as_ref())
+                .expect("Valid key")
+                .negate();
             ValueBlindingFactor::from_slice(sk.as_ref()).expect("Valid Tweak")
         }
     }
@@ -967,15 +959,13 @@ impl Neg for ValueBlindingFactor {
 
 impl hex::FromHex for ValueBlindingFactor {
     fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
-        where I: Iterator<Item=Result<u8, hex::Error>> +
-            ExactSizeIterator +
-            DoubleEndedIterator
+    where
+        I: Iterator<Item = Result<u8, hex::Error>> + ExactSizeIterator + DoubleEndedIterator,
     {
         let slice = <[u8; 32]>::from_byte_iter(iter.rev())?;
         // Incorrect Return Error
         // See: https://github.com/rust-bitcoin/bitcoin_hashes/issues/124
-        let inner = Tweak::from_inner(slice)
-            .map_err(|_e| hex::Error::InvalidChar(0))?;
+        let inner = Tweak::from_inner(slice).map_err(|_e| hex::Error::InvalidChar(0))?;
         Ok(ValueBlindingFactor(inner))
     }
 }
@@ -1121,7 +1111,9 @@ mod tests {
 
         let assets = [
             Asset::Null,
-            Asset::Explicit(AssetId::from_inner(sha256::Midstate::from_byte_array([0; 32]))),
+            Asset::Explicit(AssetId::from_inner(sha256::Midstate::from_byte_array(
+                [0; 32],
+            ))),
             Asset::from_commitment(&[
                 0x0a, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                 1, 1, 1, 1, 1, 1,
@@ -1183,50 +1175,41 @@ mod tests {
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
                 Token::U64(63601271583539200),
-                Token::SeqEnd
-            ]
+                Token::SeqEnd,
+            ],
         );
 
         let value = Value::from_commitment(&[
-            0x08,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        ]).unwrap();
+            0x08, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
+        ])
+        .unwrap();
         assert_tokens(
             &value.readable(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Str(
-                    "080101010101010101010101010101010101010101010101010101010101010101"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("080101010101010101010101010101010101010101010101010101010101010101"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &value.compact(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Bytes(
-                    &[
-                        8,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-                    ]
-                ),
-                Token::SeqEnd
-            ]
+                Token::Bytes(&[
+                    8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1,
+                ]),
+                Token::SeqEnd,
+            ],
         );
 
         let value = Value::Null;
         assert_tokens(
             &value,
-            &[
-                Token::Seq { len: Some(1) },
-                Token::U8(0),
-                Token::SeqEnd
-            ]
+            &[Token::Seq { len: Some(1) }, Token::U8(0), Token::SeqEnd],
         );
     }
 
@@ -1235,76 +1218,63 @@ mod tests {
     fn asset_serde() {
         use serde_test::{assert_tokens, Configure, Token};
 
-        let asset_id = AssetId::from_str(
-            "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
-        ).unwrap();
+        let asset_id =
+            AssetId::from_str("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8")
+                .unwrap();
         let asset = Asset::Explicit(asset_id);
         assert_tokens(
             &asset.readable(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
-                Token::Str(
-                    "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &asset.compact(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
-                Token::Bytes(
-                    &[
-                        248, 11, 176, 3, 143, 72, 34, 67, 32, 47, 11, 45, 207, 136, 217, 180,
-                        231, 249, 48, 164, 138, 63, 205, 192, 3, 175, 118, 177, 249, 214, 14, 99
-                    ]
-                ),
-                Token::SeqEnd
-            ]
+                Token::Bytes(&[
+                    248, 11, 176, 3, 143, 72, 34, 67, 32, 47, 11, 45, 207, 136, 217, 180, 231, 249,
+                    48, 164, 138, 63, 205, 192, 3, 175, 118, 177, 249, 214, 14, 99,
+                ]),
+                Token::SeqEnd,
+            ],
         );
 
         let asset = Asset::from_commitment(&[
-            0x0a,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        ]).unwrap();
+            0x0a, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
+        ])
+        .unwrap();
         assert_tokens(
             &asset.readable(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Str(
-                    "0a0101010101010101010101010101010101010101010101010101010101010101"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("0a0101010101010101010101010101010101010101010101010101010101010101"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &asset.compact(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Bytes(
-                    &[
-                        10,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-                    ]
-                ),
-                Token::SeqEnd
-            ]
+                Token::Bytes(&[
+                    10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                    1, 1, 1, 1, 1, 1, 1,
+                ]),
+                Token::SeqEnd,
+            ],
         );
 
         let asset = Asset::Null;
         assert_tokens(
             &asset,
-            &[
-                Token::Seq { len: Some(1) },
-                Token::U8(0),
-                Token::SeqEnd
-            ]
+            &[Token::Seq { len: Some(1) }, Token::U8(0), Token::SeqEnd],
         );
     }
 
@@ -1314,8 +1284,8 @@ mod tests {
         use serde_test::{assert_tokens, Configure, Token};
 
         let nonce = Nonce::Explicit([
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1,
         ]);
         assert_tokens(
             &nonce,
@@ -1323,34 +1293,56 @@ mod tests {
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
                 Token::Tuple { len: 32 },
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
                 Token::TupleEnd,
-                Token::SeqEnd
-            ]
+                Token::SeqEnd,
+            ],
         );
 
         let nonce = Nonce::from_commitment(&[
-            0x02,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        ]).unwrap();
+            0x02, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            1, 1, 1, 1, 1,
+        ])
+        .unwrap();
         assert_tokens(
             &nonce.readable(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Str(
-                    "020101010101010101010101010101010101010101010101010101010101010101"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("020101010101010101010101010101010101010101010101010101010101010101"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &nonce.compact(),
@@ -1358,28 +1350,48 @@ mod tests {
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
                 Token::Tuple { len: 33 },
-                Token::U8(2), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
-                Token::U8(1), Token::U8(1), Token::U8(1), Token::U8(1),
+                Token::U8(2),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
+                Token::U8(1),
                 Token::U8(1),
                 Token::TupleEnd,
-                Token::SeqEnd
-            ]
+                Token::SeqEnd,
+            ],
         );
 
         let nonce = Nonce::Null;
         assert_tokens(
             &nonce,
-            &[
-                Token::Seq { len: Some(1) },
-                Token::U8(0),
-                Token::SeqEnd
-            ]
+            &[Token::Seq { len: Some(1) }, Token::U8(0), Token::SeqEnd],
         );
     }
 
@@ -1394,14 +1406,20 @@ mod tests {
         let abf_from_serde: AssetBlindingFactor = serde_json::from_str(&abf_str_quoted).unwrap();
         let abf_from_str = AssetBlindingFactor::from_str(abf_str).unwrap();
         assert_eq!(abf_from_serde, abf_from_str);
-        assert_eq!(abf_str_quoted, serde_json::to_string(&abf_from_serde).unwrap());
+        assert_eq!(
+            abf_str_quoted,
+            serde_json::to_string(&abf_from_serde).unwrap()
+        );
 
         let vbf_str = "e36a4de359469f547571d117bc5509fb74fba73c84b0cdd6f4edfa7ff7fa457d";
         let vbf_str_quoted = format!("\"{}\"", vbf_str);
         let vbf_from_serde: ValueBlindingFactor = serde_json::from_str(&vbf_str_quoted).unwrap();
         let vbf_from_str = ValueBlindingFactor::from_str(vbf_str).unwrap();
         assert_eq!(vbf_from_serde, vbf_from_str);
-        assert_eq!(vbf_str_quoted, serde_json::to_string(&vbf_from_serde).unwrap());
+        assert_eq!(
+            vbf_str_quoted,
+            serde_json::to_string(&vbf_from_serde).unwrap()
+        );
     }
 
     #[cfg(feature = "serde")]

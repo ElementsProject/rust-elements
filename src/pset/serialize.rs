@@ -23,16 +23,16 @@ use std::io;
 use crate::confidential::{self, AssetBlindingFactor};
 use crate::encode::{self, deserialize, deserialize_partial, serialize, Decodable, Encodable};
 use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
-use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
 use crate::hex::ToHex;
+use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
 use bitcoin::bip32::{ChildNumber, Fingerprint, KeySource};
 use bitcoin::{self, VarInt};
-use bitcoin::{PublicKey, key::XOnlyPublicKey};
+use bitcoin::{key::XOnlyPublicKey, PublicKey};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use super::map::{PsbtSighashType, TapTree};
 use crate::schnorr;
-use crate::taproot::{ControlBlock, LeafVersion, TapNodeHash, TapLeafHash};
+use crate::taproot::{ControlBlock, LeafVersion, TapLeafHash, TapNodeHash};
 
 use crate::sighash::SchnorrSighashType;
 use crate::taproot::TaprootBuilder;
@@ -105,7 +105,8 @@ impl Serialize for AssetBlindingFactor {
 impl Deserialize for AssetBlindingFactor {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         let x = deserialize::<[u8; 32]>(bytes)?;
-        AssetBlindingFactor::from_slice(&x).map_err(|_| encode::Error::ParseFailed("invalid AssetBlindingFactor"))
+        AssetBlindingFactor::from_slice(&x)
+            .map_err(|_| encode::Error::ParseFailed("invalid AssetBlindingFactor"))
     }
 }
 

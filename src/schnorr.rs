@@ -98,7 +98,6 @@ impl TapTweak for UntweakedPublicKey {
         (TweakedPublicKey(output_key), parity)
     }
 
-
     fn dangerous_assume_tweaked(self) -> TweakedPublicKey {
         TweakedPublicKey(self)
     }
@@ -121,10 +120,16 @@ impl TapTweak for UntweakedKeypair {
     ///
     /// # Returns
     /// The tweaked key and its parity.
-    fn tap_tweak<C: Verification>(self, secp: &Secp256k1<C>, merkle_root: Option<TapNodeHash>) -> TweakedKeypair {
+    fn tap_tweak<C: Verification>(
+        self,
+        secp: &Secp256k1<C>,
+        merkle_root: Option<TapNodeHash>,
+    ) -> TweakedKeypair {
         let (pubkey, _parity) = XOnlyPublicKey::from_keypair(&self);
         let tweak = TapTweakHash::from_key_and_tweak(pubkey, merkle_root).to_scalar();
-        let tweaked = self.add_xonly_tweak(secp, &tweak).expect("Tap tweak failed");
+        let tweaked = self
+            .add_xonly_tweak(secp, &tweak)
+            .expect("Tap tweak failed");
         TweakedKeypair(tweaked)
     }
 
@@ -205,7 +210,11 @@ impl From<TweakedKeypair> for TweakedPublicKey {
 
 /// A BIP340-341 serialized schnorr signature with the corresponding hash type.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct SchnorrSig {
     /// The underlying schnorr signature
     pub sig: secp256k1_zkp::schnorr::Signature,
@@ -214,17 +223,18 @@ pub struct SchnorrSig {
 }
 
 impl SchnorrSig {
-
     /// Deserialize from slice
     pub fn from_slice(sl: &[u8]) -> Result<Self, SchnorrSigError> {
         if sl.len() == SCHNORR_SIGNATURE_SIZE {
             // default type
             let sig = secp256k1_zkp::schnorr::Signature::from_slice(sl)
                 .map_err(|_| SchnorrSigError::InvalidSchnorrSig)?;
-            return Ok( SchnorrSig { sig, hash_ty : SchnorrSighashType::Default });
+            return Ok(SchnorrSig {
+                sig,
+                hash_ty: SchnorrSighashType::Default,
+            });
         }
-        let (hash_ty, sig) = sl.split_last()
-            .ok_or(SchnorrSigError::InvalidSchnorrSig)?;
+        let (hash_ty, sig) = sl.split_last().ok_or(SchnorrSigError::InvalidSchnorrSig)?;
         let hash_ty = SchnorrSighashType::from_u8(*hash_ty)
             .ok_or(SchnorrSigError::InvalidSighashType(*hash_ty))?;
         let sig = secp256k1_zkp::schnorr::Signature::from_slice(sig)
@@ -243,7 +253,6 @@ impl SchnorrSig {
         }
         ser_sig
     }
-
 }
 
 /// A schnorr sig related error.
@@ -255,12 +264,12 @@ pub enum SchnorrSigError {
     InvalidSchnorrSig,
 }
 
-
 impl fmt::Display for SchnorrSigError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            SchnorrSigError::InvalidSighashType(hash_ty) =>
-                write!(f, "Invalid signature hash type {}", hash_ty),
+            SchnorrSigError::InvalidSighashType(hash_ty) => {
+                write!(f, "Invalid signature hash type {}", hash_ty)
+            }
             SchnorrSigError::InvalidSchnorrSig => write!(f, "Cannot parse Schnorr Signature"),
         }
     }

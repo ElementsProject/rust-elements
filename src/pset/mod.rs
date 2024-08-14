@@ -26,11 +26,11 @@ use std::{cmp, io};
 mod error;
 #[macro_use]
 mod macros;
+pub mod elip100;
+pub mod elip_liquidex;
 mod map;
 pub mod raw;
 pub mod serialize;
-pub mod elip100;
-pub mod elip_liquidex;
 
 #[cfg(feature = "base64")]
 mod str;
@@ -46,7 +46,10 @@ use crate::{
     confidential::{AssetBlindingFactor, ValueBlindingFactor},
     TxOutSecrets,
 };
-use crate::{OutPoint, LockTime, Sequence, SurjectionInput, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness, Txid};
+use crate::{
+    LockTime, OutPoint, Sequence, SurjectionInput, Transaction, TxIn, TxInWitness, TxOut,
+    TxOutWitness, Txid,
+};
 use secp256k1_zkp::rand::{CryptoRng, RngCore};
 use secp256k1_zkp::{self, RangeProof, SecretKey, SurjectionProof};
 
@@ -56,7 +59,11 @@ pub use self::map::{Global, GlobalTxData, Input, Output, PsbtSighashType, TapTre
 
 /// A Partially Signed Transaction.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct PartiallySignedTransaction {
     /// The key-value pairs for all global data.
     pub global: Global,
@@ -89,12 +96,12 @@ impl PartiallySignedTransaction {
         };
 
         let inputs = tx.input.into_iter().map(Input::from_txin).collect();
-        let outputs = tx
-            .output
-            .into_iter()
-            .map(Output::from_txout)
-            .collect();
-        Self { global, inputs, outputs }
+        let outputs = tx.output.into_iter().map(Output::from_txout).collect();
+        Self {
+            global,
+            inputs,
+            outputs,
+        }
     }
     /// Create a PartiallySignedTransaction with zero inputs
     /// zero outputs with a version 2 and tx version 2
@@ -235,9 +242,9 @@ impl PartiallySignedTransaction {
                 }
 
                 match (time_locktime, height_locktime) {
-                    (Locktime::Unconstrained, Locktime::Unconstrained) => {
-                        Ok(fallback_locktime.map(LockTime::from).unwrap_or(LockTime::ZERO))
-                    }
+                    (Locktime::Unconstrained, Locktime::Unconstrained) => Ok(fallback_locktime
+                        .map(LockTime::from)
+                        .unwrap_or(LockTime::ZERO)),
                     (Locktime::Minimum(x), _) => Ok(x.into()),
                     (_, Locktime::Minimum(x)) => Ok(x.into()),
                     (Locktime::Disallowed, Locktime::Disallowed) => Err(Error::LocktimeConflict),
@@ -763,7 +770,11 @@ impl Decodable for PartiallySignedTransaction {
             outputs
         };
 
-        let pset = PartiallySignedTransaction { global, inputs, outputs };
+        let pset = PartiallySignedTransaction {
+            global,
+            inputs,
+            outputs,
+        };
         pset.sanity_check()?;
         Ok(pset)
     }
@@ -980,24 +991,37 @@ mod tests {
 
     #[test]
     fn pset_issuance() {
-        use std::str::FromStr;
         use rand::{self, SeedableRng};
+        use std::str::FromStr;
         let secp = secp256k1_zkp::Secp256k1::new();
         #[allow(deprecated)]
         let mut rng = rand::rngs::StdRng::seed_from_u64(0);
 
-        let policy = crate::AssetId::from_str("5ac9f65c0efcc4775e0baec4ec03abdde22473cd3cf33c0419ca290e0751b225").unwrap();
-        let pk = bitcoin::key::PublicKey::from_str("020202020202020202020202020202020202020202020202020202020202020202").unwrap();
-        let script = crate::Script::from_hex("0014d2bcde17e7744f6377466ca1bd35d212954674c8").unwrap();
+        let policy = crate::AssetId::from_str(
+            "5ac9f65c0efcc4775e0baec4ec03abdde22473cd3cf33c0419ca290e0751b225",
+        )
+        .unwrap();
+        let pk = bitcoin::key::PublicKey::from_str(
+            "020202020202020202020202020202020202020202020202020202020202020202",
+        )
+        .unwrap();
+        let script =
+            crate::Script::from_hex("0014d2bcde17e7744f6377466ca1bd35d212954674c8").unwrap();
         let sats_in = 10000;
         let sats_fee = 1000;
         let btc_txout_secrets = TxOutSecrets {
-            asset_bf: AssetBlindingFactor::from_str("1111111111111111111111111111111111111111111111111111111111111111").unwrap(),
-            value_bf: ValueBlindingFactor::from_str("2222222222222222222222222222222222222222222222222222222222222222").unwrap(),
+            asset_bf: AssetBlindingFactor::from_str(
+                "1111111111111111111111111111111111111111111111111111111111111111",
+            )
+            .unwrap(),
+            value_bf: ValueBlindingFactor::from_str(
+                "2222222222222222222222222222222222222222222222222222222222222222",
+            )
+            .unwrap(),
             value: sats_in,
             asset: policy,
         };
-        let previous_output = TxOut::default();  // Does not match btc_txout_secrets
+        let previous_output = TxOut::default(); // Does not match btc_txout_secrets
         let prevout = OutPoint::default();
         let sats_asset = 10;
         let sats_token = 1;
@@ -1029,12 +1053,16 @@ mod tests {
         let mut inp_txout_sec = HashMap::new();
         inp_txout_sec.insert(0, btc_txout_secrets);
 
-        let err = pset.blind_last(&mut rng, &secp, &inp_txout_sec).unwrap_err();
+        let err = pset
+            .blind_last(&mut rng, &secp, &inp_txout_sec)
+            .unwrap_err();
         assert_eq!(err, PsetBlindError::BlindingIssuanceUnsupported(0));
 
         let input = &mut pset.inputs_mut()[0];
         input.blinded_issuance = Some(0x01);
-        let err = pset.blind_last(&mut rng, &secp, &inp_txout_sec).unwrap_err();
+        let err = pset
+            .blind_last(&mut rng, &secp, &inp_txout_sec)
+            .unwrap_err();
         assert_eq!(err, PsetBlindError::BlindingIssuanceUnsupported(0));
 
         let input = &mut pset.inputs_mut()[0];

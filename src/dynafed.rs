@@ -17,12 +17,12 @@
 use std::{fmt, io};
 
 #[cfg(feature = "serde")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(feature = "serde")]
 use serde::ser::{SerializeSeq, SerializeStruct};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::encode::{self, Encodable, Decodable};
-use crate::hashes::{Hash, sha256, sha256d};
+use crate::encode::{self, Decodable, Encodable};
+use crate::hashes::{sha256, sha256d, Hash};
 use crate::Script;
 
 /// ad-hoc struct to fmt in hex
@@ -119,7 +119,8 @@ impl FullParams {
     fn extra_root(&self) -> sha256::Midstate {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
             let mut engine = sha256d::Hash::engine();
-            obj.consensus_encode(&mut engine).expect("engines don't error");
+            obj.consensus_encode(&mut engine)
+                .expect("engines don't error");
             sha256d::Hash::from_engine(engine)
         }
 
@@ -135,7 +136,8 @@ impl FullParams {
     pub fn calculate_root(&self) -> sha256::Midstate {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
             let mut engine = sha256d::Hash::engine();
-            obj.consensus_encode(&mut engine).expect("engines don't error");
+            obj.consensus_encode(&mut engine)
+                .expect("engines don't error");
             sha256d::Hash::from_engine(engine)
         }
 
@@ -173,7 +175,6 @@ impl FullParams {
         s.finish()
     }
 
-
     #[cfg(feature = "serde")]
     fn serde_serialize<S: Serializer>(&self, s: S, name: &'static str) -> Result<S::Ok, S::Error> {
         let mut st = s.serialize_struct(name, 5)?;
@@ -194,11 +195,11 @@ impl fmt::Debug for FullParams {
 
 impl Encodable for FullParams {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
-        let ret = Encodable::consensus_encode(&self.signblockscript, &mut s)? +
-            Encodable::consensus_encode(&self.signblock_witness_limit, &mut s)? +
-            Encodable::consensus_encode(&self.fedpeg_program, &mut s)? +
-            Encodable::consensus_encode(&self.fedpegscript, &mut s)? +
-            Encodable::consensus_encode(&self.extension_space, &mut s)?;
+        let ret = Encodable::consensus_encode(&self.signblockscript, &mut s)?
+            + Encodable::consensus_encode(&self.signblock_witness_limit, &mut s)?
+            + Encodable::consensus_encode(&self.fedpeg_program, &mut s)?
+            + Encodable::consensus_encode(&self.fedpegscript, &mut s)?
+            + Encodable::consensus_encode(&self.extension_space, &mut s)?;
         Ok(ret)
     }
 }
@@ -239,7 +240,11 @@ impl fmt::Debug for Params {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Params::Null => write!(f, "Null"),
-            Params::Compact { signblockscript, signblock_witness_limit, elided_root } => {
+            Params::Compact {
+                signblockscript,
+                signblock_witness_limit,
+                elided_root,
+            } => {
                 let mut s = f.debug_struct("Compact");
                 s.field("signblockscript", &HexBytes(&signblockscript[..]));
                 s.field("signblock_witness_limit", signblock_witness_limit);
@@ -283,7 +288,10 @@ impl Params {
     pub fn signblockscript(&self) -> Option<&Script> {
         match *self {
             Params::Null => None,
-            Params::Compact { ref signblockscript, ..} => Some(signblockscript),
+            Params::Compact {
+                ref signblockscript,
+                ..
+            } => Some(signblockscript),
             Params::Full(ref f) => Some(&f.signblockscript),
         }
     }
@@ -292,7 +300,10 @@ impl Params {
     pub fn signblock_witness_limit(&self) -> Option<u32> {
         match *self {
             Params::Null => None,
-            Params::Compact { signblock_witness_limit, ..} => Some(signblock_witness_limit),
+            Params::Compact {
+                signblock_witness_limit,
+                ..
+            } => Some(signblock_witness_limit),
             Params::Full(ref f) => Some(f.signblock_witness_limit),
         }
     }
@@ -328,7 +339,9 @@ impl Params {
     pub fn elided_root(&self) -> Option<&sha256::Midstate> {
         match *self {
             Params::Null => None,
-            Params::Compact { ref elided_root, ..} => Some(elided_root),
+            Params::Compact {
+                ref elided_root, ..
+            } => Some(elided_root),
             Params::Full(..) => None,
         }
     }
@@ -339,7 +352,9 @@ impl Params {
     fn extra_root(&self) -> sha256::Midstate {
         match *self {
             Params::Null => sha256::Midstate::from_byte_array([0u8; 32]),
-            Params::Compact { ref elided_root, .. } => *elided_root,
+            Params::Compact {
+                ref elided_root, ..
+            } => *elided_root,
             Params::Full(ref f) => f.extra_root(),
         }
     }
@@ -348,7 +363,8 @@ impl Params {
     pub fn calculate_root(&self) -> sha256::Midstate {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
             let mut engine = sha256d::Hash::engine();
-            obj.consensus_encode(&mut engine).expect("engines don't error");
+            obj.consensus_encode(&mut engine)
+                .expect("engines don't error");
             sha256d::Hash::from_engine(engine)
         }
 
@@ -480,7 +496,8 @@ impl<'de> Deserialize<'de> for Params {
                                 Ok(HexBytes(v.to_vec()))
                             }
 
-                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error> where
+                            fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
+                            where
                                 A: de::SeqAccess<'de>,
                             {
                                 let mut ret = if let Some(l) = seq.size_hint() {
@@ -511,26 +528,28 @@ impl<'de> Deserialize<'de> for Params {
                     match map.next_key::<Enum>()? {
                         Some(Enum::Unknown) => {
                             map.next_value::<de::IgnoredAny>()?;
-                        },
+                        }
                         Some(Enum::SignblockScript) => {
                             signblockscript = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::SignblockWitnessLimit) => {
                             signblock_witness_limit = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::ElidedRoot) => {
                             elided_root = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::FedpegProgram) => {
                             fedpeg_program = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::FedpegScript) => {
                             fedpegscript = Some(map.next_value()?);
-                        },
+                        }
                         Some(Enum::ExtSpace) => {
                             extension_space = Some(map.next_value()?);
-                        },
-                        None => { break; }
+                        }
+                        None => {
+                            break;
+                        }
                     }
                 }
 
@@ -562,7 +581,7 @@ impl<'de> Deserialize<'de> for Params {
                         Some(elided_root),
                         _,
                         _,
-                        _
+                        _,
                     ) => Ok(Params::Compact {
                         signblockscript,
                         signblock_witness_limit,
@@ -593,7 +612,7 @@ impl Serialize for Params {
             Params::Null => {
                 let st = s.serialize_struct("Params", 0)?;
                 st.end()
-            },
+            }
             Params::Compact {
                 ref signblockscript,
                 ref signblock_witness_limit,
@@ -604,7 +623,7 @@ impl Serialize for Params {
                 st.serialize_field("signblock_witness_limit", signblock_witness_limit)?;
                 st.serialize_field("elided_root", elided_root)?;
                 st.end()
-            },
+            }
             Params::Full(ref full) => full.serde_serialize(s, "Params"),
         }
     }
@@ -619,15 +638,14 @@ impl Encodable for Params {
                 ref signblock_witness_limit,
                 ref elided_root,
             } => {
-                Encodable::consensus_encode(&1u8, &mut s)? +
-                Encodable::consensus_encode(signblockscript, &mut s)? +
-                Encodable::consensus_encode(signblock_witness_limit, &mut s)? +
-                Encodable::consensus_encode(&elided_root.to_byte_array(), &mut s)?
-            },
+                Encodable::consensus_encode(&1u8, &mut s)?
+                    + Encodable::consensus_encode(signblockscript, &mut s)?
+                    + Encodable::consensus_encode(signblock_witness_limit, &mut s)?
+                    + Encodable::consensus_encode(&elided_root.to_byte_array(), &mut s)?
+            }
             Params::Full(ref f) => {
-                Encodable::consensus_encode(&2u8, &mut s)? +
-                Encodable::consensus_encode(f, &mut s)?
-            },
+                Encodable::consensus_encode(&2u8, &mut s)? + Encodable::consensus_encode(f, &mut s)?
+            }
         })
     }
 }
@@ -640,11 +658,13 @@ impl Decodable for Params {
             1 => Ok(Params::Compact {
                 signblockscript: Decodable::consensus_decode(&mut d)?,
                 signblock_witness_limit: Decodable::consensus_decode(&mut d)?,
-                elided_root: sha256::Midstate::from_byte_array(Decodable::consensus_decode(&mut d)?),
+                elided_root: sha256::Midstate::from_byte_array(Decodable::consensus_decode(
+                    &mut d,
+                )?),
             }),
             2 => Ok(Params::Full(Decodable::consensus_decode(&mut d)?)),
             _ => Err(encode::Error::ParseFailed(
-                "bad serialize type for dynafed parameters"
+                "bad serialize type for dynafed parameters",
             )),
         }
     }
@@ -717,7 +737,7 @@ mod tests {
             "8eb1b83cce69a3d8b0bfb7fbe77ae8f1d24b57a9cae047b8c0aba084ad878249"
         );
 
-        let header = crate::block::BlockHeader{
+        let header = crate::block::BlockHeader {
             ext: crate::block::ExtData::Dynafed {
                 current: compact_entry,
                 proposed: full_entry,

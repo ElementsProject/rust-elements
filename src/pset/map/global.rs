@@ -25,7 +25,7 @@ use crate::encode::Decodable;
 use crate::endian::u32_to_array_le;
 use crate::pset::{self, map::Map, raw, Error};
 use crate::{LockTime, VarInt};
-use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub, Fingerprint, KeySource};
+use bitcoin::bip32::{ChildNumber, DerivationPath, Fingerprint, KeySource, Xpub};
 use secp256k1_zkp::Tweak;
 
 // (Not used in pset) Type: Unsigned Transaction PSET_GLOBAL_UNSIGNED_TX = 0x00
@@ -58,7 +58,11 @@ const PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE: u8 = 0x01;
 
 /// Global transaction data
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct TxData {
     /// Transaction version. Must be 2.
     pub version: u32,
@@ -93,7 +97,11 @@ impl Default for TxData {
 
 /// A key-value map for global data.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct Global {
     /// Global transaction data
     #[cfg_attr(feature = "serde", serde(flatten))]
@@ -341,9 +349,10 @@ impl Map for Global {
                         entry.insert((fingerprint1, derivation1));
                         continue;
                     }
-                    return Err(pset::Error::MergeConflict(
-                        format!("global xpub {} has inconsistent key sources", xpub)
-                    ));
+                    return Err(pset::Error::MergeConflict(format!(
+                        "global xpub {} has inconsistent key sources",
+                        xpub
+                    )));
                 }
             }
         }
@@ -369,8 +378,7 @@ impl Decodable for Global {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
         let mut version: Option<u32> = None;
         let mut unknowns: BTreeMap<raw::Key, Vec<u8>> = Default::default();
-        let mut xpub_map: BTreeMap<Xpub, (Fingerprint, DerivationPath)> =
-            Default::default();
+        let mut xpub_map: BTreeMap<Xpub, (Fingerprint, DerivationPath)> = Default::default();
         let mut proprietary = BTreeMap::new();
         let mut scalars = Vec::new();
 
@@ -416,10 +424,11 @@ impl Decodable for Global {
                         }
                         PSET_GLOBAL_XPUB => {
                             if !raw_key.key.is_empty() {
-                                let xpub = Xpub::decode(&raw_key.key)
-                                    .map_err(|_| encode::Error::ParseFailed(
-                                        "Can't deserialize Xpub from global XPUB key data"
-                                    ))?;
+                                let xpub = Xpub::decode(&raw_key.key).map_err(|_| {
+                                    encode::Error::ParseFailed(
+                                        "Can't deserialize Xpub from global XPUB key data",
+                                    )
+                                })?;
 
                                 if raw_value.is_empty() || raw_value.len() % 4 != 0 {
                                     return Err(encode::Error::ParseFailed(

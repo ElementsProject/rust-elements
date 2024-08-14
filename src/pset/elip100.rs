@@ -62,7 +62,7 @@ impl PartiallySignedTransaction {
     pub fn add_token_metadata(
         &mut self,
         token_id: AssetId,
-        token_meta: &TokenMetadata
+        token_meta: &TokenMetadata,
     ) -> Option<Result<TokenMetadata, encode::Error>> {
         let key = prop_key(&token_id, PSBT_ELEMENTS_HWW_GLOBAL_REISSUANCE_TOKEN);
         self.global
@@ -75,7 +75,7 @@ impl PartiallySignedTransaction {
     /// the given `token_id`` in the PSET
     pub fn get_token_metadata(
         &self,
-        token_id: AssetId
+        token_id: AssetId,
     ) -> Option<Result<TokenMetadata, encode::Error>> {
         let key = prop_key(&token_id, PSBT_ELEMENTS_HWW_GLOBAL_REISSUANCE_TOKEN);
 
@@ -114,10 +114,12 @@ fn prop_key(asset_id: &AssetId, keytype: u8) -> ProprietaryKey {
 }
 
 impl AssetMetadata {
-
     /// Create a new [`AssetMetadata`]
     pub fn new(contract: String, issuance_prevout: OutPoint) -> Self {
-        Self { contract, issuance_prevout }
+        Self {
+            contract,
+            issuance_prevout,
+        }
     }
 
     /// Returns the contract as string containing a json
@@ -165,10 +167,12 @@ impl AssetMetadata {
 }
 
 impl TokenMetadata {
-
     /// Create a new [`TokenMetadata`]
     pub fn new(asset_id: AssetId, issuance_blinded: bool) -> Self {
-        Self { asset_id, issuance_blinded }
+        Self {
+            asset_id,
+            issuance_blinded,
+        }
     }
 
     /// Returns the asset_id
@@ -210,7 +214,7 @@ impl TokenMetadata {
 
         Ok(TokenMetadata {
             asset_id,
-            issuance_blinded
+            issuance_blinded,
         })
     }
 }
@@ -231,7 +235,7 @@ mod test {
         AssetId,
     };
 
-    use super::{prop_key, AssetMetadata, PSBT_ELEMENTS_HWW_GLOBAL_ASSET_METADATA, TokenMetadata};
+    use super::{prop_key, AssetMetadata, TokenMetadata, PSBT_ELEMENTS_HWW_GLOBAL_ASSET_METADATA};
 
     #[cfg(feature = "json-contract")]
     const CONTRACT_HASH: &str = "3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82";
@@ -260,7 +264,8 @@ mod test {
     const ELIP0100_ASSET_METADATA_RECORD_VALUE_WRONG: &str = "b47b22656e74697479223a7b22646f6d61696e223a226578616d706c652e636f6d227d2c226973737565725f7075626b6579223a22303334353565653763656463393762306261343335623830303636666339326339363361333463363030333137393831643133353333306334656534336163376133222c226e616d65223a2254657374636f696e222c22707265636973696f6e223a322c227469636b6572223a2254455354222c2276657273696f6e223a307d3514a07cf4812272c24a898c482f587a51126beef8c9b76a9e30bf41b0cbe53c01000000";
 
     const ELIP0100_ASSET_METADATA_RECORD_VALUE: &str = "b47b22656e74697479223a7b22646f6d61696e223a226578616d706c652e636f6d227d2c226973737565725f7075626b6579223a22303334353565653763656463393762306261343335623830303636666339326339363361333463363030333137393831643133353333306334656534336163376133222c226e616d65223a2254657374636f696e222c22707265636973696f6e223a322c227469636b6572223a2254455354222c2276657273696f6e223a307d3ce5cbb041bf309e6ab7c9f8ee6b12517a582f488c894ac2722281f47ca0143501000000";
-    const ELIP0100_TOKEN_METADATA_RECORD_VALUE: &str = "0118befcc6cd9cece63ab0dc323e99fe4aaa59864a0dc913c3fde8342f6235f848";
+    const ELIP0100_TOKEN_METADATA_RECORD_VALUE: &str =
+        "0118befcc6cd9cece63ab0dc323e99fe4aaa59864a0dc913c3fde8342f6235f848";
     fn mockup_asset_metadata() -> (AssetId, AssetMetadata) {
         (
             AssetId::from_str(ASSET_ID).unwrap(),

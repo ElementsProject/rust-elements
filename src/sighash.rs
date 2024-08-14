@@ -19,19 +19,19 @@
 //! signatures, which are placed in the scriptSig.
 //!
 
-use std::borrow::Borrow;
-use crate::encode::{self, Encodable};
-use crate::hash_types::Sighash;
-use crate::hashes::{sha256d, Hash, sha256};
-use crate::script::Script;
-use std::ops::{Deref, DerefMut};
-use std::io;
-use crate::endian;
-use crate::transaction::{EcdsaSighashType, Transaction, TxIn, TxOut, TxInWitness};
 use crate::confidential;
+use crate::encode::{self, Encodable};
+use crate::endian;
+use crate::hash_types::Sighash;
+use crate::hashes::{sha256, sha256d, Hash};
+use crate::script::Script;
+use crate::taproot::{TapLeafHash, TapSighashHash};
+use crate::transaction::{EcdsaSighashType, Transaction, TxIn, TxInWitness, TxOut};
 use crate::Sequence;
+use std::borrow::Borrow;
 use std::fmt;
-use crate::taproot::{TapSighashHash, TapLeafHash};
+use std::io;
+use std::ops::{Deref, DerefMut};
 
 use crate::BlockHash;
 
@@ -88,7 +88,10 @@ struct TaprootCache {
 /// Contains outputs of previous transactions.
 /// In the case [`SchnorrSighashType`] variant is `ANYONECANPAY`, [`Prevouts::One`] may be provided
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Prevouts<'u, T> where T: 'u + Borrow<TxOut> {
+pub enum Prevouts<'u, T>
+where
+    T: 'u + Borrow<TxOut>,
+{
     /// `One` variant allows to provide the single Prevout needed. It's useful for example
     /// when modifier `ANYONECANPAY` is provided, only prevout of the current input is needed.
     /// The first `usize` argument is the input index this [`TxOut`] is referring to.
@@ -167,7 +170,10 @@ impl fmt::Display for Error {
 
 impl ::std::error::Error for Error {}
 
-impl<'u, T> Prevouts<'u, T> where T: Borrow<TxOut> {
+impl<'u, T> Prevouts<'u, T>
+where
+    T: Borrow<TxOut>,
+{
     fn check_all(&self, tx: &Transaction) -> Result<(), Error> {
         if let Prevouts::All(prevouts) = self {
             if prevouts.len() != tx.input.len() {
@@ -219,8 +225,12 @@ impl<'s> ScriptPath<'s> {
     pub fn leaf_hash(&self) -> TapLeafHash {
         let mut enc = TapLeafHash::engine();
 
-        self.leaf_version.consensus_encode(&mut enc).expect("Writing to hash enging should never fail");
-        self.script.consensus_encode(&mut enc).expect("Writing to hash enging should never fail");
+        self.leaf_version
+            .consensus_encode(&mut enc)
+            .expect("Writing to hash enging should never fail");
+        self.script
+            .consensus_encode(&mut enc)
+            .expect("Writing to hash enging should never fail");
 
         TapLeafHash::from_engine(enc)
     }
@@ -342,15 +352,14 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         //      asset_issuance (1-130): (ELEMENTS) asset issuance data if present; otherwise 0x00
         //      asset_issuance_rangeproofs (0-32) : (ELEMENTS) the sha256 of serialization of issuance proofs for this input
         if anyone_can_pay {
-            let txin =
-                &self
-                    .tx
-                    .input
-                    .get(input_index)
-                    .ok_or(Error::IndexOutOfInputsBounds {
-                        index: input_index,
-                        inputs_size: self.tx.input.len(),
-                    })?;
+            let txin = &self
+                .tx
+                .input
+                .get(input_index)
+                .ok_or(Error::IndexOutOfInputsBounds {
+                    index: input_index,
+                    inputs_size: self.tx.input.len(),
+                })?;
             let previous_output = prevouts.get(input_index)?;
             txin.outpoint_flag().consensus_encode(&mut writer)?;
             txin.previous_output.consensus_encode(&mut writer)?;
@@ -360,11 +369,13 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
                 .script_pubkey
                 .consensus_encode(&mut writer)?;
             txin.sequence.consensus_encode(&mut writer)?;
-            if txin.has_issuance(){
+            if txin.has_issuance() {
                 txin.asset_issuance.consensus_encode(&mut writer)?;
                 let mut eng = sha256::Hash::engine();
                 txin.witness.amount_rangeproof.consensus_encode(&mut eng)?;
-                txin.witness.inflation_keys_rangeproof.consensus_encode(&mut eng)?;
+                txin.witness
+                    .inflation_keys_rangeproof
+                    .consensus_encode(&mut eng)?;
                 let sha_single_issuance_rangeproofs = sha256::Hash::from_engine(eng);
                 sha_single_issuance_rangeproofs.consensus_encode(&mut writer)?;
             } else {
@@ -390,13 +401,14 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         //      sha_single_output_witness (32): the sha256 serialization of output witnesses
         if sighash == SchnorrSighashType::Single {
             let mut enc = sha256::Hash::engine();
-            let out = self.tx
-                .output
-                .get(input_index)
-                .ok_or(Error::SingleWithoutCorrespondingOutput {
-                    index: input_index,
-                    outputs_size: self.tx.output.len(),
-                })?;
+            let out =
+                self.tx
+                    .output
+                    .get(input_index)
+                    .ok_or(Error::SingleWithoutCorrespondingOutput {
+                        index: input_index,
+                        outputs_size: self.tx.output.len(),
+                    })?;
             out.consensus_encode(&mut enc)?;
             let hash = sha256::Hash::from_engine(enc);
             hash.consensus_encode(&mut writer)?;
@@ -485,7 +497,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
             None,
             Some((leaf_hash.into(), 0xFFFFFFFF)),
             sighash_type,
-            genesis_hash
+            genesis_hash,
         )?;
         Ok(TapSighashHash::from_engine(enc))
     }
@@ -521,8 +533,13 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
             zero_hash.consensus_encode(&mut writer)?;
         }
 
-        if !anyone_can_pay && sighash != EcdsaSighashType::Single && sighash != EcdsaSighashType::None {
-            self.segwit_cache().sequences.consensus_encode(&mut writer)?;
+        if !anyone_can_pay
+            && sighash != EcdsaSighashType::Single
+            && sighash != EcdsaSighashType::None
+        {
+            self.segwit_cache()
+                .sequences
+                .consensus_encode(&mut writer)?;
         } else {
             zero_hash.consensus_encode(&mut writer)?;
         }
@@ -530,7 +547,9 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         // Elements: Push the hash issuance zero hash as required
         // If required implement for issuance, but not necessary as of now
         if !anyone_can_pay {
-            self.segwit_cache().issuances.consensus_encode(&mut writer)?;
+            self.segwit_cache()
+                .issuances
+                .consensus_encode(&mut writer)?;
         } else {
             zero_hash.consensus_encode(&mut writer)?;
         }
@@ -543,7 +562,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
             script_code.consensus_encode(&mut writer)?;
             value.consensus_encode(&mut writer)?;
             txin.sequence.consensus_encode(&mut writer)?;
-            if txin.has_issuance(){
+            if txin.has_issuance() {
                 txin.asset_issuance.consensus_encode(&mut writer)?;
             }
         }
@@ -578,11 +597,17 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         input_index: usize,
         script_code: &Script,
         value: confidential::Value,
-        sighash_type: EcdsaSighashType
+        sighash_type: EcdsaSighashType,
     ) -> Sighash {
         let mut enc = Sighash::engine();
-        self.encode_segwitv0_signing_data_to(&mut enc, input_index, script_code, value, sighash_type)
-            .expect("engines don't error");
+        self.encode_segwitv0_signing_data_to(
+            &mut enc,
+            input_index,
+            script_code,
+            value,
+            sighash_type,
+        )
+        .expect("engines don't error");
         Sighash::from_engine(enc)
     }
 
@@ -604,16 +629,16 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         script_pubkey: &Script,
         sighash_type: EcdsaSighashType,
     ) -> Result<(), encode::Error> {
-        assert!(input_index < self.tx.input.len());  // Panic on OOB
+        assert!(input_index < self.tx.input.len()); // Panic on OOB
 
         let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
 
         // Special-case sighash_single bug because this is easy enough.
         if sighash == EcdsaSighashType::Single && input_index >= self.tx.output.len() {
-            writer.write_all(&[1, 0, 0, 0, 0, 0, 0, 0,
-                               0, 0, 0, 0, 0, 0, 0, 0,
-                               0, 0, 0, 0, 0, 0, 0, 0,
-                               0, 0, 0, 0, 0, 0, 0, 0])?;
+            writer.write_all(&[
+                1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0,
+            ])?;
             return Ok(());
         }
 
@@ -640,8 +665,19 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
                 tx.input.push(TxIn {
                     previous_output: input.previous_output,
                     is_pegin: input.is_pegin,
-                    script_sig: if n == input_index { script_pubkey.clone() } else { Script::new() },
-                    sequence: if n != input_index && (sighash == EcdsaSighashType::Single || sighash == EcdsaSighashType::None) { Sequence::ZERO } else { input.sequence },
+                    script_sig: if n == input_index {
+                        script_pubkey.clone()
+                    } else {
+                        Script::new()
+                    },
+                    sequence: if n != input_index
+                        && (sighash == EcdsaSighashType::Single
+                            || sighash == EcdsaSighashType::None)
+                    {
+                        Sequence::ZERO
+                    } else {
+                        input.sequence
+                    },
                     asset_issuance: input.asset_issuance,
                     witness: TxInWitness::default(),
                 });
@@ -651,14 +687,23 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         tx.output = match sighash {
             EcdsaSighashType::All => self.tx.output.clone(),
             EcdsaSighashType::Single => {
-                let output_iter = self.tx.output.iter()
-                                      .take(input_index + 1)  // sign all outputs up to and including this one, but erase
-                                      .enumerate()            // all of them except for this one
-                                      .map(|(n, out)| if n == input_index { out.clone() } else { TxOut::default() });
+                let output_iter = self
+                    .tx
+                    .output
+                    .iter()
+                    .take(input_index + 1) // sign all outputs up to and including this one, but erase
+                    .enumerate() // all of them except for this one
+                    .map(|(n, out)| {
+                        if n == input_index {
+                            out.clone()
+                        } else {
+                            TxOut::default()
+                        }
+                    });
                 output_iter.collect()
             }
             EcdsaSighashType::None => vec![],
-            _ => unreachable!()
+            _ => unreachable!(),
         };
         // hash the result
         // cannot encode tx directly because of different consensus encoding
@@ -781,8 +826,16 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
             let mut enc_issuance_rangeproofs = sha256::Hash::engine();
             let mut enc_output_witnesses = sha256::Hash::engine();
             for prevout in prevouts {
-                prevout.borrow().asset.consensus_encode(&mut enc_asset_amounts).unwrap();
-                prevout.borrow().value.consensus_encode(&mut enc_asset_amounts).unwrap();
+                prevout
+                    .borrow()
+                    .asset
+                    .consensus_encode(&mut enc_asset_amounts)
+                    .unwrap();
+                prevout
+                    .borrow()
+                    .value
+                    .consensus_encode(&mut enc_asset_amounts)
+                    .unwrap();
                 prevout
                     .borrow()
                     .script_pubkey
@@ -791,16 +844,27 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
             }
             for inp in tx.input.iter() {
                 inp.outpoint_flag()
-                    .consensus_encode(&mut enc_outpoint_flags).unwrap();
-                inp.witness.amount_rangeproof
-                    .consensus_encode(&mut enc_issuance_rangeproofs).unwrap();
-                inp.witness.inflation_keys_rangeproof
-                    .consensus_encode(&mut enc_issuance_rangeproofs).unwrap();
+                    .consensus_encode(&mut enc_outpoint_flags)
+                    .unwrap();
+                inp.witness
+                    .amount_rangeproof
+                    .consensus_encode(&mut enc_issuance_rangeproofs)
+                    .unwrap();
+                inp.witness
+                    .inflation_keys_rangeproof
+                    .consensus_encode(&mut enc_issuance_rangeproofs)
+                    .unwrap();
             }
 
             for out in tx.output.iter() {
-                out.witness.surjection_proof.consensus_encode(&mut enc_output_witnesses).unwrap();
-                out.witness.rangeproof.consensus_encode(&mut enc_output_witnesses).unwrap();
+                out.witness
+                    .surjection_proof
+                    .consensus_encode(&mut enc_output_witnesses)
+                    .unwrap();
+                out.witness
+                    .rangeproof
+                    .consensus_encode(&mut enc_output_witnesses)
+                    .unwrap();
             }
             TaprootCache {
                 asset_amounts: sha256::Hash::from_engine(enc_asset_amounts),
@@ -836,7 +900,10 @@ impl<R: DerefMut<Target = Transaction>> SighashCache<R> {
     /// }
     /// ```
     pub fn witness_mut(&mut self, input_index: usize) -> Option<&mut Vec<Vec<u8>>> {
-        self.tx.input.get_mut(input_index).map(|i| &mut i.witness.script_witness)
+        self.tx
+            .input
+            .get_mut(input_index)
+            .map(|i| &mut i.witness.script_witness)
     }
 }
 
@@ -959,20 +1026,28 @@ impl std::str::FromStr for SchnorrSighashType {
             "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::NonePlusAnyoneCanPay),
             "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::SinglePlusAnyoneCanPay),
             "SIGHASH_RESERVED" => Ok(SchnorrSighashType::Reserved),
-            _ => Err(SighashTypeParseError{ unrecognized: s.to_owned() }),
+            _ => Err(SighashTypeParseError {
+                unrecognized: s.to_owned(),
+            }),
         }
     }
 }
 
-
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
     use crate::encode::deserialize;
     use crate::hex::FromHex;
     use std::str::FromStr;
 
-    fn test_segwit_sighash(tx: &str, script: &str, input_index: usize, value: &str, hash_type: EcdsaSighashType, expected_result: &str) {
+    fn test_segwit_sighash(
+        tx: &str,
+        script: &str,
+        input_index: usize,
+        value: &str,
+        hash_type: EcdsaSighashType,
+        expected_result: &str,
+    ) {
         let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
@@ -980,13 +1055,14 @@ mod tests{
         let expected_result = Sighash::from_slice(&raw_expected[..]).unwrap();
 
         let mut cache = SighashCache::new(&tx);
-        let value : confidential::Value = deserialize(&Vec::<u8>::from_hex(value).unwrap()[..]).unwrap();
+        let value: confidential::Value =
+            deserialize(&Vec::<u8>::from_hex(value).unwrap()[..]).unwrap();
         let actual_result = cache.segwitv0_sighash(input_index, &script, value, hash_type);
         assert_eq!(actual_result, expected_result);
     }
 
     #[test]
-    fn test_segwit_sighashes(){
+    fn test_segwit_sighashes() {
         // generated by script(example_test.py) at https://github.com/sanket1729/elements/commit/8fb4eb9e6020adaf20f3ec25055ffa905ba5b5c4
         test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::All, "e201b4019129a03ca0304989731c6dccde232c854d86fce999b7411da1e90048");
         test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::None, "bfc6599816673083334ae82ac3459a2d0fef478d3e580e3ae203a28347502cb4");
@@ -1005,8 +1081,13 @@ mod tests{
         test_segwit_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000100000000000003e801000000000000000a0201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, "0850863ad64a87ae8a2fe83c1af1a8403cb53f53e486d8511dad8a04887e5b2352", EcdsaSighashType::All, "ea946ee417d5a16a1038b2c3b54d1b7b12a9f98c0dcb4684bf005eb1c27d0c92");
     }
 
-
-    fn test_legacy_sighash(tx: &str, script: &str, input_index: usize, hash_type: EcdsaSighashType, expected_result: &str) {
+    fn test_legacy_sighash(
+        tx: &str,
+        script: &str,
+        input_index: usize,
+        hash_type: EcdsaSighashType,
+        expected_result: &str,
+    ) {
         let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
         let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
@@ -1018,7 +1099,7 @@ mod tests{
     }
 
     #[test]
-    fn test_legacy_sighashes(){
+    fn test_legacy_sighashes() {
         // generated by script(example_test.py) at https://github.com/sanket1729/elements/commit/5ddfb5a749e85b71c961d29d5689d692ef7cee4b
         test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSighashType::All, "769ad754a77282712895475eb17251bcb8f3cc35dc13406fa1188ef2707556cf");
         test_legacy_sighash("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000", "76a914f54a5851e9372b87810a8e60cdd2e7cfd80b6e3188ac", 0, EcdsaSighashType::None, "b399ca018b4fec7d94e47092b72d25983db2d0d16eaa6a672050add66077ef40");

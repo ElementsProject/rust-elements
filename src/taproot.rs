@@ -14,14 +14,14 @@
 //! Taproot
 //!
 use std::cmp::Reverse;
-use std::{error, io, fmt};
+use std::{error, fmt, io};
 
-use crate::hashes::{sha256, sha256t_hash_newtype, Hash, HashEngine};
-use crate::schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
-use crate::Script;
-use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
-use secp256k1_zkp::{self, Secp256k1, Scalar};
 use crate::encode::Encodable;
+use crate::hashes::{sha256, sha256t_hash_newtype, Hash, HashEngine};
+use crate::schnorr::{TapTweak, TweakedPublicKey, UntweakedPublicKey};
+use crate::Script;
+use secp256k1_zkp::{self, Scalar, Secp256k1};
+use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
 
 // Taproot test vectors from BIP-341 state the hashes without any reversing
 sha256t_hash_newtype! {
@@ -47,7 +47,6 @@ sha256t_hash_newtype! {
 }
 
 impl TapTweakHash {
-
     /// Create a new BIP341 [`TapTweakHash`] from key and tweak
     /// Produces H_taptweak(P||R) where P is internal key and R is the merkle root
     pub fn from_key_and_tweak(
@@ -166,7 +165,10 @@ impl TaprootSpendInfo {
     {
         let mut node_weights = BinaryHeap::<(Reverse<u64>, NodeInfo)>::new();
         for (p, leaf) in script_weights {
-            node_weights.push((Reverse(p as u64), NodeInfo::new_leaf_with_ver(leaf, LeafVersion::default())));
+            node_weights.push((
+                Reverse(p as u64),
+                NodeInfo::new_leaf_with_ver(leaf, LeafVersion::default()),
+            ));
         }
         if node_weights.is_empty() {
             return Err(TaprootBuilderError::IncompleteTree);
@@ -185,7 +187,10 @@ impl TaprootSpendInfo {
         // Every iteration of the loop reduces the node_weights.len() by exactly 1
         // Therefore, the loop will eventually terminate with exactly 1 element
         debug_assert!(node_weights.len() == 1);
-        let node = node_weights.pop().expect("huffman tree algorithm is broken").1;
+        let node = node_weights
+            .pop()
+            .expect("huffman tree algorithm is broken")
+            .1;
         Ok(Self::from_node_info(secp, internal_key, node))
     }
 
@@ -293,7 +298,11 @@ impl TaprootSpendInfo {
 /// branches in a DFS(Depth first search) walk to construct this tree.
 // Similar to Taproot Builder in bitcoin core
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct TaprootBuilder {
     // The following doc-comment is from bitcoin core, but modified for rust
     // The comment below describes the current state of the builder for a given tree.
@@ -345,7 +354,7 @@ impl TaprootBuilder {
         self.branch.len() == 1 && self.branch[0].is_some()
     }
 
-    pub(crate) fn branch(&self) -> &[Option<NodeInfo>]{
+    pub(crate) fn branch(&self) -> &[Option<NodeInfo>] {
         &self.branch
     }
 
@@ -432,8 +441,7 @@ impl TaprootBuilder {
         if self.branch.len() < depth + 1 {
             // add enough nodes so that we can insert node at depth `depth`
             let num_extra_nodes = depth + 1 - self.branch.len();
-            self.branch
-                .extend((0..num_extra_nodes).map(|_| None));
+            self.branch.extend((0..num_extra_nodes).map(|_| None));
         }
         // Push the last node to the branch
         self.branch[depth] = Some(node);
@@ -443,7 +451,11 @@ impl TaprootBuilder {
 
 /// Structure to represent the node information in taproot tree
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct NodeInfo {
     /// Merkle Hash for this node
     pub(crate) hash: sha256::Hash,
@@ -497,7 +509,11 @@ impl NodeInfo {
 
 /// Data Structure to store information about taproot leaf node
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct LeafInfo {
     // The underlying script
     pub(crate) script: Script,
@@ -570,7 +586,11 @@ impl TaprootMerkleBranch {
 
     /// Serialize self as bytes
     pub fn serialize(&self) -> Vec<u8> {
-        self.0.iter().flat_map(|e| e.as_byte_array()).copied().collect::<Vec<u8>>()
+        self.0
+            .iter()
+            .flat_map(|e| e.as_byte_array())
+            .copied()
+            .collect::<Vec<u8>>()
     }
 
     // Internal function to append elements to proof
@@ -601,7 +621,11 @@ impl TaprootMerkleBranch {
 
 /// Control Block data structure used in Tapscript satisfaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct ControlBlock {
     /// The tapleaf version,
     pub leaf_version: LeafVersion,
@@ -664,8 +688,7 @@ impl ControlBlock {
     /// applied when encoding this element as a witness.
     pub fn serialize(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(self.size());
-        self.encode(&mut buf)
-            .expect("writers don't error");
+        self.encode(&mut buf).expect("writers don't error");
         buf
     }
 
@@ -697,7 +720,8 @@ impl ControlBlock {
         }
         // compute the taptweak
         let tweak = TapTweakHash::from_key_and_tweak(self.internal_key, Some(curr_hash));
-        let tweak = Scalar::from_be_bytes(tweak.to_byte_array()).expect("hash value greater than curve order");
+        let tweak = Scalar::from_be_bytes(tweak.to_byte_array())
+            .expect("hash value greater than curve order");
 
         self.internal_key.tweak_add_check(
             secp,
@@ -710,7 +734,11 @@ impl ControlBlock {
 
 /// The leaf version for tapleafs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(
+    feature = "serde",
+    derive(Serialize, Deserialize),
+    serde(crate = "actual_serde")
+)]
 pub struct LeafVersion(u8);
 
 impl Default for LeafVersion {
@@ -849,10 +877,10 @@ impl fmt::Display for TaprootError {
 impl error::Error for TaprootError {}
 
 #[cfg(test)]
-mod tests{
+mod tests {
     use super::*;
-    use crate::hashes::HashEngine;
     use crate::hashes::sha256t::Tag;
+    use crate::hashes::HashEngine;
     use crate::hex::FromHex;
     use std::str::FromStr;
 
@@ -867,10 +895,22 @@ mod tests{
     #[test]
     fn test_midstates() {
         // test that engine creation roundtrips
-        assert_eq!(tag_engine("TapLeaf/elements").midstate(), TapLeafTag::engine().midstate());
-        assert_eq!(tag_engine("TapBranch/elements").midstate(), TapBranchTag::engine().midstate());
-        assert_eq!(tag_engine("TapTweak/elements").midstate(), TapTweakTag::engine().midstate());
-        assert_eq!(tag_engine("TapSighash/elements").midstate(), TapSighashTag::engine().midstate());
+        assert_eq!(
+            tag_engine("TapLeaf/elements").midstate(),
+            TapLeafTag::engine().midstate()
+        );
+        assert_eq!(
+            tag_engine("TapBranch/elements").midstate(),
+            TapBranchTag::engine().midstate()
+        );
+        assert_eq!(
+            tag_engine("TapTweak/elements").midstate(),
+            TapTweakTag::engine().midstate()
+        );
+        assert_eq!(
+            tag_engine("TapSighash/elements").midstate(),
+            TapSighashTag::engine().midstate()
+        );
 
         // check that hash creation is the same as building into the same engine
         fn empty_hash(tag_name: &str) -> [u8; 32] {
@@ -878,16 +918,31 @@ mod tests{
             e.input(&[]);
             sha256::Hash::from_engine(e).to_byte_array()
         }
-        assert_eq!(empty_hash("TapLeaf/elements"), TapLeafHash::hash(&[]).to_byte_array());
-        assert_eq!(empty_hash("TapBranch/elements"), TapNodeHash::hash(&[]).to_byte_array());
-        assert_eq!(empty_hash("TapTweak/elements"), TapTweakHash::hash(&[]).to_byte_array());
-        assert_eq!(empty_hash("TapSighash/elements"), TapSighashHash::hash(&[]).to_byte_array());
+        assert_eq!(
+            empty_hash("TapLeaf/elements"),
+            TapLeafHash::hash(&[]).to_byte_array()
+        );
+        assert_eq!(
+            empty_hash("TapBranch/elements"),
+            TapNodeHash::hash(&[]).to_byte_array()
+        );
+        assert_eq!(
+            empty_hash("TapTweak/elements"),
+            TapTweakHash::hash(&[]).to_byte_array()
+        );
+        assert_eq!(
+            empty_hash("TapSighash/elements"),
+            TapSighashHash::hash(&[]).to_byte_array()
+        );
     }
 
     #[test]
     fn build_huffman_tree() {
         let secp = Secp256k1::verification_only();
-        let internal_key = UntweakedPublicKey::from_str("93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51").unwrap();
+        let internal_key = UntweakedPublicKey::from_str(
+            "93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51",
+        )
+        .unwrap();
 
         let script_weights = vec![
             (10, Script::from_hex("51").unwrap()), // semantics of script don't matter for this test
@@ -896,7 +951,9 @@ mod tests{
             (30, Script::from_hex("54").unwrap()),
             (19, Script::from_hex("55").unwrap()),
         ];
-        let tree_info = TaprootSpendInfo::with_huffman_tree(&secp, internal_key, script_weights.clone()).unwrap();
+        let tree_info =
+            TaprootSpendInfo::with_huffman_tree(&secp, internal_key, script_weights.clone())
+                .unwrap();
 
         /* The resulting tree should put the scripts into a tree similar
          * to the following:
@@ -937,7 +994,10 @@ mod tests{
     #[test]
     fn taptree_builder() {
         let secp = Secp256k1::verification_only();
-        let internal_key = UntweakedPublicKey::from_str("93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51").unwrap();
+        let internal_key = UntweakedPublicKey::from_str(
+            "93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51",
+        )
+        .unwrap();
 
         let builder = TaprootBuilder::new();
         // Create a tree as shown below

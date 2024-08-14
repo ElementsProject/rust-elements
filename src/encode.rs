@@ -21,9 +21,9 @@ use std::{error, fmt, io, mem};
 use bitcoin::consensus::encode as btcenc;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
-use crate::hashes::{Hash, sha256};
-use crate::transaction::{Transaction, TxIn, TxOut};
+use crate::hashes::{sha256, Hash};
 use crate::pset;
+use crate::transaction::{Transaction, TxIn, TxOut};
 
 pub use bitcoin::{self, consensus::encode::MAX_VEC_SIZE};
 
@@ -61,7 +61,7 @@ pub enum Error {
     /// Hex parsing errors
     HexError(crate::hex::Error),
     /// Got a time-based locktime when expecting a height-based one, or vice-versa
-    BadLockTime(crate::LockTime)
+    BadLockTime(crate::LockTime),
 }
 
 impl fmt::Display for Error {
@@ -72,7 +72,11 @@ impl fmt::Display for Error {
             Error::OversizedVectorAllocation {
                 requested: ref r,
                 max: ref m,
-            } => write!(f, "oversized vector allocation: requested {}, maximum {}", r, m),
+            } => write!(
+                f,
+                "oversized vector allocation: requested {}, maximum {}",
+                r, m
+            ),
             Error::ParseFailed(ref e) => write!(f, "parse failed: {}", e),
             Error::UnexpectedEOF => write!(f, "unexpected EOF"),
             Error::InvalidConfidentialPrefix(p) => {
@@ -174,7 +178,9 @@ pub fn deserialize<T: Decodable>(data: &[u8]) -> Result<T, Error> {
     if consumed == data.len() {
         Ok(rv)
     } else {
-        Err(Error::ParseFailed("data not consumed entirely when explicitly deserializing"))
+        Err(Error::ParseFailed(
+            "data not consumed entirely when explicitly deserializing",
+        ))
     }
 }
 
@@ -200,7 +206,10 @@ impl Decodable for sha256::Midstate {
     }
 }
 
-pub(crate) fn consensus_encode_with_size<S: io::Write>(data: &[u8], mut s: S) -> Result<usize, Error> {
+pub(crate) fn consensus_encode_with_size<S: io::Write>(
+    data: &[u8],
+    mut s: S,
+) -> Result<usize, Error> {
     let vi_len = bitcoin::VarInt(data.len() as u64).consensus_encode(&mut s)?;
     s.emit_slice(data)?;
     Ok(vi_len + data.len())
@@ -252,7 +261,6 @@ impl Decodable for crate::locktime::Height {
     }
 }
 
-
 impl Encodable for crate::locktime::Time {
     fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
         crate::LockTime::from(*self).consensus_encode(s)
@@ -266,7 +274,6 @@ impl Decodable for crate::locktime::Time {
         }
     }
 }
-
 
 // Vectors
 macro_rules! impl_vec {
@@ -310,7 +317,6 @@ impl_vec!(TxOut);
 impl_vec!(Transaction);
 impl_vec!(TapLeafHash);
 
-
 macro_rules! impl_box_option {
     ($type: ty) => {
         impl Encodable for Option<Box<$type>> {
@@ -326,7 +332,7 @@ macro_rules! impl_box_option {
         impl Decodable for Option<Box<$type>> {
             #[inline]
             fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
-                let v : Vec<u8> = Decodable::consensus_decode(&mut d)?;
+                let v: Vec<u8> = Decodable::consensus_decode(&mut d)?;
                 if v.is_empty() {
                     Ok(None)
                 } else {
@@ -334,7 +340,7 @@ macro_rules! impl_box_option {
                 }
             }
         }
-    }
+    };
 }
 // special implementations for elements only fields
 impl Encodable for Tweak {
@@ -369,10 +375,11 @@ impl Encodable for SurjectionProof {
 
 impl Decodable for SurjectionProof {
     fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(SurjectionProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
+        Ok(SurjectionProof::from_slice(&<Vec<u8>>::consensus_decode(
+            d,
+        )?)?)
     }
 }
-
 
 impl Encodable for sha256::Hash {
     fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
@@ -382,7 +389,9 @@ impl Encodable for sha256::Hash {
 
 impl Decodable for sha256::Hash {
     fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(Self::from_byte_array(<<Self as Hash>::Bytes>::consensus_decode(d)?))
+        Ok(Self::from_byte_array(
+            <<Self as Hash>::Bytes>::consensus_decode(d)?,
+        ))
     }
 }
 
@@ -394,7 +403,9 @@ impl Encodable for TapLeafHash {
 
 impl Decodable for TapLeafHash {
     fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(Self::from_byte_array(<<Self as Hash>::Bytes>::consensus_decode(d)?))
+        Ok(Self::from_byte_array(
+            <<Self as Hash>::Bytes>::consensus_decode(d)?,
+        ))
     }
 }
 

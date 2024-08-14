@@ -1,8 +1,8 @@
-use crate::error::write_err;
 use crate::error::impl_std_error;
+use crate::error::write_err;
+use std::convert::TryFrom;
 use std::fmt;
 use std::str::FromStr;
-use std::convert::TryFrom;
 
 /// Error with rich context returned when a string can't be parsed as an integer.
 ///
@@ -54,7 +54,10 @@ impl fmt::Display for ParseIntError {
 
 /// Not strictly necessary but serves as a lint - avoids weird behavior if someone accidentally
 /// passes non-integer to the `parse()` function.
-pub(crate) trait Integer: FromStr<Err=std::num::ParseIntError> + TryFrom<i8> + Sized {}
+pub(crate) trait Integer:
+    FromStr<Err = std::num::ParseIntError> + TryFrom<i8> + Sized
+{
+}
 
 macro_rules! impl_integer {
     ($($type:ty),* $(,)?) => {

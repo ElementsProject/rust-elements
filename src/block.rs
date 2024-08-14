@@ -17,13 +17,15 @@
 
 use std::io;
 
-#[cfg(feature = "serde")] use serde::{Deserialize, Deserializer, Serialize, Serializer};
-#[cfg(feature = "serde")] use std::fmt;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+#[cfg(feature = "serde")]
+use std::fmt;
 
 use crate::dynafed;
-use crate::hashes::{Hash, sha256};
+use crate::encode::{self, serialize, Decodable, Encodable};
+use crate::hashes::{sha256, Hash};
 use crate::Transaction;
-use crate::encode::{self, Encodable, Decodable, serialize};
 use crate::{BlockHash, Script, TxMerkleNode, VarInt};
 
 /// Data related to block signatures
@@ -52,7 +54,14 @@ impl<'de> Deserialize<'de> for ExtData {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         use serde::de;
 
-        enum Enum { Unknown, Challenge, Solution, Current, Proposed, Witness }
+        enum Enum {
+            Unknown,
+            Challenge,
+            Solution,
+            Current,
+            Proposed,
+            Witness,
+        }
         struct EnumVisitor;
 
         impl<'de> de::Visitor<'de> for EnumVisitor {
@@ -102,13 +111,15 @@ impl<'de> Deserialize<'de> for ExtData {
                     match map.next_key::<Enum>()? {
                         Some(Enum::Unknown) => {
                             map.next_value::<de::IgnoredAny>()?;
-                        },
+                        }
                         Some(Enum::Challenge) => challenge = Some(map.next_value()?),
                         Some(Enum::Solution) => solution = Some(map.next_value()?),
                         Some(Enum::Current) => current = Some(map.next_value()?),
                         Some(Enum::Proposed) => proposed = Some(map.next_value()?),
                         Some(Enum::Witness) => witness = Some(map.next_value()?),
-                        None => { break; }
+                        None => {
+                            break;
+                        }
                     }
                 }
 
@@ -118,9 +129,7 @@ impl<'de> Deserialize<'de> for ExtData {
                         challenge: chal,
                         solution: soln,
                     })
-                } else if let (Some(cur), Some(prop), Some(wit))
-                    = (current, proposed, witness)
-                {
+                } else if let (Some(cur), Some(prop), Some(wit)) = (current, proposed, witness) {
                     Ok(ExtData::Dynafed {
                         current: cur,
                         proposed: prop,
@@ -151,19 +160,26 @@ impl Serialize for ExtData {
         use serde::ser::SerializeStruct;
 
         match *self {
-            ExtData::Proof { ref challenge, ref solution } => {
+            ExtData::Proof {
+                ref challenge,
+                ref solution,
+            } => {
                 let mut st = s.serialize_struct("ExtData", 2)?;
                 st.serialize_field("challenge", challenge)?;
                 st.serialize_field("solution", solution)?;
                 st.end()
-            },
-            ExtData::Dynafed { ref current, ref proposed, ref signblock_witness } => {
+            }
+            ExtData::Dynafed {
+                ref current,
+                ref proposed,
+                ref signblock_witness,
+            } => {
                 let mut st = s.serialize_struct("ExtData", 3)?;
                 st.serialize_field("current", current)?;
                 st.serialize_field("proposed", proposed)?;
                 st.serialize_field("signblock_witness", signblock_witness)?;
                 st.end()
-            },
+            }
         }
     }
 }
@@ -174,19 +190,16 @@ impl Encodable for ExtData {
             ExtData::Proof {
                 ref challenge,
                 ref solution,
-            } => {
-                challenge.consensus_encode(&mut s)? +
-                solution.consensus_encode(&mut s)?
-            },
+            } => challenge.consensus_encode(&mut s)? + solution.consensus_encode(&mut s)?,
             ExtData::Dynafed {
                 ref current,
                 ref proposed,
                 ref signblock_witness,
             } => {
-                current.consensus_encode(&mut s)? +
-                proposed.consensus_encode(&mut s)? +
-                signblock_witness.consensus_encode(&mut s)?
-            },
+                current.consensus_encode(&mut s)?
+                    + proposed.consensus_encode(&mut s)?
+                    + signblock_witness.consensus_encode(&mut s)?
+            }
         })
     }
 }
@@ -217,12 +230,19 @@ pub struct BlockHeader {
     /// Block signature and dynamic federation-related data
     pub ext: ExtData,
 }
-serde_struct_impl!(BlockHeader, version, prev_blockhash, merkle_root, time, height, ext);
+serde_struct_impl!(
+    BlockHeader,
+    version,
+    prev_blockhash,
+    merkle_root,
+    time,
+    height,
+    ext
+);
 
 impl BlockHeader {
     /// Return the block hash.
     pub fn block_hash(&self) -> BlockHash {
-
         let version = if let ExtData::Dynafed { .. } = self.ext {
             self.version | 0x8000_0000
         } else {
@@ -239,11 +259,15 @@ impl BlockHeader {
         match self.ext {
             ExtData::Proof { ref challenge, .. } => {
                 challenge.consensus_encode(&mut enc).unwrap();
-            },
-            ExtData::Dynafed { ref current, ref proposed, .. } => {
+            }
+            ExtData::Dynafed {
+                ref current,
+                ref proposed,
+                ..
+            } => {
                 current.consensus_encode(&mut enc).unwrap();
                 proposed.consensus_encode(&mut enc).unwrap();
-            },
+            }
         }
         BlockHash::from_engine(enc)
     }
@@ -258,12 +282,17 @@ impl BlockHeader {
     /// the block hash.
     pub fn clear_witness(&mut self) {
         match &mut self.ext {
-            ExtData::Proof { ref mut solution, .. } => {
+            ExtData::Proof {
+                ref mut solution, ..
+            } => {
                 *solution = Script::new();
-            },
-            ExtData::Dynafed { ref mut signblock_witness, .. } => {
+            }
+            ExtData::Dynafed {
+                ref mut signblock_witness,
+                ..
+            } => {
                 signblock_witness.clear();
-            },
+            }
         }
     }
 
@@ -271,7 +300,11 @@ impl BlockHeader {
     pub fn calculate_dynafed_params_root(&self) -> Option<sha256::Midstate> {
         match self.ext {
             ExtData::Proof { .. } => None,
-            ExtData::Dynafed { ref current, ref proposed, .. } => {
+            ExtData::Dynafed {
+                ref current,
+                ref proposed,
+                ..
+            } => {
                 let leaves = [
                     current.calculate_root().to_byte_array(),
                     proposed.calculate_root().to_byte_array(),
@@ -306,12 +339,12 @@ impl Encodable for BlockHeader {
             self.version
         };
 
-        Ok(version.consensus_encode(&mut s)? +
-        self.prev_blockhash.consensus_encode(&mut s)? +
-        self.merkle_root.consensus_encode(&mut s)? +
-        self.time.consensus_encode(&mut s)? +
-        self.height.consensus_encode(&mut s)? +
-        self.ext.consensus_encode(&mut s)?)
+        Ok(version.consensus_encode(&mut s)?
+            + self.prev_blockhash.consensus_encode(&mut s)?
+            + self.merkle_root.consensus_encode(&mut s)?
+            + self.time.consensus_encode(&mut s)?
+            + self.height.consensus_encode(&mut s)?
+            + self.ext.consensus_encode(&mut s)?)
     }
 }
 
@@ -386,7 +419,8 @@ impl Block {
 
     /// Get the weight of the block
     pub fn weight(&self) -> usize {
-        let base_weight = 4 * (serialize(&self.header).len() + VarInt(self.txdata.len() as u64).size());
+        let base_weight =
+            4 * (serialize(&self.header).len() + VarInt(self.txdata.len() as u64).size());
         let txs_weight: usize = self.txdata.iter().map(Transaction::weight).sum();
         base_weight + txs_weight
     }
@@ -394,8 +428,8 @@ impl Block {
 
 #[cfg(test)]
 mod tests {
-    use crate::Block;
     use crate::hex::FromHex;
+    use crate::Block;
 
     use super::*;
 
@@ -707,7 +741,11 @@ mod tests {
             "bcc6eb2ab6c97b9b4590825b9136f100b22e090c0469818572b8b93926a79f28"
         );
         assert_eq!(block.header.version, 0x20000000);
-        if let ExtData::Proof { challenge, solution } = block.header.ext {
+        if let ExtData::Proof {
+            challenge,
+            solution,
+        } = block.header.ext
+        {
             assert_eq!(challenge.len(), 1 + 3 * 34 + 2);
             assert_eq!(solution.len(), 144);
         } else {
@@ -721,8 +759,15 @@ mod tests {
         let block: Block = hex_deserialize!(DYNAFED_BLOCK);
 
         // Test that this is a block with compact current params and null proposed params
-        if let ExtData::Dynafed { current, proposed, .. } = block.clone().header.ext {
-            if let dynafed::Params::Compact { signblock_witness_limit, .. } = current {
+        if let ExtData::Dynafed {
+            current, proposed, ..
+        } = block.clone().header.ext
+        {
+            if let dynafed::Params::Compact {
+                signblock_witness_limit,
+                ..
+            } = current
+            {
                 assert_eq!(signblock_witness_limit, 258);
             } else {
                 panic!("Current block dynafed params not compact");
@@ -743,7 +788,8 @@ mod tests {
         assert_eq!(block.header.version, 0x20000000);
 
         // Full current and proposal
-        let block: Block = hex_deserialize!("\
+        let block: Block = hex_deserialize!(
+            "\
             000000a01ecf88cda4d9e6339109c685417c526e8316fe0d3ea058765634dcbb\
             205d3081bd83073b1f1793154ab820c70a1fda32a0d45bb0e1f40c0c61ae0350\
             7f49c293debcc45d1400000002220020a6794de47a1612cc94c1b978d5bd1b25\
@@ -769,10 +815,14 @@ mod tests {
             a9ed94f15ed3a62165e4a0b99699cc28b48e19cb5bc1b1f47155db62d63f1e04\
             7d45000000000000012000000000000000000000000000000000000000000000\
             000000000000000000000000000000\
-        ");
+        "
+        );
 
         // Test that this is a block with full current params and full proposed params
-        if let ExtData::Dynafed { current, proposed, .. } = block.clone().header.ext {
+        if let ExtData::Dynafed {
+            current, proposed, ..
+        } = block.clone().header.ext
+        {
             if let dynafed::Params::Full { .. } = current {
                 /* pass */
             } else {

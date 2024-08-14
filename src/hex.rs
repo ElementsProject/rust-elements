@@ -39,7 +39,9 @@ impl fmt::Display for Error {
         match *self {
             Error::InvalidChar(ch) => write!(f, "invalid hex character {}", ch),
             Error::OddLengthString(ell) => write!(f, "odd hex string length {}", ell),
-            Error::InvalidLength(ell, ell2) => write!(f, "bad hex string length {} (expected {})", ell2, ell),
+            Error::InvalidLength(ell, ell2) => {
+                write!(f, "bad hex string length {} (expected {})", ell2, ell)
+            }
         }
     }
 }
@@ -93,12 +95,8 @@ impl<'a> HexIterator<'a> {
 }
 
 fn chars_to_hex(hi: u8, lo: u8) -> Result<u8, Error> {
-    let hih = (hi as char)
-        .to_digit(16)
-        .ok_or(Error::InvalidChar(hi))?;
-    let loh = (lo as char)
-        .to_digit(16)
-        .ok_or(Error::InvalidChar(lo))?;
+    let hih = (hi as char).to_digit(16).ok_or(Error::InvalidChar(hi))?;
+    let loh = (lo as char).to_digit(16).ok_or(Error::InvalidChar(lo))?;
 
     let ret = (hih << 4) + loh;
     Ok(ret as u8)
@@ -127,7 +125,7 @@ impl<'a> io::Read for HexIterator<'a> {
                 Some(Ok(src)) => {
                     *dst = src;
                     bytes_read += 1;
-                },
+                }
                 _ => break,
             }
         }
@@ -258,7 +256,7 @@ macro_rules! impl_fromhex_array {
                 }
             }
         }
-    }
+    };
 }
 
 impl_fromhex_array!(2);
@@ -320,10 +318,7 @@ mod tests {
 
         let bytes = HexBytes(vec![1u8, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
-        assert_eq!(
-            format!("{:x}", bytes),
-            "0102030405060708090a"
-        );
+        assert_eq!(format!("{:x}", bytes), "0102030405060708090a");
 
         for i in 0..20 {
             assert_eq!(
@@ -332,14 +327,8 @@ mod tests {
             );
         }
 
-        assert_eq!(
-            format!("{:25x}", bytes),
-            "000000102030405060708090a"
-        );
-        assert_eq!(
-            format!("{:26x}", bytes),
-            "0000000102030405060708090a"
-        );
+        assert_eq!(format!("{:25x}", bytes), "000000102030405060708090a");
+        assert_eq!(format!("{:26x}", bytes), "0000000102030405060708090a");
     }
 
     #[test]
@@ -353,10 +342,7 @@ mod tests {
 
         let bytes = HexBytes(vec![1u8, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
-        assert_eq!(
-            format!("{:x}", bytes),
-            "0a090807060504030201"
-        );
+        assert_eq!(format!("{:x}", bytes), "0a090807060504030201");
 
         for i in 0..20 {
             assert_eq!(
@@ -365,14 +351,8 @@ mod tests {
             );
         }
 
-        assert_eq!(
-            format!("{:25x}", bytes),
-            "000000a090807060504030201"
-        );
-        assert_eq!(
-            format!("{:26x}", bytes),
-            "0000000a090807060504030201"
-        );
+        assert_eq!(format!("{:25x}", bytes), "000000a090807060504030201");
+        assert_eq!(format!("{:26x}", bytes), "0000000a090807060504030201");
     }
 
     #[test]
@@ -382,39 +362,19 @@ mod tests {
         let badchar2 = "012Y456789abcdeb";
         let badchar3 = "«23456789abcdef";
 
-        assert_eq!(
-            Vec::<u8>::from_hex(oddlen),
-            Err(Error::OddLengthString(17))
-        );
-        assert_eq!(
-            <[u8; 4]>::from_hex(oddlen),
-            Err(Error::OddLengthString(17))
-        );
-        assert_eq!(
-            <[u8; 8]>::from_hex(oddlen),
-            Err(Error::OddLengthString(17))
-        );
-        assert_eq!(
-            Vec::<u8>::from_hex(badchar1),
-            Err(Error::InvalidChar(b'Z'))
-        );
-        assert_eq!(
-            Vec::<u8>::from_hex(badchar2),
-            Err(Error::InvalidChar(b'Y'))
-        );
-        assert_eq!(
-            Vec::<u8>::from_hex(badchar3),
-            Err(Error::InvalidChar(194))
-        );
+        assert_eq!(Vec::<u8>::from_hex(oddlen), Err(Error::OddLengthString(17)));
+        assert_eq!(<[u8; 4]>::from_hex(oddlen), Err(Error::OddLengthString(17)));
+        assert_eq!(<[u8; 8]>::from_hex(oddlen), Err(Error::OddLengthString(17)));
+        assert_eq!(Vec::<u8>::from_hex(badchar1), Err(Error::InvalidChar(b'Z')));
+        assert_eq!(Vec::<u8>::from_hex(badchar2), Err(Error::InvalidChar(b'Y')));
+        assert_eq!(Vec::<u8>::from_hex(badchar3), Err(Error::InvalidChar(194)));
     }
-
 
     #[test]
     fn hex_writer() {
-        let vec: Vec<_>  = (0u8..32).collect();
+        let vec: Vec<_> = (0u8..32).collect();
         let mut writer = HexWriter::new(64);
         writer.write_all(&vec[..]).unwrap();
         assert_eq!(vec.to_hex(), writer.result());
     }
 }
-

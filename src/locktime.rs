@@ -17,13 +17,13 @@
 //! whether `LockTime < LOCKTIME_THRESHOLD`.
 //!
 
-use std::{mem, fmt};
-use std::cmp::{PartialOrd, Ordering};
-use std::convert::TryFrom;
-use std::str::FromStr;
-use std::io::{Read, Write};
 use crate::error::ParseIntError;
 use crate::parse;
+use std::cmp::{Ordering, PartialOrd};
+use std::convert::TryFrom;
+use std::io::{Read, Write};
+use std::str::FromStr;
+use std::{fmt, mem};
 
 use crate::encode::{self, Decodable, Encodable};
 use crate::error::write_err;
@@ -575,8 +575,16 @@ impl fmt::Display for LockTimeUnit {
         use LockTimeUnit::*;
 
         match *self {
-            Blocks => write!(f, "expected lock-by-blockheight (must be < {})", LOCK_TIME_THRESHOLD),
-            Seconds => write!(f, "expected lock-by-blocktime (must be >= {})", LOCK_TIME_THRESHOLD),
+            Blocks => write!(
+                f,
+                "expected lock-by-blockheight (must be < {})",
+                LOCK_TIME_THRESHOLD
+            ),
+            Seconds => write!(
+                f,
+                "expected lock-by-blocktime (must be >= {})",
+                LOCK_TIME_THRESHOLD
+            ),
         }
     }
 }
@@ -594,7 +602,9 @@ impl fmt::Display for OperationError {
         use self::OperationError::*;
 
         match *self {
-            InvalidComparison => f.write_str("cannot compare different lock units (height vs time)"),
+            InvalidComparison => {
+                f.write_str("cannot compare different lock units (height vs time)")
+            }
         }
     }
 }

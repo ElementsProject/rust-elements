@@ -20,7 +20,8 @@
 
 #![allow(non_camel_case_types)]
 
-#[cfg(feature = "serde")] use serde;
+#[cfg(feature = "serde")]
+use serde;
 
 use std::fmt;
 
@@ -39,474 +40,474 @@ pub mod all {
     use super::All;
 
     /// Push an empty array onto the stack
-    pub const OP_PUSHBYTES_0: All = All {code: 0x00};
+    pub const OP_PUSHBYTES_0: All = All { code: 0x00 };
     /// Push the next byte as an array onto the stack
-    pub const OP_PUSHBYTES_1: All = All {code: 0x01};
+    pub const OP_PUSHBYTES_1: All = All { code: 0x01 };
     /// Push the next 2 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_2: All = All {code: 0x02};
+    pub const OP_PUSHBYTES_2: All = All { code: 0x02 };
     /// Push the next 2 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_3: All = All {code: 0x03};
+    pub const OP_PUSHBYTES_3: All = All { code: 0x03 };
     /// Push the next 4 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_4: All = All {code: 0x04};
+    pub const OP_PUSHBYTES_4: All = All { code: 0x04 };
     /// Push the next 5 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_5: All = All {code: 0x05};
+    pub const OP_PUSHBYTES_5: All = All { code: 0x05 };
     /// Push the next 6 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_6: All = All {code: 0x06};
+    pub const OP_PUSHBYTES_6: All = All { code: 0x06 };
     /// Push the next 7 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_7: All = All {code: 0x07};
+    pub const OP_PUSHBYTES_7: All = All { code: 0x07 };
     /// Push the next 8 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_8: All = All {code: 0x08};
+    pub const OP_PUSHBYTES_8: All = All { code: 0x08 };
     /// Push the next 9 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_9: All = All {code: 0x09};
+    pub const OP_PUSHBYTES_9: All = All { code: 0x09 };
     /// Push the next 10 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_10: All = All {code: 0x0a};
+    pub const OP_PUSHBYTES_10: All = All { code: 0x0a };
     /// Push the next 11 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_11: All = All {code: 0x0b};
+    pub const OP_PUSHBYTES_11: All = All { code: 0x0b };
     /// Push the next 12 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_12: All = All {code: 0x0c};
+    pub const OP_PUSHBYTES_12: All = All { code: 0x0c };
     /// Push the next 13 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_13: All = All {code: 0x0d};
+    pub const OP_PUSHBYTES_13: All = All { code: 0x0d };
     /// Push the next 14 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_14: All = All {code: 0x0e};
+    pub const OP_PUSHBYTES_14: All = All { code: 0x0e };
     /// Push the next 15 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_15: All = All {code: 0x0f};
+    pub const OP_PUSHBYTES_15: All = All { code: 0x0f };
     /// Push the next 16 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_16: All = All {code: 0x10};
+    pub const OP_PUSHBYTES_16: All = All { code: 0x10 };
     /// Push the next 17 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_17: All = All {code: 0x11};
+    pub const OP_PUSHBYTES_17: All = All { code: 0x11 };
     /// Push the next 18 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_18: All = All {code: 0x12};
+    pub const OP_PUSHBYTES_18: All = All { code: 0x12 };
     /// Push the next 19 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_19: All = All {code: 0x13};
+    pub const OP_PUSHBYTES_19: All = All { code: 0x13 };
     /// Push the next 20 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_20: All = All {code: 0x14};
+    pub const OP_PUSHBYTES_20: All = All { code: 0x14 };
     /// Push the next 21 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_21: All = All {code: 0x15};
+    pub const OP_PUSHBYTES_21: All = All { code: 0x15 };
     /// Push the next 22 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_22: All = All {code: 0x16};
+    pub const OP_PUSHBYTES_22: All = All { code: 0x16 };
     /// Push the next 23 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_23: All = All {code: 0x17};
+    pub const OP_PUSHBYTES_23: All = All { code: 0x17 };
     /// Push the next 24 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_24: All = All {code: 0x18};
+    pub const OP_PUSHBYTES_24: All = All { code: 0x18 };
     /// Push the next 25 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_25: All = All {code: 0x19};
+    pub const OP_PUSHBYTES_25: All = All { code: 0x19 };
     /// Push the next 26 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_26: All = All {code: 0x1a};
+    pub const OP_PUSHBYTES_26: All = All { code: 0x1a };
     /// Push the next 27 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_27: All = All {code: 0x1b};
+    pub const OP_PUSHBYTES_27: All = All { code: 0x1b };
     /// Push the next 28 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_28: All = All {code: 0x1c};
+    pub const OP_PUSHBYTES_28: All = All { code: 0x1c };
     /// Push the next 29 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_29: All = All {code: 0x1d};
+    pub const OP_PUSHBYTES_29: All = All { code: 0x1d };
     /// Push the next 30 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_30: All = All {code: 0x1e};
+    pub const OP_PUSHBYTES_30: All = All { code: 0x1e };
     /// Push the next 31 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_31: All = All {code: 0x1f};
+    pub const OP_PUSHBYTES_31: All = All { code: 0x1f };
     /// Push the next 32 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_32: All = All {code: 0x20};
+    pub const OP_PUSHBYTES_32: All = All { code: 0x20 };
     /// Push the next 33 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_33: All = All {code: 0x21};
+    pub const OP_PUSHBYTES_33: All = All { code: 0x21 };
     /// Push the next 34 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_34: All = All {code: 0x22};
+    pub const OP_PUSHBYTES_34: All = All { code: 0x22 };
     /// Push the next 35 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_35: All = All {code: 0x23};
+    pub const OP_PUSHBYTES_35: All = All { code: 0x23 };
     /// Push the next 36 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_36: All = All {code: 0x24};
+    pub const OP_PUSHBYTES_36: All = All { code: 0x24 };
     /// Push the next 37 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_37: All = All {code: 0x25};
+    pub const OP_PUSHBYTES_37: All = All { code: 0x25 };
     /// Push the next 38 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_38: All = All {code: 0x26};
+    pub const OP_PUSHBYTES_38: All = All { code: 0x26 };
     /// Push the next 39 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_39: All = All {code: 0x27};
+    pub const OP_PUSHBYTES_39: All = All { code: 0x27 };
     /// Push the next 40 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_40: All = All {code: 0x28};
+    pub const OP_PUSHBYTES_40: All = All { code: 0x28 };
     /// Push the next 41 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_41: All = All {code: 0x29};
+    pub const OP_PUSHBYTES_41: All = All { code: 0x29 };
     /// Push the next 42 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_42: All = All {code: 0x2a};
+    pub const OP_PUSHBYTES_42: All = All { code: 0x2a };
     /// Push the next 43 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_43: All = All {code: 0x2b};
+    pub const OP_PUSHBYTES_43: All = All { code: 0x2b };
     /// Push the next 44 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_44: All = All {code: 0x2c};
+    pub const OP_PUSHBYTES_44: All = All { code: 0x2c };
     /// Push the next 45 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_45: All = All {code: 0x2d};
+    pub const OP_PUSHBYTES_45: All = All { code: 0x2d };
     /// Push the next 46 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_46: All = All {code: 0x2e};
+    pub const OP_PUSHBYTES_46: All = All { code: 0x2e };
     /// Push the next 47 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_47: All = All {code: 0x2f};
+    pub const OP_PUSHBYTES_47: All = All { code: 0x2f };
     /// Push the next 48 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_48: All = All {code: 0x30};
+    pub const OP_PUSHBYTES_48: All = All { code: 0x30 };
     /// Push the next 49 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_49: All = All {code: 0x31};
+    pub const OP_PUSHBYTES_49: All = All { code: 0x31 };
     /// Push the next 50 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_50: All = All {code: 0x32};
+    pub const OP_PUSHBYTES_50: All = All { code: 0x32 };
     /// Push the next 51 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_51: All = All {code: 0x33};
+    pub const OP_PUSHBYTES_51: All = All { code: 0x33 };
     /// Push the next 52 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_52: All = All {code: 0x34};
+    pub const OP_PUSHBYTES_52: All = All { code: 0x34 };
     /// Push the next 53 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_53: All = All {code: 0x35};
+    pub const OP_PUSHBYTES_53: All = All { code: 0x35 };
     /// Push the next 54 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_54: All = All {code: 0x36};
+    pub const OP_PUSHBYTES_54: All = All { code: 0x36 };
     /// Push the next 55 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_55: All = All {code: 0x37};
+    pub const OP_PUSHBYTES_55: All = All { code: 0x37 };
     /// Push the next 56 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_56: All = All {code: 0x38};
+    pub const OP_PUSHBYTES_56: All = All { code: 0x38 };
     /// Push the next 57 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_57: All = All {code: 0x39};
+    pub const OP_PUSHBYTES_57: All = All { code: 0x39 };
     /// Push the next 58 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_58: All = All {code: 0x3a};
+    pub const OP_PUSHBYTES_58: All = All { code: 0x3a };
     /// Push the next 59 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_59: All = All {code: 0x3b};
+    pub const OP_PUSHBYTES_59: All = All { code: 0x3b };
     /// Push the next 60 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_60: All = All {code: 0x3c};
+    pub const OP_PUSHBYTES_60: All = All { code: 0x3c };
     /// Push the next 61 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_61: All = All {code: 0x3d};
+    pub const OP_PUSHBYTES_61: All = All { code: 0x3d };
     /// Push the next 62 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_62: All = All {code: 0x3e};
+    pub const OP_PUSHBYTES_62: All = All { code: 0x3e };
     /// Push the next 63 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_63: All = All {code: 0x3f};
+    pub const OP_PUSHBYTES_63: All = All { code: 0x3f };
     /// Push the next 64 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_64: All = All {code: 0x40};
+    pub const OP_PUSHBYTES_64: All = All { code: 0x40 };
     /// Push the next 65 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_65: All = All {code: 0x41};
+    pub const OP_PUSHBYTES_65: All = All { code: 0x41 };
     /// Push the next 66 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_66: All = All {code: 0x42};
+    pub const OP_PUSHBYTES_66: All = All { code: 0x42 };
     /// Push the next 67 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_67: All = All {code: 0x43};
+    pub const OP_PUSHBYTES_67: All = All { code: 0x43 };
     /// Push the next 68 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_68: All = All {code: 0x44};
+    pub const OP_PUSHBYTES_68: All = All { code: 0x44 };
     /// Push the next 69 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_69: All = All {code: 0x45};
+    pub const OP_PUSHBYTES_69: All = All { code: 0x45 };
     /// Push the next 70 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_70: All = All {code: 0x46};
+    pub const OP_PUSHBYTES_70: All = All { code: 0x46 };
     /// Push the next 71 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_71: All = All {code: 0x47};
+    pub const OP_PUSHBYTES_71: All = All { code: 0x47 };
     /// Push the next 72 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_72: All = All {code: 0x48};
+    pub const OP_PUSHBYTES_72: All = All { code: 0x48 };
     /// Push the next 73 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_73: All = All {code: 0x49};
+    pub const OP_PUSHBYTES_73: All = All { code: 0x49 };
     /// Push the next 74 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_74: All = All {code: 0x4a};
+    pub const OP_PUSHBYTES_74: All = All { code: 0x4a };
     /// Push the next 75 bytes as an array onto the stack
-    pub const OP_PUSHBYTES_75: All = All {code: 0x4b};
+    pub const OP_PUSHBYTES_75: All = All { code: 0x4b };
     /// Read the next byte as N; push the next N bytes as an array onto the stack
-    pub const OP_PUSHDATA1: All = All {code: 0x4c};
+    pub const OP_PUSHDATA1: All = All { code: 0x4c };
     /// Read the next 2 bytes as N; push the next N bytes as an array onto the stack
-    pub const OP_PUSHDATA2: All = All {code: 0x4d};
+    pub const OP_PUSHDATA2: All = All { code: 0x4d };
     /// Read the next 4 bytes as N; push the next N bytes as an array onto the stack
-    pub const OP_PUSHDATA4: All = All {code: 0x4e};
+    pub const OP_PUSHDATA4: All = All { code: 0x4e };
     /// Push the array `[0x81]` onto the stack
-    pub const OP_PUSHNUM_NEG1: All = All {code: 0x4f};
+    pub const OP_PUSHNUM_NEG1: All = All { code: 0x4f };
     /// Synonym for OP_RETURN
-    pub const OP_RESERVED: All = All {code: 0x50};
+    pub const OP_RESERVED: All = All { code: 0x50 };
     /// Push the array `[0x01]` onto the stack
-    pub const OP_PUSHNUM_1: All = All {code: 0x51};
+    pub const OP_PUSHNUM_1: All = All { code: 0x51 };
     /// Push the array `[0x02]` onto the stack
-    pub const OP_PUSHNUM_2: All = All {code: 0x52};
+    pub const OP_PUSHNUM_2: All = All { code: 0x52 };
     /// Push the array `[0x03]` onto the stack
-    pub const OP_PUSHNUM_3: All = All {code: 0x53};
+    pub const OP_PUSHNUM_3: All = All { code: 0x53 };
     /// Push the array `[0x04]` onto the stack
-    pub const OP_PUSHNUM_4: All = All {code: 0x54};
+    pub const OP_PUSHNUM_4: All = All { code: 0x54 };
     /// Push the array `[0x05]` onto the stack
-    pub const OP_PUSHNUM_5: All = All {code: 0x55};
+    pub const OP_PUSHNUM_5: All = All { code: 0x55 };
     /// Push the array `[0x06]` onto the stack
-    pub const OP_PUSHNUM_6: All = All {code: 0x56};
+    pub const OP_PUSHNUM_6: All = All { code: 0x56 };
     /// Push the array `[0x07]` onto the stack
-    pub const OP_PUSHNUM_7: All = All {code: 0x57};
+    pub const OP_PUSHNUM_7: All = All { code: 0x57 };
     /// Push the array `[0x08]` onto the stack
-    pub const OP_PUSHNUM_8: All = All {code: 0x58};
+    pub const OP_PUSHNUM_8: All = All { code: 0x58 };
     /// Push the array `[0x09]` onto the stack
-    pub const OP_PUSHNUM_9: All = All {code: 0x59};
+    pub const OP_PUSHNUM_9: All = All { code: 0x59 };
     /// Push the array `[0x0a]` onto the stack
-    pub const OP_PUSHNUM_10: All = All {code: 0x5a};
+    pub const OP_PUSHNUM_10: All = All { code: 0x5a };
     /// Push the array `[0x0b]` onto the stack
-    pub const OP_PUSHNUM_11: All = All {code: 0x5b};
+    pub const OP_PUSHNUM_11: All = All { code: 0x5b };
     /// Push the array `[0x0c]` onto the stack
-    pub const OP_PUSHNUM_12: All = All {code: 0x5c};
+    pub const OP_PUSHNUM_12: All = All { code: 0x5c };
     /// Push the array `[0x0d]` onto the stack
-    pub const OP_PUSHNUM_13: All = All {code: 0x5d};
+    pub const OP_PUSHNUM_13: All = All { code: 0x5d };
     /// Push the array `[0x0e]` onto the stack
-    pub const OP_PUSHNUM_14: All = All {code: 0x5e};
+    pub const OP_PUSHNUM_14: All = All { code: 0x5e };
     /// Push the array `[0x0f]` onto the stack
-    pub const OP_PUSHNUM_15: All = All {code: 0x5f};
+    pub const OP_PUSHNUM_15: All = All { code: 0x5f };
     /// Push the array `[0x10]` onto the stack
-    pub const OP_PUSHNUM_16: All = All {code: 0x60};
+    pub const OP_PUSHNUM_16: All = All { code: 0x60 };
     /// Does nothing
-    pub const OP_NOP: All = All {code: 0x61};
+    pub const OP_NOP: All = All { code: 0x61 };
     /// Synonym for OP_RETURN
-    pub const OP_VER: All = All {code: 0x62};
+    pub const OP_VER: All = All { code: 0x62 };
     /// Pop and execute the next statements if a nonzero element was popped
-    pub const OP_IF: All = All {code: 0x63};
+    pub const OP_IF: All = All { code: 0x63 };
     /// Pop and execute the next statements if a zero element was popped
-    pub const OP_NOTIF: All = All {code: 0x64};
+    pub const OP_NOTIF: All = All { code: 0x64 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_VERIF: All = All {code: 0x65};
+    pub const OP_VERIF: All = All { code: 0x65 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_VERNOTIF: All = All {code: 0x66};
+    pub const OP_VERNOTIF: All = All { code: 0x66 };
     /// Execute statements if those after the previous OP_IF were not, and vice-versa.
     /// If there is no previous OP_IF, this acts as a RETURN.
-    pub const OP_ELSE: All = All {code: 0x67};
+    pub const OP_ELSE: All = All { code: 0x67 };
     /// Pop and execute the next statements if a zero element was popped
-    pub const OP_ENDIF: All = All {code: 0x68};
+    pub const OP_ENDIF: All = All { code: 0x68 };
     /// If the top value is zero or the stack is empty, fail; otherwise, pop the stack
-    pub const OP_VERIFY: All = All {code: 0x69};
+    pub const OP_VERIFY: All = All { code: 0x69 };
     /// Fail the script immediately. (Must be executed.)
-    pub const OP_RETURN: All = All {code: 0x6a};
+    pub const OP_RETURN: All = All { code: 0x6a };
     /// Pop one element from the main stack onto the alt stack
-    pub const OP_TOALTSTACK: All = All {code: 0x6b};
+    pub const OP_TOALTSTACK: All = All { code: 0x6b };
     /// Pop one element from the alt stack onto the main stack
-    pub const OP_FROMALTSTACK: All = All {code: 0x6c};
+    pub const OP_FROMALTSTACK: All = All { code: 0x6c };
     /// Drops the top two stack items
-    pub const OP_2DROP: All = All {code: 0x6d};
+    pub const OP_2DROP: All = All { code: 0x6d };
     /// Duplicates the top two stack items as AB -> ABAB
-    pub const OP_2DUP: All = All {code: 0x6e};
+    pub const OP_2DUP: All = All { code: 0x6e };
     /// Duplicates the two three stack items as ABC -> ABCABC
-    pub const OP_3DUP: All = All {code: 0x6f};
+    pub const OP_3DUP: All = All { code: 0x6f };
     /// Copies the two stack items of items two spaces back to
     /// the front, as xxAB -> ABxxAB
-    pub const OP_2OVER: All = All {code: 0x70};
+    pub const OP_2OVER: All = All { code: 0x70 };
     /// Moves the two stack items four spaces back to the front,
     /// as xxxxAB -> ABxxxx
-    pub const OP_2ROT: All = All {code: 0x71};
+    pub const OP_2ROT: All = All { code: 0x71 };
     /// Swaps the top two pairs, as ABCD -> CDAB
-    pub const OP_2SWAP: All = All {code: 0x72};
+    pub const OP_2SWAP: All = All { code: 0x72 };
     /// Duplicate the top stack element unless it is zero
-    pub const OP_IFDUP: All = All {code: 0x73};
+    pub const OP_IFDUP: All = All { code: 0x73 };
     /// Push the current number of stack items onto the stack
-    pub const OP_DEPTH: All = All {code: 0x74};
+    pub const OP_DEPTH: All = All { code: 0x74 };
     /// Drops the top stack item
-    pub const OP_DROP: All = All {code: 0x75};
+    pub const OP_DROP: All = All { code: 0x75 };
     /// Duplicates the top stack item
-    pub const OP_DUP: All = All {code: 0x76};
+    pub const OP_DUP: All = All { code: 0x76 };
     /// Drops the second-to-top stack item
-    pub const OP_NIP: All = All {code: 0x77};
+    pub const OP_NIP: All = All { code: 0x77 };
     /// Copies the second-to-top stack item, as xA -> AxA
-    pub const OP_OVER: All = All {code: 0x78};
+    pub const OP_OVER: All = All { code: 0x78 };
     /// Pop the top stack element as N. Copy the Nth stack element to the top
-    pub const OP_PICK: All = All {code: 0x79};
+    pub const OP_PICK: All = All { code: 0x79 };
     /// Pop the top stack element as N. Move the Nth stack element to the top
-    pub const OP_ROLL: All = All {code: 0x7a};
+    pub const OP_ROLL: All = All { code: 0x7a };
     /// Rotate the top three stack items, as [top next1 next2] -> [next2 top next1]
-    pub const OP_ROT: All = All {code: 0x7b};
+    pub const OP_ROT: All = All { code: 0x7b };
     /// Swap the top two stack items
-    pub const OP_SWAP: All = All {code: 0x7c};
+    pub const OP_SWAP: All = All { code: 0x7c };
     /// Copy the top stack item to before the second item, as [top next] -> [top next top]
-    pub const OP_TUCK: All = All {code: 0x7d};
+    pub const OP_TUCK: All = All { code: 0x7d };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_CAT: All = All {code: 0x7e};
+    pub const OP_CAT: All = All { code: 0x7e };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_SUBSTR: All = All {code: 0x7f};
+    pub const OP_SUBSTR: All = All { code: 0x7f };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_LEFT: All = All {code: 0x80};
+    pub const OP_LEFT: All = All { code: 0x80 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_RIGHT: All = All {code: 0x81};
+    pub const OP_RIGHT: All = All { code: 0x81 };
     /// Pushes the length of the top stack item onto the stack
-    pub const OP_SIZE: All = All {code: 0x82};
+    pub const OP_SIZE: All = All { code: 0x82 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_INVERT: All = All {code: 0x83};
+    pub const OP_INVERT: All = All { code: 0x83 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_AND: All = All {code: 0x84};
+    pub const OP_AND: All = All { code: 0x84 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_OR: All = All {code: 0x85};
+    pub const OP_OR: All = All { code: 0x85 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_XOR: All = All {code: 0x86};
+    pub const OP_XOR: All = All { code: 0x86 };
     /// Pushes 1 if the inputs are exactly equal, 0 otherwise
-    pub const OP_EQUAL: All = All {code: 0x87};
+    pub const OP_EQUAL: All = All { code: 0x87 };
     /// Returns success if the inputs are exactly equal, failure otherwise
-    pub const OP_EQUALVERIFY: All = All {code: 0x88};
+    pub const OP_EQUALVERIFY: All = All { code: 0x88 };
     /// Synonym for OP_RETURN
-    pub const OP_RESERVED1: All = All {code: 0x89};
+    pub const OP_RESERVED1: All = All { code: 0x89 };
     /// Synonym for OP_RETURN
-    pub const OP_RESERVED2: All = All {code: 0x8a};
+    pub const OP_RESERVED2: All = All { code: 0x8a };
     /// Increment the top stack element in place
-    pub const OP_1ADD: All = All {code: 0x8b};
+    pub const OP_1ADD: All = All { code: 0x8b };
     /// Decrement the top stack element in place
-    pub const OP_1SUB: All = All {code: 0x8c};
+    pub const OP_1SUB: All = All { code: 0x8c };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_2MUL: All = All {code: 0x8d};
+    pub const OP_2MUL: All = All { code: 0x8d };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_2DIV: All = All {code: 0x8e};
+    pub const OP_2DIV: All = All { code: 0x8e };
     /// Multiply the top stack item by -1 in place
-    pub const OP_NEGATE: All = All {code: 0x8f};
+    pub const OP_NEGATE: All = All { code: 0x8f };
     /// Absolute value the top stack item in place
-    pub const OP_ABS: All = All {code: 0x90};
+    pub const OP_ABS: All = All { code: 0x90 };
     /// Map 0 to 1 and everything else to 0, in place
-    pub const OP_NOT: All = All {code: 0x91};
+    pub const OP_NOT: All = All { code: 0x91 };
     /// Map 0 to 0 and everything else to 1, in place
-    pub const OP_0NOTEQUAL: All = All {code: 0x92};
+    pub const OP_0NOTEQUAL: All = All { code: 0x92 };
     /// Pop two stack items and push their sum
-    pub const OP_ADD: All = All {code: 0x93};
+    pub const OP_ADD: All = All { code: 0x93 };
     /// Pop two stack items and push the second minus the top
-    pub const OP_SUB: All = All {code: 0x94};
+    pub const OP_SUB: All = All { code: 0x94 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_MUL: All = All {code: 0x95};
+    pub const OP_MUL: All = All { code: 0x95 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_DIV: All = All {code: 0x96};
+    pub const OP_DIV: All = All { code: 0x96 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_MOD: All = All {code: 0x97};
+    pub const OP_MOD: All = All { code: 0x97 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_LSHIFT: All = All {code: 0x98};
+    pub const OP_LSHIFT: All = All { code: 0x98 };
     /// Fail the script unconditionally, does not even need to be executed
-    pub const OP_RSHIFT: All = All {code: 0x99};
+    pub const OP_RSHIFT: All = All { code: 0x99 };
     /// Pop the top two stack items and push 1 if both are nonzero, else push 0
-    pub const OP_BOOLAND: All = All {code: 0x9a};
+    pub const OP_BOOLAND: All = All { code: 0x9a };
     /// Pop the top two stack items and push 1 if either is nonzero, else push 0
-    pub const OP_BOOLOR: All = All {code: 0x9b};
+    pub const OP_BOOLOR: All = All { code: 0x9b };
     /// Pop the top two stack items and push 1 if both are numerically equal, else push 0
-    pub const OP_NUMEQUAL: All = All {code: 0x9c};
+    pub const OP_NUMEQUAL: All = All { code: 0x9c };
     /// Pop the top two stack items and return success if both are numerically equal, else return failure
-    pub const OP_NUMEQUALVERIFY: All = All {code: 0x9d};
+    pub const OP_NUMEQUALVERIFY: All = All { code: 0x9d };
     /// Pop the top two stack items and push 0 if both are numerically equal, else push 1
-    pub const OP_NUMNOTEQUAL: All = All {code: 0x9e};
+    pub const OP_NUMNOTEQUAL: All = All { code: 0x9e };
     /// Pop the top two items; push 1 if the second is less than the top, 0 otherwise
-    pub const OP_LESSTHAN : All = All {code: 0x9f};
+    pub const OP_LESSTHAN: All = All { code: 0x9f };
     /// Pop the top two items; push 1 if the second is greater than the top, 0 otherwise
-    pub const OP_GREATERTHAN : All = All {code: 0xa0};
+    pub const OP_GREATERTHAN: All = All { code: 0xa0 };
     /// Pop the top two items; push 1 if the second is <= the top, 0 otherwise
-    pub const OP_LESSTHANOREQUAL : All = All {code: 0xa1};
+    pub const OP_LESSTHANOREQUAL: All = All { code: 0xa1 };
     /// Pop the top two items; push 1 if the second is >= the top, 0 otherwise
-    pub const OP_GREATERTHANOREQUAL : All = All {code: 0xa2};
+    pub const OP_GREATERTHANOREQUAL: All = All { code: 0xa2 };
     /// Pop the top two items; push the smaller
-    pub const OP_MIN: All = All {code: 0xa3};
+    pub const OP_MIN: All = All { code: 0xa3 };
     /// Pop the top two items; push the larger
-    pub const OP_MAX: All = All {code: 0xa4};
+    pub const OP_MAX: All = All { code: 0xa4 };
     /// Pop the top three items; if the top is >= the second and < the third, push 1, otherwise push 0
-    pub const OP_WITHIN: All = All {code: 0xa5};
+    pub const OP_WITHIN: All = All { code: 0xa5 };
     /// Pop the top stack item and push its RIPEMD160 hash
-    pub const OP_RIPEMD160: All = All {code: 0xa6};
+    pub const OP_RIPEMD160: All = All { code: 0xa6 };
     /// Pop the top stack item and push its SHA1 hash
-    pub const OP_SHA1: All = All {code: 0xa7};
+    pub const OP_SHA1: All = All { code: 0xa7 };
     /// Pop the top stack item and push its SHA256 hash
-    pub const OP_SHA256: All = All {code: 0xa8};
+    pub const OP_SHA256: All = All { code: 0xa8 };
     /// Pop the top stack item and push its RIPEMD(SHA256) hash
-    pub const OP_HASH160: All = All {code: 0xa9};
+    pub const OP_HASH160: All = All { code: 0xa9 };
     /// Pop the top stack item and push its SHA256(SHA256) hash
-    pub const OP_HASH256: All = All {code: 0xaa};
+    pub const OP_HASH256: All = All { code: 0xaa };
     /// Ignore this and everything preceding when deciding what to sign when signature-checking
-    pub const OP_CODESEPARATOR: All = All {code: 0xab};
+    pub const OP_CODESEPARATOR: All = All { code: 0xab };
     /// <https://en.bitcoin.it/wiki/OP_CHECKSIG> pushing 1/0 for success/failure
-    pub const OP_CHECKSIG: All = All {code: 0xac};
+    pub const OP_CHECKSIG: All = All { code: 0xac };
     /// <https://en.bitcoin.it/wiki/OP_CHECKSIG> returning success/failure
-    pub const OP_CHECKSIGVERIFY: All = All {code: 0xad};
+    pub const OP_CHECKSIGVERIFY: All = All { code: 0xad };
     /// Pop N, N pubkeys, M, M signatures, a dummy (due to bug in reference code), and verify that all M signatures are valid.
     /// Push 1 for "all valid", 0 otherwise
-    pub const OP_CHECKMULTISIG: All = All {code: 0xae};
+    pub const OP_CHECKMULTISIG: All = All { code: 0xae };
     /// Like the above but return success/failure
-    pub const OP_CHECKMULTISIGVERIFY: All = All {code: 0xaf};
+    pub const OP_CHECKMULTISIGVERIFY: All = All { code: 0xaf };
     /// Does nothing
-    pub const OP_NOP1: All = All {code: 0xb0};
+    pub const OP_NOP1: All = All { code: 0xb0 };
     /// <https://github.com/bitcoin/bips/blob/master/bip-0065.mediawiki>
-    pub const OP_CLTV: All = All {code: 0xb1};
+    pub const OP_CLTV: All = All { code: 0xb1 };
     /// <https://github.com/bitcoin/bips/blob/master/bip-0112.mediawiki>
-    pub const OP_CSV: All = All {code: 0xb2};
+    pub const OP_CSV: All = All { code: 0xb2 };
     /// Does nothing
-    pub const OP_NOP4: All = All {code: 0xb3};
+    pub const OP_NOP4: All = All { code: 0xb3 };
     /// Does nothing
-    pub const OP_NOP5: All = All {code: 0xb4};
+    pub const OP_NOP5: All = All { code: 0xb4 };
     /// Does nothing
-    pub const OP_NOP6: All = All {code: 0xb5};
+    pub const OP_NOP6: All = All { code: 0xb5 };
     /// Does nothing
-    pub const OP_NOP7: All = All {code: 0xb6};
+    pub const OP_NOP7: All = All { code: 0xb6 };
     /// Does nothing
-    pub const OP_NOP8: All = All {code: 0xb7};
+    pub const OP_NOP8: All = All { code: 0xb7 };
     /// Does nothing
-    pub const OP_NOP9: All = All {code: 0xb8};
+    pub const OP_NOP9: All = All { code: 0xb8 };
     /// Does nothing
-    pub const OP_NOP10: All = All {code: 0xb9};
+    pub const OP_NOP10: All = All { code: 0xb9 };
     // Every other opcode acts as OP_RETURN
     /// Synonym for OP_RETURN
-    pub const OP_CHECKSIGADD: All = All {code: 0xba};
+    pub const OP_CHECKSIGADD: All = All { code: 0xba };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_187: All = All {code: 0xbb};
+    pub const OP_RETURN_187: All = All { code: 0xbb };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_188: All = All {code: 0xbc};
+    pub const OP_RETURN_188: All = All { code: 0xbc };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_189: All = All {code: 0xbd};
+    pub const OP_RETURN_189: All = All { code: 0xbd };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_190: All = All {code: 0xbe};
+    pub const OP_RETURN_190: All = All { code: 0xbe };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_191: All = All {code: 0xbf};
+    pub const OP_RETURN_191: All = All { code: 0xbf };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_192: All = All {code: 0xc0};
+    pub const OP_RETURN_192: All = All { code: 0xc0 };
     /// Check a signature on a given hash with a given public key
-    pub const OP_CHECKSIGFROMSTACK: All = All {code: 0xc1};
+    pub const OP_CHECKSIGFROMSTACK: All = All { code: 0xc1 };
     /// Check a signature on a given hash with a given public key, failing if the sigcheck fails
-    pub const OP_CHECKSIGFROMSTACKVERIFY: All = All {code: 0xc2};
+    pub const OP_CHECKSIGFROMSTACKVERIFY: All = All { code: 0xc2 };
     /// Same as `OP_SUBSTR` but clamps start and length rather than erroring if they are out of bounds
-    pub const OP_SUBSTR_LAZY: All = All {code: 0xc3};
+    pub const OP_SUBSTR_LAZY: All = All { code: 0xc3 };
     // ------------------------------------------------------------------
     // TapScript opcodes. These are op-returns when in pretapscript scripts.
 
     /// Pops a bytestring and push SHA256 context creating by adding the bytestring to the initial SHA256 context
-    pub const OP_SHA256INITIALIZE: All = All {code: 0xc4};
+    pub const OP_SHA256INITIALIZE: All = All { code: 0xc4 };
     /// First pops a bytestring followed by another pop for SHA256 context and
     /// pushes an updated context by adding the bytestring to the data stream being hashed
-    pub const OP_SHA256UPDATE: All = All {code: 0xc5};
+    pub const OP_SHA256UPDATE: All = All { code: 0xc5 };
     /// First pops a pops a bytestring followed by another pop for SHA256 context
     /// and finally pushes a SHA256 hash value after adding the bytestring
     /// and completing the padding
-    pub const OP_SHA256FINALIZE: All = All {code: 0xc6};
+    pub const OP_SHA256FINALIZE: All = All { code: 0xc6 };
     /// Pop a CScriptNum input index idx and push the outpoint as a tuple.
     /// First push the txid(32) of the prev_out, followed by a 4 byte push of
     /// vout followed by a push for the outpoint_flag(1)
-    pub const OP_INSPECTINPUTOUTPOINT: All = All {code: 0xc7};
+    pub const OP_INSPECTINPUTOUTPOINT: All = All { code: 0xc7 };
     /// Pop a CScriptNum input index idx and push the nAsset onto the stack as two elements.
     /// The first push the assetID(32), followed by the prefix(1)
-    pub const OP_INSPECTINPUTASSET: All = All {code: 0xc8};
+    pub const OP_INSPECTINPUTASSET: All = All { code: 0xc8 };
     /// Pop a CScriptNum input index idx and push the nValue as a tuple,
     /// value(8 byte LE, 32) followed by prefix(1),
-    pub const OP_INSPECTINPUTVALUE: All = All {code: 0xc9};
+    pub const OP_INSPECTINPUTVALUE: All = All { code: 0xc9 };
     /// Pop a CScriptNum input index idx and push the following depending the type of scriptPubkey:
     /// - If the scriptPubKey is not a native segwit program, push a single sha256
     ///   hash of the scriptPubKey on stack top. Next, push a CScriptNum(-1) to
     ///   indicate a non-native segwit scriptPubKey.
     /// - If the scriptPubKey is a native segwit program, push the witness program(2-40)
     ///   followed by a push for segwit version(0-1).
-    pub const OP_INSPECTINPUTSCRIPTPUBKEY: All = All {code: 0xca};
+    pub const OP_INSPECTINPUTSCRIPTPUBKEY: All = All { code: 0xca };
     /// Pop a CScriptNum input index idx and push the nSequence(4) as little-endian number.
-    pub const OP_INSPECTINPUTSEQUENCE: All = All {code: 0xcb};
+    pub const OP_INSPECTINPUTSEQUENCE: All = All { code: 0xcb };
     /// Pop a CScriptNum input index idx and push the assetIssuance information if the asset has issuance,
     /// otherwise push an empty vector. Refer to the [spec](https://github.com/ElementsProject/elements/blob/master/doc/tapscript_opcodes.md)
     /// for details
-    pub const OP_INSPECTINPUTISSUANCE: All = All {code: 0xcc};
+    pub const OP_INSPECTINPUTISSUANCE: All = All { code: 0xcc };
     /// Pushes the current input index as CScriptNum. This can be used in conjunction with
     /// input introspection opcodes for inspecting current input.
-    pub const OP_PUSHCURRENTINPUTINDEX: All = All {code: 0xcd};
+    pub const OP_PUSHCURRENTINPUTINDEX: All = All { code: 0xcd };
     /// Pop a CScriptNum input index idx and push the nAsset as a tuple,
     /// first push the assetID(32), followed by the prefix(1)
-    pub const OP_INSPECTOUTPUTASSET: All = All {code: 0xce};
+    pub const OP_INSPECTOUTPUTASSET: All = All { code: 0xce };
     /// Pop a CScriptNum input index idx and push the nValue as a tuple,
     /// value(8 byte LE, 32) followed by prefix
-    pub const OP_INSPECTOUTPUTVALUE: All = All {code: 0xcf};
+    pub const OP_INSPECTOUTPUTVALUE: All = All { code: 0xcf };
     /// Pop a CScriptNum input index idx and push the nNonce(33) onto the stack.
     /// If the nonce is null, push an empty vector onto the stack
-    pub const OP_INSPECTOUTPUTNONCE: All = All {code: 0xd0};
+    pub const OP_INSPECTOUTPUTNONCE: All = All { code: 0xd0 };
     /// Pop a CScriptNum input index idx and push the scriptPubkey onto the stack.
     /// Similar to [`OP_INSPECTINPUTSCRIPTPUBKEY`], for this output.
-    pub const OP_INSPECTOUTPUTSCRIPTPUBKEY: All = All {code: 0xd1};
+    pub const OP_INSPECTOUTPUTSCRIPTPUBKEY: All = All { code: 0xd1 };
     /// Push the nVersion(4) as little-endian.
-    pub const OP_INSPECTVERSION: All = All {code: 0xd2};
+    pub const OP_INSPECTVERSION: All = All { code: 0xd2 };
     /// Push the nLockTime(4) as little-endian.
-    pub const OP_INSPECTLOCKTIME: All = All {code: 0xd3};
+    pub const OP_INSPECTLOCKTIME: All = All { code: 0xd3 };
     /// Push the number of inputs as CScriptNum
-    pub const OP_INSPECTNUMINPUTS: All = All {code: 0xd4};
+    pub const OP_INSPECTNUMINPUTS: All = All { code: 0xd4 };
     /// Push the number of outputs as CScriptNum
-    pub const OP_INSPECTNUMOUTPUTS: All = All {code: 0xd5};
+    pub const OP_INSPECTNUMOUTPUTS: All = All { code: 0xd5 };
     /// Push the transaction weight (8) as little-endian
-    pub const OP_TXWEIGHT: All = All {code: 0xd6};
+    pub const OP_TXWEIGHT: All = All { code: 0xd6 };
     /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
     /// Push a + b onto the stack. Push 1 CScriptNum if there is no overflow.
     /// Refer to the spec for details when dealing with overflow.
-    pub const OP_ADD64: All = All {code: 0xd7};
+    pub const OP_ADD64: All = All { code: 0xd7 };
     /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
     /// Push a - b onto the stack. Push 1 CScriptNum if there is no overflow.
     /// Refer to the spec for details when dealing with overflow.
-    pub const OP_SUB64: All = All {code: 0xd8};
+    pub const OP_SUB64: All = All { code: 0xd8 };
     /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
     /// Push a*b onto the stack. Push 1 CScriptNum if there is no overflow.
     /// Refer to the spec for details when dealing with overflow.
-    pub const OP_MUL64: All = All {code: 0xd9};
+    pub const OP_MUL64: All = All { code: 0xd9 };
     /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
     /// First push remainder a%b(must be non-negative and less than |b|) onto the
     /// stack followed by quotient(a//b) onto the stack.
@@ -514,32 +515,32 @@ pub mod all {
     /// If b==0 or a = -2<sup>63</sup> && b = -1, treat as overflow.
     /// Push 1 CScriptNum if there is no overflow.
     /// Refer to the spec for details when dealing with overflow.
-    pub const OP_DIV64: All = All {code: 0xda};
+    pub const OP_DIV64: All = All { code: 0xda };
     /// Pop the first number(8 byte LE) as a and pushes -a on the stack top.
     /// If the number is -2^63 treat as overflow, otherwise push CScriptNum 1 to indicate no overflow.
     /// Refer to the spec for details when dealing with overflow.
-    pub const OP_NEG64: All = All {code: 0xdb};
+    pub const OP_NEG64: All = All { code: 0xdb };
     /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a < b.
     /// Note that this operation cannot fail
-    pub const OP_LESSTHAN64: All = All {code: 0xdc};
+    pub const OP_LESSTHAN64: All = All { code: 0xdc };
     /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a <= b.
     /// Note that this operation cannot fail
-    pub const OP_LESSTHANOREQUAL64: All = All {code: 0xdd};
+    pub const OP_LESSTHANOREQUAL64: All = All { code: 0xdd };
     /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a > b
     /// Note that this operation cannot fail
-    pub const OP_GREATERTHAN64: All = All {code: 0xde};
+    pub const OP_GREATERTHAN64: All = All { code: 0xde };
     /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a >= b.
     /// Note that this operation cannot fail
-    pub const OP_GREATERTHANOREQUAL64: All = All {code: 0xdf};
+    pub const OP_GREATERTHANOREQUAL64: All = All { code: 0xdf };
     /// pop the stack as minimal CScriptNum, push 8 byte signed LE corresponding to that number.
-    pub const OP_SCRIPTNUMTOLE64: All = All {code: 0xe0};
+    pub const OP_SCRIPTNUMTOLE64: All = All { code: 0xe0 };
     /// pop the stack as a 8 byte signed LE. Convert to CScriptNum and push it, abort on fail.
     /// Please check the range of the operand before calling the opcode.
-    pub const OP_LE64TOSCRIPTNUM: All = All {code: 0xe1};
+    pub const OP_LE64TOSCRIPTNUM: All = All { code: 0xe1 };
     /// pop the stack as a 4 byte unsigned LE. Push the corresponding 8 byte signed LE number.
     /// Cannot fail, useful for operating of version, locktime, sequence, number of inputs,
     /// number of outputs, weight etc.
-    pub const OP_LE32TOLE64: All = All {code: 0xe2};
+    pub const OP_LE32TOLE64: All = All { code: 0xe2 };
     ///  Pops three elements from stack as described below:
     /// 1) a 32 byte big endian, unsigned scalar k.
     /// 2) Compressed EC point P, and
@@ -547,7 +548,7 @@ pub mod all {
     ///
     /// Abort if P, Q is invalid or k is not 32 bytes and outside of secp256k1 curve order.
     /// Abort if Q != k*P.
-    pub const OP_ECMULSCALARVERIFY: All = All {code: 0xe3};
+    pub const OP_ECMULSCALARVERIFY: All = All { code: 0xe3 };
     /// Pop the three elements as:
     /// 1) 32 byte X-only internal key P,
     /// 2) a 32 byte big endian, unsigned scalar k, and
@@ -555,74 +556,76 @@ pub mod all {
     ///
     /// Abort if P, Q is invalid or k is not 32 bytes and outside of secp256k1 curve order.
     /// Abort if Q != P + k*G where G is the generator for secp256k1.
-    pub const OP_TWEAKVERIFY: All = All {code: 0xe4};
+    pub const OP_TWEAKVERIFY: All = All { code: 0xe4 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_229: All = All {code: 0xe5};
+    pub const OP_RETURN_229: All = All { code: 0xe5 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_230: All = All {code: 0xe6};
+    pub const OP_RETURN_230: All = All { code: 0xe6 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_231: All = All {code: 0xe7};
+    pub const OP_RETURN_231: All = All { code: 0xe7 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_232: All = All {code: 0xe8};
+    pub const OP_RETURN_232: All = All { code: 0xe8 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_233: All = All {code: 0xe9};
+    pub const OP_RETURN_233: All = All { code: 0xe9 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_234: All = All {code: 0xea};
+    pub const OP_RETURN_234: All = All { code: 0xea };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_235: All = All {code: 0xeb};
+    pub const OP_RETURN_235: All = All { code: 0xeb };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_236: All = All {code: 0xec};
+    pub const OP_RETURN_236: All = All { code: 0xec };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_237: All = All {code: 0xed};
+    pub const OP_RETURN_237: All = All { code: 0xed };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_238: All = All {code: 0xee};
+    pub const OP_RETURN_238: All = All { code: 0xee };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_239: All = All {code: 0xef};
+    pub const OP_RETURN_239: All = All { code: 0xef };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_240: All = All {code: 0xf0};
+    pub const OP_RETURN_240: All = All { code: 0xf0 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_241: All = All {code: 0xf1};
+    pub const OP_RETURN_241: All = All { code: 0xf1 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_242: All = All {code: 0xf2};
+    pub const OP_RETURN_242: All = All { code: 0xf2 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_243: All = All {code: 0xf3};
+    pub const OP_RETURN_243: All = All { code: 0xf3 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_244: All = All {code: 0xf4};
+    pub const OP_RETURN_244: All = All { code: 0xf4 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_245: All = All {code: 0xf5};
+    pub const OP_RETURN_245: All = All { code: 0xf5 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_246: All = All {code: 0xf6};
+    pub const OP_RETURN_246: All = All { code: 0xf6 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_247: All = All {code: 0xf7};
+    pub const OP_RETURN_247: All = All { code: 0xf7 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_248: All = All {code: 0xf8};
+    pub const OP_RETURN_248: All = All { code: 0xf8 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_249: All = All {code: 0xf9};
+    pub const OP_RETURN_249: All = All { code: 0xf9 };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_250: All = All {code: 0xfa};
+    pub const OP_RETURN_250: All = All { code: 0xfa };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_251: All = All {code: 0xfb};
+    pub const OP_RETURN_251: All = All { code: 0xfb };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_252: All = All {code: 0xfc};
+    pub const OP_RETURN_252: All = All { code: 0xfc };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_253: All = All {code: 0xfd};
+    pub const OP_RETURN_253: All = All { code: 0xfd };
     /// Synonym for OP_RETURN
-    pub const OP_RETURN_254: All = All {code: 0xfe};
+    pub const OP_RETURN_254: All = All { code: 0xfe };
     /// Invalid opcode
-    pub const OP_INVALIDOPCODE: All = All {code: 0xff};
+    pub const OP_INVALIDOPCODE: All = All { code: 0xff };
 }
 
 impl fmt::Debug for All {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str("OP_")?;
         match *self {
-            All {code: x} if x <= 75 => write!(f, "PUSHBYTES_{}", self.code),
+            All { code: x } if x <= 75 => write!(f, "PUSHBYTES_{}", self.code),
             all::OP_PUSHDATA1 => write!(f, "PUSHDATA1"),
             all::OP_PUSHDATA2 => write!(f, "PUSHDATA2"),
             all::OP_PUSHDATA4 => write!(f, "PUSHDATA4"),
             all::OP_PUSHNUM_NEG1 => write!(f, "PUSHNUM_NEG1"),
             all::OP_RESERVED => write!(f, "RESERVED"),
-            All {code: x} if x >= all::OP_PUSHNUM_1.code && x <= all::OP_PUSHNUM_16.code => write!(f, "PUSHNUM_{}", x - all::OP_PUSHNUM_1.code + 1),
+            All { code: x } if x >= all::OP_PUSHNUM_1.code && x <= all::OP_PUSHNUM_16.code => {
+                write!(f, "PUSHNUM_{}", x - all::OP_PUSHNUM_1.code + 1)
+            }
             all::OP_NOP => write!(f, "NOP"),
             all::OP_VER => write!(f, "VER"),
             all::OP_IF => write!(f, "IF"),
@@ -686,10 +689,10 @@ impl fmt::Debug for All {
             all::OP_NUMEQUAL => write!(f, "NUMEQUAL"),
             all::OP_NUMEQUALVERIFY => write!(f, "NUMEQUALVERIFY"),
             all::OP_NUMNOTEQUAL => write!(f, "NUMNOTEQUAL"),
-            all::OP_LESSTHAN  => write!(f, "LESSTHAN"),
-            all::OP_GREATERTHAN  => write!(f, "GREATERTHAN"),
-            all::OP_LESSTHANOREQUAL  => write!(f, "LESSTHANOREQUAL"),
-            all::OP_GREATERTHANOREQUAL  => write!(f, "GREATERTHANOREQUAL"),
+            all::OP_LESSTHAN => write!(f, "LESSTHAN"),
+            all::OP_GREATERTHAN => write!(f, "GREATERTHAN"),
+            all::OP_LESSTHANOREQUAL => write!(f, "LESSTHANOREQUAL"),
+            all::OP_GREATERTHANOREQUAL => write!(f, "GREATERTHANOREQUAL"),
             all::OP_MIN => write!(f, "MIN"),
             all::OP_MAX => write!(f, "MAX"),
             all::OP_WITHIN => write!(f, "WITHIN"),
@@ -747,8 +750,10 @@ impl fmt::Debug for All {
             all::OP_TWEAKVERIFY => write!(f, "TWEAKVERIFY"),
 
             all::OP_INVALIDOPCODE => write!(f, "INVALIDOPCODE"),
-            All {code: x} if x >= all::OP_NOP1.code && x <= all::OP_NOP10.code => write!(f, "NOP{}", x - all::OP_NOP1.code + 1),
-            All {code: x} => write!(f, "RETURN_{}", x),
+            All { code: x } if x >= all::OP_NOP1.code && x <= all::OP_NOP10.code => {
+                write!(f, "NOP{}", x - all::OP_NOP1.code + 1)
+            }
+            All { code: x } => write!(f, "RETURN_{}", x),
         }
     }
 }
@@ -775,22 +780,38 @@ impl All {
             (OP_VERIF, _) | (OP_VERNOTIF, _) | (OP_INVALIDOPCODE, _) => Class::IllegalOp,
 
             // 15 opcodes illegal in Legacy context
-            (OP_CAT, ctx) | (OP_SUBSTR, ctx)
-            | (OP_LEFT, ctx) | (OP_RIGHT, ctx)
+            (OP_CAT, ctx)
+            | (OP_SUBSTR, ctx)
+            | (OP_LEFT, ctx)
+            | (OP_RIGHT, ctx)
             | (OP_INVERT, ctx)
-            | (OP_AND, ctx) | (OP_OR, ctx) | (OP_XOR, ctx)
-            | (OP_2MUL, ctx) | (OP_2DIV, ctx)
-            | (OP_MUL, ctx) | (OP_DIV, ctx) | (OP_MOD, ctx)
-            | (OP_LSHIFT, ctx) | (OP_RSHIFT, ctx) if ctx == ClassifyContext::Legacy => Class::IllegalOp,
+            | (OP_AND, ctx)
+            | (OP_OR, ctx)
+            | (OP_XOR, ctx)
+            | (OP_2MUL, ctx)
+            | (OP_2DIV, ctx)
+            | (OP_MUL, ctx)
+            | (OP_DIV, ctx)
+            | (OP_MOD, ctx)
+            | (OP_LSHIFT, ctx)
+            | (OP_RSHIFT, ctx)
+                if ctx == ClassifyContext::Legacy =>
+            {
+                Class::IllegalOp
+            }
 
             // 87 opcodes of SuccessOp class only in TapScript context
             (op, ClassifyContext::TapScript)
-            if op.code == 80 || op.code == 98 ||
-                (op.code >= 137 && op.code <= 138) ||
-                (op.code >= 141 && op.code <= 142) ||
-                (op.code >= 149 && op.code <= 151) ||
-                (op.code >= 187 && op.code <= 191) ||
-                (op.code >= 229 && op.code <= 254) => Class::SuccessOp,
+                if op.code == 80
+                    || op.code == 98
+                    || (op.code >= 137 && op.code <= 138)
+                    || (op.code >= 141 && op.code <= 142)
+                    || (op.code >= 149 && op.code <= 151)
+                    || (op.code >= 187 && op.code <= 191)
+                    || (op.code >= 229 && op.code <= 254) =>
+            {
+                Class::SuccessOp
+            }
 
             // 11 opcodes of NoOp class
             (OP_NOP, _) => Class::NoOp,
@@ -800,9 +821,11 @@ impl All {
             (OP_RETURN, _) => Class::ReturnOp,
 
             // 4 opcodes operating equally to `OP_RETURN` only in Legacy context
-            (OP_RESERVED, ctx)
-            | (OP_RESERVED1, ctx) | (OP_RESERVED2, ctx)
-            | (OP_VER, ctx) if ctx == ClassifyContext::Legacy => Class::ReturnOp,
+            (OP_RESERVED, ctx) | (OP_RESERVED1, ctx) | (OP_RESERVED2, ctx) | (OP_VER, ctx)
+                if ctx == ClassifyContext::Legacy =>
+            {
+                Class::ReturnOp
+            }
 
             // 71 opcodes operating equally to `OP_RETURN` only in Legacy context
             (op, ClassifyContext::Legacy) if op.code >= OP_CHECKSIGADD.code => Class::ReturnOp,
@@ -817,7 +840,7 @@ impl All {
             // 16 opcodes of PushNum class
             (op, _) if op.code >= OP_PUSHNUM_1.code && op.code <= OP_PUSHNUM_16.code => {
                 Class::PushNum(1 + self.code as i32 - OP_PUSHNUM_1.code as i32)
-            },
+            }
 
             // 76 opcodes of PushBytes class
             (op, _) if op.code <= OP_PUSHBYTES_75.code => Class::PushBytes(self.code as u32),
@@ -837,7 +860,7 @@ impl All {
 impl From<u8> for All {
     #[inline]
     fn from(b: u8) -> All {
-        All {code: b}
+        All { code: b }
     }
 }
 
@@ -882,7 +905,7 @@ pub enum Class {
     /// Does nothing
     NoOp,
     /// Any opcode not covered above
-    Ordinary(Ordinary)
+    Ordinary(Ordinary),
 }
 
 macro_rules! ordinary_opcode {
@@ -940,8 +963,8 @@ impl Ordinary {
     /// Encode as a byte
     #[inline]
     pub fn into_u8(self) -> u8 {
-      self as u8
-  }
+        self as u8
+    }
 }
 
 #[cfg(test)]
@@ -959,7 +982,7 @@ mod tests {
             assert_eq!(s1, s2);
             assert_eq!(s1, stringify!($op));
             assert!($unique.insert(s1));
-        }
+        };
     }
 
     #[test]
@@ -1124,10 +1147,10 @@ mod tests {
         roundtrip!(unique, OP_NUMEQUAL);
         roundtrip!(unique, OP_NUMEQUALVERIFY);
         roundtrip!(unique, OP_NUMNOTEQUAL);
-        roundtrip!(unique, OP_LESSTHAN );
-        roundtrip!(unique, OP_GREATERTHAN );
-        roundtrip!(unique, OP_LESSTHANOREQUAL );
-        roundtrip!(unique, OP_GREATERTHANOREQUAL );
+        roundtrip!(unique, OP_LESSTHAN);
+        roundtrip!(unique, OP_GREATERTHAN);
+        roundtrip!(unique, OP_LESSTHANOREQUAL);
+        roundtrip!(unique, OP_GREATERTHANOREQUAL);
         roundtrip!(unique, OP_MIN);
         roundtrip!(unique, OP_MAX);
         roundtrip!(unique, OP_WITHIN);
@@ -1224,4 +1247,3 @@ mod tests {
         assert_eq!(unique.len(), 256);
     }
 }
-

@@ -65,13 +65,13 @@
 
 use core::{fmt, iter, slice, str};
 
-use crate::error::write_err;
+use super::{Blech32, Blech32m};
 use crate::bech32::primitives::checksum::{self, Checksum};
 use crate::bech32::primitives::gf32::Fe32;
 use crate::bech32::primitives::hrp::{self, Hrp};
 use crate::bech32::primitives::iter::{Fe32IterExt, FesToBytes};
 use crate::bech32::primitives::segwit::{WitnessLengthError, VERSION_0};
-use super::{Blech32, Blech32m};
+use crate::error::write_err;
 
 /// Separator between the hrp and payload (as defined by BIP-173).
 const SEP: char = '1';
@@ -112,7 +112,9 @@ impl<'s> UncheckedHrpstring<'s> {
 
     /// Returns the human-readable part.
     #[inline]
-    pub fn hrp(&self) -> Hrp { self.hrp }
+    pub fn hrp(&self) -> Hrp {
+        self.hrp
+    }
 
     /// Validates that data has a valid checksum for the `Ck` algorithm and returns a [`CheckedHrpstring`].
     #[inline]
@@ -153,7 +155,11 @@ impl<'s> UncheckedHrpstring<'s> {
         checksum_eng.input_hrp(&self.hrp());
 
         // Unwrap ok since we checked all characters in our constructor.
-        for fe in self.data.iter().map(|&b| Fe32::from_char(b.into()).unwrap()) {
+        for fe in self
+            .data
+            .iter()
+            .map(|&b| Fe32::from_char(b.into()).unwrap())
+        {
             checksum_eng.input_fe(fe);
         }
 
@@ -177,7 +183,10 @@ impl<'s> UncheckedHrpstring<'s> {
     pub fn remove_checksum<Ck: Checksum>(self) -> CheckedHrpstring<'s> {
         let data_len = self.data.len() - Ck::CHECKSUM_LENGTH;
 
-        CheckedHrpstring { hrp: self.hrp(), data: &self.data[..data_len] }
+        CheckedHrpstring {
+            hrp: self.hrp(),
+            data: &self.data[..data_len],
+        }
     }
 }
 
@@ -214,7 +223,9 @@ impl<'s> CheckedHrpstring<'s> {
 
     /// Returns the human-readable part.
     #[inline]
-    pub fn hrp(&self) -> Hrp { self.hrp }
+    pub fn hrp(&self) -> Hrp {
+        self.hrp
+    }
 
     /// Returns an iterator that yields the data part of the parsed bech32 encoded string.
     ///
@@ -222,7 +233,12 @@ impl<'s> CheckedHrpstring<'s> {
     /// converts the stream of field elements to a stream of bytes.
     #[inline]
     pub fn byte_iter(&self) -> ByteIter {
-        ByteIter { iter: AsciiToFe32Iter { iter: self.data.iter().copied() }.fes_to_bytes() }
+        ByteIter {
+            iter: AsciiToFe32Iter {
+                iter: self.data.iter().copied(),
+            }
+            .fes_to_bytes(),
+        }
     }
 
     /// Converts this type to a [`SegwitHrpstring`] after validating the witness and HRP.
@@ -238,7 +254,11 @@ impl<'s> CheckedHrpstring<'s> {
         self.validate_padding()?;
         self.validate_witness_program_length(witness_version)?;
 
-        Ok(SegwitHrpstring { hrp: self.hrp(), witness_version, data: self.data })
+        Ok(SegwitHrpstring {
+            hrp: self.hrp(),
+            witness_version,
+            data: self.data,
+        })
     }
 
     /// Validates the segwit padding rules.
@@ -253,7 +273,9 @@ impl<'s> CheckedHrpstring<'s> {
             return Ok(()); // Empty data implies correct padding.
         }
 
-        let fe_iter = AsciiToFe32Iter { iter: self.data.iter().copied() };
+        let fe_iter = AsciiToFe32Iter {
+            iter: self.data.iter().copied(),
+        };
         let padding_len = fe_iter.len() * 5 % 8;
 
         if padding_len > 4 {
@@ -375,15 +397,21 @@ impl<'s> SegwitHrpstring<'s> {
     /// other HRPs, specifically "bcrt" for regtest addresses. We provide this function in order to
     /// be BIP-173 compliant but their are no restrictions on the HRP of [`SegwitHrpstring`].
     #[inline]
-    pub fn has_valid_hrp(&self) -> bool { self.hrp().is_valid_segwit() }
+    pub fn has_valid_hrp(&self) -> bool {
+        self.hrp().is_valid_segwit()
+    }
 
     /// Returns the human-readable part.
     #[inline]
-    pub fn hrp(&self) -> Hrp { self.hrp }
+    pub fn hrp(&self) -> Hrp {
+        self.hrp
+    }
 
     /// Returns the witness version.
     #[inline]
-    pub fn witness_version(&self) -> Fe32 { self.witness_version }
+    pub fn witness_version(&self) -> Fe32 {
+        self.witness_version
+    }
 
     /// Returns an iterator that yields the data part, excluding the witness version, of the parsed
     /// bech32 encoded string.
@@ -394,7 +422,12 @@ impl<'s> SegwitHrpstring<'s> {
     /// Use `self.witness_version()` to get the witness version.
     #[inline]
     pub fn byte_iter(&self) -> ByteIter {
-        ByteIter { iter: AsciiToFe32Iter { iter: self.data.iter().copied() }.fes_to_bytes() }
+        ByteIter {
+            iter: AsciiToFe32Iter {
+                iter: self.data.iter().copied(),
+            }
+            .fes_to_bytes(),
+        }
     }
 }
 
@@ -442,14 +475,20 @@ pub struct ByteIter<'s> {
 impl<'s> Iterator for ByteIter<'s> {
     type Item = u8;
     #[inline]
-    fn next(&mut self) -> Option<u8> { self.iter.next() }
+    fn next(&mut self) -> Option<u8> {
+        self.iter.next()
+    }
     #[inline]
-    fn size_hint(&self) -> (usize, Option<usize>) { self.iter.size_hint() }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.iter.size_hint()
+    }
 }
 
 impl<'s> ExactSizeIterator for ByteIter<'s> {
     #[inline]
-    fn len(&self) -> usize { self.iter.len() }
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
 }
 
 /// Helper iterator adaptor that maps an iterator of valid bech32 character ASCII bytes to an
@@ -469,7 +508,11 @@ where
 {
     type Item = Fe32;
     #[inline]
-    fn next(&mut self) -> Option<Fe32> { self.iter.next().map(|ch| Fe32::from_char(ch.into()).unwrap()) }
+    fn next(&mut self) -> Option<Fe32> {
+        self.iter
+            .next()
+            .map(|ch| Fe32::from_char(ch.into()).unwrap())
+    }
     #[inline]
     fn size_hint(&self) -> (usize, Option<usize>) {
         // Each ASCII character is an fe32 so iterators are the same size.
@@ -482,7 +525,9 @@ where
     I: Iterator<Item = u8> + ExactSizeIterator,
 {
     #[inline]
-    fn len(&self) -> usize { self.iter.len() }
+    fn len(&self) -> usize {
+        self.iter.len()
+    }
 }
 
 /// An error while constructing a [`SegwitHrpstring`] type.
@@ -510,7 +555,9 @@ impl fmt::Display for SegwitHrpstringError {
         match *self {
             Unchecked(ref e) => write_err!(f, "parsing unchecked hrpstring failed"; e),
             MissingWitnessVersion => write!(f, "the witness version byte is missing"),
-            InvalidWitnessVersion(fe) => write!(f, "invalid segwit witness version: {}", fe.to_u8()),
+            InvalidWitnessVersion(fe) => {
+                write!(f, "invalid segwit witness version: {}", fe.to_u8())
+            }
             Padding(ref e) => write_err!(f, "invalid padding on the witness data"; e),
             WitnessLength(ref e) => write_err!(f, "invalid witness length"; e),
             Checksum(ref e) => write_err!(f, "invalid checksum"; e),
@@ -534,22 +581,30 @@ impl std::error::Error for SegwitHrpstringError {
 
 impl From<UncheckedHrpstringError> for SegwitHrpstringError {
     #[inline]
-    fn from(e: UncheckedHrpstringError) -> Self { Self::Unchecked(e) }
+    fn from(e: UncheckedHrpstringError) -> Self {
+        Self::Unchecked(e)
+    }
 }
 
 impl From<WitnessLengthError> for SegwitHrpstringError {
     #[inline]
-    fn from(e: WitnessLengthError) -> Self { Self::WitnessLength(e) }
+    fn from(e: WitnessLengthError) -> Self {
+        Self::WitnessLength(e)
+    }
 }
 
 impl From<PaddingError> for SegwitHrpstringError {
     #[inline]
-    fn from(e: PaddingError) -> Self { Self::Padding(e) }
+    fn from(e: PaddingError) -> Self {
+        Self::Padding(e)
+    }
 }
 
 impl From<ChecksumError> for SegwitHrpstringError {
     #[inline]
-    fn from(e: ChecksumError) -> Self { Self::Checksum(e) }
+    fn from(e: ChecksumError) -> Self {
+        Self::Checksum(e)
+    }
 }
 
 /// An error while constructing a [`CheckedHrpstring`] type.
@@ -586,12 +641,16 @@ impl std::error::Error for CheckedHrpstringError {
 
 impl From<UncheckedHrpstringError> for CheckedHrpstringError {
     #[inline]
-    fn from(e: UncheckedHrpstringError) -> Self { Self::Parse(e) }
+    fn from(e: UncheckedHrpstringError) -> Self {
+        Self::Parse(e)
+    }
 }
 
 impl From<ChecksumError> for CheckedHrpstringError {
     #[inline]
-    fn from(e: ChecksumError) -> Self { Self::Checksum(e) }
+    fn from(e: ChecksumError) -> Self {
+        Self::Checksum(e)
+    }
 }
 
 /// Errors when parsing a bech32 encoded string.
@@ -628,12 +687,16 @@ impl std::error::Error for UncheckedHrpstringError {
 
 impl From<CharError> for UncheckedHrpstringError {
     #[inline]
-    fn from(e: CharError) -> Self { Self::Char(e) }
+    fn from(e: CharError) -> Self {
+        Self::Char(e)
+    }
 }
 
 impl From<hrp::Error> for UncheckedHrpstringError {
     #[inline]
-    fn from(e: hrp::Error) -> Self { Self::Hrp(e) }
+    fn from(e: hrp::Error) -> Self {
+        Self::Hrp(e)
+    }
 }
 
 /// Character errors in a bech32 encoded string.
