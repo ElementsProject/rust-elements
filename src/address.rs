@@ -62,6 +62,12 @@ pub enum AddressError {
 
     /// An invalid blinding pubkey was encountered.
     InvalidBlindingPubKey(secp256k1_zkp::UpstreamError),
+
+    /// The length (in bytes) of the object was not correct.
+    InvalidLength(usize),
+
+    /// Address version byte were not recognized.
+    InvalidAddressVersion(u8),
 }
 
 impl From<crate::bech32::primitives::decode::SegwitHrpstringError> for AddressError {
@@ -110,6 +116,12 @@ impl fmt::Display for AddressError {
             }
             AddressError::InvalidSegwitV0Encoding => {
                 write!(f, "v0 witness program must use b(l)ech32 not b(l)ech32m")
+            }
+            AddressError::InvalidLength(len) => {
+                write!(f, "Address data has invalid length {}", len)
+            }
+            AddressError::InvalidAddressVersion(v) => {
+                write!(f, "address version {} is invalid for this type", v)
             }
         }
     }
@@ -478,13 +490,13 @@ impl Address {
         let (blinded, prefix) = match data[0] == params.blinded_prefix {
             true => {
                 if data.len() != 55 {
-                    return Err(base58::Error::InvalidLength(data.len()).into());
+                    return Err(AddressError::InvalidLength(data.len()));
                 }
                 (true, data[1])
             }
             false => {
                 if data.len() != 21 {
-                    return Err(base58::Error::InvalidLength(data.len()).into());
+                    return Err(AddressError::InvalidLength(data.len()));
                 }
                 (false, data[0])
             }
@@ -506,7 +518,7 @@ impl Address {
         } else if prefix == params.p2sh_prefix {
             Payload::ScriptHash(ScriptHash::from_slice(payload_data).unwrap())
         } else {
-            return Err(base58::Error::InvalidAddressVersion(prefix).into());
+            return Err(AddressError::InvalidAddressVersion(prefix));
         };
 
         Ok(Address {
@@ -532,7 +544,7 @@ impl Address {
 
         // Base58.
         if s.len() > 150 {
-            return Err(base58::Error::InvalidLength(s.len() * 11 / 15).into());
+            return Err(AddressError::InvalidLength(s.len() * 11 / 15));
         }
         let data = base58::decode_check(s)?;
         Address::from_base58(&data, params)
@@ -687,11 +699,11 @@ impl FromStr for Address {
 
         // Base58.
         if s.len() > 150 {
-            return Err(base58::Error::InvalidLength(s.len() * 11 / 15).into());
+            return Err(AddressError::InvalidLength(s.len() * 11 / 15));
         }
         let data = base58::decode_check(s)?;
         if data.is_empty() {
-            return Err(base58::Error::InvalidLength(data.len()).into());
+            return Err(AddressError::InvalidLength(data.len()));
         }
 
         let p = data[0];
