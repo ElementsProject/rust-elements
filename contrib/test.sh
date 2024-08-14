@@ -56,6 +56,7 @@ then
         cd fuzz
         if cargo --version | grep "1\.58"; then
             cargo update -p cc --precise 1.0.94
+            cargo update -p zerocopy --precise 0.6.6
         fi
         cargo test --verbose
         ./travis-fuzz.sh
