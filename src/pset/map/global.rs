@@ -20,11 +20,11 @@ use std::{
     io::{self, Cursor, Read},
 };
 
-use crate::encode;
+use crate::encode::{self, VarInt};
 use crate::encode::Decodable;
 use crate::endian::u32_to_array_le;
 use crate::pset::{self, map::Map, raw, Error};
-use crate::{LockTime, VarInt};
+use crate::LockTime;
 use bitcoin::bip32::{ChildNumber, DerivationPath, Xpub, Fingerprint, KeySource};
 use secp256k1_zkp::Tweak;
 

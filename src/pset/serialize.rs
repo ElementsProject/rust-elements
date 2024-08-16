@@ -21,18 +21,20 @@ use std::convert::TryFrom;
 use std::io;
 
 use crate::confidential::{self, AssetBlindingFactor};
-use crate::encode::{self, deserialize, deserialize_partial, serialize, Decodable, Encodable};
+use crate::encode::{
+    self, deserialize, deserialize_partial, serialize, Decodable, Encodable, VarInt,
+};
 use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
-use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
 use crate::hex::ToHex;
+use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
+use bitcoin;
 use bitcoin::bip32::{ChildNumber, Fingerprint, KeySource};
-use bitcoin::{self, VarInt};
-use bitcoin::{PublicKey, key::XOnlyPublicKey};
+use bitcoin::{key::XOnlyPublicKey, PublicKey};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use super::map::{PsbtSighashType, TapTree};
 use crate::schnorr;
-use crate::taproot::{ControlBlock, LeafVersion, TapNodeHash, TapLeafHash};
+use crate::taproot::{ControlBlock, LeafVersion, TapLeafHash, TapNodeHash};
 
 use crate::sighash::SchnorrSighashType;
 use crate::taproot::TaprootBuilder;
@@ -66,7 +68,6 @@ impl_pset_de_serialize!(crate::Sequence);
 impl_pset_de_serialize!(crate::locktime::Height);
 impl_pset_de_serialize!(crate::locktime::Time);
 impl_pset_de_serialize!([u8; 32]);
-impl_pset_de_serialize!(VarInt);
 impl_pset_de_serialize!(Vec<Vec<u8>>); // scriptWitness
 impl_pset_hash_de_serialize!(Txid);
 impl_pset_hash_de_serialize!(ripemd160::Hash);
@@ -78,10 +79,33 @@ impl_pset_hash_de_serialize!(TapLeafHash);
 impl_pset_hash_de_serialize!(TapNodeHash);
 
 // required for pegin bitcoin::Transactions
-impl_pset_de_serialize!(bitcoin::Transaction);
+impl Deserialize for bitcoin::Transaction {
+    fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
+        Ok(bitcoin::consensus::encode::deserialize(bytes)?)
+    }
+}
+impl Serialize for bitcoin::Transaction {
+    fn serialize(&self) -> Vec<u8> {
+        bitcoin::consensus::encode::serialize(self)
+    }
+}
 
 // taproot
 impl_pset_de_serialize!(Vec<TapLeafHash>);
+
+impl Serialize for VarInt {
+    fn serialize(&self) -> Vec<u8> {
+        let mut v = vec![];
+        self.consensus_encode(&mut v).expect("vec don't errors");
+        v
+    }
+}
+
+impl Deserialize for VarInt {
+    fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
+        VarInt::consensus_decode(bytes)
+    }
+}
 
 impl Serialize for Tweak {
     fn serialize(&self) -> Vec<u8> {
@@ -105,7 +129,8 @@ impl Serialize for AssetBlindingFactor {
 impl Deserialize for AssetBlindingFactor {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
         let x = deserialize::<[u8; 32]>(bytes)?;
-        AssetBlindingFactor::from_slice(&x).map_err(|_| encode::Error::ParseFailed("invalid AssetBlindingFactor"))
+        AssetBlindingFactor::from_slice(&x)
+            .map_err(|_| encode::Error::ParseFailed("invalid AssetBlindingFactor"))
     }
 }
 

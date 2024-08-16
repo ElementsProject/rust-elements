@@ -18,7 +18,7 @@
 use std::io::Cursor;
 use std::{error, fmt, io, mem};
 
-use bitcoin::consensus::encode as btcenc;
+use bitcoin::ScriptBuf;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use crate::hashes::{sha256, Hash};
@@ -38,7 +38,7 @@ pub enum Error {
     /// And I/O error
     Io(io::Error),
     /// A Bitcoin encoding error.
-    Bitcoin(btcenc::Error),
+    Bitcoin(bitcoin::consensus::encode::Error),
     /// Tried to allocate an oversized vector
     OversizedVectorAllocation {
         /// The capacity requested
@@ -62,6 +62,8 @@ pub enum Error {
     HexError(crate::hex::Error),
     /// Got a time-based locktime when expecting a height-based one, or vice-versa
     BadLockTime(crate::LockTime),
+    /// VarInt was encoded in a non-minimal way.
+    NonMinimalVarInt,
 }
 
 impl fmt::Display for Error {
@@ -87,6 +89,7 @@ impl fmt::Display for Error {
             Error::PsetError(ref e) => write!(f, "Pset Error: {}", e),
             Error::HexError(ref e) => write!(f, "Hex error {}", e),
             Error::BadLockTime(ref lt) => write!(f, "Invalid locktime {}", lt),
+            Error::NonMinimalVarInt => write!(f, "non-minimal varint"),
         }
     }
 }
@@ -94,16 +97,14 @@ impl fmt::Display for Error {
 impl error::Error for Error {
     fn cause(&self) -> Option<&dyn error::Error> {
         match *self {
-            Error::Bitcoin(ref e) => Some(e),
             Error::Secp256k1zkp(ref e) => Some(e),
             _ => None,
         }
     }
 }
-
 #[doc(hidden)]
-impl From<btcenc::Error> for Error {
-    fn from(e: btcenc::Error) -> Error {
+impl From<bitcoin::consensus::encode::Error> for Error {
+    fn from(e: bitcoin::consensus::encode::Error) -> Error {
         Error::Bitcoin(e)
     }
 }
@@ -210,41 +211,10 @@ pub(crate) fn consensus_encode_with_size<S: io::Write>(
     data: &[u8],
     mut s: S,
 ) -> Result<usize, Error> {
-    let vi_len = bitcoin::VarInt(data.len() as u64).consensus_encode(&mut s)?;
+    let vi_len = VarInt(data.len() as u64).consensus_encode(&mut s)?;
     s.emit_slice(data)?;
     Ok(vi_len + data.len())
 }
-
-/// Implement Elements encodable traits for Bitcoin encodable types.
-macro_rules! impl_upstream {
-    ($type: ty) => {
-        impl Encodable for $type {
-            fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, Error> {
-                Ok(btcenc::Encodable::consensus_encode(self, &mut e)?)
-            }
-        }
-
-        impl Decodable for $type {
-            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
-                Ok(btcenc::Decodable::consensus_decode(&mut d)?)
-            }
-        }
-    };
-}
-impl_upstream!(u8);
-impl_upstream!(u32);
-impl_upstream!(u64);
-impl_upstream!([u8; 4]);
-impl_upstream!([u8; 32]);
-impl_upstream!(Box<[u8]>);
-impl_upstream!([u8; 33]);
-impl_upstream!(Vec<u8>);
-impl_upstream!(Vec<Vec<u8>>);
-impl_upstream!(btcenc::VarInt);
-impl_upstream!(bitcoin::Transaction);
-impl_upstream!(bitcoin::BlockHash);
-impl_upstream!(bitcoin::ScriptBuf);
-impl_upstream!(crate::hashes::sha256d::Hash);
 
 // Specific locktime types (which appear in PSET/PSBT2 but not in rust-bitcoin PSBT)
 impl Encodable for crate::locktime::Height {
@@ -275,6 +245,125 @@ impl Decodable for crate::locktime::Time {
     }
 }
 
+// TODO reuse bitcoin's `WriteExt::emit_varint`, `ReadExt::read_varint` when available
+
+/// A variable sized integer.
+pub struct VarInt(pub u64);
+impl Encodable for VarInt {
+    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, Error> {
+        match self.0 {
+            i @ 0..=0xFC => {
+                e.emit_u8(i as u8)?;
+                Ok(1)
+            }
+            i @ 0xFD..=0xFFFF => {
+                e.emit_u8(0xFD)?;
+                e.emit_u16(i as u16)?;
+                Ok(3)
+            }
+            i @ 0x10000..=0xFFFFFFFF => {
+                e.emit_u8(0xFE)?;
+                e.emit_u32(i as u32)?;
+                Ok(5)
+            }
+            i => {
+                e.emit_u8(0xFF)?;
+                e.emit_u64(i)?;
+                Ok(9)
+            }
+        }
+    }
+}
+impl Decodable for VarInt {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+        match d.read_u8()? {
+            0xFF => {
+                let x = d.read_u64()?;
+                if x < 0x100000000 {
+                    Err(Error::NonMinimalVarInt)
+                } else {
+                    Ok(VarInt(x))
+                }
+            }
+            0xFE => {
+                let x = d.read_u32()?;
+                if x < 0x10000 {
+                    Err(Error::NonMinimalVarInt)
+                } else {
+                    Ok(VarInt(x as u64))
+                }
+            }
+            0xFD => {
+                let x = d.read_u16()?;
+                if x < 0xFD {
+                    Err(Error::NonMinimalVarInt)
+                } else {
+                    Ok(VarInt(x as u64))
+                }
+            }
+            n => Ok(VarInt(n as u64)),
+        }
+    }
+}
+impl VarInt {
+    /// returns the byte size used if this var int is serialized
+    pub fn size(&self) -> usize {
+        match self.0 {
+            0..=0xFC => 1,
+            0xFD..=0xFFFF => 3,
+            0x10000..=0xFFFFFFFF => 5,
+            _ => 9,
+        }
+    }
+}
+
+// Primitive types
+macro_rules! impl_int {
+    ($ty:ident, $meth_dec:ident, $meth_enc:ident) => {
+        impl Encodable for $ty {
+            fn consensus_encode<W: io::Write>(&self, mut w: W) -> Result<usize, Error> {
+                w.$meth_enc(*self)?;
+                Ok(mem::size_of::<$ty>())
+            }
+        }
+        impl Decodable for $ty {
+            fn consensus_decode<R: io::Read>(mut r: R) -> Result<Self, Error> {
+                Ok(ReadExt::$meth_dec(&mut r)?)
+            }
+        }
+    };
+}
+
+impl_int!(u8, read_u8, emit_u8);
+impl_int!(u16, read_u16, emit_u16);
+impl_int!(u32, read_u32, emit_u32);
+impl_int!(u64, read_u64, emit_u64);
+
+impl Encodable for bitcoin::ScriptBuf {
+    fn consensus_encode<W: io::Write>(&self, w: W) -> Result<usize, Error> {
+        consensus_encode_with_size(self.as_script().as_bytes(), w)
+    }
+}
+impl Decodable for bitcoin::ScriptBuf {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
+        let bytes = Vec::<u8>::consensus_decode(d)?;
+        Ok(ScriptBuf::from_bytes(bytes))
+    }
+}
+
+impl Encodable for bitcoin::hashes::sha256d::Hash {
+    fn consensus_encode<W: io::Write>(&self, mut w: W) -> Result<usize, Error> {
+        self.as_byte_array().consensus_encode(&mut w)
+    }
+}
+impl Decodable for bitcoin::hashes::sha256d::Hash {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
+        Ok(Self::from_byte_array(
+            <<Self as Hash>::Bytes>::consensus_decode(d)?,
+        ))
+    }
+}
+
 // Vectors
 macro_rules! impl_vec {
     ($type: ty) => {
@@ -282,7 +371,7 @@ macro_rules! impl_vec {
             #[inline]
             fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
                 let mut len = 0;
-                len += btcenc::VarInt(self.len() as u64).consensus_encode(&mut s)?;
+                len += VarInt(self.len() as u64).consensus_encode(&mut s)?;
                 for c in self.iter() {
                     len += c.consensus_encode(&mut s)?;
                 }
@@ -293,7 +382,7 @@ macro_rules! impl_vec {
         impl Decodable for Vec<$type> {
             #[inline]
             fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
-                let len = btcenc::VarInt::consensus_decode(&mut d)?.0;
+                let len = VarInt::consensus_decode(&mut d)?.0;
                 let byte_size = (len as usize)
                     .checked_mul(mem::size_of::<$type>())
                     .ok_or(self::Error::ParseFailed("Invalid length"))?;
@@ -316,6 +405,60 @@ impl_vec!(TxIn);
 impl_vec!(TxOut);
 impl_vec!(Transaction);
 impl_vec!(TapLeafHash);
+impl_vec!(Vec<u8>); // Vec<Vec<u8>>
+
+macro_rules! impl_array {
+    ( $size:literal ) => {
+        impl Encodable for [u8; $size] {
+            #[inline]
+            fn consensus_encode<W: WriteExt>(
+                &self,
+                mut w: W,
+            ) -> core::result::Result<usize, Error> {
+                w.emit_slice(&self[..])?;
+                Ok($size)
+            }
+        }
+
+        impl Decodable for [u8; $size] {
+            #[inline]
+            fn consensus_decode<R: ReadExt>(mut r: R) -> core::result::Result<Self, Error> {
+                let mut ret = [0; $size];
+                r.read_slice(&mut ret)?;
+                Ok(ret)
+            }
+        }
+    };
+}
+impl_array!(4);
+impl_array!(32);
+impl_array!(33);
+
+impl Encodable for Box<[u8]> {
+    fn consensus_encode<W: io::Write>(&self, mut w: W) -> Result<usize, Error> {
+        consensus_encode_with_size(&self[..], &mut w)
+    }
+}
+impl Decodable for Box<[u8]> {
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
+        let v = Vec::<u8>::consensus_decode(d)?;
+        Ok(v.into())
+    }
+}
+
+impl Encodable for Vec<u8> {
+    fn consensus_encode<W: io::Write>(&self, mut w: W) -> Result<usize, Error> {
+        consensus_encode_with_size(&self[..], &mut w)
+    }
+}
+impl Decodable for Vec<u8> {
+    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
+        let s = VarInt::consensus_decode(&mut d)?.0 as usize;
+        let mut v = vec![0; s];
+        d.read_slice(&mut v)?;
+        Ok(v)
+    }
+}
 
 macro_rules! impl_box_option {
     ($type: ty) => {

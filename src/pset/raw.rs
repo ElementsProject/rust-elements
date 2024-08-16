@@ -21,10 +21,9 @@ use std::{fmt, io};
 
 use super::Error;
 use crate::encode::{
-    self, deserialize, serialize, Decodable, Encodable, ReadExt, WriteExt, MAX_VEC_SIZE,
+    self, deserialize, serialize, Decodable, Encodable, VarInt, WriteExt, MAX_VEC_SIZE,
 };
 use crate::hex;
-use crate::VarInt;
 /// A PSET key in its raw byte form.
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Ord, PartialOrd)]
 #[cfg_attr(
@@ -198,7 +197,7 @@ where
         let prefix = Vec::<u8>::consensus_decode(&mut d)?;
         let mut key = vec![];
 
-        let subtype = Subtype::from(d.read_u8()?);
+        let subtype = Subtype::from(u8::consensus_decode(&mut d)?);
         d.read_to_end(&mut key)?;
 
         Ok(ProprietaryKey {
