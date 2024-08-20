@@ -23,8 +23,8 @@ use std::io;
 use crate::dynafed;
 use crate::hashes::{Hash, sha256};
 use crate::Transaction;
-use crate::encode::{self, Encodable, Decodable, serialize};
-use crate::{BlockHash, Script, TxMerkleNode, VarInt};
+use crate::encode::{self, serialize, Decodable, Encodable, VarInt};
+use crate::{BlockHash, Script, TxMerkleNode};
 
 /// Data related to block signatures
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]

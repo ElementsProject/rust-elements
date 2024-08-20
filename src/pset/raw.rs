@@ -20,11 +20,8 @@
 use std::{fmt, io};
 
 use super::Error;
-use crate::encode::{
-    self, deserialize, serialize, Decodable, Encodable, ReadExt, WriteExt, MAX_VEC_SIZE,
-};
+use crate::encode::{self, deserialize, serialize, Decodable, Encodable, VarInt, MAX_VEC_SIZE};
 use crate::hex;
-use crate::VarInt;
 /// A PSET key in its raw byte form.
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Ord, PartialOrd)]
 #[cfg_attr(
@@ -182,7 +179,7 @@ impl<Subtype> Encodable for ProprietaryKey<Subtype>
 where
     Subtype: Copy + From<u8> + Into<u8>,
 {
-    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
+    fn consensus_encode<W: crate::WriteExt>(&self, mut e: W) -> Result<usize, encode::Error> {
         let mut len = self.prefix.consensus_encode(&mut e)? + 1;
         e.emit_u8(self.subtype.into())?;
         len += e.write(&self.key)?;
@@ -198,7 +195,7 @@ where
         let prefix = Vec::<u8>::consensus_decode(&mut d)?;
         let mut key = vec![];
 
-        let subtype = Subtype::from(d.read_u8()?);
+        let subtype = Subtype::from(u8::consensus_decode(&mut d)?);
         d.read_to_end(&mut key)?;
 
         Ok(ProprietaryKey {
