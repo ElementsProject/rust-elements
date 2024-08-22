@@ -66,7 +66,12 @@ fi
 if [ "$DO_INTEGRATION" = true ]
 then
     (
+        BITCOIND_EXE_DEFAULT="$(git rev-parse --show-toplevel)/elementsd-tests/bin/bitcoind"
+        ELEMENTSD_EXE_DEFAULT="$(git rev-parse --show-toplevel)/elementsd-tests/bin/elementsd"
+
         cd elementsd-tests
+        BITCOIND_EXE=${BITCOIND_EXE:=${BITCOIND_EXE_DEFAULT}} \
+        ELEMENTSD_EXE=${ELEMENTSD_EXE:=${ELEMENTSD_EXE_DEFAULT}} \
         cargo test
         cd ..
     )

@@ -66,11 +66,11 @@
 use core::{fmt, iter, slice, str};
 
 use crate::error::write_err;
-use crate::bech32::primitives::checksum::{self, Checksum};
-use crate::bech32::primitives::gf32::Fe32;
-use crate::bech32::primitives::hrp::{self, Hrp};
-use crate::bech32::primitives::iter::{Fe32IterExt, FesToBytes};
-use crate::bech32::primitives::segwit::{WitnessLengthError, VERSION_0};
+use bech32::primitives::checksum::{self, Checksum};
+use bech32::primitives::gf32::Fe32;
+use bech32::primitives::hrp::{self, Hrp};
+use bech32::primitives::iter::{Fe32IterExt, FesToBytes};
+use bech32::primitives::segwit::{WitnessLengthError, VERSION_0};
 use super::{Blech32, Blech32m};
 
 /// Separator between the hrp and payload (as defined by BIP-173).
@@ -150,7 +150,7 @@ impl<'s> UncheckedHrpstring<'s> {
         }
 
         let mut checksum_eng = checksum::Engine::<Ck>::new();
-        checksum_eng.input_hrp(&self.hrp());
+        checksum_eng.input_hrp(self.hrp());
 
         // Unwrap ok since we checked all characters in our constructor.
         for fe in self.data.iter().map(|&b| Fe32::from_char(b.into()).unwrap()) {
@@ -881,7 +881,7 @@ mod tests {
             "an83characterlonghumanreadablepartthatcontainsthenumber1andtheexcludedcharactersbio";
 
         let hrp = Hrp::parse_unchecked(hrps);
-        let s = crate::bech32::encode::<Blech32>(hrp, &[]).expect("failed to encode empty buffer");
+        let s = bech32::encode::<Blech32>(hrp, &[]).expect("failed to encode empty buffer");
 
         let unchecked = UncheckedHrpstring::new(&s).expect("failed to parse address");
         assert_eq!(unchecked.hrp(), hrp);

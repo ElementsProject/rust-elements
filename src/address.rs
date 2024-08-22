@@ -21,7 +21,7 @@ use std::fmt;
 use std::fmt::Write as _;
 use std::str::FromStr;
 
-use crate::bech32::{Bech32, Bech32m, ByteIterExt, Fe32, Fe32IterExt, Hrp};
+use bech32::{Bech32, Bech32m, ByteIterExt, Fe32, Fe32IterExt, Hrp};
 use crate::blech32::{Blech32, Blech32m};
 use crate::hashes::Hash;
 use bitcoin::base58;
@@ -44,7 +44,7 @@ pub enum AddressError {
     /// Base58 encoding error
     Base58(base58::Error),
     /// Bech32 encoding error
-    Bech32(crate::bech32::primitives::decode::SegwitHrpstringError),
+    Bech32(bech32::primitives::decode::SegwitHrpstringError),
     /// Blech32 encoding error
     Blech32(crate::blech32::decode::SegwitHrpstringError),
     /// Was unable to parse the address.
@@ -70,8 +70,8 @@ pub enum AddressError {
     InvalidAddressVersion(u8),
 }
 
-impl From<crate::bech32::primitives::decode::SegwitHrpstringError> for AddressError {
-    fn from(e: crate::bech32::primitives::decode::SegwitHrpstringError) -> Self {
+impl From<bech32::primitives::decode::SegwitHrpstringError> for AddressError {
+    fn from(e: bech32::primitives::decode::SegwitHrpstringError) -> Self {
         AddressError::Bech32(e)
     }
 }
@@ -458,7 +458,7 @@ impl Address {
             let hs = crate::blech32::decode::SegwitHrpstring::new(s)?;
             (hs.witness_version(), hs.byte_iter().collect())
         } else {
-            let hs = crate::bech32::primitives::decode::SegwitHrpstring::new(s)?;
+            let hs = bech32::primitives::decode::SegwitHrpstring::new(s)?;
             (hs.witness_version(), hs.byte_iter().collect())
         };
 
@@ -908,7 +908,7 @@ mod test {
             "ert130xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqqu2tys".parse();
         assert_eq!(
             address.err().unwrap().to_string(),
-            "bech32 error: invalid segwit witness version: 3", // FIXME https://github.com/rust-bitcoin/rust-bech32/issues/162 should be 17
+            "bech32 error: invalid segwit witness version: 17 (bech32 character: '3')",
         );
 
         let address: Result<Address, _> = "el1pq0umk3pez693jrrlxz9ndlkuwne93gdu9g83mhhzuyf46e3mdzfpva0w48gqgzgrklncnm0k5zeyw8my2ypfsqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpe9jfn0gypaj".parse();
@@ -920,10 +920,7 @@ mod test {
         // "invalid prefix" gives a weird error message because we do
         // a dumb prefix check before even attempting bech32 decoding
         let address: Result<Address, _> = "rrr1qq0umk3pez693jrrlxz9ndlkuwne93gdu9g83mhhzuyf46e3mdzfpva0w48gqgzgrklncnm0k5zeyw8my2ypfs2d9rp7meq4kg".parse();
-        assert_eq!(
-            address.err().unwrap().to_string(),
-            "base58 error: invalid base58 character 0x30",
-        );
+        assert_eq!(address.err().unwrap().to_string(), "base58 error: decode",);
     }
 
     #[test]
