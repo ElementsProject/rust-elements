@@ -32,7 +32,10 @@ trait Call {
 
 impl Call for ElementsD {
     fn call(&self, cmd: &str, args: &[Value]) -> Value {
-        self.client().call::<Value>(cmd, args).unwrap()
+        match self.client().call::<Value>(cmd, args) {
+            Ok(v) => v,
+            Err(e) => panic!("error {} while calling {} with {:?}", e, cmd, args),
+        }
     }
 
     fn decode_psbt(&self, psbt: &str) -> Option<Value> {
