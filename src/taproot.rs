@@ -103,6 +103,7 @@ pub const TAPROOT_CONTROL_MAX_SIZE: usize =
 // type alias for versioned tap script corresponding merkle proof
 type ScriptMerkleProofMap = BTreeMap<(Script, LeafVersion), BTreeSet<TaprootMerkleBranch>>;
 /// Data structure for representing Taproot spending information.
+///
 /// Taproot output corresponds to a combination of a
 /// single public key condition (known the internal key), and zero or more
 /// general conditions encoded in scripts organized in the form of a binary tree.

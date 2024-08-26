@@ -448,16 +448,20 @@ pub mod all {
     /// and completing the padding
     pub const OP_SHA256FINALIZE: All = All {code: 0xc6};
     /// Pop a CScriptNum input index idx and push the outpoint as a tuple.
+    ///
     /// First push the txid(32) of the prev_out, followed by a 4 byte push of
     /// vout followed by a push for the outpoint_flag(1)
     pub const OP_INSPECTINPUTOUTPOINT: All = All {code: 0xc7};
     /// Pop a CScriptNum input index idx and push the nAsset onto the stack as two elements.
+    ///
     /// The first push the assetID(32), followed by the prefix(1)
     pub const OP_INSPECTINPUTASSET: All = All {code: 0xc8};
     /// Pop a CScriptNum input index idx and push the nValue as a tuple,
+    ///
     /// value(8 byte LE, 32) followed by prefix(1),
     pub const OP_INSPECTINPUTVALUE: All = All {code: 0xc9};
     /// Pop a CScriptNum input index idx and push the following depending the type of scriptPubkey:
+    ///
     /// - If the scriptPubKey is not a native segwit program, push a single sha256
     ///   hash of the scriptPubKey on stack top. Next, push a CScriptNum(-1) to
     ///   indicate a non-native segwit scriptPubKey.
@@ -467,7 +471,9 @@ pub mod all {
     /// Pop a CScriptNum input index idx and push the nSequence(4) as little-endian number.
     pub const OP_INSPECTINPUTSEQUENCE: All = All {code: 0xcb};
     /// Pop a CScriptNum input index idx and push the assetIssuance information if the asset has issuance,
-    /// otherwise push an empty vector. Refer to the [spec](https://github.com/ElementsProject/elements/blob/master/doc/tapscript_opcodes.md)
+    /// otherwise push an empty vector.
+    ///
+    /// Refer to the [spec](https://github.com/ElementsProject/elements/blob/master/doc/tapscript_opcodes.md)
     /// for details
     pub const OP_INSPECTINPUTISSUANCE: All = All {code: 0xcc};
     /// Pushes the current input index as CScriptNum. This can be used in conjunction with
@@ -496,18 +502,22 @@ pub mod all {
     /// Push the transaction weight (8) as little-endian
     pub const OP_TXWEIGHT: All = All {code: 0xd6};
     /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    ///
     /// Push a + b onto the stack. Push 1 CScriptNum if there is no overflow.
     /// Refer to the spec for details when dealing with overflow.
     pub const OP_ADD64: All = All {code: 0xd7};
-    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    ///
     /// Push a - b onto the stack. Push 1 CScriptNum if there is no overflow.
     /// Refer to the spec for details when dealing with overflow.
     pub const OP_SUB64: All = All {code: 0xd8};
     /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    ///
     /// Push a*b onto the stack. Push 1 CScriptNum if there is no overflow.
     /// Refer to the spec for details when dealing with overflow.
     pub const OP_MUL64: All = All {code: 0xd9};
-    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE).
+    ///
     /// First push remainder a%b(must be non-negative and less than |b|) onto the
     /// stack followed by quotient(a//b) onto the stack.
     ///
@@ -516,44 +526,54 @@ pub mod all {
     /// Refer to the spec for details when dealing with overflow.
     pub const OP_DIV64: All = All {code: 0xda};
     /// Pop the first number(8 byte LE) as a and pushes -a on the stack top.
+    ///
     /// If the number is -2^63 treat as overflow, otherwise push CScriptNum 1 to indicate no overflow.
     /// Refer to the spec for details when dealing with overflow.
     pub const OP_NEG64: All = All {code: 0xdb};
-    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a < b.
+    /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a < b.
+    ///
     /// Note that this operation cannot fail
     pub const OP_LESSTHAN64: All = All {code: 0xdc};
-    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a <= b.
+    /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a <= b.
+    ///
     /// Note that this operation cannot fail
     pub const OP_LESSTHANOREQUAL64: All = All {code: 0xdd};
-    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a > b
+    /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a > b.
+    ///
     /// Note that this operation cannot fail
     pub const OP_GREATERTHAN64: All = All {code: 0xde};
-    /// pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a >= b.
+    /// Pop the first number(8 byte LE) as b followed another pop for a(8 byte LE). Push a >= b.
     /// Note that this operation cannot fail
     pub const OP_GREATERTHANOREQUAL64: All = All {code: 0xdf};
-    /// pop the stack as minimal CScriptNum, push 8 byte signed LE corresponding to that number.
+    /// Pop the stack as minimal CScriptNum, push 8 byte signed LE corresponding to that number.
     pub const OP_SCRIPTNUMTOLE64: All = All {code: 0xe0};
-    /// pop the stack as a 8 byte signed LE. Convert to CScriptNum and push it, abort on fail.
+    /// Pop the stack as a 8 byte signed LE. Convert to CScriptNum and push it, abort on fail.
+    ///
     /// Please check the range of the operand before calling the opcode.
     pub const OP_LE64TOSCRIPTNUM: All = All {code: 0xe1};
-    /// pop the stack as a 4 byte unsigned LE. Push the corresponding 8 byte signed LE number.
+    /// Pop the stack as a 4 byte unsigned LE. Push the corresponding 8 byte signed LE number.
+    ///
     /// Cannot fail, useful for operating of version, locktime, sequence, number of inputs,
     /// number of outputs, weight etc.
     pub const OP_LE32TOLE64: All = All {code: 0xe2};
-    ///  Pops three elements from stack as described below:
-    /// 1) a 32 byte big endian, unsigned scalar k.
-    /// 2) Compressed EC point P, and
-    /// 3) compressed EC point Q.
+    /// Pops three elements from stack as:
+    ///
+    /// 1. a 32 byte big endian, unsigned scalar k.
+    /// 2. Compressed EC point P, and
+    /// 3. compressed EC point Q.
     ///
     /// Abort if P, Q is invalid or k is not 32 bytes and outside of secp256k1 curve order.
+    ///
     /// Abort if Q != k*P.
     pub const OP_ECMULSCALARVERIFY: All = All {code: 0xe3};
     /// Pop the three elements as:
-    /// 1) 32 byte X-only internal key P,
-    /// 2) a 32 byte big endian, unsigned scalar k, and
-    /// 3) 33 byte compressed point Q.
+    ///
+    /// 1. 32 byte X-only internal key P,
+    /// 2. a 32 byte big endian, unsigned scalar k, and
+    /// 3. 33 byte compressed point Q.
     ///
     /// Abort if P, Q is invalid or k is not 32 bytes and outside of secp256k1 curve order.
+    ///
     /// Abort if Q != P + k*G where G is the generator for secp256k1.
     pub const OP_TWEAKVERIFY: All = All {code: 0xe4};
     /// Synonym for OP_RETURN
