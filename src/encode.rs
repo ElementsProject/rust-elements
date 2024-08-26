@@ -403,6 +403,12 @@ impl Encodable for Vec<u8> {
 impl Decodable for Vec<u8> {
     fn consensus_decode<D: crate::ReadExt>(mut d: D) -> Result<Self, Error> {
         let s = VarInt::consensus_decode(&mut d)?.0 as usize;
+        if s > MAX_VEC_SIZE {
+            return Err(self::Error::OversizedVectorAllocation {
+                requested: s,
+                max: MAX_VEC_SIZE,
+            });
+        }
         let mut v = vec![0; s];
         d.read_slice(&mut v)?;
         Ok(v)
