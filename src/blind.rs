@@ -1375,7 +1375,7 @@ mod tests {
     use crate::encode::deserialize;
     use crate::hex::FromHex;
     use crate::Script;
-    use bitcoin::{Network, PrivateKey, PublicKey};
+    use bitcoin::{PrivateKey, PublicKey};
     use rand::thread_rng;
     use secp256k1_zkp::SECP256K1;
     use std::str::FromStr;
@@ -1466,7 +1466,7 @@ mod tests {
                 SECP256K1,
                 &PrivateKey {
                     compressed: true,
-                    network: Network::Regtest,
+                    network: bitcoin::NetworkKind::Test,
                     inner: sk,
                 },
             );
@@ -1475,7 +1475,7 @@ mod tests {
                 SECP256K1,
                 &PrivateKey {
                     compressed: true,
-                    network: Network::Regtest,
+                    network: bitcoin::NetworkKind::Test,
                     inner: blinding_sk,
                 },
             );

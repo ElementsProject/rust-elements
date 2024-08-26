@@ -261,29 +261,29 @@ impl Script {
 
     /// Generates P2WPKH-type of scriptPubkey
     pub fn new_v0_wpkh(pubkey_hash: &WPubkeyHash) -> Script {
-        Script::new_witness_program(crate::bech32::Fe32::Q, &pubkey_hash.to_raw_hash().to_byte_array())
+        Script::new_witness_program(bech32::Fe32::Q, &pubkey_hash.to_raw_hash().to_byte_array())
     }
 
     /// Generates P2WSH-type of scriptPubkey with a given hash of the redeem script
     pub fn new_v0_wsh(script_hash: &WScriptHash) -> Script {
-        Script::new_witness_program(crate::bech32::Fe32::Q, &script_hash.to_raw_hash().to_byte_array())
+        Script::new_witness_program(bech32::Fe32::Q, &script_hash.to_raw_hash().to_byte_array())
     }
 
     /// Generates P2TR for script spending path using an internal public key and some optional
     /// script tree merkle root.
     pub fn new_v1_p2tr<C: Verification>(secp: &Secp256k1<C>, internal_key: UntweakedPublicKey, merkle_root: Option<TapNodeHash>) -> Script {
         let (output_key, _) = internal_key.tap_tweak(secp, merkle_root);
-        Script::new_witness_program(crate::bech32::Fe32::P, &output_key.as_inner().serialize())
+        Script::new_witness_program(bech32::Fe32::P, &output_key.as_inner().serialize())
     }
 
     /// Generates P2TR for key spending path for a known [`TweakedPublicKey`].
     pub fn new_v1_p2tr_tweaked(output_key: TweakedPublicKey) -> Script {
-        Script::new_witness_program(crate::bech32::Fe32::P, &output_key.as_inner().serialize())
+        Script::new_witness_program(bech32::Fe32::P, &output_key.as_inner().serialize())
     }
 
 
     /// Generates P2WSH-type of scriptPubkey with a given hash of the redeem script
-    pub fn new_witness_program(ver: crate::bech32::Fe32, program: &[u8]) -> Script {
+    pub fn new_witness_program(ver: bech32::Fe32, program: &[u8]) -> Script {
         let mut verop = ver.to_u8();
         assert!(verop <= 16, "incorrect witness version provided: {}", verop);
         if verop > 0 {

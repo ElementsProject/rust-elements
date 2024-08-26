@@ -73,7 +73,6 @@ mod transaction;
 // consider making upstream public
 mod endian;
 // re-export bitcoin deps which we re-use
-pub use bitcoin::bech32;
 pub use bitcoin::hashes;
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressError, AddressParams};

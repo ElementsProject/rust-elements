@@ -1,11 +1,10 @@
-
 #[cfg(test)]
 mod pset;
 #[cfg(test)]
 mod taproot;
 
-use elementsd::bitcoincore_rpc::RpcApi;
 use elementsd::bitcoincore_rpc::jsonrpc::serde_json::{json, Value};
+use elementsd::bitcoincore_rpc::RpcApi;
 #[cfg(test)]
 use elementsd::bitcoind::{self, BitcoinD};
 use elementsd::ElementsD;
@@ -33,7 +32,10 @@ trait Call {
 
 impl Call for ElementsD {
     fn call(&self, cmd: &str, args: &[Value]) -> Value {
-        self.client().call::<Value>(cmd, args).unwrap()
+        match self.client().call::<Value>(cmd, args) {
+            Ok(v) => v,
+            Err(e) => panic!("error {} while calling {} with {:?}", e, cmd, args),
+        }
     }
 
     fn decode_psbt(&self, psbt: &str) -> Option<Value> {
@@ -132,45 +134,10 @@ impl Call for ElementsD {
             .unwrap()
             .to_string()
     }
-
 }
 
 #[cfg(test)]
 fn setup(validate_pegin: bool) -> (ElementsD, Option<BitcoinD>) {
-    // Create env var BITCOIND_EXE_PATH to point to the ../bitcoind/bin/bitcoind binary
-    let key = "BITCOIND_EXE";
-    if std::env::var(key).is_err() {
-        let mut root_path = std::env::current_dir().unwrap();
-        while std::fs::metadata(root_path.join("LICENSE")).is_err() {
-            if !root_path.pop() {
-                panic!("Could not find LICENSE file; do not know where repo root is.");
-            }
-        }
-
-        let bitcoind_path = root_path
-            .join("elementsd-tests")
-            .join("bin")
-            .join("bitcoind");
-        std::env::set_var(key, bitcoind_path);
-    }
-
-    // Create env var BITCOIND_EXE_PATH to point to the ../bitcoind/bin/bitcoind binary
-    let key = "ELEMENTSD_EXE";
-    if std::env::var(key).is_err() {
-        let mut root_path = std::env::current_dir().unwrap();
-        while std::fs::metadata(root_path.join("LICENSE")).is_err() {
-            if !root_path.pop() {
-                panic!("Could not find LICENSE file; do not know where repo root is.");
-            }
-        }
-
-        let bitcoind_path = root_path
-            .join("elementsd-tests")
-            .join("bin")
-            .join("elementsd");
-        std::env::set_var(key, bitcoind_path);
-    }
-
     let mut bitcoind = None;
     if validate_pegin {
         let bitcoind_exe = bitcoind::exe_path().unwrap();

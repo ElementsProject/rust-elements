@@ -26,7 +26,7 @@ pub mod decode;
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Blech32 {}
 
-impl crate::bech32::Checksum for Blech32 {
+impl bech32::Checksum for Blech32 {
     type MidstateRepr = u64;
     const CHECKSUM_LENGTH: usize = 12;
     const GENERATOR_SH: [u64; 5] = [
@@ -37,13 +37,15 @@ impl crate::bech32::Checksum for Blech32 {
         0x7093e5a608865b,
     ];
     const TARGET_RESIDUE: u64 = 1;
+
+    const CODE_LENGTH: usize = 1024;
 }
 
 /// The blech32m checksum algorithm.
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Blech32m {}
 
-impl crate::bech32::Checksum for Blech32m {
+impl bech32::Checksum for Blech32m {
     type MidstateRepr = u64;
     const CHECKSUM_LENGTH: usize = 12;
     const GENERATOR_SH: [u64; 5] = [
@@ -54,5 +56,6 @@ impl crate::bech32::Checksum for Blech32m {
         0x7093e5a608865b,
     ];
     const TARGET_RESIDUE: u64 = 0x455972a3350f7a1;
-}
 
+    const CODE_LENGTH: usize = 1024;
+}
