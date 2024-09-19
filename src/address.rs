@@ -223,6 +223,11 @@ impl Address {
         self.blinding_pubkey.is_some()
     }
 
+    /// Return if the address is for the Liquid network
+    pub fn is_liquid(&self) -> bool {
+        self.params == &AddressParams::LIQUID
+    }
+
     /// Creates a pay to (compressed) public key hash address from a public key
     /// This is the preferred non-witness type address
     #[inline]
