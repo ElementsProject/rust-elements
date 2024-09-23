@@ -1,4 +1,20 @@
 
+# 0.25.0 - 2024-09-23
+
+* [https://github.com/ElementsProject/rust-elements/pull/216](add Address::is_liquid)
+* [https://github.com/ElementsProject/rust-elements/pull/215](docs: add a bunch of paragraph breaks.)
+* [https://github.com/ElementsProject/rust-elements/pull/213](ELIP-0101: rename from LiquiDEX )
+* [https://github.com/ElementsProject/rust-elements/pull/212](Stop implementing elements::Encodable with bitcoin::Encodable)
+* [https://github.com/ElementsProject/rust-elements/pull/210](Address err refactor)
+* [https://github.com/ElementsProject/rust-elements/pull/209](upgrade to bitcoin 0.32)
+* [https://github.com/ElementsProject/rust-elements/pull/207](Add elip_liquidex module)
+* [https://github.com/ElementsProject/rust-elements/pull/206](pset: elip100: add and get token metadata)
+* [https://github.com/ElementsProject/rust-elements/pull/204](tx: add discount_weight and discount_vsize)
+* [https://github.com/ElementsProject/rust-elements/pull/203](transaction: range-check pegin data when parsing)
+* [https://github.com/ElementsProject/rust-elements/pull/201](pset: add optional asset blinding factor to input and output)
+* [https://github.com/ElementsProject/rust-elements/pull/200](pset: input: add blinded issuance flag)
+* [https://github.com/ElementsProject/rust-elements/pull/199](pset: input: add explicit amount and asset, and their proofs)
+
 # 0.24.1 - 2024-01-30
 
 * [https://github.com/ElementsProject/rust-elements/pull/196](Add constructor to `FullParams`)
