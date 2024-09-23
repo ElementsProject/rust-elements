@@ -69,7 +69,7 @@ jobs:
         run: ./contrib/test.sh
 
   Fuzz:
-    name: Fuzztests - 1.58.0 toolchain
+    name: Fuzztests - 1.63.0 toolchain
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -77,7 +77,7 @@ jobs:
       - name: Checkout Crate
         uses: actions/checkout@v3
       - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@1.58.0
+        uses: dtolnay/rust-toolchain@1.63.0
       - name: Install test dependencies
         run: sudo apt-get update -y && sudo apt-get install -y binutils-dev libunwind8-dev libcurl4-openssl-dev libelf-dev libdw-dev cmake gcc libiberty-dev
       - name: Running test script

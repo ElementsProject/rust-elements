@@ -24,6 +24,7 @@ fn sha256midstate(left: &[u8], right: &[u8]) -> sha256::Midstate {
 }
 
 /// Compute the Merkle root of the give hashes using mid-state only.
+///
 /// The inputs must be byte slices of length 32.
 /// Note that the merkle root calculated with this method is not the same as the
 /// one computed by a normal SHA256(d) merkle root.

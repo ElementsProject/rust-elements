@@ -178,12 +178,14 @@ fn build_scriptint(n: i64) -> Vec<u8> {
 }
 
 /// Helper to decode an integer in script format
+///
 /// Notice that this fails on overflow: the result is the same as in
 /// bitcoind, that only 4-byte signed-magnitude values may be read as
 /// numbers. They can be added or subtracted (and a long time ago,
 /// multiplied and divided), and this may result in numbers which
 /// can't be written out in 4 bytes or less. This is ok! The number
 /// just can't be read as a number again.
+///
 /// This is a bit crazy and subtle, but it makes sense: you can load
 /// 32-bit numbers and do anything with them, which back when mult/div
 /// was allowed, could result in up to a 64-bit number. We don't want

@@ -262,7 +262,8 @@ impl TxOutSecrets {
         }
     }
 
-    /// Gets the surjection inputs from [`TxOutSecrets`]
+    /// Gets the surjection inputs from [`TxOutSecrets`].
+    ///
     /// Returns a tuple (assetid, blind_factor, generator) if the blinds are
     /// consistent with asset commitment
     /// Otherwise, returns an error
@@ -280,6 +281,7 @@ impl TxOutSecrets {
 }
 
 /// Data structure used to provide inputs to [`SurjectionProof`] methods.
+///
 /// Inputs for which we don't know the secrets can be [`SurjectionInput::Unknown`],
 /// while inputs from user's wallet should be [`SurjectionInput::Known`]
 ///
