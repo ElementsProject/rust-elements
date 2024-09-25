@@ -931,7 +931,7 @@ impl Transaction {
     }
 
     /// Get the "discount weight" of this transaction; this is the weight minus the output witnesses and minus the
-    /// differences between asset and nonce commitments from their explicit values.
+    /// differences between asset and nonce commitments from their explicit values (weighted as part of the base transaction).
     pub fn discount_weight(&self) -> usize {
         let mut weight = self.scaled_size(4);
 
@@ -941,10 +941,10 @@ impl Transaction {
             let witness_weight = VarInt(sp_len as u64).size() + sp_len + VarInt(rp_len as u64).size() + rp_len;
             weight -= witness_weight.saturating_sub(2); // explicit transactions have 1 byte for each empty proof
             if out.value.is_confidential() {
-                weight -= 33 - 9;
+                weight -= (33 - 9) * 4;
             }
             if out.nonce.is_confidential() {
-                weight -= 33 - 1;
+                weight -= (33 - 1) * 4;
             }
         }
 
@@ -2444,16 +2444,16 @@ mod tests {
         assert_eq!(tx.output.len(), 2);
         assert_eq!(tx.weight(), 5330);
         assert_eq!(tx.vsize(), 1333);
-        assert_eq!(tx.discount_weight(), 1031);
-        assert_eq!(tx.discount_vsize(), 258);
+        assert_eq!(tx.discount_weight(), 863);
+        assert_eq!(tx.discount_vsize(), 216);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/1in3out_tx.hex"));
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 3);
         assert_eq!(tx.weight(), 10107);
         assert_eq!(tx.vsize(), 2527);
-        assert_eq!(tx.discount_weight(), 1509);
-        assert_eq!(tx.discount_vsize(), 378);
+        assert_eq!(tx.discount_weight(), 1173);
+        assert_eq!(tx.discount_vsize(), 294);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in3out_exp.hex"));
         assert_eq!(tx.input.len(), 2);
@@ -2468,47 +2468,47 @@ mod tests {
         assert_eq!(tx.output.len(), 3);
         assert_eq!(tx.weight(), 10300);
         assert_eq!(tx.vsize(), 2575);
-        assert_eq!(tx.discount_weight(), 1638);
-        assert_eq!(tx.discount_vsize(), 410);
+        assert_eq!(tx.discount_weight(), 1302);
+        assert_eq!(tx.discount_vsize(), 326);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in3out_tx2.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 3);
         assert_eq!(tx.weight(), 10536);
         assert_eq!(tx.vsize(), 2634);
-        assert_eq!(tx.discount_weight(), 1874);
-        assert_eq!(tx.discount_vsize(), 469);
+        assert_eq!(tx.discount_weight(), 1538);
+        assert_eq!(tx.discount_vsize(), 385);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/3in3out_tx.hex"));
         assert_eq!(tx.input.len(), 3);
         assert_eq!(tx.output.len(), 3);
         assert_eq!(tx.weight(), 10922);
         assert_eq!(tx.vsize(), 2731);
-        assert_eq!(tx.discount_weight(), 2196);
-        assert_eq!(tx.discount_vsize(), 549);
+        assert_eq!(tx.discount_weight(), 1860);
+        assert_eq!(tx.discount_vsize(), 465);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/4in3out_tx.hex"));
         assert_eq!(tx.input.len(), 4);
         assert_eq!(tx.output.len(), 3);
         assert_eq!(tx.weight(), 11192);
         assert_eq!(tx.vsize(), 2798);
-        assert_eq!(tx.discount_weight(), 2466);
-        assert_eq!(tx.discount_vsize(), 617);
+        assert_eq!(tx.discount_weight(), 2130);
+        assert_eq!(tx.discount_vsize(), 533);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in4out_tx.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 4);
         assert_eq!(tx.weight(), 15261);
         assert_eq!(tx.vsize(), 3816);
-        assert_eq!(tx.discount_weight(), 2268);
-        assert_eq!(tx.discount_vsize(), 567);
+        assert_eq!(tx.discount_weight(), 1764);
+        assert_eq!(tx.discount_vsize(), 441);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in5out_tx.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 5);
         assert_eq!(tx.weight(), 20030);
         assert_eq!(tx.vsize(), 5008);
-        assert_eq!(tx.discount_weight(), 2706);
-        assert_eq!(tx.discount_vsize(), 677);
+        assert_eq!(tx.discount_weight(), 2034);
+        assert_eq!(tx.discount_vsize(), 509);
     }
 }
