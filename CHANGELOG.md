@@ -1,4 +1,8 @@
 
+# 0.25.1 - 2024-10-24
+
+* [https://github.com/ElementsProject/rust-elements/pull/218](discount: fix weight calculation)
+
 # 0.25.0 - 2024-09-23
 
 * [https://github.com/ElementsProject/rust-elements/pull/216](add Address::is_liquid)
