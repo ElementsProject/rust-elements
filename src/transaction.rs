@@ -2471,6 +2471,14 @@ mod tests {
         assert_eq!(tx.discount_weight(), 1302);
         assert_eq!(tx.discount_vsize(), 326);
 
+        let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in3out_tx.hex"));
+        assert_eq!(tx.input.len(), 2);
+        assert_eq!(tx.output.len(), 3);
+        assert_eq!(tx.weight(), 10300);
+        assert_eq!(tx.vsize(), 2575);
+        assert_eq!(tx.discount_weight(), 1302);
+        assert_eq!(tx.discount_vsize(), 326);
+
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in3out_tx2.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 3);
