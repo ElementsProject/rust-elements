@@ -104,7 +104,7 @@ fn chars_to_hex(hi: u8, lo: u8) -> Result<u8, Error> {
     Ok(ret as u8)
 }
 
-impl<'a> Iterator for HexIterator<'a> {
+impl Iterator for HexIterator<'_> {
     type Item = Result<u8, Error>;
 
     fn next(&mut self) -> Option<Result<u8, Error>> {
@@ -119,7 +119,7 @@ impl<'a> Iterator for HexIterator<'a> {
     }
 }
 
-impl<'a> io::Read for HexIterator<'a> {
+impl io::Read for HexIterator<'_> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         let mut bytes_read = 0usize;
         for dst in buf {
@@ -135,7 +135,7 @@ impl<'a> io::Read for HexIterator<'a> {
     }
 }
 
-impl<'a> DoubleEndedIterator for HexIterator<'a> {
+impl DoubleEndedIterator for HexIterator<'_> {
     fn next_back(&mut self) -> Option<Result<u8, Error>> {
         let lo = self.iter.next_back()?;
         let hi = self.iter.next_back().unwrap();
@@ -143,7 +143,7 @@ impl<'a> DoubleEndedIterator for HexIterator<'a> {
     }
 }
 
-impl<'a> ExactSizeIterator for HexIterator<'a> {}
+impl ExactSizeIterator for HexIterator<'_> {}
 
 /// Outputs hex into an object implementing `fmt::Write`.
 ///

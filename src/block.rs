@@ -55,7 +55,7 @@ impl<'de> Deserialize<'de> for ExtData {
         enum Enum { Unknown, Challenge, Solution, Current, Proposed, Witness }
         struct EnumVisitor;
 
-        impl<'de> de::Visitor<'de> for EnumVisitor {
+        impl de::Visitor<'_> for EnumVisitor {
             type Value = Enum;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {
