@@ -9,6 +9,7 @@ if cargo --version | grep "1\.56"; then
     cargo update -p which --precise 4.4.0
     cargo update -p byteorder --precise 1.4.3
     cargo update -p cc --precise 1.0.94
+    cargo update -p libc --precise 0.2.163
     cargo update -p serde_json --precise 1.0.98
     cargo update -p serde --precise 1.0.156
     cargo update -p ppv-lite86 --precise 0.2.8
