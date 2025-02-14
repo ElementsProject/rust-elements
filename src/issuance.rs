@@ -203,7 +203,7 @@ impl<'de> ::serde::Deserialize<'de> for AssetId {
         if d.is_human_readable() {
             struct HexVisitor;
 
-            impl<'de> ::serde::de::Visitor<'de> for HexVisitor {
+            impl ::serde::de::Visitor<'_> for HexVisitor {
                 type Value = AssetId;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
@@ -217,7 +217,7 @@ impl<'de> ::serde::Deserialize<'de> for AssetId {
                     if let Ok(hex) = ::std::str::from_utf8(v) {
                         AssetId::from_str(hex).map_err(E::custom)
                     } else {
-                        return Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self));
+                        Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self))
                     }
                 }
 
@@ -233,7 +233,7 @@ impl<'de> ::serde::Deserialize<'de> for AssetId {
         } else {
             struct BytesVisitor;
 
-            impl<'de> ::serde::de::Visitor<'de> for BytesVisitor {
+            impl ::serde::de::Visitor<'_> for BytesVisitor {
                 type Value = AssetId;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {

@@ -242,7 +242,7 @@ pub mod hex_bytes {
     {
         struct Visitor<B>(::std::marker::PhantomData<B>);
 
-        impl<'de, B: FromHex> serde::de::Visitor<'de> for Visitor<B> {
+        impl<B: FromHex> serde::de::Visitor<'_> for Visitor<B> {
             type Value = B;
 
             fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
@@ -255,7 +255,7 @@ pub mod hex_bytes {
                 if let Ok(hex) = ::std::str::from_utf8(v) {
                     FromHex::from_hex(hex).map_err(E::custom)
                 } else {
-                    return Err(E::invalid_value(serde::de::Unexpected::Bytes(v), &self));
+                    Err(E::invalid_value(serde::de::Unexpected::Bytes(v), &self))
                 }
             }
 

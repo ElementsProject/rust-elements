@@ -816,7 +816,7 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
         if d.is_human_readable() {
             struct HexVisitor;
 
-            impl<'de> ::serde::de::Visitor<'de> for HexVisitor {
+            impl ::serde::de::Visitor<'_> for HexVisitor {
                 type Value = AssetBlindingFactor;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
@@ -830,7 +830,7 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
                     if let Ok(hex) = ::std::str::from_utf8(v) {
                         AssetBlindingFactor::from_hex(hex).map_err(E::custom)
                     } else {
-                        return Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self));
+                        Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self))
                     }
                 }
 
@@ -846,7 +846,7 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
         } else {
             struct BytesVisitor;
 
-            impl<'de> ::serde::de::Visitor<'de> for BytesVisitor {
+            impl ::serde::de::Visitor<'_> for BytesVisitor {
                 type Value = AssetBlindingFactor;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
@@ -1019,7 +1019,7 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
         if d.is_human_readable() {
             struct HexVisitor;
 
-            impl<'de> ::serde::de::Visitor<'de> for HexVisitor {
+            impl ::serde::de::Visitor<'_> for HexVisitor {
                 type Value = ValueBlindingFactor;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
@@ -1033,7 +1033,7 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
                     if let Ok(hex) = ::std::str::from_utf8(v) {
                         ValueBlindingFactor::from_hex(hex).map_err(E::custom)
                     } else {
-                        return Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self));
+                        Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self))
                     }
                 }
 
@@ -1049,7 +1049,7 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
         } else {
             struct BytesVisitor;
 
-            impl<'de> ::serde::de::Visitor<'de> for BytesVisitor {
+            impl ::serde::de::Visitor<'_> for BytesVisitor {
                 type Value = ValueBlindingFactor;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {

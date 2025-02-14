@@ -27,18 +27,18 @@ use crate::Script;
 
 /// ad-hoc struct to fmt in hex
 struct HexBytes<'a>(&'a [u8]);
-impl<'a> fmt::Display for HexBytes<'a> {
+impl fmt::Display for HexBytes<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         crate::hex::format_hex(self.0, f)
     }
 }
-impl<'a> fmt::Debug for HexBytes<'a> {
+impl fmt::Debug for HexBytes<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self, f)
     }
 }
 #[cfg(feature = "serde")]
-impl<'a> Serialize for HexBytes<'a> {
+impl Serialize for HexBytes<'_> {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         if s.is_human_readable() {
             s.collect_str(self)
@@ -50,7 +50,7 @@ impl<'a> Serialize for HexBytes<'a> {
 
 /// ad-hoc struct to fmt in hex
 struct HexBytesArray<'a>(&'a [Vec<u8>]);
-impl<'a> fmt::Display for HexBytesArray<'a> {
+impl fmt::Display for HexBytesArray<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
         for (i, e) in self.0.iter().enumerate() {
@@ -62,13 +62,13 @@ impl<'a> fmt::Display for HexBytesArray<'a> {
         write!(f, "]")
     }
 }
-impl<'a> fmt::Debug for HexBytesArray<'a> {
+impl fmt::Debug for HexBytesArray<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         fmt::Display::fmt(&self, f)
     }
 }
 #[cfg(feature = "serde")]
-impl<'a> Serialize for HexBytesArray<'a> {
+impl Serialize for HexBytesArray<'_> {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         let mut seq = s.serialize_seq(Some(self.0.len()))?;
         for b in self.0 {
@@ -420,7 +420,7 @@ impl<'de> Deserialize<'de> for Params {
         }
         struct EnumVisitor;
 
-        impl<'de> de::Visitor<'de> for EnumVisitor {
+        impl de::Visitor<'_> for EnumVisitor {
             type Value = Enum;
 
             fn expecting(&self, f: &mut fmt::Formatter) -> fmt::Result {

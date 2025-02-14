@@ -167,7 +167,7 @@ impl fmt::Display for Error {
 
 impl ::std::error::Error for Error {}
 
-impl<'u, T> Prevouts<'u, T> where T: Borrow<TxOut> {
+impl<T> Prevouts<'_, T> where T: Borrow<TxOut> {
     fn check_all(&self, tx: &Transaction) -> Result<(), Error> {
         if let Prevouts::All(prevouts) = self {
             if prevouts.len() != tx.input.len() {
@@ -866,7 +866,7 @@ impl<'a> Annex<'a> {
     }
 }
 
-impl<'a> Encodable for Annex<'a> {
+impl Encodable for Annex<'_> {
     fn consensus_encode<W: io::Write>(&self, writer: W) -> Result<usize, encode::Error> {
         encode::consensus_encode_with_size(self.0, writer)
     }
