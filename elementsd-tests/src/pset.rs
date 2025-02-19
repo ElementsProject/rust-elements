@@ -47,6 +47,9 @@ fn tx_blinded() {
 fn tx_issuance() {
     let (elementsd, _bitcoind) = setup(false);
 
+    // Divide out minor and patch version
+    let is_21 = elementsd.client().version().expect("obtain version") / 10000 == 21;
+
     let address_asset = elementsd.get_new_address();
     let address_reissuance = elementsd.get_new_address();
     let address_lbtc = elementsd.get_new_address();
@@ -55,12 +58,12 @@ fn tx_issuance() {
     let contract_hash = ContractHash::from_byte_array([0u8; 32]);
     let entropy = AssetId::generate_asset_entropy(prevout, contract_hash);
     let asset_id = AssetId::from_entropy(entropy.clone());
-    let reissuance_id = AssetId::reissuance_token_from_entropy(entropy, true);
+    let reissuance_id = AssetId::reissuance_token_from_entropy(entropy, is_21);
 
     let value = elementsd.call(
             "createpsbt",
             &[
-                json!([{ "txid": prevout.txid.to_string(), "vout": prevout.vout, "issuance_amount": 1000, "issuance_tokens": 1}]),
+                json!([{ "txid": prevout.txid.to_string(), "vout": prevout.vout, "issuance_amount": 1000, "issuance_tokens": 1, "blind_reissuance": is_21}]),
                 json!([
                     {address_asset: "1000", "asset": asset_id.to_string(), "blinder_index": 0},
                     {address_reissuance: "1", "asset": reissuance_id.to_string(), "blinder_index": 0},
