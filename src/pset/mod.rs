@@ -236,7 +236,7 @@ impl PartiallySignedTransaction {
 
                 match (time_locktime, height_locktime) {
                     (Locktime::Unconstrained, Locktime::Unconstrained) => {
-                        Ok(fallback_locktime.map(LockTime::from).unwrap_or(LockTime::ZERO))
+                        Ok(fallback_locktime.unwrap_or(LockTime::ZERO))
                     }
                     (Locktime::Minimum(x), _) => Ok(x.into()),
                     (_, Locktime::Minimum(x)) => Ok(x.into()),
