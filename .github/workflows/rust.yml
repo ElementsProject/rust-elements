@@ -110,3 +110,15 @@ jobs:
           DO_FEATURE_MATRIX: false
         run: ./contrib/test.sh
 
+  Wasm:
+    name: Check WASM
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v3
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add wasm32-unknown-unknown
+      - run: cargo check --target wasm32-unknown-unknown
