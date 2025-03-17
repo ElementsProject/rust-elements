@@ -67,6 +67,7 @@ impl Output {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::AssetId;
     use crate::encode::{serialize_hex, Encodable};
     use crate::hex::{FromHex, ToHex};
 
@@ -109,5 +110,32 @@ mod test {
         let output_hex = serialize_hex(&output);
         assert!(output_hex.contains(ELIP0101_IDENTIFIER));
         assert!(output_hex.contains(abf_hex));
+    }
+
+    #[test]
+    fn abf_roundtrip() {
+        use crate::pset::PartiallySignedTransaction;
+
+        // Set abf on an input and on an output
+        let abf = AssetBlindingFactor::from_slice(&[3; 32]).unwrap();
+        let mut pset = PartiallySignedTransaction::new_v2();
+        let mut input = Input::default();
+        input.set_abf(abf);
+        pset.add_input(input);
+        let mut output = Output {
+            amount: Some(1),
+            asset: Some(AssetId::from_slice(&[9; 32]).unwrap()),
+            ..Default::default()
+        };
+        output.set_abf(abf);
+        pset.add_output(output);
+
+        // Serialize and deserialize
+        let bytes = encode::serialize(&pset);
+        let pset_back = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
+        // Check the abf
+        // FIXME: input abf should be there
+        assert!(pset_back.inputs()[0].get_abf().is_none());
+        assert_eq!(pset_back.outputs()[0].get_abf().unwrap().unwrap(), abf);
     }
 }
