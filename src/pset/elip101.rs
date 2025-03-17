@@ -134,8 +134,7 @@ mod test {
         let bytes = encode::serialize(&pset);
         let pset_back = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
         // Check the abf
-        // FIXME: input abf should be there
-        assert!(pset_back.inputs()[0].get_abf().is_none());
+        assert_eq!(pset_back.inputs()[0].get_abf().unwrap().unwrap(), abf);
         assert_eq!(pset_back.outputs()[0].get_abf().unwrap().unwrap(), abf);
     }
 }
