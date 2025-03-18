@@ -759,8 +759,18 @@ impl Map for Input {
                             Entry::Occupied(_) => return Err(Error::DuplicateKey(raw_key).into()),
                         },
                     }
+                } else {
+                    match self.proprietary.entry(prop_key) {
+                        Entry::Vacant(empty_key) => {
+                            empty_key.insert(raw_value);
+                        }
+                        Entry::Occupied(_) => {
+                            return Err(Error::DuplicateKey(raw_key).into())
+                        }
+                    }
                 }
             }
+
             _ => match self.unknown.entry(raw_key) {
                 Entry::Vacant(empty_key) => {
                     empty_key.insert(raw_value);
