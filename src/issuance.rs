@@ -76,7 +76,7 @@ impl AssetId {
     ]));
 
     /// Create an [AssetId] from its inner type.
-    pub fn from_inner(midstate: sha256::Midstate) -> AssetId {
+    pub const fn from_inner(midstate: sha256::Midstate) -> AssetId {
         AssetId(midstate)
     }
 
