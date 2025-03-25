@@ -30,7 +30,7 @@ mod map;
 pub mod raw;
 pub mod serialize;
 pub mod elip100;
-pub mod elip101;
+pub mod elip102;
 
 #[cfg(feature = "base64")]
 mod str;
