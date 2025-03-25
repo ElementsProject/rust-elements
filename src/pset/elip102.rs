@@ -1,8 +1,8 @@
 //!
-//! An implementation of ELIP0101 as defined in
-//! <https://github.com/ElementsProject/ELIPs/blob/main/elip-0101.mediawiki>
+//! An implementation of ELIP0102 as defined in
+//! <https://github.com/ElementsProject/ELIPs/blob/main/elip-0102.mediawiki>
 //!
-//! ELIP0101 defines how to encode the extra data for LiquiDEX in a PSET.
+//! ELIP0102 defines how to encode the extra data for LiquiDEX in a PSET.
 //!
 
 use crate::pset::{
@@ -13,13 +13,13 @@ use crate::pset::{
     Input, Output,
 };
 
-/// Input Asset Blinding Factor keytype as defined in ELIP0101
+/// Input Asset Blinding Factor keytype as defined in ELIP0102
 pub const PSBT_ELEMENTS_LIQUIDEX_IN_ABF: u8 = 0x00u8;
 
-/// Output Asset Blinding Factor keytype as defined in ELIP0101
+/// Output Asset Blinding Factor keytype as defined in ELIP0102
 pub const PSBT_ELEMENTS_LIQUIDEX_OUT_ABF: u8 = 0x00u8;
 
-/// Prefix for PSET LiquiDEX extension as defined in ELIP0101
+/// Prefix for PSET LiquiDEX extension as defined in ELIP0102
 pub const PSET_LIQUIDEX_PREFIX: &[u8] = b"pset_liquidex";
 
 fn prop_key(keytype: u8) -> ProprietaryKey {
@@ -30,7 +30,7 @@ fn prop_key(keytype: u8) -> ProprietaryKey {
     }
 }
 
-/// ELIP0101 LiquiDEX extensions
+/// ELIP0102 LiquiDEX extensions
 impl Input {
     /// Set Asset Blinding Factor
     pub fn set_abf(&mut self, abf: AssetBlindingFactor) {
@@ -47,7 +47,7 @@ impl Input {
     }
 }
 
-/// ELIP0101 LiquiDEX extensions
+/// ELIP0102 LiquiDEX extensions
 impl Output {
     /// Set Asset Blinding Factor
     pub fn set_abf(&mut self, abf: AssetBlindingFactor) {
@@ -72,7 +72,7 @@ mod test {
     use crate::hex::{FromHex, ToHex};
 
     // b'\xfc\rpset_liquidex'
-    const ELIP0101_IDENTIFIER: &str = "fc0d707365745f6c69717569646578";
+    const ELIP0102_IDENTIFIER: &str = "fc0d707365745f6c69717569646578";
 
     #[test]
     fn prop_key_serialize() {
@@ -85,7 +85,7 @@ mod test {
             format!("0d{}00", PSET_LIQUIDEX_PREFIX.to_hex())
         );
 
-        assert!(vec.to_hex().starts_with(&ELIP0101_IDENTIFIER[2..])); // cut proprietary prefix "fc"
+        assert!(vec.to_hex().starts_with(&ELIP0102_IDENTIFIER[2..])); // cut proprietary prefix "fc"
     }
 
     #[test]
@@ -100,7 +100,7 @@ mod test {
         input.set_abf(abf);
         assert_eq!(input.get_abf().unwrap().unwrap(), abf);
         let input_hex = serialize_hex(&input);
-        assert!(input_hex.contains(ELIP0101_IDENTIFIER));
+        assert!(input_hex.contains(ELIP0102_IDENTIFIER));
         assert!(input_hex.contains(abf_hex));
 
         let mut output = Output::default();
@@ -108,7 +108,7 @@ mod test {
         output.set_abf(abf);
         assert_eq!(output.get_abf().unwrap().unwrap(), abf);
         let output_hex = serialize_hex(&output);
-        assert!(output_hex.contains(ELIP0101_IDENTIFIER));
+        assert!(output_hex.contains(ELIP0102_IDENTIFIER));
         assert!(output_hex.contains(abf_hex));
     }
 
