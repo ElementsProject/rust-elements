@@ -1,4 +1,15 @@
 
+# 0.25.2 - 2025-04-18
+
+* [https://github.com/ElementsProject/rust-elements/pull/226](elip102: rename from elip101)
+* [https://github.com/ElementsProject/rust-elements/pull/225](Make AssetId::from_inner a const function)
+* [https://github.com/ElementsProject/rust-elements/pull/224](pset: input: insert non-pset proprietary keys)
+* [https://github.com/ElementsProject/rust-elements/pull/223](clippy: fix for new rust stable)
+* [https://github.com/ElementsProject/rust-elements/pull/195](Fix WASM build and add a job in CI)
+* [https://github.com/ElementsProject/rust-elements/pull/222](elementsd-tests: blind asset issuance based on node version)
+* [https://github.com/ElementsProject/rust-elements/pull/220](tx: discountct: add missing testcase)
+* [https://github.com/ElementsProject/rust-elements/pull/221](ci: fixes for rust stable clippy, and rust 1.56.1 compilation)
+
 # 0.25.1 - 2024-10-24
 
 * [https://github.com/ElementsProject/rust-elements/pull/218](discount: fix weight calculation)
