@@ -15,7 +15,7 @@ default = ["json-contract"]
 json-contract = ["serde_json"]
 "serde" = [
     "bitcoin/serde",
-    "bitcoin/serde",
+    "bitcoin-units/serde",
     "secp256k1-zkp/serde",
     "actual-serde",
 ]
@@ -24,6 +24,7 @@ base64 = ["bitcoin/base64"]
 [dependencies]
 bech32 = "0.11.0"
 bitcoin = "0.32.2"
+bitcoin-units = { version = "1.0.0-rc.0", default-features = false, features = [ "std" ] }
 secp256k1-zkp = { version = "0.11.0", features = ["global-context", "hashes"] }
 
 # Used for ContractHash::from_json_contract.
