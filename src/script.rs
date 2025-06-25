@@ -787,7 +787,7 @@ impl Builder {
             _ => panic!("tried to put a 4bn+ sized object into a script!")
         }
         // Then push the raw bytes
-        self.0.extend(data.iter().cloned());
+        self.0.extend(data.iter().copied());
         self.1 = None;
         self
     }
@@ -957,24 +957,24 @@ mod test {
         script = script.push_int(4);  comp.push(84u8); assert_eq!(&script[..], &comp[..]);
         script = script.push_int(-1); comp.push(79u8); assert_eq!(&script[..], &comp[..]);
         // forced scriptint
-        script = script.push_scriptint(4); comp.extend([1u8, 4].iter().cloned()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_scriptint(4); comp.extend([1u8, 4].iter().copied()); assert_eq!(&script[..], &comp[..]);
         // big ints
-        script = script.push_int(17); comp.extend([1u8, 17].iter().cloned()); assert_eq!(&script[..], &comp[..]);
-        script = script.push_int(10000); comp.extend([2u8, 16, 39].iter().cloned()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_int(17); comp.extend([1u8, 17].iter().copied()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_int(10000); comp.extend([2u8, 16, 39].iter().copied()); assert_eq!(&script[..], &comp[..]);
         // notice the sign bit set here, hence the extra zero/128 at the end
-        script = script.push_int(10000000); comp.extend([4u8, 128, 150, 152, 0].iter().cloned()); assert_eq!(&script[..], &comp[..]);
-        script = script.push_int(-10000000); comp.extend([4u8, 128, 150, 152, 128].iter().cloned()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_int(10000000); comp.extend([4u8, 128, 150, 152, 0].iter().copied()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_int(-10000000); comp.extend([4u8, 128, 150, 152, 128].iter().copied()); assert_eq!(&script[..], &comp[..]);
 
         // data
-        script = script.push_slice(b"NRA4VR"); comp.extend([6u8, 78, 82, 65, 52, 86, 82].iter().cloned()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_slice(b"NRA4VR"); comp.extend([6u8, 78, 82, 65, 52, 86, 82].iter().copied()); assert_eq!(&script[..], &comp[..]);
 
         // keys
         let keystr = "21032e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af";
         let key = PublicKey::from_str(&keystr[2..]).unwrap();
-        script = script.push_key(&key); comp.extend(Vec::from_hex(keystr).unwrap().iter().cloned()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_key(&key); comp.extend(Vec::from_hex(keystr).unwrap().iter().copied()); assert_eq!(&script[..], &comp[..]);
         let keystr = "41042e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af191923a2964c177f5b5923ae500fca49e99492d534aa3759d6b25a8bc971b133";
         let key = PublicKey::from_str(&keystr[2..]).unwrap();
-        script = script.push_key(&key); comp.extend(Vec::from_hex(keystr).unwrap().iter().cloned()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_key(&key); comp.extend(Vec::from_hex(keystr).unwrap().iter().copied()); assert_eq!(&script[..], &comp[..]);
 
         // opcodes
         script = script.push_opcode(opcodes::all::OP_CHECKSIG); comp.push(0xACu8); assert_eq!(&script[..], &comp[..]);
