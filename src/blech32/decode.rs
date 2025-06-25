@@ -104,7 +104,7 @@ impl<'s> UncheckedHrpstring<'s> {
 
         let ret = UncheckedHrpstring {
             hrp: Hrp::parse(hrp)?,
-            data: data[1..].as_bytes(), // Skip the separator.
+            data: &data.as_bytes()[1..], // Skip the separator.
         };
 
         Ok(ret)
@@ -221,7 +221,7 @@ impl<'s> CheckedHrpstring<'s> {
     /// Converts the ASCII bytes representing field elements to the respective field elements, then
     /// converts the stream of field elements to a stream of bytes.
     #[inline]
-    pub fn byte_iter(&self) -> ByteIter {
+    pub fn byte_iter(&self) -> ByteIter<'_> {
         ByteIter { iter: AsciiToFe32Iter { iter: self.data.iter().copied() }.fes_to_bytes() }
     }
 
@@ -393,7 +393,7 @@ impl<'s> SegwitHrpstring<'s> {
     ///
     /// Use `self.witness_version()` to get the witness version.
     #[inline]
-    pub fn byte_iter(&self) -> ByteIter {
+    pub fn byte_iter(&self) -> ByteIter<'_> {
         ByteIter { iter: AsciiToFe32Iter { iter: self.data.iter().copied() }.fes_to_bytes() }
     }
 }

@@ -602,7 +602,7 @@ impl TxIn {
     /// Extracts witness data from a pegin. Will return `None` if any data
     /// cannot be parsed. The combination of `is_pegin()` returning `true`
     /// and `pegin_data()` returning `None` indicates an invalid transaction.
-    pub fn pegin_data(&self) -> Option<PeginData> {
+    pub fn pegin_data(&self) -> Option<PeginData<'_>> {
         self.pegin_prevout().and_then(|p| {
             PeginData::from_pegin_witness(&self.witness.pegin_witness, p).ok()
         })
@@ -777,7 +777,7 @@ impl TxOut {
 
     /// If this output is a pegout, returns the destination genesis block,
     /// the destination script pubkey, and any additional data
-    pub fn pegout_data(&self) -> Option<PegoutData> {
+    pub fn pegout_data(&self) -> Option<PegoutData<'_>> {
         // Must be NULLDATA
         if !self.is_null_data() {
             return None;
@@ -797,7 +797,7 @@ impl TxOut {
 
         // Parse destination scriptpubkey
         let script_pubkey = bitcoin::ScriptBuf::from(iter.next()?.ok()?.push_bytes()?.to_owned());
-        if script_pubkey.len() == 0 {
+        if script_pubkey.is_empty() {
             return None;
         }
 

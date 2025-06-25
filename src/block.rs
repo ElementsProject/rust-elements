@@ -727,7 +727,7 @@ mod tests {
             } else {
                 panic!("Current block dynafed params not compact");
             }
-            if let dynafed::Params::Null { .. } = proposed {
+            if let dynafed::Params::Null = proposed {
                 /* pass */
             } else {
                 panic!("Proposed block dynafed params not compact");

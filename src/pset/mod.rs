@@ -402,8 +402,8 @@ impl PartiallySignedTransaction {
 
         // collect input factors
         let inp_secrets = inp_txout_sec
-            .iter()
-            .map(|(_i, sec)| (sec.value, sec.asset_bf, sec.value_bf))
+            .values()
+            .map(|sec| (sec.value, sec.asset_bf, sec.value_bf))
             .collect::<Vec<_>>();
 
         Ok((inp_secrets, blind_out_indices))

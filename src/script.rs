@@ -451,7 +451,7 @@ impl Script {
     /// it as a slice using `script[..]` or convert it to a vector using `into_bytes()`.
     ///
     /// To force minimal pushes, use [Script::instructions_minimal].
-    pub fn instructions(&self) -> Instructions {
+    pub fn instructions(&self) -> Instructions<'_> {
         Instructions {
             data: &self.0[..],
             enforce_minimal: false,
@@ -460,7 +460,7 @@ impl Script {
 
     /// Iterate over the script in the form of `Instruction`s while enforcing
     /// minimal pushes.
-    pub fn instructions_minimal(&self) -> Instructions {
+    pub fn instructions_minimal(&self) -> Instructions<'_> {
         Instructions {
             data: &self.0[..],
             enforce_minimal: true,
