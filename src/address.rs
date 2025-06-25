@@ -437,6 +437,7 @@ impl Address {
     }
 
     /// Convert this address to an unconfidential address.
+    #[must_use]
     pub fn to_unconfidential(&self) -> Address {
         Address {
             params: self.params,
@@ -446,6 +447,7 @@ impl Address {
     }
 
     /// Convert this address to a confidential address with the given blinding pubkey.
+    #[must_use]
     pub fn to_confidential(&self, blinding_pubkey: secp256k1_zkp::PublicKey) -> Address {
         Address {
             params: self.params,

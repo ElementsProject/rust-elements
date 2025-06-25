@@ -331,6 +331,7 @@ impl Script {
     pub fn into_bytes(self) -> Vec<u8> { self.0.into_vec() }
 
     /// Compute the P2SH output corresponding to this redeem script
+    #[must_use]
     pub fn to_p2sh(&self) -> Script {
         Builder::new().push_opcode(opcodes::all::OP_HASH160)
                       .push_slice(&ScriptHash::hash(&self.0)[..])
@@ -340,6 +341,7 @@ impl Script {
 
     /// Compute the P2WSH output corresponding to this witnessScript (aka the "witness redeem
     /// script")
+    #[must_use]
     pub fn to_v0_p2wsh(&self) -> Script {
         Builder::new().push_int(0)
                       .push_slice(&WScriptHash::hash(&self.0)[..])
@@ -741,6 +743,7 @@ impl Builder {
     /// Adds instructions to push an integer onto the stack. Integers are
     /// encoded as little-endian signed-magnitude numbers, but there are
     /// dedicated opcodes to push some small integers.
+    #[must_use]
     pub fn push_int(self, data: i64) -> Builder {
         // We can special-case -1, 1-16
         if data == -1 || (data >= 1 && data <= 16) {
@@ -759,11 +762,13 @@ impl Builder {
 
     /// Adds instructions to push an integer onto the stack, using the explicit
     /// encoding regardless of the availability of dedicated opcodes.
+    #[must_use]
     pub fn push_scriptint(self, data: i64) -> Builder {
         self.push_slice(&build_scriptint(data))
     }
 
     /// Adds instructions to push some arbitrary data onto the stack
+    #[must_use]
     pub fn push_slice(mut self, data: &[u8]) -> Builder {
         // Start with a PUSH opcode
         match data.len() as u64 {
@@ -793,6 +798,7 @@ impl Builder {
     }
 
     /// Pushes a public key
+    #[must_use]
     pub fn push_key(self, key: &PublicKey) -> Builder {
         if key.compressed {
             self.push_slice(&key.inner.serialize()[..])
@@ -802,6 +808,7 @@ impl Builder {
     }
 
     /// Adds a single opcode to the script
+    #[must_use]
     pub fn push_opcode(mut self, data: opcodes::All) -> Builder {
         self.0.push(data.into_u8());
         self.1 = Some(data);
@@ -811,6 +818,7 @@ impl Builder {
     /// Adds an `OP_VERIFY` to the script, unless the most-recently-added
     /// opcode has an alternate `VERIFY` form, in which case that opcode
     /// is replaced. e.g. `OP_CHECKSIG` will become `OP_CHECKSIGVERIFY`.
+    #[must_use]
     pub fn push_verify(mut self) -> Builder {
         match self.1 {
             Some(opcodes::all::OP_EQUAL) => {
