@@ -792,16 +792,13 @@ impl All {
         use self::all::*;
         match (self, ctx) {
             // 3 opcodes illegal in all contexts
-            (OP_VERIF, _) | (OP_VERNOTIF, _) | (OP_INVALIDOPCODE, _) => Class::IllegalOp,
+            (OP_VERIF | OP_VERNOTIF | OP_INVALIDOPCODE, _) => Class::IllegalOp,
 
             // 15 opcodes illegal in Legacy context
-            (OP_CAT, ctx) | (OP_SUBSTR, ctx)
-            | (OP_LEFT, ctx) | (OP_RIGHT, ctx)
-            | (OP_INVERT, ctx)
-            | (OP_AND, ctx) | (OP_OR, ctx) | (OP_XOR, ctx)
-            | (OP_2MUL, ctx) | (OP_2DIV, ctx)
-            | (OP_MUL, ctx) | (OP_DIV, ctx) | (OP_MOD, ctx)
-            | (OP_LSHIFT, ctx) | (OP_RSHIFT, ctx) if ctx == ClassifyContext::Legacy => Class::IllegalOp,
+            (OP_CAT | OP_SUBSTR | OP_LEFT | OP_RIGHT
+            | OP_INVERT | OP_AND | OP_OR | OP_XOR
+            | OP_2MUL | OP_2DIV | OP_MUL | OP_DIV
+            | OP_MOD | OP_LSHIFT | OP_RSHIFT, ClassifyContext::Legacy) => Class::IllegalOp,
 
             // 87 opcodes of SuccessOp class only in TapScript context
             (op, ClassifyContext::TapScript)
@@ -820,16 +817,13 @@ impl All {
             (OP_RETURN, _) => Class::ReturnOp,
 
             // 4 opcodes operating equally to `OP_RETURN` only in Legacy context
-            (OP_RESERVED, ctx)
-            | (OP_RESERVED1, ctx) | (OP_RESERVED2, ctx)
-            | (OP_VER, ctx) if ctx == ClassifyContext::Legacy => Class::ReturnOp,
+            (OP_RESERVED | OP_RESERVED1 | OP_RESERVED2 | OP_VER, ClassifyContext::Legacy) => Class::ReturnOp,
 
             // 71 opcodes operating equally to `OP_RETURN` only in Legacy context
             (op, ClassifyContext::Legacy) if op.code >= OP_CHECKSIGADD.code => Class::ReturnOp,
 
             // 2 opcodes operating equally to `OP_RETURN` only in TapScript context
-            (OP_CHECKMULTISIG, ClassifyContext::TapScript)
-            | (OP_CHECKMULTISIGVERIFY, ClassifyContext::TapScript) => Class::ReturnOp,
+            (OP_CHECKMULTISIG | OP_CHECKMULTISIGVERIFY, ClassifyContext::TapScript) => Class::ReturnOp,
 
             // 1 opcode of PushNum class
             (OP_PUSHNUM_NEG1, _) => Class::PushNum(-1),
