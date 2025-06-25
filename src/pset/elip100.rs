@@ -44,7 +44,7 @@ impl PartiallySignedTransaction {
     }
 
     /// Get contract information from the PSET, returns None if there are no information regarding
-    /// the given `asset_id`` in the PSET
+    /// the given `asset_id` in the PSET
     pub fn get_asset_metadata(
         &self,
         asset_id: AssetId,
@@ -72,7 +72,7 @@ impl PartiallySignedTransaction {
     }
 
     /// Get token information from the PSET, returns None if there are no information regarding
-    /// the given `token_id`` in the PSET
+    /// the given `token_id` in the PSET
     pub fn get_token_metadata(
         &self,
         token_id: AssetId
@@ -171,7 +171,7 @@ impl TokenMetadata {
         Self { asset_id, issuance_blinded }
     }
 
-    /// Returns the asset_id
+    /// Returns the `asset_id`
     pub fn asset_id(&self) -> &AssetId {
         &self.asset_id
     }

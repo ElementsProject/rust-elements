@@ -59,7 +59,7 @@ pub enum Error {
     HexError(crate::hex::Error),
     /// Got a time-based locktime when expecting a height-based one, or vice-versa
     BadLockTime(crate::LockTime),
-    /// VarInt was encoded in a non-minimal way.
+    /// `VarInt` was encoded in a non-minimal way.
     NonMinimalVarInt,
 }
 

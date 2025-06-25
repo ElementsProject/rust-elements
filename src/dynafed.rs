@@ -96,7 +96,7 @@ pub struct FullParams {
 }
 
 impl FullParams {
-    /// Construct a set of FullParams
+    /// Construct a set of `FullParams`
     pub fn new(
         signblockscript: Script,
         signblock_witness_limit: u32,
@@ -131,7 +131,7 @@ impl FullParams {
         crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
 
-    /// Calculate the root of this [FullParams].
+    /// Calculate the root of this [`FullParams`].
     pub fn calculate_root(&self) -> sha256::Midstate {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
             let mut engine = sha256d::Hash::engine();
@@ -162,7 +162,7 @@ impl FullParams {
         }
     }
 
-    /// Format for [fmt::Debug].
+    /// Format for [`fmt::Debug`].
     fn fmt_debug(&self, f: &mut fmt::Formatter, name: &'static str) -> fmt::Result {
         let mut s = f.debug_struct(name);
         s.field("signblockscript", &HexBytes(&self.signblockscript[..]));
@@ -253,7 +253,7 @@ impl fmt::Debug for Params {
 }
 
 impl Params {
-    /// Check whether this is [Params::Null].
+    /// Check whether this is [`Params::Null`].
     pub fn is_null(&self) -> bool {
         match *self {
             Params::Null => true,
@@ -262,7 +262,7 @@ impl Params {
         }
     }
 
-    /// Check whether this is [Params::Compact].
+    /// Check whether this is [`Params::Compact`].
     pub fn is_compact(&self) -> bool {
         match *self {
             Params::Null => false,
@@ -271,7 +271,7 @@ impl Params {
         }
     }
 
-    /// Check whether this is [Params::Full].
+    /// Check whether this is [`Params::Full`].
     pub fn is_full(&self) -> bool {
         match *self {
             Params::Null => false,
@@ -280,7 +280,7 @@ impl Params {
         }
     }
 
-    /// Get the signblockscript. Is [None] for [Params::Null] params.
+    /// Get the signblockscript. Is [None] for [`Params::Null`] params.
     pub fn signblockscript(&self) -> Option<&Script> {
         match *self {
             Params::Null => None,
@@ -289,7 +289,7 @@ impl Params {
         }
     }
 
-    /// Get the signblock_witness_limit. Is [None] for [Params::Null] params.
+    /// Get the `signblock_witness_limit`. Is [None] for [`Params::Null`] params.
     pub fn signblock_witness_limit(&self) -> Option<u32> {
         match *self {
             Params::Null => None,
@@ -298,7 +298,7 @@ impl Params {
         }
     }
 
-    /// Get the fedpeg_program. Is [None] for non-[Params::Full] params.
+    /// Get the `fedpeg_program`. Is [None] for non-[`Params::Full`] params.
     pub fn fedpeg_program(&self) -> Option<&bitcoin::ScriptBuf> {
         match *self {
             Params::Null => None,
@@ -307,7 +307,7 @@ impl Params {
         }
     }
 
-    /// Get the fedpegscript. Is [None] for non-[Params::Full] params.
+    /// Get the fedpegscript. Is [None] for non-[`Params::Full`] params.
     pub fn fedpegscript(&self) -> Option<&Vec<u8>> {
         match *self {
             Params::Null => None,
@@ -316,7 +316,7 @@ impl Params {
         }
     }
 
-    /// Get the extension_space. Is [None] for non-[Params::Full] params.
+    /// Get the `extension_space`. Is [None] for non-[`Params::Full`] params.
     pub fn extension_space(&self) -> Option<&Vec<Vec<u8>>> {
         match *self {
             Params::Null => None,
@@ -325,7 +325,7 @@ impl Params {
         }
     }
 
-    /// Get the elided_root. Is [None] for non-[Params::Compact] params.
+    /// Get the `elided_root`. Is [None] for non-[`Params::Compact`] params.
     pub fn elided_root(&self) -> Option<&sha256::Midstate> {
         match *self {
             Params::Null => None,

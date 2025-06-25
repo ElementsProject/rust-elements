@@ -1,7 +1,7 @@
 //! Module for special serde serializations.
 //! Copied from rust-bitcoin as is.
 pub mod btreemap_byte_values {
-    //! Module for serialization of BTreeMaps with hex byte values.
+    //! Module for serialization of `BTreeMaps` with hex byte values.
     #![allow(missing_docs)]
 
     // NOTE: This module can be exactly copied to use with HashMap.
@@ -67,8 +67,8 @@ pub mod btreemap_byte_values {
 }
 
 pub mod btreemap_as_seq {
-    //! Module for serialization of BTreeMaps as lists of sequences because
-    //! serde_json will not serialize hashmaps with non-string keys be default.
+    //! Module for serialization of `BTreeMaps` as lists of sequences because
+    //! `serde_json` will not serialize hashmaps with non-string keys be default.
     #![allow(missing_docs)]
 
     // NOTE: This module can be exactly copied to use with HashMap.
@@ -136,8 +136,8 @@ pub mod btreemap_as_seq {
 }
 
 pub mod btreemap_as_seq_byte_values {
-    //! Module for serialization of BTreeMaps as lists of sequences because
-    //! serde_json will not serialize hashmaps with non-string keys be default.
+    //! Module for serialization of `BTreeMaps` as lists of sequences because
+    //! `serde_json` will not serialize hashmaps with non-string keys be default.
     #![allow(missing_docs)]
 
     // NOTE: This module can be exactly copied to use with HashMap.

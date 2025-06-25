@@ -66,7 +66,7 @@ pub enum Error {
     },
     /// Unable to parse as a standard Sighash type.
     NonStandardSighashType(u32),
-    /// Parsing errors from bitcoin_hashes
+    /// Parsing errors from `bitcoin_hashes`
     HashParseError(hashes::FromSliceError),
     /// The pre-image must hash to the corresponding pset hash
     InvalidPreimageHashPair {
@@ -232,9 +232,9 @@ impl From<encode::Error> for Error {
 /// Ways that blinding a Partially Signed Transaction might fail.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PsetBlindError {
-    /// Input TxOut len mismatch
+    /// Input `TxOut` len mismatch
     InputTxOutSecretLen,
-    /// Output TxOut len mismatch
+    /// Output `TxOut` len mismatch
     OutputTxOutSecretLen,
     /// Blinder index out of range
     BlinderIndexOutOfBounds(usize, usize),

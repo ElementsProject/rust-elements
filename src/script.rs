@@ -431,14 +431,14 @@ impl Script {
             self.0[1] == opcodes::all::OP_PUSHBYTES_20.into_u8()
     }
 
-    /// Check if this is an OP_RETURN output
+    /// Check if this is an `OP_RETURN` output
     pub fn is_op_return (&self) -> bool {
         !self.0.is_empty() && (opcodes::All::from(self.0[0]) == opcodes::all::OP_RETURN)
     }
 
     /// Whether a script can be proven to have no satisfying input
-    /// In elements, is_provably_unspendable is consensus critical
-    /// matches the implementation of CScript::IsUnspendable()
+    /// In elements, `is_provably_unspendable` is consensus critical
+    /// matches the implementation of `CScript::IsUnspendable()`
     pub fn is_provably_unspendable(&self) -> bool {
         !self.0.is_empty() && opcodes::All::from(self.0[0]) == opcodes::all::OP_RETURN
         || self.len() > MAX_SCRIPT_SIZE
@@ -450,7 +450,7 @@ impl Script {
     /// iterator will end. To instead iterate over the script as sequence of bytes, treat
     /// it as a slice using `script[..]` or convert it to a vector using `into_bytes()`.
     ///
-    /// To force minimal pushes, use [Script::instructions_minimal].
+    /// To force minimal pushes, use [`Script::instructions_minimal`].
     pub fn instructions(&self) -> Instructions<'_> {
         Instructions {
             data: &self.0[..],
@@ -594,7 +594,7 @@ pub enum Instruction<'a> {
 }
 
 impl<'a> Instruction<'a> {
-    /// Get the opcode in case of [Instruction::Op].
+    /// Get the opcode in case of [`Instruction::Op`].
     pub fn op(&self) -> Option<opcodes::All> {
         if let Instruction::Op(o) = self {
             Some(*o)
@@ -603,7 +603,7 @@ impl<'a> Instruction<'a> {
         }
     }
 
-    /// Get the push bytes in case of [Instruction::PushBytes].
+    /// Get the push bytes in case of [`Instruction::PushBytes`].
     pub fn push_bytes(&self) -> Option<&'a [u8]> {
         if let Instruction::PushBytes(p) = self {
             Some(p)

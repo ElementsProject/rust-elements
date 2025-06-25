@@ -232,7 +232,7 @@ impl SchnorrSig {
         Ok(SchnorrSig { sig, hash_ty })
     }
 
-    /// Serialize SchnorrSig
+    /// Serialize `SchnorrSig`
     pub fn to_vec(&self) -> Vec<u8> {
         // TODO: add support to serialize to a writer to SerializedSig
         let mut ser_sig = self.sig.as_ref().to_vec();

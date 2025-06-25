@@ -33,34 +33,34 @@ use crate::issuance;
 use crate::AssetId;
 use crate::TxOut;
 
-/// Type: Redeem Script PSET_OUT_REDEEM_SCRIPT = 0x00
+/// Type: Redeem Script `PSET_OUT_REDEEM_SCRIPT` = 0x00
 const PSET_OUT_REDEEM_SCRIPT: u8 = 0x00;
-/// Type: Witness Script PSET_OUT_WITNESS_SCRIPT = 0x01
+/// Type: Witness Script `PSET_OUT_WITNESS_SCRIPT` = 0x01
 const PSET_OUT_WITNESS_SCRIPT: u8 = 0x01;
-/// Type: BIP 32 Derivation Path PSET_OUT_BIP32_DERIVATION = 0x02
+/// Type: BIP 32 Derivation Path `PSET_OUT_BIP32_DERIVATION` = 0x02
 const PSET_OUT_BIP32_DERIVATION: u8 = 0x02;
-/// Type: Output Amount PSET_OUT_AMOUNT = 0x03
+/// Type: Output Amount `PSET_OUT_AMOUNT` = 0x03
 const PSET_OUT_AMOUNT: u8 = 0x03;
-/// Type: Output Script PSET_OUT_SCRIPT = 0x04
+/// Type: Output Script `PSET_OUT_SCRIPT` = 0x04
 const PSET_OUT_SCRIPT: u8 = 0x04;
-/// Type: Taproot Internal Key PSBT_OUT_TAP_INTERNAL_KEY = 0x05
+/// Type: Taproot Internal Key `PSBT_OUT_TAP_INTERNAL_KEY` = 0x05
 const PSBT_OUT_TAP_INTERNAL_KEY: u8 = 0x05;
-/// Type: Taproot Tree PSBT_OUT_TAP_TREE = 0x06
+/// Type: Taproot Tree `PSBT_OUT_TAP_TREE` = 0x06
 const PSBT_OUT_TAP_TREE: u8 = 0x06;
-/// Type: Taproot Key BIP 32 Derivation Path PSBT_OUT_TAP_BIP32_DERIVATION = 0x07
+/// Type: Taproot Key BIP 32 Derivation Path `PSBT_OUT_TAP_BIP32_DERIVATION` = 0x07
 const PSBT_OUT_TAP_BIP32_DERIVATION: u8 = 0x07;
-/// Type: Proprietary Use Type PSET_IN_PROPRIETARY = 0xFC
+/// Type: Proprietary Use Type `PSET_IN_PROPRIETARY` = 0xFC
 const PSET_OUT_PROPRIETARY: u8 = 0xFC;
 
 /// Elements
 /// The 33 byte Value Commitment for this output. This is mutually
-/// exclusive with PSBT_OUT_VALUE.
+/// exclusive with `PSBT_OUT_VALUE`.
 const PSBT_ELEMENTS_OUT_VALUE_COMMITMENT: u8 = 0x01;
 /// The explicit 32 byte asset tag for this output. This is mutually
-/// exclusive with PSBT_ELEMENTS_OUT_ASSET_COMMITMENT.
+/// exclusive with `PSBT_ELEMENTS_OUT_ASSET_COMMITMENT`.
 const PSBT_ELEMENTS_OUT_ASSET: u8 = 0x02;
 /// The 33 byte Asset Commitment for this output. This is mutually
-/// exclusive with PSBT_ELEMENTS_OUT_ASSET.
+/// exclusive with `PSBT_ELEMENTS_OUT_ASSET`.
 const PSBT_ELEMENTS_OUT_ASSET_COMMITMENT: u8 = 0x03;
 /// The rangeproof for the value of this output.
 const PSBT_ELEMENTS_OUT_VALUE_RANGEPROOF: u8 = 0x04;
@@ -74,13 +74,13 @@ const PSBT_ELEMENTS_OUT_ECDH_PUBKEY: u8 = 0x07;
 /// whose owner should blind this output.
 const PSBT_ELEMENTS_OUT_BLINDER_INDEX: u8 = 0x08;
 /// An explicit value rangeproof that proves that the value commitment in
-/// PSBT_ELEMENTS_OUT_VALUE_COMMITMENT matches the explicit value in PSBT_OUT_VALUE.
-/// If provided, PSBT_ELEMENTS_OUT_VALUE_COMMITMENT must be provided too.
+/// `PSBT_ELEMENTS_OUT_VALUE_COMMITMENT` matches the explicit value in `PSBT_OUT_VALUE`.
+/// If provided, `PSBT_ELEMENTS_OUT_VALUE_COMMITMENT` must be provided too.
 const PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF: u8 = 0x09;
 /// An asset surjection proof with this output's asset as the only asset in the
 /// input set in order to prove that the asset commitment in
-/// PSBT_ELEMENTS_OUT_ASSET_COMMITMENT matches the explicit asset in
-/// PSBT_ELEMENTS_OUT_ASSET. If provided, PSBT_ELEMENTS_OUT_ASSET_COMMITMENT must
+/// `PSBT_ELEMENTS_OUT_ASSET_COMMITMENT` matches the explicit asset in
+/// `PSBT_ELEMENTS_OUT_ASSET`. If provided, `PSBT_ELEMENTS_OUT_ASSET_COMMITMENT` must
 /// be provided too.
 const PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF: u8 = 0x0a;
 
@@ -204,7 +204,7 @@ impl Output {
     }
 
     /// Create a output from txout
-    /// If the txout it [TxOut::is_partially_blinded], then nonce of the txout
+    /// If the txout it [`TxOut::is_partially_blinded`], then nonce of the txout
     /// is treated as ecdh pubkey, otherwise the nonce of the txout is assumed to
     /// be receiver blinding key.
     /// This is to be used when the txout is not blinded. This sets
@@ -267,13 +267,13 @@ impl Output {
         }
     }
 
-    /// IsBlinded from elements core
+    /// `IsBlinded` from elements core
     /// This indicates whether the output is marked for blinding
     pub fn is_marked_for_blinding(&self) -> bool {
         self.blinding_key.is_some()
     }
 
-    /// IsPartiallyBlinded from elements core
+    /// `IsPartiallyBlinded` from elements core
     pub fn is_partially_blinded(&self) -> bool {
         self.is_marked_for_blinding()
             && (self.amount_comm.is_some()
@@ -283,7 +283,7 @@ impl Output {
                 || self.ecdh_pubkey.is_some())
     }
 
-    /// IsFullyBlinded from elements core
+    /// `IsFullyBlinded` from elements core
     pub fn is_fully_blinded(&self) -> bool {
         self.is_marked_for_blinding()
             && self.amount_comm.is_some()

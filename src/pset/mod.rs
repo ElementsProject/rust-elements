@@ -96,7 +96,7 @@ impl PartiallySignedTransaction {
             .collect();
         Self { global, inputs, outputs }
     }
-    /// Create a PartiallySignedTransaction with zero inputs
+    /// Create a `PartiallySignedTransaction` with zero inputs
     /// zero outputs with a version 2 and tx version 2
     pub fn new_v2() -> Self {
         PartiallySignedTransaction {
@@ -274,7 +274,7 @@ impl PartiallySignedTransaction {
         }
     }
 
-    /// Extract the Transaction from a PartiallySignedTransaction by filling in
+    /// Extract the Transaction from a `PartiallySignedTransaction` by filling in
     /// the available signature information in place.
     pub fn extract_tx(&self) -> Result<Transaction, Error> {
         // This should never trigger any error, should be panic here?
@@ -463,8 +463,8 @@ impl PartiallySignedTransaction {
     /// should call the `blind_last` function which balances the blinding factors
     /// `inp_secrets` and must be consistent by [`Output`] `blinder_index` field
     /// For each output that is to be blinded, the following must be true
-    /// 1. The blinder_index must be set in pset output field
-    /// 2. the corresponding inp_secrets\[out.blinder_index\] must be present
+    /// 1. The `blinder_index` must be set in pset output field
+    /// 2. the corresponding `inp_secrets`\[`out.blinder_index`\] must be present
     ///
     /// Issuances and re-issuance inputs are not blinded.
     /// # Parameters
@@ -569,7 +569,7 @@ impl PartiallySignedTransaction {
     /// This function balances the blinding factors with partial information about
     /// blinding inputs and scalars from [`Global`] scalars field.
     /// `inp_secrets` and `out_secrets` must be consistent by [`Output`] `blinder_index` field
-    /// For each output, the corresponding inp_secrets\[out.blinder_index\] must be present
+    /// For each output, the corresponding `inp_secrets`\[`out.blinder_index`\] must be present
     /// # Parameters
     ///
     /// * `inp_secrets`: [`TxOutSecrets`] corresponding to owned inputs. Use [`None`] for non-owned outputs

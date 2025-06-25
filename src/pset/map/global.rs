@@ -31,23 +31,23 @@ use secp256k1_zkp::Tweak;
 // (Not used in pset) Type: Unsigned Transaction PSET_GLOBAL_UNSIGNED_TX = 0x00
 const PSET_GLOBAL_UNSIGNED_TX: u8 = 0x00;
 //
-/// Type: Extended Public Key PSET_GLOBAL_XPUB = 0x01
+/// Type: Extended Public Key `PSET_GLOBAL_XPUB` = 0x01
 const PSET_GLOBAL_XPUB: u8 = 0x01;
 
-/// Type: Tx Version PSET_GLOBAL_TX_VERSION = 0x02
+/// Type: Tx Version `PSET_GLOBAL_TX_VERSION` = 0x02
 const PSET_GLOBAL_TX_VERSION: u8 = 0x02;
-/// Type: Fallback Locktime PSET_GLOBAL_FALLBACK_LOCKTIME = 0x03
+/// Type: Fallback Locktime `PSET_GLOBAL_FALLBACK_LOCKTIME` = 0x03
 const PSET_GLOBAL_FALLBACK_LOCKTIME: u8 = 0x03;
-/// Type: Tx Input Count PSET_GLOBAL_INPUT_COUNT = 0x04
+/// Type: Tx Input Count `PSET_GLOBAL_INPUT_COUNT` = 0x04
 const PSET_GLOBAL_INPUT_COUNT: u8 = 0x04;
-/// Type: Tx Output Count PSET_GLOBAL_OUTPUT_COUNT = 0x05
+/// Type: Tx Output Count `PSET_GLOBAL_OUTPUT_COUNT` = 0x05
 const PSET_GLOBAL_OUTPUT_COUNT: u8 = 0x05;
-/// Type: Transaction Modifiable Flags PSET_GLOBAL_TX_MODIFIABLE = 0x06
+/// Type: Transaction Modifiable Flags `PSET_GLOBAL_TX_MODIFIABLE` = 0x06
 const PSET_GLOBAL_TX_MODIFIABLE: u8 = 0x06;
 
-/// Type: Version Number PSET_GLOBAL_VERSION = 0xFB
+/// Type: Version Number `PSET_GLOBAL_VERSION` = 0xFB
 const PSET_GLOBAL_VERSION: u8 = 0xFB;
-/// Type: Proprietary Use Type PSET_GLOBAL_PROPRIETARY = 0xFC
+/// Type: Proprietary Use Type `PSET_GLOBAL_PROPRIETARY` = 0xFC
 const PSET_GLOBAL_PROPRIETARY: u8 = 0xFC;
 
 /// Proprietary fields in elements

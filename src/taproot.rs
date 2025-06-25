@@ -49,7 +49,7 @@ sha256t_hash_newtype! {
 impl TapTweakHash {
 
     /// Create a new BIP341 [`TapTweakHash`] from key and tweak
-    /// Produces H_taptweak(P||R) where P is internal key and R is the merkle root
+    /// Produces `H_taptweak(P||R)` where P is internal key and R is the merkle root
     pub fn from_key_and_tweak(
         internal_key: UntweakedPublicKey,
         merkle_root: Option<TapNodeHash>,
@@ -109,7 +109,7 @@ type ScriptMerkleProofMap = BTreeMap<(Script, LeafVersion), BTreeSet<TaprootMerk
 /// general conditions encoded in scripts organized in the form of a binary tree.
 ///
 /// Taproot can be spent be either:
-/// - Spending using the key path i.e., with secret key corresponding to the output_key
+/// - Spending using the key path i.e., with secret key corresponding to the `output_key`
 /// - By satisfying any of the scripts in the script spent path. Each script can be satisfied by providing
 ///   a witness stack consisting of the script's inputs, plus the script itself and the control block.
 ///
@@ -129,7 +129,7 @@ pub struct TaprootSpendInfo {
     output_key_parity: secp256k1_zkp::Parity,
     /// The tweaked output key
     output_key: TweakedPublicKey,
-    /// Map from (script, leaf_version) to (sets of) [`TaprootMerkleBranch`].
+    /// Map from (script, `leaf_version`) to (sets of) [`TaprootMerkleBranch`].
     /// More than one control block for a given script is only possible if it
     /// appears in multiple branches of the tree. In all cases, keeping one should
     /// be enough for spending funds, but we keep all of the paths so that
@@ -144,7 +144,7 @@ impl TaprootSpendInfo {
     /// constructing the tree as a Huffman tree is the optimal way to minimize average
     /// case satisfaction cost. This function takes input an iterator of tuple(u64, &Script)
     /// where usize represents the satisfaction weights of the branch.
-    /// For example, [(3, S1), (2, S2), (5, S3)] would construct a TapTree that has optimal
+    /// For example, [(3, S1), (2, S2), (5, S3)] would construct a `TapTree` that has optimal
     /// satisfaction weight when probability for S1 is 30%, S2 is 20% and S3 is 50%.
     ///
     /// # Errors:
@@ -191,7 +191,7 @@ impl TaprootSpendInfo {
     }
 
     /// Create a new key spend with internal key and proided merkle root.
-    /// Provide [`None`] for merkle_root if there is no script path.
+    /// Provide [`None`] for `merkle_root` if there is no script path.
     ///
     /// *Note*: As per BIP341
     ///
@@ -217,7 +217,7 @@ impl TaprootSpendInfo {
         }
     }
 
-    /// Obtain the tweak and parity used to compute the output_key
+    /// Obtain the tweak and parity used to compute the `output_key`
     pub fn tap_tweak(&self) -> TapTweakHash {
         TapTweakHash::from_key_and_tweak(self.internal_key, self.merkle_root)
     }
@@ -273,7 +273,7 @@ impl TaprootSpendInfo {
 
     /// Obtain a [`ControlBlock`] for particular script with the given version.
     /// Returns [`None`] if the script is not contained in the [`TaprootSpendInfo`]
-    /// If there are multiple ControlBlocks possible, this returns the shortest one.
+    /// If there are multiple `ControlBlocks` possible, this returns the shortest one.
     pub fn control_block(&self, script_ver: &(Script, LeafVersion)) -> Option<ControlBlock> {
         let merkle_branch_set = self.script_map.get(script_ver)?;
         // Choose the smallest one amongst the multiple script maps
@@ -453,7 +453,7 @@ pub struct NodeInfo {
 }
 
 impl NodeInfo {
-    /// Creates a new NodeInfo with omitted/hidden info
+    /// Creates a new `NodeInfo` with omitted/hidden info
     pub fn new_hidden(hash: sha256::Hash) -> Self {
         Self {
             hash,
@@ -461,7 +461,7 @@ impl NodeInfo {
         }
     }
 
-    /// Creates a new leaf with NodeInfo
+    /// Creates a new leaf with `NodeInfo`
     pub fn new_leaf_with_ver(script: Script, ver: LeafVersion) -> Self {
         let leaf = LeafInfo::new(script, ver);
         Self {
@@ -470,7 +470,7 @@ impl NodeInfo {
         }
     }
 
-    /// Combines two NodeInfo's to create a new parent
+    /// Combines two `NodeInfo`'s to create a new parent
     pub fn combine(a: Self, b: Self) -> Result<Self, TaprootBuilderError> {
         let mut all_leaves = Vec::with_capacity(a.leaves.len() + b.leaves.len());
         for mut a_leaf in a.leaves {
@@ -584,8 +584,8 @@ impl TaprootMerkleBranch {
         }
     }
 
-    /// Create a MerkleProof from Vec<[`sha256::Hash`]>. Returns an error when
-    /// inner proof len is more than TAPROOT_CONTROL_MAX_NODE_COUNT (128)
+    /// Create a `MerkleProof` from Vec<[`sha256::Hash`]>. Returns an error when
+    /// inner proof len is more than `TAPROOT_CONTROL_MAX_NODE_COUNT` (128)
     pub fn from_inner(inner: Vec<sha256::Hash>) -> Result<Self, TaprootError> {
         if inner.len() > TAPROOT_CONTROL_MAX_NODE_COUNT {
             Err(TaprootError::InvalidMerkleTreeDepth(inner.len()))
@@ -615,14 +615,14 @@ pub struct ControlBlock {
 }
 
 impl ControlBlock {
-    /// Obtain a ControlBlock from slice. This is an extra witness element
+    /// Obtain a `ControlBlock` from slice. This is an extra witness element
     /// that provides the proof that taproot script pubkey is correctly computed
     /// with some specified leaf hash. This is the last element in
     /// taproot witness when spending a output via script path.
     ///
     /// # Errors:
     /// - If the control block size is not of the form 33 + 32m where
-    ///   0 <= m <= 128, InvalidControlBlock is returned
+    ///   0 <= m <= 128, `InvalidControlBlock` is returned
     pub fn from_slice(sl: &[u8]) -> Result<ControlBlock, TaprootError> {
         if sl.len() < TAPROOT_CONTROL_BASE_SIZE
             || (sl.len() - TAPROOT_CONTROL_BASE_SIZE) % TAPROOT_CONTROL_NODE_SIZE != 0
@@ -644,7 +644,7 @@ impl ControlBlock {
     }
 
     /// Obtain the size of control block. Faster and more efficient than calling
-    /// serialize() followed by len(). Can be handy for fee estimation
+    /// `serialize()` followed by `len()`. Can be handy for fee estimation
     pub fn size(&self) -> usize {
         TAPROOT_CONTROL_BASE_SIZE + TAPROOT_CONTROL_NODE_SIZE * self.merkle_branch.as_inner().len()
     }
@@ -660,8 +660,8 @@ impl ControlBlock {
     }
 
     /// Serialize the control block. This would be required when
-    /// using ControlBlock as a witness element while spending an output via
-    /// script path. This serialization does not include the VarInt prefix that would be
+    /// using `ControlBlock` as a witness element while spending an output via
+    /// script path. This serialization does not include the `VarInt` prefix that would be
     /// applied when encoding this element as a witness.
     pub fn serialize(&self) -> Vec<u8> {
         let mut buf = Vec::with_capacity(self.size());
@@ -721,8 +721,8 @@ impl Default for LeafVersion {
 }
 
 impl LeafVersion {
-    /// Obtain LeafVersion from u8, will error when last bit of ver is even or
-    /// when ver is 0x50 (ANNEX_TAG)
+    /// Obtain `LeafVersion` from u8, will error when last bit of ver is even or
+    /// when ver is 0x50 (`ANNEX_TAG`)
     // Text from BIP341:
     // In order to support some forms of static analysis that rely on
     // being able to identify script spends without access to the output being
@@ -740,7 +740,7 @@ impl LeafVersion {
         }
     }
 
-    /// Get the inner version from LeafVersion
+    /// Get the inner version from `LeafVersion`
     pub fn as_u8(&self) -> u8 {
         self.0
     }
@@ -813,7 +813,7 @@ pub enum TaprootError {
     InvalidControlBlockSize(usize),
     /// Invalid taproot internal key
     InvalidInternalKey(secp256k1_zkp::UpstreamError),
-    /// Empty TapTree
+    /// Empty `TapTree`
     EmptyTree,
 }
 

@@ -100,7 +100,7 @@ impl Value {
     }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [Value::is_explicit] returns false.
+    /// Returns [None] if [`Value::is_explicit`] returns false.
     pub fn explicit(&self) -> Option<u64> {
         match *self {
             Value::Explicit(i) => Some(i),
@@ -109,7 +109,7 @@ impl Value {
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [Value::is_confidential] returns false.
+    /// Returns [None] if [`Value::is_confidential`] returns false.
     pub fn commitment(&self) -> Option<PedersenCommitment> {
         match *self {
             Value::Confidential(i) => Some(i),
@@ -302,7 +302,7 @@ impl Asset {
     }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [Asset::is_explicit] returns false.
+    /// Returns [None] if [`Asset::is_explicit`] returns false.
     pub fn explicit(&self) -> Option<AssetId> {
         match *self {
             Asset::Explicit(i) => Some(i),
@@ -311,7 +311,7 @@ impl Asset {
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [Asset::is_confidential] returns false.
+    /// Returns [None] if [`Asset::is_confidential`] returns false.
     pub fn commitment(&self) -> Option<Generator> {
         match *self {
             Asset::Confidential(i) => Some(i),
@@ -494,7 +494,7 @@ impl Nonce {
         Self::with_ephemeral_sk(secp, ephemeral_sk, receiver_blinding_pk)
     }
 
-    /// Similar to [Nonce::new_confidential], but with a given `ephemeral_sk`
+    /// Similar to [`Nonce::new_confidential`], but with a given `ephemeral_sk`
     /// instead of sampling it from rng.
     pub fn with_ephemeral_sk<C: Signing>(
         secp: &Secp256k1<C>,
@@ -569,7 +569,7 @@ impl Nonce {
     }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [Nonce::is_explicit] returns false.
+    /// Returns [None] if [`Nonce::is_explicit`] returns false.
     pub fn explicit(&self) -> Option<[u8; 32]> {
         match *self {
             Nonce::Explicit(i) => Some(i),
@@ -578,7 +578,7 @@ impl Nonce {
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [Nonce::is_confidential] returns false.
+    /// Returns [None] if [`Nonce::is_confidential`] returns false.
     pub fn commitment(&self) -> Option<PublicKey> {
         match *self {
             Nonce::Confidential(i) => Some(i),
@@ -740,7 +740,7 @@ impl AssetBlindingFactor {
         self.0
     }
 
-    /// Get a unblinded/zero AssetBlinding factor
+    /// Get a unblinded/zero `AssetBlinding` factor
     pub fn zero() -> Self {
         AssetBlindingFactor(ZERO_TWEAK)
     }
@@ -907,7 +907,7 @@ impl ValueBlindingFactor {
         self.0
     }
 
-    /// Get a unblinded/zero AssetBlinding factor
+    /// Get a unblinded/zero `AssetBlinding` factor
     pub fn zero() -> Self {
         ValueBlindingFactor(ZERO_TWEAK)
     }

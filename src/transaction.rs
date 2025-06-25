@@ -619,7 +619,7 @@ impl TxIn {
     }
 
     /// Compute the issuance asset ids from this [`TxIn`]. This function does not check
-    /// whether there is an issuance in this input. Returns (asset_id, token_id)
+    /// whether there is an issuance in this input. Returns (`asset_id`, `token_id`)
     pub fn issuance_ids(&self) -> (AssetId, AssetId) {
         let entropy = if self.asset_issuance.asset_blinding_nonce == ZERO_TWEAK {
             let contract_hash =
@@ -749,7 +749,7 @@ impl TxOut {
         }
     }
 
-    /// Whether this data represents nulldata (OP_RETURN followed by pushes,
+    /// Whether this data represents nulldata (`OP_RETURN` followed by pushes,
     /// not necessarily minimal)
     pub fn is_null_data(&self) -> bool {
         let mut iter = self.script_pubkey.instructions();

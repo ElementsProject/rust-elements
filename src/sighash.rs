@@ -123,7 +123,7 @@ pub enum Error {
         inputs_size: usize,
     },
 
-    /// Using SIGHASH_SINGLE without a "corresponding output" (an output with the same index as the
+    /// Using `SIGHASH_SINGLE` without a "corresponding output" (an output with the same index as the
     /// input being verified) is a validation failure
     SingleWithoutCorrespondingOutput {
         /// Requested index
@@ -202,7 +202,7 @@ impl<T> Prevouts<'_, T> where T: Borrow<TxOut> {
 }
 
 impl<'s> ScriptPath<'s> {
-    /// Create a new ScriptPath structure
+    /// Create a new `ScriptPath` structure
     pub fn new(script: &'s Script, code_separator_pos: u32, leaf_version: u8) -> Self {
         ScriptPath {
             script,
@@ -210,7 +210,7 @@ impl<'s> ScriptPath<'s> {
             leaf_version,
         }
     }
-    /// Create a new ScriptPath structure using default values for `code_separator_pos` and `leaf_version`
+    /// Create a new `ScriptPath` structure using default values for `code_separator_pos` and `leaf_version`
     pub fn with_defaults(script: &'s Script) -> Self {
         Self::new(script, 0xFFFFFFFFu32, 0xc4)
     }
@@ -236,7 +236,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
     /// Compute the sighash components from an unsigned transaction and auxiliary
     /// in a lazy manner when required.
     /// For the generated sighashes to be valid, no fields in the transaction may change except for
-    /// script_sig and witnesses.
+    /// `script_sig` and witnesses.
     pub fn new(tx: R) -> Self {
         SighashCache {
             tx,
@@ -247,7 +247,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
     }
 
     /// Encode the BIP341 signing data for any flag type into a given object implementing a
-    /// io::Write trait.
+    /// `io::Write` trait.
     #[allow(clippy::too_many_arguments)]
     pub fn taproot_encode_signing_data_to<Write: io::Write, T: Borrow<TxOut>>(
         &mut self,
@@ -491,9 +491,9 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
     }
 
     /// Encode the BIP143 signing data for any flag type into a given object implementing a
-    /// std::io::Write trait.
+    /// `std::io::Write` trait.
     ///
-    /// *Warning* This does NOT attempt to support OP_CODESEPARATOR. In general
+    /// *Warning* This does NOT attempt to support `OP_CODESEPARATOR`. In general
     /// this would require evaluating `script_pubkey` to determine which separators
     /// get evaluated and which don't, which we don't have the information to
     /// determine.
@@ -565,7 +565,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
     }
 
     /// Compute the segwitv0(BIP143) style sighash for any flag type.
-    /// *Warning* This does NOT attempt to support OP_CODESEPARATOR. In general
+    /// *Warning* This does NOT attempt to support `OP_CODESEPARATOR`. In general
     /// this would require evaluating `script_pubkey` to determine which separators
     /// get evaluated and which don't, which we don't have the information to
     /// determine.
@@ -588,10 +588,10 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
 
     /// Encodes the signing data from which a signature hash for a given input index with a given
     /// sighash flag can be computed.  To actually produce a scriptSig, this hash needs to be run
-    /// through an ECDSA signer, the SighashType appended to the resulting sig, and a script
+    /// through an ECDSA signer, the `SighashType` appended to the resulting sig, and a script
     /// written around this, but this is the general (and hard) part.
     ///
-    /// *Warning* This does NOT attempt to support OP_CODESEPARATOR. In general this would require
+    /// *Warning* This does NOT attempt to support `OP_CODESEPARATOR`. In general this would require
     /// evaluating `script_pubkey` to determine which separators get evaluated and which don't,
     /// which we don't have the information to determine.
     ///
@@ -675,11 +675,11 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
 
     /// Computes a signature hash for a given input index with a given sighash flag.
     /// To actually produce a scriptSig, this hash needs to be run through an
-    /// ECDSA signer, the SighashType appended to the resulting sig, and a
+    /// ECDSA signer, the `SighashType` appended to the resulting sig, and a
     /// script written around this, but this is the general (and hard) part.
     /// Does not take a mutable reference because it does not do any caching.
     ///
-    /// *Warning* This does NOT attempt to support OP_CODESEPARATOR. In general
+    /// *Warning* This does NOT attempt to support `OP_CODESEPARATOR`. In general
     /// this would require evaluating `script_pubkey` to determine which separators
     /// get evaluated and which don't, which we don't have the information to
     /// determine.
@@ -814,7 +814,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
 }
 
 impl<R: DerefMut<Target = Transaction>> SighashCache<R> {
-    /// When the SighashCache is initialized with a mutable reference to a transaction instead of a
+    /// When the `SighashCache` is initialized with a mutable reference to a transaction instead of a
     /// regular reference, this method is available to allow modification to the witnesses.
     ///
     /// This allows in-line signing such as

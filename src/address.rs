@@ -534,7 +534,7 @@ impl Address {
     }
 
     /// Parse the address using the given parameters.
-    /// When using the built-in parameters, you can use [FromStr].
+    /// When using the built-in parameters, you can use [`FromStr`].
     pub fn parse_with_params(
         s: &str,
         params: &'static AddressParams,

@@ -11,7 +11,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! Provides type [`LockTime`] that implements the logic around nLockTime/OP_CHECKLOCKTIMEVERIFY.
+//! Provides type [`LockTime`] that implements the logic around `nLockTime/OP_CHECKLOCKTIMEVERIFY`.
 //!
 //! There are two types of lock time: lock-by-blockheight and lock-by-blocktime, distinguished by
 //! whether `LockTime < LOCKTIME_THRESHOLD`.
@@ -45,7 +45,7 @@ pub const LOCK_TIME_THRESHOLD: u32 = 500_000_000;
 /// A lock time value, representing either a block height or a UNIX timestamp (seconds since epoch).
 ///
 /// Used for transaction lock time (`nLockTime` in Bitcoin Core and [`crate::Transaction::lock_time`]
-/// in this library) and also for the argument to opcode 'OP_CHECKLOCKTIMEVERIFY`.
+/// in this library) and also for the argument to opcode `OP_CHECKLOCKTIMEVERIFY`.
 ///
 /// ### Relevant BIPs
 ///
@@ -100,7 +100,7 @@ impl LockTime {
     /// transaction with nLocktime==0 is able to be included immediately in any block.
     pub const ZERO: LockTime = LockTime::Blocks(Height(0));
 
-    /// Constructs a `LockTime` from an nLockTime value or the argument to OP_CHEKCLOCKTIMEVERIFY.
+    /// Constructs a `LockTime` from an nLockTime value or the argument to `OP_CHEKCLOCKTIMEVERIFY`.
     ///
     /// # Examples
     ///

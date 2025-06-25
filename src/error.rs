@@ -2,7 +2,7 @@
 
 pub use crate::parse::ParseIntError;
 
-/// Impls std::error::Error for the specified type with appropriate attributes, possibly returning
+/// Impls `std::error::Error` for the specified type with appropriate attributes, possibly returning
 /// source.
 macro_rules! impl_std_error {
     // No source available
