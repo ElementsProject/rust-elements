@@ -464,9 +464,8 @@ impl Decodable for Global {
                                     let scalar = Tweak::from_slice(&prop_key.key)?;
                                     if scalars.contains(&scalar) {
                                         return Err(Error::DuplicateKey(raw_key).into());
-                                    } else {
-                                        scalars.push(scalar);
                                     }
+                                    scalars.push(scalar);
                                 } else {
                                     return Err(Error::InvalidKey(raw_key))?;
                                 }

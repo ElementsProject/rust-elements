@@ -639,9 +639,8 @@ impl TxOut {
                     // unspendable.
                     if self.script_pubkey.is_provably_unspendable() {
                         return Err(TxOutError::ZeroValueCommitment);
-                    } else {
-                        return Err(TxOutError::NonUnspendableZeroValue);
                     }
+                    return Err(TxOutError::NonUnspendableZeroValue);
                 }
                 let asset_comm = self.get_asset_gen(secp)?;
                 Ok(PedersenCommitment::new_unblinded(secp, value, asset_comm))
