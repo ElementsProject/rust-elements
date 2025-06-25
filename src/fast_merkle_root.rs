@@ -29,7 +29,7 @@ fn sha256midstate(left: &[u8], right: &[u8]) -> sha256::Midstate {
 /// Note that the merkle root calculated with this method is not the same as the
 /// one computed by a normal SHA256(d) merkle root.
 pub fn fast_merkle_root(leaves: &[[u8; 32]]) -> sha256::Midstate {
-    let mut result_hash = Default::default();
+    let mut result_hash = sha256::Midstate::default();
     // Implementation based on ComputeFastMerkleRoot method in Elements Core.
     if leaves.is_empty() {
         return result_hash;

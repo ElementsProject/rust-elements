@@ -199,7 +199,7 @@ impl Output {
             amount: Some(amount),
             blinding_key,
             asset: Some(asset),
-            ..Default::default()
+            ..Self::default()
         }
     }
 
@@ -407,7 +407,7 @@ impl Map for Output {
     }
 
     fn get_pairs(&self) -> Result<Vec<raw::Pair>, encode::Error> {
-        let mut rv: Vec<raw::Pair> = Default::default();
+        let mut rv: Vec<raw::Pair> = Vec::default();
 
         impl_pset_get_pair! {
             rv.push(self.redeem_script as <PSET_OUT_REDEEM_SCRIPT, _>)

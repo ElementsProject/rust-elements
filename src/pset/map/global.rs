@@ -206,7 +206,7 @@ impl Map for Global {
     }
 
     fn get_pairs(&self) -> Result<Vec<raw::Pair>, encode::Error> {
-        let mut rv: Vec<raw::Pair> = Default::default();
+        let mut rv: Vec<raw::Pair> = Vec::default();
 
         let TxData {
             version,
@@ -368,9 +368,9 @@ impl_psetmap_consensus_encoding!(Global);
 impl Decodable for Global {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
         let mut version: Option<u32> = None;
-        let mut unknowns: BTreeMap<raw::Key, Vec<u8>> = Default::default();
+        let mut unknowns: BTreeMap<raw::Key, Vec<u8>> = BTreeMap::new();
         let mut xpub_map: BTreeMap<Xpub, (Fingerprint, DerivationPath)> =
-            Default::default();
+            BTreeMap::new();
         let mut proprietary = BTreeMap::new();
         let mut scalars = Vec::new();
 

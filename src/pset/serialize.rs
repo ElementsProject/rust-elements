@@ -182,7 +182,7 @@ impl Deserialize for KeySource {
         };
 
         let fprint: Fingerprint = Fingerprint::from(prefix);
-        let mut dpath: Vec<ChildNumber> = Default::default();
+        let mut dpath: Vec<ChildNumber> = Vec::default();
 
         let mut d = &bytes[4..];
         while !d.is_empty() {

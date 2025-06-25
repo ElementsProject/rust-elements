@@ -502,12 +502,12 @@ pub struct TxIn {
 impl Default for TxIn {
     fn default() -> Self {
         Self {
-            previous_output: Default::default(), // same as in rust-bitcoin
+            previous_output: OutPoint::default(), // same as in rust-bitcoin
             is_pegin: false,
             script_sig: Script::new(),
             sequence: Sequence::MAX, // same as in rust-bitcoin
-            asset_issuance: Default::default(),
-            witness: Default::default()
+            asset_issuance: AssetIssuance::default(),
+            witness: TxInWitness::default()
         }
     }
 }
