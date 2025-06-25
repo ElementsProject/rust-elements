@@ -788,6 +788,7 @@ pub enum ClassifyContext {
 impl All {
     /// Classifies an Opcode into a broad class.
     #[inline]
+    #[allow(clippy::wildcard_imports)] // ok to import all the opcodes with all::*
     pub fn classify(self, ctx: ClassifyContext) -> Class {
         use self::all::*;
         match (self, ctx) {
