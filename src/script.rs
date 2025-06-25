@@ -640,7 +640,7 @@ impl<'a> Iterator for Instructions<'a> {
                         self.data = &[];
                         return Some(Err(Error::NonMinimalPush));
                 }
-                let ret = Some(Ok(Instruction::PushBytes(&self.data[1..n+1])));
+                let ret = Some(Ok(Instruction::PushBytes(&self.data[1..=n])));
                 self.data = &self.data[n + 1..];
                 ret
             }
