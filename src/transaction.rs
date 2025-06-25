@@ -832,7 +832,7 @@ impl TxOut {
 
     /// Extracts the minimum value from the rangeproof, if there is one, or returns 0.
     pub fn minimum_value(&self) -> u64 {
-        let min_value = if self.script_pubkey.is_op_return() { 0 } else { 1 };
+        let min_value = u64::from(self.script_pubkey.is_op_return());
 
         match self.value {
             confidential::Value::Null => min_value,
