@@ -571,7 +571,7 @@ impl TaprootMerkleBranch {
 
     /// Serialize self as bytes
     pub fn serialize(&self) -> Vec<u8> {
-        self.0.iter().flat_map(|e| e.as_byte_array()).copied().collect::<Vec<u8>>()
+        self.0.iter().flat_map(sha256::Hash::as_byte_array).copied().collect::<Vec<u8>>()
     }
 
     // Internal function to append elements to proof

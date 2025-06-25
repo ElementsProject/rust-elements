@@ -195,7 +195,7 @@ impl<T> Prevouts<'_, T> where T: Borrow<TxOut> {
             }
             Prevouts::All(prevouts) => prevouts
                 .get(input_index)
-                .map(|x| x.borrow())
+                .map(T::borrow)
                 .ok_or(Error::PrevoutIndex),
         }
     }

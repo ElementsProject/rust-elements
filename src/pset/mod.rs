@@ -296,12 +296,12 @@ impl PartiallySignedTransaction {
                     script_witness: psetin
                         .final_script_witness
                         .as_ref()
-                        .map(|x| x.to_owned())
+                        .map(Vec::to_owned)
                         .unwrap_or_default(),
                     pegin_witness: psetin
                         .pegin_witness
                         .as_ref()
-                        .map(|x| x.to_owned())
+                        .map(Vec::to_owned)
                         .unwrap_or_default(),
                 },
             };

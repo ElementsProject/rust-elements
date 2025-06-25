@@ -715,12 +715,13 @@ impl TxOut {
     {
         let value_blind_inputs = spent_utxo_secrets
             .iter()
-            .map(|utxo_sec| utxo_sec.value_blind_inputs())
+            .map(TxOutSecrets::value_blind_inputs)
             .collect::<Vec<_>>();
 
         let value_blind_outputs = output_secrets
             .iter()
-            .map(|e| e.value_blind_inputs())
+            .copied()
+            .map(TxOutSecrets::value_blind_inputs)
             .collect::<Vec<_>>();
 
         let out_vbf = ValueBlindingFactor::last(

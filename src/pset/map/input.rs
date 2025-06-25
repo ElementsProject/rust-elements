@@ -481,7 +481,7 @@ impl Input {
         self.sighash_type
             .map_or(
                 Some(EcdsaSighashType::All),
-                |sighash_type| sighash_type.ecdsa_hash_ty(),
+                PsbtSighashType::ecdsa_hash_ty,
             )
     }
 
@@ -495,7 +495,7 @@ impl Input {
         self.sighash_type
             .map_or(
                 Some(SchnorrSighashType::Default),
-                |sighash_type| sighash_type.schnorr_hash_ty(),
+                PsbtSighashType::schnorr_hash_ty,
             )
     }
 
