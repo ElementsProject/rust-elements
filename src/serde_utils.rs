@@ -22,7 +22,7 @@ pub mod btreemap_byte_values {
             serde::Serialize::serialize(v, s)
         } else {
             let mut map = s.serialize_map(Some(v.len()))?;
-            for (key, value) in v.iter() {
+            for (key, value) in v {
                 map.serialize_entry(key, &value.to_hex())?;
             }
             map.end()
@@ -89,7 +89,7 @@ pub mod btreemap_as_seq {
             serde::Serialize::serialize(v, s)
         } else {
             let mut seq = s.serialize_seq(Some(v.len()))?;
-            for pair in v.iter() {
+            for pair in v {
                 seq.serialize_element(&pair)?;
             }
             seq.end()
@@ -175,7 +175,7 @@ pub mod btreemap_as_seq_byte_values {
             serde::Serialize::serialize(v, s)
         } else {
             let mut seq = s.serialize_seq(Some(v.len()))?;
-            for (key, value) in v.iter() {
+            for (key, value) in v {
                 seq.serialize_element(&BorrowedPair(key, value))?;
             }
             seq.end()

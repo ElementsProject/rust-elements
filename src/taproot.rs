@@ -563,7 +563,7 @@ impl TaprootMerkleBranch {
     /// Serialize to a writer. Returns the number of bytes written
     pub fn encode<Write: io::Write>(&self, mut writer: Write) -> io::Result<usize> {
         let mut written = 0;
-        for hash in self.0.iter() {
+        for hash in &self.0 {
             written += writer.write(hash.as_ref())?;
         }
         Ok(written)

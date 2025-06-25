@@ -488,14 +488,14 @@ impl Map for Output {
             rv.push_prop(self.blind_asset_proof as <PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF, _>)
         }
 
-        for (key, value) in self.proprietary.iter() {
+        for (key, value) in &self.proprietary {
             rv.push(raw::Pair {
                 key: key.to_key(),
                 value: value.clone(),
             });
         }
 
-        for (key, value) in self.unknown.iter() {
+        for (key, value) in &self.unknown {
             rv.push(raw::Pair {
                 key: key.clone(),
                 value: value.clone(),

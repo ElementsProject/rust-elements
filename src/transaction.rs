@@ -935,7 +935,7 @@ impl Transaction {
     pub fn discount_weight(&self) -> usize {
         let mut weight = self.scaled_size(4);
 
-        for out in self.output.iter() {
+        for out in &self.output {
             let rp_len = out.witness.rangeproof_len();
             let sp_len = out.witness.surjectionproof_len();
             let witness_weight = VarInt(sp_len as u64).size() + sp_len + VarInt(rp_len as u64).size() + rp_len;

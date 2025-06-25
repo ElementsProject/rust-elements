@@ -711,7 +711,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         common_cache.get_or_insert_with(|| {
             let mut enc_prevouts = sha256::Hash::engine();
             let mut enc_sequences = sha256::Hash::engine();
-            for txin in tx.input.iter() {
+            for txin in &tx.input {
                 txin.previous_output
                     .consensus_encode(&mut enc_prevouts)
                     .unwrap();
@@ -722,14 +722,14 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
                 sequences: sha256::Hash::from_engine(enc_sequences),
                 outputs: {
                     let mut enc = sha256::Hash::engine();
-                    for txout in tx.output.iter() {
+                    for txout in &tx.output {
                         txout.consensus_encode(&mut enc).unwrap();
                     }
                     sha256::Hash::from_engine(enc)
                 },
                 issuances: {
                     let mut enc = sha256::Hash::engine();
-                    for txin in tx.input.iter() {
+                    for txin in &tx.input {
                         if txin.has_issuance() {
                             txin.asset_issuance.consensus_encode(&mut enc).unwrap();
                         } else {
@@ -789,7 +789,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
                     .consensus_encode(&mut enc_script_pubkeys)
                     .unwrap();
             }
-            for inp in tx.input.iter() {
+            for inp in &tx.input {
                 inp.outpoint_flag()
                     .consensus_encode(&mut enc_outpoint_flags).unwrap();
                 inp.witness.amount_rangeproof
@@ -798,7 +798,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
                     .consensus_encode(&mut enc_issuance_rangeproofs).unwrap();
             }
 
-            for out in tx.output.iter() {
+            for out in &tx.output {
                 out.witness.surjection_proof.consensus_encode(&mut enc_output_witnesses).unwrap();
                 out.witness.rangeproof.consensus_encode(&mut enc_output_witnesses).unwrap();
             }

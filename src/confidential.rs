@@ -598,7 +598,7 @@ impl fmt::Display for Nonce {
         match *self {
             Nonce::Null => f.write_str("null"),
             Nonce::Explicit(n) => {
-                for b in n.iter() {
+                for b in &n {
                     write!(f, "{:02x}", b)?;
                 }
                 Ok(())

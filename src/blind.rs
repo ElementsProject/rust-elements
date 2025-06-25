@@ -1002,7 +1002,7 @@ impl Transaction {
                     (inp.asset_issuance.amount, asset_id),
                     (inp.asset_issuance.inflation_keys, token_id),
                 ];
-                for (amt, asset) in arr.iter() {
+                for (amt, asset) in &arr {
                     match amt {
                         Value::Null => continue,
                         Value::Explicit(v) => {

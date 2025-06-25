@@ -692,7 +692,7 @@ impl FromStr for Address {
         let net_arr = [liq, ele, liq_test];
 
         let prefix = find_prefix(s);
-        for net in net_arr.iter() {
+        for net in &net_arr {
             // Bech32.
             if match_prefix(prefix, net.bech_hrp) {
                 return Address::from_bech32(s, false, net);
@@ -712,7 +712,7 @@ impl FromStr for Address {
         }
 
         let p = data[0];
-        for net in net_arr.iter() {
+        for net in &net_arr {
             if p == net.p2pkh_prefix || p == net.p2sh_prefix || p == net.blinded_prefix {
                 return Address::from_base58(&data, net);
             }

@@ -257,7 +257,7 @@ impl PartiallySignedTransaction {
         // changed by Updaters and Combiners, the sequence number in this unsigned
         // transaction must be set to 0 (not final, nor the sequence in PSBT_IN_SEQUENCE).
         // The lock time in this unsigned transaction must be computed as described previously.
-        for inp in tx.input.iter_mut() {
+        for inp in &mut tx.input {
             inp.sequence = Sequence::from_height(0);
         }
         Ok(tx.txid())
@@ -283,7 +283,7 @@ impl PartiallySignedTransaction {
         let mut inputs = vec![];
         let mut outputs = vec![];
 
-        for psetin in self.inputs.iter() {
+        for psetin in &self.inputs {
             let txin = TxIn {
                 previous_output: OutPoint::new(psetin.previous_txid, psetin.previous_output_index),
                 is_pegin: psetin.is_pegin(),
@@ -308,7 +308,7 @@ impl PartiallySignedTransaction {
             inputs.push(txin);
         }
 
-        for out in self.outputs.iter() {
+        for out in &self.outputs {
             let txout = TxOut {
                 asset: match (out.asset_comm, out.asset) {
                     (Some(gen), _) => confidential::Asset::Confidential(gen),
@@ -634,7 +634,7 @@ impl PartiallySignedTransaction {
             ValueBlindingFactor::last(secp, value, out_abf, &inp_secrets, &exp_out_secrets);
 
         // Add all the scalars
-        for value_diff in self.global.scalars.iter() {
+        for value_diff in &self.global.scalars {
             final_vbf += ValueBlindingFactor(*value_diff);
         }
 

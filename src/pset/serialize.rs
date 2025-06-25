@@ -166,7 +166,7 @@ impl Serialize for KeySource {
 
         rv.append(&mut self.0.to_bytes().to_vec());
 
-        for cnum in self.1.into_iter() {
+        for cnum in &self.1 {
             rv.append(&mut serialize(&u32::from(*cnum)))
         }
 
@@ -438,7 +438,7 @@ impl Serialize for TapTree {
         match (self.0.branch().len(), self.0.branch().last()) {
             (1, Some(Some(root))) => {
                 let mut buf = Vec::new();
-                for leaf_info in root.leaves.iter() {
+                for leaf_info in &root.leaves {
                     // # Cast Safety:
                     //
                     // TaprootMerkleBranch can only have len atmost 128(TAPROOT_CONTROL_MAX_NODE_COUNT).

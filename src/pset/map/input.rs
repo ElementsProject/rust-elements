@@ -1029,14 +1029,14 @@ impl Map for Input {
             rv.push_prop(self.blinded_issuance as <PSBT_ELEMENTS_IN_BLINDED_ISSUANCE, _>)
         }
 
-        for (key, value) in self.proprietary.iter() {
+        for (key, value) in &self.proprietary {
             rv.push(raw::Pair {
                 key: key.to_key(),
                 value: value.clone(),
             });
         }
 
-        for (key, value) in self.unknown.iter() {
+        for (key, value) in &self.unknown {
             rv.push(raw::Pair {
                 key: key.clone(),
                 value: value.clone(),

@@ -276,14 +276,14 @@ impl Map for Global {
             rv.push_prop(self.elements_tx_modifiable_flag as <PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE, _>)
         }
 
-        for (key, value) in self.proprietary.iter() {
+        for (key, value) in &self.proprietary {
             rv.push(raw::Pair {
                 key: key.to_key(),
                 value: value.clone(),
             });
         }
 
-        for (key, value) in self.unknown.iter() {
+        for (key, value) in &self.unknown {
             rv.push(raw::Pair {
                 key: key.clone(),
                 value: value.clone(),
