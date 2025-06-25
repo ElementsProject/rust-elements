@@ -867,18 +867,19 @@ mod tests{
 
     #[test]
     fn test_midstates() {
-        // test that engine creation roundtrips
-        assert_eq!(tag_engine("TapLeaf/elements").midstate(), TapLeafTag::engine().midstate());
-        assert_eq!(tag_engine("TapBranch/elements").midstate(), TapBranchTag::engine().midstate());
-        assert_eq!(tag_engine("TapTweak/elements").midstate(), TapTweakTag::engine().midstate());
-        assert_eq!(tag_engine("TapSighash/elements").midstate(), TapSighashTag::engine().midstate());
-
         // check that hash creation is the same as building into the same engine
         fn empty_hash(tag_name: &str) -> [u8; 32] {
             let mut e = tag_engine(tag_name);
             e.input(&[]);
             sha256::Hash::from_engine(e).to_byte_array()
         }
+
+        // test that engine creation roundtrips
+        assert_eq!(tag_engine("TapLeaf/elements").midstate(), TapLeafTag::engine().midstate());
+        assert_eq!(tag_engine("TapBranch/elements").midstate(), TapBranchTag::engine().midstate());
+        assert_eq!(tag_engine("TapTweak/elements").midstate(), TapTweakTag::engine().midstate());
+        assert_eq!(tag_engine("TapSighash/elements").midstate(), TapSighashTag::engine().midstate());
+
         assert_eq!(empty_hash("TapLeaf/elements"), TapLeafHash::hash(&[]).to_byte_array());
         assert_eq!(empty_hash("TapBranch/elements"), TapNodeHash::hash(&[]).to_byte_array());
         assert_eq!(empty_hash("TapTweak/elements"), TapTweakHash::hash(&[]).to_byte_array());
