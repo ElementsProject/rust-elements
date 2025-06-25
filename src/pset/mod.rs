@@ -441,7 +441,7 @@ impl PartiallySignedTransaction {
                         value: 0, // This value really does not matter in surjection proofs
                         value_bf: ValueBlindingFactor::zero(),
                     };
-                    ret.push(SurjectionInput::from_txout_secrets(secrets))
+                    ret.push(SurjectionInput::from_txout_secrets(secrets));
                 }
                 if inp.issuance_inflation_keys.is_some()
                     || inp.issuance_inflation_keys_comm.is_some()
@@ -452,7 +452,7 @@ impl PartiallySignedTransaction {
                         value: 0, // This value really does not matter in surjection proofs
                         value_bf: ValueBlindingFactor::zero(),
                     };
-                    ret.push(SurjectionInput::from_txout_secrets(secrets))
+                    ret.push(SurjectionInput::from_txout_secrets(secrets));
                 }
             }
         }
@@ -688,7 +688,7 @@ impl PartiallySignedTransaction {
                     .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?,
             ));
 
-            self.global.scalars.clear()
+            self.global.scalars.clear();
         }
         Ok(())
     }

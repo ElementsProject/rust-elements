@@ -268,7 +268,7 @@ impl Map for Global {
             rv.push(raw::Pair {
                 key: key.to_key(),
                 value: vec![], // This is a bug in elements core c++, parses this value as vec![0]
-            })
+            });
         }
 
         impl_pset_get_pair! {
@@ -437,7 +437,7 @@ impl Decodable for Global {
                             decoder.read_exact(&mut fingerprint[..])?;
                             let mut path = Vec::<ChildNumber>::with_capacity(child_count);
                             while let Ok(index) = u32::consensus_decode(&mut decoder) {
-                                path.push(ChildNumber::from(index))
+                                path.push(ChildNumber::from(index));
                             }
                             let derivation = DerivationPath::from(path);
                             // Keys, according to BIP-174, must be unique

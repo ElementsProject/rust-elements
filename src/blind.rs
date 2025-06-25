@@ -1009,12 +1009,12 @@ impl Transaction {
                             let gen = Generator::new_unblinded(secp, asset.into_tag());
                             domain.push(gen);
                             let comm = PedersenCommitment::new_unblinded(secp, *v, gen);
-                            in_commits.push(comm)
+                            in_commits.push(comm);
                         }
                         Value::Confidential(comm) => {
                             let gen = Generator::new_unblinded(secp, asset.into_tag());
                             domain.push(gen);
-                            in_commits.push(*comm)
+                            in_commits.push(*comm);
                         }
                     }
                 }

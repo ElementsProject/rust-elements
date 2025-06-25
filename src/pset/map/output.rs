@@ -345,34 +345,34 @@ impl Map for Output {
                 if prop_key.is_pset_key() {
                     match prop_key.subtype {
                         PSBT_ELEMENTS_OUT_VALUE_COMMITMENT => {
-                            impl_pset_prop_insert_pair!(self.amount_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>)
+                            impl_pset_prop_insert_pair!(self.amount_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>);
                         }
                         PSBT_ELEMENTS_OUT_ASSET => {
-                            impl_pset_prop_insert_pair!(self.asset <= <raw_key: _> | <raw_value : AssetId>)
+                            impl_pset_prop_insert_pair!(self.asset <= <raw_key: _> | <raw_value : AssetId>);
                         }
                         PSBT_ELEMENTS_OUT_ASSET_COMMITMENT => {
-                            impl_pset_prop_insert_pair!(self.asset_comm <= <raw_key: _> | <raw_value : Generator>)
+                            impl_pset_prop_insert_pair!(self.asset_comm <= <raw_key: _> | <raw_value : Generator>);
                         }
                         PSBT_ELEMENTS_OUT_VALUE_RANGEPROOF => {
-                            impl_pset_prop_insert_pair!(self.value_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
+                            impl_pset_prop_insert_pair!(self.value_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
                         }
                         PSBT_ELEMENTS_OUT_ASSET_SURJECTION_PROOF => {
-                            impl_pset_prop_insert_pair!(self.asset_surjection_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
+                            impl_pset_prop_insert_pair!(self.asset_surjection_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>);
                         }
                         PSBT_ELEMENTS_OUT_BLINDING_PUBKEY => {
-                            impl_pset_prop_insert_pair!(self.blinding_key <= <raw_key: _> | <raw_value : PublicKey>)
+                            impl_pset_prop_insert_pair!(self.blinding_key <= <raw_key: _> | <raw_value : PublicKey>);
                         }
                         PSBT_ELEMENTS_OUT_ECDH_PUBKEY => {
-                            impl_pset_prop_insert_pair!(self.ecdh_pubkey <= <raw_key: _> | <raw_value : PublicKey>)
+                            impl_pset_prop_insert_pair!(self.ecdh_pubkey <= <raw_key: _> | <raw_value : PublicKey>);
                         }
                         PSBT_ELEMENTS_OUT_BLINDER_INDEX => {
-                            impl_pset_prop_insert_pair!(self.blinder_index <= <raw_key: _> | <raw_value : u32>)
+                            impl_pset_prop_insert_pair!(self.blinder_index <= <raw_key: _> | <raw_value : u32>);
                         }
                         PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
+                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
                         }
                         PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
+                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>);
                         }
                         _ => match self.proprietary.entry(prop_key) {
                             Entry::Vacant(empty_key) => {

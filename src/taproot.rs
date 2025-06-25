@@ -932,7 +932,7 @@ mod tests{
         for (_weights, script) in script_weights {
             let ver_script = (script, LeafVersion::default());
             let ctrl_block = tree_info.control_block(&ver_script).unwrap();
-            assert!(ctrl_block.verify_taproot_commitment(&secp, &output_key, &ver_script.0))
+            assert!(ctrl_block.verify_taproot_commitment(&secp, &output_key, &ver_script.0));
         }
     }
 
@@ -971,7 +971,7 @@ mod tests{
         for script in scripts {
             let ver_script = (script, LeafVersion::default());
             let ctrl_block = tree_info.control_block(&ver_script).unwrap();
-            assert!(ctrl_block.verify_taproot_commitment(&secp, &output_key, &ver_script.0))
+            assert!(ctrl_block.verify_taproot_commitment(&secp, &output_key, &ver_script.0));
         }
     }
 }

@@ -152,7 +152,7 @@ impl Encodable for Key {
         len += self.type_value.consensus_encode(&mut s)?;
 
         for key in &self.key {
-            len += key.consensus_encode(&mut s)?
+            len += key.consensus_encode(&mut s)?;
         }
 
         Ok(len)
