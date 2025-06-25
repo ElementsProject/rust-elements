@@ -165,7 +165,7 @@ impl Map for Global {
             | PSET_GLOBAL_TX_MODIFIABLE
             | PSET_GLOBAL_TX_VERSION => return Err(Error::DuplicateKey(raw_key).into()),
             PSET_GLOBAL_PROPRIETARY => {
-                let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
+                let prop_key = raw::ProprietaryKey::from_key(&raw_key)?;
                 if prop_key.is_pset_key() && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR {
                     if raw_value.is_empty() && prop_key.key.len() == 32 {
                         let scalar = Tweak::from_slice(&prop_key.key)?;
@@ -456,7 +456,7 @@ impl Decodable for Global {
                             }
                         }
                         PSET_GLOBAL_PROPRIETARY => {
-                            let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
+                            let prop_key = raw::ProprietaryKey::from_key(&raw_key)?;
                             if prop_key.is_pset_key()
                                 && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR
                             {

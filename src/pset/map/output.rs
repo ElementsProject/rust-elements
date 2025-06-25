@@ -341,7 +341,7 @@ impl Map for Output {
             }
 
             PSET_OUT_PROPRIETARY => {
-                let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
+                let prop_key = raw::ProprietaryKey::from_key(&raw_key)?;
                 if prop_key.is_pset_key() {
                     match prop_key.subtype {
                         PSBT_ELEMENTS_OUT_VALUE_COMMITMENT => {

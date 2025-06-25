@@ -212,7 +212,7 @@ where
 {
     /// Constructs [`ProprietaryKey`] from [Key]; returns
     /// [`Error::InvalidProprietaryKey`] if `key` do not starts with 0xFC byte
-    pub fn from_key(key: Key) -> Result<Self, Error> {
+    pub fn from_key(key: &Key) -> Result<Self, Error> {
         if key.type_value != 0xFC {
             return Err(Error::InvalidProprietaryKey);
         }

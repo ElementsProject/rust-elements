@@ -184,7 +184,7 @@ fn main() {
         &mut rng,
         &secp,
         dest_amt,
-        Address::p2wsh(
+        &Address::p2wsh(
             &Script::new_v0_wsh(&dest_wsh),
             Some(dest_blind_pk.inner),
             &PARAMS,
@@ -206,7 +206,7 @@ fn main() {
             &mut rng,
             &secp,
             change_amt,
-            Address::p2wsh(
+            &Address::p2wsh(
                 &Script::new_v0_wsh(&change_wsh),
                 Some(change_blind_pk.inner),
                 &PARAMS,

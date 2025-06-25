@@ -487,7 +487,7 @@ impl TxOut {
         rng: &mut R,
         secp: &Secp256k1<C>,
         value: u64,
-        address: Address,
+        address: &Address,
         asset: AssetId,
         spent_utxo_secrets: &[S],
     ) -> Result<(Self, AssetBlindingFactor, ValueBlindingFactor, SecretKey), ConfidentialTxOutError>
@@ -599,7 +599,7 @@ impl TxOut {
             self.value
                 .explicit()
                 .ok_or(ConfidentialTxOutError::ExpectedExplicitValue)?,
-            Address::from_script(&self.script_pubkey, Some(blinder), &AddressParams::ELEMENTS)
+            &Address::from_script(&self.script_pubkey, Some(blinder), &AddressParams::ELEMENTS)
                 .ok_or(ConfidentialTxOutError::InvalidAddress)?,
             self.asset
                 .explicit()
@@ -1139,7 +1139,7 @@ impl Transaction {
                     rng,
                     secp,
                     out.value.explicit().unwrap(),
-                    address,
+                    &address,
                     out.asset.explicit().unwrap(),
                     spent_utxo_secrets,
                 )?;
@@ -1510,7 +1510,7 @@ mod tests {
             &mut thread_rng(),
             SECP256K1,
             value,
-            address,
+            &address,
             asset,
             &spent_utxo_secrets,
         )

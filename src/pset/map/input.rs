@@ -658,7 +658,7 @@ impl Map for Input {
                 pset_insert_hash_pair(
                     &mut self.ripemd160_preimages,
                     raw_key,
-                    raw_value,
+                    &raw_value,
                     error::PsetHash::Ripemd,
                 )?;
             }
@@ -666,7 +666,7 @@ impl Map for Input {
                 pset_insert_hash_pair(
                     &mut self.sha256_preimages,
                     raw_key,
-                    raw_value,
+                    &raw_value,
                     error::PsetHash::Sha256,
                 )?;
             }
@@ -674,7 +674,7 @@ impl Map for Input {
                 pset_insert_hash_pair(
                     &mut self.hash160_preimages,
                     raw_key,
-                    raw_value,
+                    &raw_value,
                     error::PsetHash::Hash160,
                 )?;
             }
@@ -682,7 +682,7 @@ impl Map for Input {
                 pset_insert_hash_pair(
                     &mut self.hash256_preimages,
                     raw_key,
-                    raw_value,
+                    &raw_value,
                     error::PsetHash::Hash256,
                 )?;
             }
@@ -735,7 +735,7 @@ impl Map for Input {
                 }
             }
             PSET_IN_PROPRIETARY => {
-                let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
+                let prop_key = raw::ProprietaryKey::from_key(&raw_key)?;
                 if prop_key.is_pset_key() {
                     match prop_key.subtype {
                         PSBT_ELEMENTS_IN_ISSUANCE_VALUE => {
@@ -1173,7 +1173,7 @@ impl Decodable for Input {
 fn pset_insert_hash_pair<H>(
     map: &mut BTreeMap<H, Vec<u8>>,
     raw_key: raw::Key,
-    raw_value: Vec<u8>,
+    raw_value: &[u8],
     hash_type: error::PsetHash,
 ) -> Result<(), encode::Error>
 where
@@ -1185,7 +1185,7 @@ where
     let key_val: H = serialize::Deserialize::deserialize(&raw_key.key)?;
     match map.entry(key_val) {
         Entry::Vacant(empty_key) => {
-            let val: Vec<u8> = serialize::Deserialize::deserialize(&raw_value)?;
+            let val: Vec<u8> = serialize::Deserialize::deserialize(raw_value)?;
             if <H as hashes::Hash>::hash(&val) != key_val {
                 return Err(pset::Error::InvalidPreimageHashPair {
                     preimage: val,
