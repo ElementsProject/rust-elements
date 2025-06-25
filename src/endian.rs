@@ -20,6 +20,6 @@ mod tests {
 
     #[test]
     fn endianness_test() {
-        assert_eq!(u32_to_array_le(0xdeadbeef), [0xef, 0xbe, 0xad, 0xde]);
+        assert_eq!(u32_to_array_le(0xdead_beef), [0xef, 0xbe, 0xad, 0xde]);
     }
 }

@@ -260,7 +260,7 @@ impl VarInt {
         match self.0 {
             0..=0xFC => 1,
             0xFD..=0xFFFF => 3,
-            0x10000..=0xFFFFFFFF => 5,
+            0x10000..=0xFFFF_FFFF => 5,
             _ => 9,
         }
     }

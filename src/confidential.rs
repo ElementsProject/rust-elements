@@ -1168,7 +1168,7 @@ mod tests {
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
-                Token::U64(63601271583539200),
+                Token::U64(63_601_271_583_539_200),
                 Token::SeqEnd
             ]
         );

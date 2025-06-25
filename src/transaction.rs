@@ -187,7 +187,7 @@ impl Sequence {
     /// The maximum allowable sequence number.
     ///
     /// This sequence number disables lock-time and replace-by-fee.
-    pub const MAX: Self = Sequence(0xFFFFFFFF);
+    pub const MAX: Self = Sequence(0xFFFF_FFFF);
     /// Zero value sequence.
     ///
     /// This sequence number enables replace-by-fee and lock-time.
@@ -197,7 +197,7 @@ impl Sequence {
     pub const ENABLE_LOCKTIME_NO_RBF: Self = Sequence::MIN_NO_RBF;
     /// The sequence number that enables replace-by-fee and absolute lock-time but
     /// disables relative lock-time.
-    pub const ENABLE_RBF_NO_LOCKTIME: Self = Sequence(0xFFFFFFFD);
+    pub const ENABLE_RBF_NO_LOCKTIME: Self = Sequence(0xFFFF_FFFD);
 
     /// The lowest sequence number that does not opt-in for replace-by-fee.
     ///
@@ -206,11 +206,11 @@ impl Sequence {
     /// (Explicit Signalling [BIP-125]).
     ///
     /// [BIP-125]: <https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki]>
-    const MIN_NO_RBF: Self = Sequence(0xFFFFFFFE);
+    const MIN_NO_RBF: Self = Sequence(0xFFFF_FFFE);
     /// BIP-68 relative lock-time disable flag mask
-    const LOCK_TIME_DISABLE_FLAG_MASK: u32 = 0x80000000;
+    const LOCK_TIME_DISABLE_FLAG_MASK: u32 = 0x8000_0000;
     /// BIP-68 relative lock-time type flag mask
-    const LOCK_TYPE_MASK: u32 = 0x00400000;
+    const LOCK_TYPE_MASK: u32 = 0x0040_0000;
 
     /// Returns `true` if the sequence number indicates that the transaction is finalised.
     ///
@@ -545,7 +545,7 @@ impl Decodable for TxIn {
         let has_issuance;
         // Pegin/issuance flags are encoded into the high bits of `vout`, *except*
         // if vout is all 1's; this indicates a coinbase transaction
-        if outp.vout == 0xffffffff {
+        if outp.vout == 0xffff_ffff {
             is_pegin = false;
             has_issuance = false;
         } else {
@@ -1373,10 +1373,10 @@ mod tests {
         assert_eq!(tx.weight(), tx.size() * 4);
         assert!(!tx.output[0].is_fee());
         assert!(tx.output[1].is_fee());
-        assert_eq!(tx.output[0].value, confidential::Value::Explicit(9999996700));
-        assert_eq!(tx.output[1].value, confidential::Value::Explicit(      3300));
-        assert_eq!(tx.output[0].minimum_value(), 9999996700);
-        assert_eq!(tx.output[1].minimum_value(),       3300);
+        assert_eq!(tx.output[0].value, confidential::Value::Explicit(9_999_996_700));
+        assert_eq!(tx.output[1].value, confidential::Value::Explicit(3300));
+        assert_eq!(tx.output[0].minimum_value(), 9_999_996_700);
+        assert_eq!(tx.output[1].minimum_value(), 3300);
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
         assert_eq!(tx.fee_in(fee_asset), 3300);
         assert_eq!(tx.all_fees()[&fee_asset], 3300);
@@ -1688,7 +1688,7 @@ mod tests {
                     ).unwrap(),
                     vout: 0,
                 },
-                value: 100000000,
+                value: 100_000_000,
                 asset: tx.output[0].asset.explicit().unwrap(),
                 genesis_hash: bitcoin::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
@@ -1803,7 +1803,7 @@ mod tests {
             tx.output[0].pegout_data(),
             Some(super::PegoutData {
                 asset: tx.output[0].asset,
-                value: 99993900,
+                value: 99_993_900,
                 genesis_hash: bitcoin::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),

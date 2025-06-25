@@ -786,17 +786,17 @@ impl Builder {
                 self.0.push(opcodes::Ordinary::OP_PUSHDATA1.into_u8());
                 self.0.push(n as u8);
             },
-            n if n < 0x10000 => {
+            n if n < 0x1_0000 => {
                 self.0.push(opcodes::Ordinary::OP_PUSHDATA2.into_u8());
                 self.0.push((n % 0x100) as u8);
                 self.0.push((n / 0x100) as u8);
             },
-            n if n < 0x100000000 => {
+            n if n < 0x1_0000_0000 => {
                 self.0.push(opcodes::Ordinary::OP_PUSHDATA4.into_u8());
                 self.0.push((n % 0x100) as u8);
                 self.0.push(((n / 0x100) % 0x100) as u8);
-                self.0.push(((n / 0x10000) % 0x100) as u8);
-                self.0.push((n / 0x1000000) as u8);
+                self.0.push(((n / 0x1_0000) % 0x100) as u8);
+                self.0.push((n / 0x100_0000) as u8);
             }
             _ => panic!("tried to put a 4bn+ sized object into a script!")
         }
@@ -977,10 +977,10 @@ mod test {
         script = script.push_scriptint(4); comp.extend([1u8, 4].iter().copied()); assert_eq!(&script[..], &comp[..]);
         // big ints
         script = script.push_int(17); comp.extend([1u8, 17].iter().copied()); assert_eq!(&script[..], &comp[..]);
-        script = script.push_int(10000); comp.extend([2u8, 16, 39].iter().copied()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_int(10_000); comp.extend([2u8, 16, 39].iter().copied()); assert_eq!(&script[..], &comp[..]);
         // notice the sign bit set here, hence the extra zero/128 at the end
-        script = script.push_int(10000000); comp.extend([4u8, 128, 150, 152, 0].iter().copied()); assert_eq!(&script[..], &comp[..]);
-        script = script.push_int(-10000000); comp.extend([4u8, 128, 150, 152, 128].iter().copied()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_int(10_000_000); comp.extend([4u8, 128, 150, 152, 0].iter().copied()); assert_eq!(&script[..], &comp[..]);
+        script = script.push_int(-10_000_000); comp.extend([4u8, 128, 150, 152, 128].iter().copied()); assert_eq!(&script[..], &comp[..]);
 
         // data
         script = script.push_slice(b"NRA4VR"); comp.extend([6u8, 78, 82, 65, 52, 86, 82].iter().copied()); assert_eq!(&script[..], &comp[..]);
@@ -1097,7 +1097,7 @@ mod test {
         assert_eq!(build_scriptint(256), vec![0, 1]);
         assert_eq!(build_scriptint(257), vec![1, 1]);
         assert_eq!(build_scriptint(511), vec![255, 1]);
-        for &i in &[10, 100, 255, 256, 1000, 10000, 25000, 200000, 5000000, 1000000000,
+        for &i in &[10, 100, 255, 256, 1000, 10000, 25000, 200_000, 5_000_000, 1_000_000_000,
                              (1 << 31) - 1, -((1 << 31) - 1)] {
             assert_eq!(Ok(i), read_scriptint(&build_scriptint(i)));
             assert_eq!(Ok(-i), read_scriptint(&build_scriptint(-i)));

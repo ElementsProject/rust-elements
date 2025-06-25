@@ -212,7 +212,7 @@ impl<'s> ScriptPath<'s> {
     }
     /// Create a new `ScriptPath` structure using default values for `code_separator_pos` and `leaf_version`
     pub fn with_defaults(script: &'s Script) -> Self {
-        Self::new(script, 0xFFFFFFFFu32, 0xc4)
+        Self::new(script, 0xFFFF_FFFFu32, 0xc4)
     }
 
     /// Compute the leaf hash
@@ -483,7 +483,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
             input_index,
             prevouts,
             None,
-            Some((leaf_hash.into(), 0xFFFFFFFF)),
+            Some((leaf_hash.into(), 0xFFFF_FFFF)),
             sighash_type,
             genesis_hash
         )?;

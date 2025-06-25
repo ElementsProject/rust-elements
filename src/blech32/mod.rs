@@ -30,11 +30,11 @@ impl bech32::Checksum for Blech32 {
     type MidstateRepr = u64;
     const CHECKSUM_LENGTH: usize = 12;
     const GENERATOR_SH: [u64; 5] = [
-        0x7d52fba40bd886,
-        0x5e8dbf1a03950c,
-        0x1c3a3c74072a18,
-        0x385d72fa0e5139,
-        0x7093e5a608865b,
+        0x7d_52fb_a40b_d886,
+        0x5e_8dbf_1a03_950c,
+        0x1c_3a3c_7407_2a18,
+        0x38_5d72_fa0e_5139,
+        0x70_93e5_a608_865b,
     ];
     const TARGET_RESIDUE: u64 = 1;
 
@@ -49,13 +49,13 @@ impl bech32::Checksum for Blech32m {
     type MidstateRepr = u64;
     const CHECKSUM_LENGTH: usize = 12;
     const GENERATOR_SH: [u64; 5] = [
-        0x7d52fba40bd886,
-        0x5e8dbf1a03950c,
-        0x1c3a3c74072a18,
-        0x385d72fa0e5139,
-        0x7093e5a608865b,
+        0x7d_52fb_a40b_d886,
+        0x5e_8dbf_1a03_950c,
+        0x1c_3a3c_7407_2a18,
+        0x38_5d72_fa0e_5139,
+        0x70_93e5_a608_865b,
     ];
-    const TARGET_RESIDUE: u64 = 0x455972a3350f7a1;
+    const TARGET_RESIDUE: u64 = 0x455_972a_3350_f7a1;
 
     const CODE_LENGTH: usize = 1024;
 }
