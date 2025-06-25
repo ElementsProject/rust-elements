@@ -100,7 +100,7 @@ impl<W: io::Write + ?Sized> WriteExt for W {
     }
     #[inline]
     fn emit_bool(&mut self, v: bool) -> Result<(), io::Error> {
-        self.write_all(&[v as u8])
+        self.write_all(&[u8::from(v)])
     }
     #[inline]
     fn emit_slice(&mut self, v: &[u8]) -> Result<usize, io::Error> {
@@ -177,7 +177,7 @@ impl<R: io::Read + ?Sized> ReadExt for R {
                 if x < 0x10000 {
                     Err(encode::Error::NonMinimalVarInt)
                 } else {
-                    Ok(x as u64)
+                    Ok(u64::from(x))
                 }
             }
             0xFD => {
@@ -185,10 +185,10 @@ impl<R: io::Read + ?Sized> ReadExt for R {
                 if x < 0xFD {
                     Err(encode::Error::NonMinimalVarInt)
                 } else {
-                    Ok(x as u64)
+                    Ok(u64::from(x))
                 }
             }
-            n => Ok(n as u64),
+            n => Ok(u64::from(n)),
         }
     }
 }

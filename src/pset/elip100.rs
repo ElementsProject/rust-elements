@@ -187,7 +187,7 @@ impl TokenMetadata {
     pub fn serialize(&self) -> Vec<u8> {
         let mut result = vec![];
 
-        result.push(self.issuance_blinded as u8);
+        result.push(u8::from(self.issuance_blinded));
 
         self.asset_id
             .consensus_encode(&mut result)

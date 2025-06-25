@@ -167,7 +167,7 @@ impl TaprootSpendInfo {
     {
         let mut node_weights = BinaryHeap::<(Reverse<u64>, NodeInfo)>::new();
         for (p, leaf) in script_weights {
-            node_weights.push((Reverse(p as u64), NodeInfo::new_leaf_with_ver(leaf, LeafVersion::default())));
+            node_weights.push((Reverse(u64::from(p)), NodeInfo::new_leaf_with_ver(leaf, LeafVersion::default())));
         }
         if node_weights.is_empty() {
             return Err(TaprootBuilderError::IncompleteTree);

@@ -430,7 +430,7 @@ impl Address {
                 version: witver,
                 program: ref witprog,
             } => script::Builder::new()
-                .push_int(witver.to_u8() as i64)
+                .push_int(i64::from(witver.to_u8()))
                 .push_slice(witprog),
         }
         .into_script()

@@ -615,7 +615,7 @@ impl TxIn {
 
     /// Obtain the outpoint flag corresponding to this input
     pub fn outpoint_flag(&self) -> u8 {
-        ((self.is_pegin as u8) << 6 ) | ((self.has_issuance() as u8) << 7)
+        (u8::from(self.is_pegin) << 6) | (u8::from(self.has_issuance()) << 7)
     }
 
     /// Compute the issuance asset ids from this [`TxIn`]. This function does not check

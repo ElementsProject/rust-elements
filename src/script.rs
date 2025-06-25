@@ -199,7 +199,7 @@ pub fn read_scriptint(v: &[u8]) -> Result<i64, Error> {
     if len > 4 { return Err(Error::NumericOverflow); }
 
     let (mut ret, sh) = v.iter()
-                         .fold((0, 0), |(acc, sh), n| (acc + ((*n as i64) << sh), sh + 8));
+                         .fold((0, 0), |(acc, sh), n| (acc + ((i64::from(*n)) << sh), sh + 8));
     if v[len - 1] & 0x80 != 0 {
         ret &= (1 << (sh - 1)) - 1;
         ret = -ret;
@@ -745,7 +745,7 @@ impl Builder {
         // We can special-case -1, 1-16
         if data == -1 || (data >= 1 && data <= 16) {
             let opcode = opcodes::All::from(
-                (data - 1 + opcodes::OP_TRUE.into_u8() as i64) as u8
+                (data - 1 + i64::from(opcodes::OP_TRUE.into_u8())) as u8
             );
             self.push_opcode(opcode)
         }
