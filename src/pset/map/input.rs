@@ -479,8 +479,10 @@ impl Input {
     /// If the `sighash_type` field is set to a non-standard ECDSA sighash value.
     pub fn ecdsa_hash_ty(&self) -> Option<EcdsaSighashType> {
         self.sighash_type
-            .map(|sighash_type| sighash_type.ecdsa_hash_ty())
-            .unwrap_or(Some(EcdsaSighashType::All))
+            .map_or(
+                Some(EcdsaSighashType::All),
+                |sighash_type| sighash_type.ecdsa_hash_ty(),
+            )
     }
 
     /// Obtains the [`SchnorrSighashType`] for this input if one is specified. If no sighash type is
@@ -491,8 +493,10 @@ impl Input {
     /// If the `sighash_type` field is set to a invalid Schnorr sighash value.
     pub fn schnorr_hash_ty(&self) -> Option<SchnorrSighashType> {
         self.sighash_type
-            .map(|sighash_type| sighash_type.schnorr_hash_ty())
-            .unwrap_or(Some(SchnorrSighashType::Default))
+            .map_or(
+                Some(SchnorrSighashType::Default),
+                |sighash_type| sighash_type.schnorr_hash_ty(),
+            )
     }
 
     /// Create a psbt input from prevout

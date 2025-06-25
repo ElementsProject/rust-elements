@@ -668,12 +668,12 @@ impl TxOutWitness {
 
     /// The rangeproof len if is present, otherwise 0
     pub fn rangeproof_len(&self) -> usize {
-        self.rangeproof.as_ref().map(|prf| prf.len()).unwrap_or(0)
+        self.rangeproof.as_ref().map_or(0, |prf| prf.len())
     }
 
     /// The surjection proof len if is present, otherwise 0
     pub fn surjectionproof_len(&self) -> usize {
-        self.surjection_proof.as_ref().map(|prf| prf.len()).unwrap_or(0)
+        self.surjection_proof.as_ref().map_or(0, |prf| prf.len())
     }
 }
 
@@ -974,9 +974,9 @@ impl Transaction {
                 }
             ) + if witness_flag {
                 let amt_prf_len = input.witness.amount_rangeproof.as_ref()
-                    .map(|x| x.len()).unwrap_or(0);
+                    .map_or(0, |x| x.len());
                 let keys_prf_len = input.witness.inflation_keys_rangeproof.as_ref()
-                    .map(|x| x.len()).unwrap_or(0);
+                    .map_or(0, |x| x.len());
 
                 VarInt(amt_prf_len as u64).size() +
                 amt_prf_len +
