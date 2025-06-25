@@ -32,7 +32,7 @@ fn main() {
 
     let res = tx.verify_tx_amt_proofs(&secp, &[txout]);
     match res {
-        Ok(_) => {}
+        Ok(()) => {}
         Err(e) => {
             panic!("{}", e);
         }
