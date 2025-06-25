@@ -951,21 +951,24 @@ mod tests{
         //                                   /  \    /  \
         //                                  A    B  C  / \
         //                                            D   E
-        let a = Script::from_hex("51").unwrap();
-        let b = Script::from_hex("52").unwrap();
-        let c = Script::from_hex("53").unwrap();
-        let d = Script::from_hex("54").unwrap();
-        let e = Script::from_hex("55").unwrap();
-        let builder = builder.add_leaf(2, a.clone()).unwrap();
-        let builder = builder.add_leaf(2, b.clone()).unwrap();
-        let builder = builder.add_leaf(2, c.clone()).unwrap();
-        let builder = builder.add_leaf(3, d.clone()).unwrap();
-        let builder = builder.add_leaf(3, e.clone()).unwrap();
+        let scripts = [
+            Script::from_hex("51").unwrap(),
+            Script::from_hex("52").unwrap(),
+            Script::from_hex("53").unwrap(),
+            Script::from_hex("54").unwrap(),
+            Script::from_hex("55").unwrap(),
+        ];
+        let builder = builder
+            .add_leaf(2, scripts[0].clone()).unwrap()
+            .add_leaf(2, scripts[1].clone()).unwrap()
+            .add_leaf(2, scripts[2].clone()).unwrap()
+            .add_leaf(3, scripts[3].clone()).unwrap()
+            .add_leaf(3, scripts[4].clone()).unwrap();
 
         let tree_info = builder.finalize(&secp, internal_key).unwrap();
         let output_key = tree_info.output_key();
 
-        for script in [a, b, c, d, e] {
+        for script in scripts {
             let ver_script = (script, LeafVersion::default());
             let ctrl_block = tree_info.control_block(&ver_script).unwrap();
             assert!(ctrl_block.verify_taproot_commitment(&secp, &output_key, &ver_script.0))
