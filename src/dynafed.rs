@@ -216,9 +216,10 @@ impl Decodable for FullParams {
 }
 
 /// Dynamic federations parameters, as encoded in a block header
-#[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Params {
     /// Null entry, used to signal "no vote" as a proposal
+    #[default]
     Null,
     /// Compact params where the fedpeg data and extension space
     /// are not included, and are assumed to be equal to the values
@@ -395,12 +396,6 @@ impl Params {
             s @ Params::Compact { .. } => Some(s),
             Params::Full(f) => Some(f.into_compact()),
         }
-    }
-}
-
-impl Default for Params {
-    fn default() -> Params {
-        Params::Null
     }
 }
 

@@ -33,9 +33,10 @@ use crate::encode::{self, Decodable, Encodable};
 use crate::issuance::AssetId;
 
 /// A CT commitment to an amount
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Value {
     /// No value
+    #[default]
     Null,
     /// Value is explicitly encoded
     Explicit(u64),
@@ -130,12 +131,6 @@ impl fmt::Display for Value {
             Value::Explicit(n) => write!(f, "{}", n),
             Value::Confidential(commitment) => write!(f, "{:02x}", commitment),
         }
-    }
-}
-
-impl Default for Value {
-    fn default() -> Self {
-        Value::Null
     }
 }
 
@@ -252,9 +247,10 @@ impl<'de> Deserialize<'de> for Value {
 }
 
 /// A CT commitment to an asset
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Asset {
     /// No value
+    #[default]
     Null,
     /// Asset entropy is explicitly encoded
     Explicit(AssetId),
@@ -359,13 +355,6 @@ impl fmt::Display for Asset {
         }
     }
 }
-
-impl Default for Asset {
-    fn default() -> Self {
-        Asset::Null
-    }
-}
-
 
 impl Encodable for Asset {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
@@ -481,9 +470,10 @@ impl<'de> Deserialize<'de> for Asset {
 }
 
 /// A CT commitment to an output nonce (i.e. a public key)
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Nonce {
     /// No value
+    #[default]
     Null,
     /// There should be no such thing as an "explicit nonce", but Elements will deserialize
     /// such a thing (and insists that its size be 32 bytes). So we stick a 32-byte type here
@@ -615,12 +605,6 @@ impl fmt::Display for Nonce {
             }
             Nonce::Confidential(pk) => write!(f, "{:02x}", pk),
         }
-    }
-}
-
-impl Default for Nonce {
-    fn default() -> Self {
-        Nonce::Null
     }
 }
 

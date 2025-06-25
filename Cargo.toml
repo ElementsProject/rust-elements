@@ -57,3 +57,9 @@ name = "tx"
 [workspace]
 members = ["elementsd-tests"]
 exclude = ["fuzz"]
+
+[lints.clippy]
+# Exclude lints we don't think are valuable.
+needless_question_mark = "allow" # https://github.com/rust-bitcoin/rust-bitcoin/pull/2134
+manual_range_contains = "allow" # More readable than clippy's format.
+uninlined_format_args = "allow" # This is a subjective style choice.
