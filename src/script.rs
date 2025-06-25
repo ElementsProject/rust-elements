@@ -485,9 +485,12 @@ impl Script {
                             f.write_str("<unexpected end>")?;
                             break;
                         }
-                        match read_uint(&self.0[index..], 1) {
-                            Ok(n) => { index += 1; n }
-                            Err(_) => { f.write_str("<bad length>")?; break; }
+                        if let Ok(n) =read_uint(&self.0[index..], 1) {
+                            index += 1;
+                            n
+                        } else {
+                            f.write_str("<bad length>")?;
+                            break;
                         }
                     }
                     opcodes::all::OP_PUSHDATA2 => {
@@ -495,9 +498,12 @@ impl Script {
                             f.write_str("<unexpected end>")?;
                             break;
                         }
-                        match read_uint(&self.0[index..], 2) {
-                            Ok(n) => { index += 2; n }
-                            Err(_) => { f.write_str("<bad length>")?; break; }
+                        if let Ok(n) = read_uint(&self.0[index..], 2) {
+                            index += 2;
+                            n
+                        } else {
+                            f.write_str("<bad length>")?;
+                            break;
                         }
                     }
                     opcodes::all::OP_PUSHDATA4 => {
@@ -505,9 +511,12 @@ impl Script {
                             f.write_str("<unexpected end>")?;
                             break;
                         }
-                        match read_uint(&self.0[index..], 4) {
-                            Ok(n) => { index += 4; n }
-                            Err(_) => { f.write_str("<bad length>")?; break; }
+                        if let Ok(n) = read_uint(&self.0[index..], 4) {
+                            index += 4;
+                            n
+                        } else {
+                            f.write_str("<bad length>")?;
+                            break;
                         }
                     }
                     _ => 0

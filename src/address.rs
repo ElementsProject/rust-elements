@@ -494,19 +494,11 @@ impl Address {
         // When blinded, the structure is:
         // <1: blinding prefix> <1: regular prefix> <33: blinding pubkey> <20: hash160>
 
-        let (blinded, prefix) = match data[0] == params.blinded_prefix {
-            true => {
-                if data.len() != 55 {
-                    return Err(AddressError::InvalidLength(data.len()));
-                }
-                (true, data[1])
-            }
-            false => {
-                if data.len() != 21 {
-                    return Err(AddressError::InvalidLength(data.len()));
-                }
-                (false, data[0])
-            }
+        let blinded = data[0] == params.blinded_prefix;
+        let prefix = match (blinded, data.len()) {
+            (true, 55) => data[1],
+            (false, 21) => data[0],
+            (_, len) => return Err(AddressError::InvalidLength(len)),
         };
 
         let (blinding_pubkey, payload_data) = match blinded {
