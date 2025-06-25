@@ -1004,7 +1004,7 @@ impl Transaction {
                 ];
                 for (amt, asset) in &arr {
                     match amt {
-                        Value::Null => continue,
+                        Value::Null => {},
                         Value::Explicit(v) => {
                             let gen = Generator::new_unblinded(secp, asset.into_tag());
                             domain.push(gen);
