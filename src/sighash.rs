@@ -180,7 +180,7 @@ impl<T> Prevouts<'_, T> where T: Borrow<TxOut> {
     fn get_all(&self) -> Result<&[T], Error> {
         match self {
             Prevouts::All(prevouts) => Ok(*prevouts),
-            _ => Err(Error::PrevoutKind),
+            Prevouts::One(..) => Err(Error::PrevoutKind),
         }
     }
 

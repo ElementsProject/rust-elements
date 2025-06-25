@@ -227,7 +227,7 @@ impl Serialize for confidential::Value {
         match self {
             confidential::Value::Null => vec![], // should never be invoked
             confidential::Value::Explicit(x) => Serialize::serialize(x),
-            y => encode::serialize(y), // confidential can serialized as is
+            confidential::Value::Confidential(_) => encode::serialize(self), // confidential can serialized as is
         }
     }
 }
@@ -272,7 +272,7 @@ impl Serialize for confidential::Asset {
         match self {
             confidential::Asset::Null => vec![], // should never be invoked
             confidential::Asset::Explicit(x) => Serialize::serialize(x),
-            y => encode::serialize(y), // confidential can serialized as is
+            confidential::Asset::Confidential(_) => encode::serialize(self), // confidential can serialized as is
         }
     }
 }
