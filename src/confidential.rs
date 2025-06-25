@@ -841,13 +841,14 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
                 where
                     E: ::serde::de::Error,
                 {
-                    if v.len() != 32 {
-                        Err(E::invalid_length(v.len(), &stringify!($len)))
-                    } else {
-                        let mut ret = [0; 32];
-                        ret.copy_from_slice(v);
-                        let inner = Tweak::from_inner(ret).map_err(E::custom)?;
-                        Ok(AssetBlindingFactor(inner))
+                    use core::convert::TryFrom;
+
+                    match <[u8; 32]>::try_from(v) {
+                        Ok(ret) => {
+                            let inner = Tweak::from_inner(ret).map_err(E::custom)?;
+                            Ok(AssetBlindingFactor(inner))
+                        }
+                        Err(_) => Err(E::invalid_length(v.len(), &stringify!($len))),
                     }
                 }
             }
@@ -1044,13 +1045,14 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
                 where
                     E: ::serde::de::Error,
                 {
-                    if v.len() != 32 {
-                        Err(E::invalid_length(v.len(), &stringify!($len)))
-                    } else {
-                        let mut ret = [0; 32];
-                        ret.copy_from_slice(v);
-                        let inner = Tweak::from_inner(ret).map_err(E::custom)?;
-                        Ok(ValueBlindingFactor(inner))
+                    use core::convert::TryFrom;
+
+                    match <[u8; 32]>::try_from(v) {
+                        Ok(ret) => {
+                            let inner = Tweak::from_inner(ret).map_err(E::custom)?;
+                            Ok(ValueBlindingFactor(inner))
+                        }
+                        Err(_) => Err(E::invalid_length(v.len(), &stringify!($len))),
                     }
                 }
             }

@@ -169,11 +169,10 @@ impl Map for Global {
                 if prop_key.is_pset_key() && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR {
                     if raw_value.is_empty() && prop_key.key.len() == 32 {
                         let scalar = Tweak::from_slice(&prop_key.key)?;
-                        if !self.scalars.contains(&scalar) {
-                            self.scalars.push(scalar);
-                        } else {
+                        if self.scalars.contains(&scalar) {
                             return Err(Error::DuplicateKey(raw_key).into());
                         }
+                        self.scalars.push(scalar);
                     } else {
                         return Err(Error::InvalidKey(raw_key))?;
                     }
@@ -415,39 +414,39 @@ impl Decodable for Global {
                             }
                         }
                         PSET_GLOBAL_XPUB => {
-                            if !raw_key.key.is_empty() {
-                                let xpub = Xpub::decode(&raw_key.key)
-                                    .map_err(|_| encode::Error::ParseFailed(
-                                        "Can't deserialize Xpub from global XPUB key data"
-                                    ))?;
-
-                                if raw_value.is_empty() || raw_value.len() % 4 != 0 {
-                                    return Err(encode::Error::ParseFailed(
-                                        "Incorrect length of global xpub derivation data",
-                                    ));
-                                }
-
-                                let child_count = raw_value.len() / 4 - 1;
-                                let mut decoder = Cursor::new(raw_value);
-                                let mut fingerprint = [0u8; 4];
-                                decoder.read_exact(&mut fingerprint[..])?;
-                                let mut path = Vec::<ChildNumber>::with_capacity(child_count);
-                                while let Ok(index) = u32::consensus_decode(&mut decoder) {
-                                    path.push(ChildNumber::from(index))
-                                }
-                                let derivation = DerivationPath::from(path);
-                                // Keys, according to BIP-174, must be unique
-                                if xpub_map
-                                    .insert(xpub, (Fingerprint::from(fingerprint), derivation))
-                                    .is_some()
-                                {
-                                    return Err(encode::Error::ParseFailed(
-                                        "Repeated global xpub key",
-                                    ));
-                                }
-                            } else {
+                            if raw_key.key.is_empty() {
                                 return Err(encode::Error::ParseFailed(
                                     "Xpub global key must contain serialized Xpub data",
+                                ));
+                            }
+
+                            let xpub = Xpub::decode(&raw_key.key)
+                                .map_err(|_| encode::Error::ParseFailed(
+                                    "Can't deserialize Xpub from global XPUB key data"
+                                ))?;
+
+                            if raw_value.is_empty() || raw_value.len() % 4 != 0 {
+                                return Err(encode::Error::ParseFailed(
+                                    "Incorrect length of global xpub derivation data",
+                                ));
+                            }
+
+                            let child_count = raw_value.len() / 4 - 1;
+                            let mut decoder = Cursor::new(raw_value);
+                            let mut fingerprint = [0u8; 4];
+                            decoder.read_exact(&mut fingerprint[..])?;
+                            let mut path = Vec::<ChildNumber>::with_capacity(child_count);
+                            while let Ok(index) = u32::consensus_decode(&mut decoder) {
+                                path.push(ChildNumber::from(index))
+                            }
+                            let derivation = DerivationPath::from(path);
+                            // Keys, according to BIP-174, must be unique
+                            if xpub_map
+                                .insert(xpub, (Fingerprint::from(fingerprint), derivation))
+                                .is_some()
+                            {
+                                return Err(encode::Error::ParseFailed(
+                                    "Repeated global xpub key",
                                 ));
                             }
                         }
@@ -463,10 +462,10 @@ impl Decodable for Global {
                             {
                                 if raw_value.is_empty() && prop_key.key.len() == 32 {
                                     let scalar = Tweak::from_slice(&prop_key.key)?;
-                                    if !scalars.contains(&scalar) {
-                                        scalars.push(scalar);
-                                    } else {
+                                    if scalars.contains(&scalar) {
                                         return Err(Error::DuplicateKey(raw_key).into());
+                                    } else {
+                                        scalars.push(scalar);
                                     }
                                 } else {
                                     return Err(Error::InvalidKey(raw_key))?;

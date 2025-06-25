@@ -515,10 +515,10 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
 
         self.tx.version.consensus_encode(&mut writer)?;
 
-        if !anyone_can_pay {
-            self.segwit_cache().prevouts.consensus_encode(&mut writer)?;
-        } else {
+        if anyone_can_pay {
             zero_hash.consensus_encode(&mut writer)?;
+        } else {
+            self.segwit_cache().prevouts.consensus_encode(&mut writer)?;
         }
 
         if !anyone_can_pay && sighash != EcdsaSighashType::Single && sighash != EcdsaSighashType::None {
@@ -529,10 +529,10 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
 
         // Elements: Push the hash issuance zero hash as required
         // If required implement for issuance, but not necessary as of now
-        if !anyone_can_pay {
-            self.segwit_cache().issuances.consensus_encode(&mut writer)?;
-        } else {
+        if anyone_can_pay {
             zero_hash.consensus_encode(&mut writer)?;
+        } else {
+            self.segwit_cache().issuances.consensus_encode(&mut writer)?;
         }
 
         // input specific values

@@ -670,14 +670,10 @@ fn find_prefix(bech32: &str) -> &str {
 /// The first prefix can be mixed case, but the second one is expected in
 /// lower case.
 fn match_prefix(prefix_mixed: &str, target: Hrp) -> bool {
-    if target.len() != prefix_mixed.len() {
-        false
-    } else {
-        target
-            .lowercase_char_iter()
-            .zip(prefix_mixed.chars())
-            .all(|(char_lower, char_mixed)| char_lower == char_mixed.to_ascii_lowercase())
-    }
+    target.len() == prefix_mixed.len() && target
+        .lowercase_char_iter()
+        .zip(prefix_mixed.chars())
+        .all(|(char_lower, char_mixed)| char_lower == char_mixed.to_ascii_lowercase())
 }
 
 impl FromStr for Address {

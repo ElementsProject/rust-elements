@@ -244,12 +244,10 @@ impl<'de> ::serde::Deserialize<'de> for AssetId {
                 where
                     E: ::serde::de::Error,
                 {
-                    if v.len() != 32 {
-                        Err(E::invalid_length(v.len(), &stringify!($len)))
-                    } else {
-                        let mut ret = [0; 32];
-                        ret.copy_from_slice(v);
-                        Ok(AssetId(sha256::Midstate::from_byte_array(ret)))
+                    use core::convert::TryFrom;
+                    match <[u8; 32]>::try_from(v) {
+                        Ok(ret) => Ok(AssetId(sha256::Midstate::from_byte_array(ret))),
+                        Err(_) => Err(E::invalid_length(v.len(), &stringify!($len))),
                     }
                 }
             }
