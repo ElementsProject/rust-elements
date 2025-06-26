@@ -58,7 +58,7 @@ const PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE: u8 = 0x01;
 
 /// Global transaction data
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct TxData {
     /// Transaction version. Must be 2.
     pub version: u32,
@@ -93,7 +93,7 @@ impl Default for TxData {
 
 /// A key-value map for global data.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct Global {
     /// Global transaction data
     #[cfg_attr(feature = "serde", serde(flatten))]

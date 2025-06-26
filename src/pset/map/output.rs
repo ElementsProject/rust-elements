@@ -87,7 +87,7 @@ const PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF: u8 = 0x0a;
 /// A key-value map for an output of the corresponding index in the unsigned
 /// transaction.
 #[derive(Clone, Default, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct Output {
     /// The redeem script for this output.
     pub redeem_script: Option<Script>,
@@ -146,7 +146,7 @@ pub struct Output {
 
 /// Taproot Tree representing a finalized [`TaprootBuilder`] (a complete binary tree)
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct TapTree(pub(crate) TaprootBuilder);
 
 impl PartialEq for TapTree {

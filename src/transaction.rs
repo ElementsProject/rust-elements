@@ -171,8 +171,7 @@ impl ::std::str::FromStr for OutPoint {
 /// [BIP-68]: <https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki>
 /// [BIP-125]: <https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki>
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct Sequence(pub u32);
 
 #[derive(Clone, PartialEq, Eq, Debug)]
