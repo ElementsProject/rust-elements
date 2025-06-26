@@ -71,6 +71,12 @@ mod transaction;
 mod endian;
 // re-export bitcoin deps which we re-use
 pub use bitcoin::hashes;
+// Re-export units which are identical in Bitcoin and Elements
+pub use bitcoin_units::{
+    BlockHeight, BlockHeightInterval, BlockMtp, BlockMtpInterval, BlockTime,
+    MathOp, NumOpError, NumOpResult,
+    Weight,
+};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressError, AddressParams};
 pub use crate::blind::{

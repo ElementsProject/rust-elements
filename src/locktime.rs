@@ -19,28 +19,14 @@
 
 use std::{mem, fmt};
 use std::cmp::{PartialOrd, Ordering};
-use std::convert::TryFrom;
-use std::str::FromStr;
 use std::io::{Read, Write};
-use crate::error::ParseIntError;
-use crate::parse;
 
 use crate::encode::{self, Decodable, Encodable};
-use crate::error::write_err;
 use crate::parse::impl_parse_str_through_int;
 
-/// The Threshold for deciding whether a lock time value is a height or a time (see [Bitcoin Core]).
-///
-/// `LockTime` values _below_ the threshold are interpreted as block heights, values _above_ (or
-/// equal to) the threshold are interpreted as block times (UNIX timestamp, seconds since epoch).
-///
-/// Elements is able to safely use this value because a block height greater than 500,000,000 would
-/// never occur because it would represent a height in approximately 950 years. Conversely, block
-/// times under 500,000,000 will never happen because they would represent times before 1986 which
-/// are, for obvious reasons, not useful within any Elements network.
-///
-/// [Bitcoin Core]: https://github.com/bitcoin/bitcoin/blob/9ccaee1d5e2e4b79b0a7c29aadb41b97e4741332/src/script/script.h#L39
-pub const LOCK_TIME_THRESHOLD: u32 = 500_000_000;
+pub use bitcoin_units::locktime::absolute::{Height, Time};
+pub use bitcoin_units::locktime::absolute::ConversionError;
+pub use bitcoin_units::locktime::absolute::LOCK_TIME_THRESHOLD;
 
 /// A lock time value, representing either a block height or a UNIX timestamp (seconds since epoch).
 ///
@@ -96,7 +82,7 @@ pub enum LockTime {
 impl LockTime {
     /// If [`crate::Transaction::lock_time`] is set to zero it is ignored, in other words a
     /// transaction with nLocktime==0 is able to be included immediately in any block.
-    pub const ZERO: LockTime = LockTime::Blocks(Height(0));
+    pub const ZERO: LockTime = LockTime::Blocks(Height::ZERO);
 
     /// Constructs a `LockTime` from an nLockTime value or the argument to `OP_CHEKCLOCKTIMEVERIFY`.
     ///
@@ -130,7 +116,7 @@ impl LockTime {
     /// assert!(LockTime::from_height(1653195600).is_err());
     /// ```
     #[inline]
-    pub fn from_height(n: u32) -> Result<Self, Error> {
+    pub fn from_height(n: u32) -> Result<Self, ConversionError> {
         let height = Height::from_consensus(n)?;
         Ok(LockTime::Blocks(height))
     }
@@ -146,7 +132,7 @@ impl LockTime {
     /// assert!(LockTime::from_time(741521).is_err());
     /// ```
     #[inline]
-    pub fn from_time(n: u32) -> Result<Self, Error> {
+    pub fn from_time(n: u32) -> Result<Self, ConversionError> {
         let time = Time::from_consensus(n)?;
         Ok(LockTime::Seconds(time))
     }
@@ -307,299 +293,10 @@ impl Decodable for LockTime {
     }
 }
 
-/// An absolute block height, guaranteed to always contain a valid height value.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
-pub struct Height(u32);
-
-impl Height {
-    /// Height zero
-    pub const ZERO: Self = Height(0);
-
-    /// Constructs a new block height.
-    ///
-    /// # Errors
-    ///
-    /// If `n` does not represent a block height value (see documentation on [`LockTime`]).
-    ///
-    /// # Examples
-    /// ```rust
-    /// use elements::locktime::Height;
-    ///
-    /// let h: u32 = 741521;
-    /// let height = Height::from_consensus(h).expect("invalid height value");
-    /// assert_eq!(height.to_consensus_u32(), h);
-    /// ```
-    #[inline]
-    pub fn from_consensus(n: u32) -> Result<Height, Error> {
-        if is_block_height(n) {
-            Ok(Self(n))
-        } else {
-            Err(ConversionError::invalid_height(n).into())
-        }
-    }
-
-    /// Converts this `Height` to its inner `u32` value.
-    ///
-    /// # Examples
-    /// ```rust
-    /// use elements::LockTime;
-    ///
-    /// let n_lock_time: u32 = 741521;
-    /// let lock_time = LockTime::from_consensus(n_lock_time);
-    /// assert!(lock_time.is_block_height());
-    /// assert_eq!(lock_time.to_consensus_u32(), n_lock_time);
-    #[inline]
-    pub fn to_consensus_u32(self) -> u32 {
-        self.0
-    }
-}
-
-impl fmt::Display for Height {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl FromStr for Height {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let n = parse::int(s)?;
-        Height::from_consensus(n)
-    }
-}
-
-impl TryFrom<&str> for Height {
-    type Error = Error;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let n = parse::int(s)?;
-        Height::from_consensus(n)
-    }
-}
-
-impl TryFrom<String> for Height {
-    type Error = Error;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        let n = parse::int(s)?;
-        Height::from_consensus(n)
-    }
-}
-
-/// A UNIX timestamp, seconds since epoch, guaranteed to always contain a valid time value.
-///
-/// Note that there is no manipulation of the inner value during construction or when using
-/// `to_consensus_u32()`. Said another way, `Time(x)` means 'x seconds since epoch' _not_ '(x -
-/// threshold) seconds since epoch'.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
-pub struct Time(u32);
-
-impl Time {
-    /// Constructs a new block time.
-    ///
-    /// # Errors
-    ///
-    /// If `n` does not encode a UNIX time stamp (see documentation on [`LockTime`]).
-    ///
-    /// # Examples
-    /// ```rust
-    /// use elements::locktime::Time;
-    ///
-    /// let t: u32 = 1653195600; // May 22nd, 5am UTC.
-    /// let time = Time::from_consensus(t).expect("invalid time value");
-    /// assert_eq!(time.to_consensus_u32(), t);
-    /// ```
-    #[inline]
-    pub fn from_consensus(n: u32) -> Result<Time, Error> {
-        if is_block_time(n) {
-            Ok(Self(n))
-        } else {
-            Err(ConversionError::invalid_time(n).into())
-        }
-    }
-
-    /// Converts this `Time` to its inner `u32` value.
-    ///
-    /// # Examples
-    /// ```rust
-    /// use elements::LockTime;
-    ///
-    /// let n_lock_time: u32 = 1653195600; // May 22nd, 5am UTC.
-    /// let lock_time = LockTime::from_consensus(n_lock_time);
-    /// assert_eq!(lock_time.to_consensus_u32(), n_lock_time);
-    /// ```
-    #[inline]
-    pub fn to_consensus_u32(self) -> u32 {
-        self.0
-    }
-}
-
-impl fmt::Display for Time {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-impl FromStr for Time {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let n = parse::int(s)?;
-        Time::from_consensus(n)
-    }
-}
-
-impl TryFrom<&str> for Time {
-    type Error = Error;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        let n = parse::int(s)?;
-        Time::from_consensus(n)
-    }
-}
-
-impl TryFrom<String> for Time {
-    type Error = Error;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        let n = parse::int(s)?;
-        Time::from_consensus(n)
-    }
-}
-
 /// Returns true if `n` is a block height i.e., less than 500,000,000.
 fn is_block_height(n: u32) -> bool {
     n < LOCK_TIME_THRESHOLD
 }
-
-/// Returns true if `n` is a UNIX timestamp i.e., greater than or equal to 500,000,000.
-fn is_block_time(n: u32) -> bool {
-    n >= LOCK_TIME_THRESHOLD
-}
-
-/// Catchall type for errors that relate to time locks.
-#[derive(Debug, Clone, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum Error {
-    /// An error occurred while converting a `u32` to a lock time variant.
-    Conversion(ConversionError),
-    /// An error occurred while operating on lock times.
-    Operation(OperationError),
-    /// An error occurred while parsing a string into an `u32`.
-    Parse(ParseIntError),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Self::Conversion(ref e) => write_err!(f, "error converting lock time value"; e),
-            Self::Operation(ref e) => write_err!(f, "error during lock time operation"; e),
-            Self::Parse(ref e) => write_err!(f, "failed to parse lock time from string"; e),
-        }
-    }
-}
-
-impl std::error::Error for Error {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match *self {
-            Self::Conversion(ref e) => Some(e),
-            Self::Operation(ref e) => Some(e),
-            Self::Parse(ref e) => Some(e),
-        }
-    }
-}
-
-impl From<ConversionError> for Error {
-    fn from(e: ConversionError) -> Self {
-        Error::Conversion(e)
-    }
-}
-
-impl From<OperationError> for Error {
-    fn from(e: OperationError) -> Self {
-        Error::Operation(e)
-    }
-}
-
-impl From<ParseIntError> for Error {
-    fn from(e: ParseIntError) -> Self {
-        Error::Parse(e)
-    }
-}
-
-/// An error that occurs when converting a `u32` to a lock time variant.
-#[derive(Debug, Clone, Eq, PartialEq, Hash)]
-pub struct ConversionError {
-    /// The expected timelock unit, height (blocks) or time (seconds).
-    unit: LockTimeUnit,
-    /// The invalid input value.
-    input: u32,
-}
-
-impl ConversionError {
-    /// Constructs a `ConversionError` from an invalid `n` when expecting a height value.
-    fn invalid_height(n: u32) -> Self {
-        Self {
-            unit: LockTimeUnit::Blocks,
-            input: n,
-        }
-    }
-
-    /// Constructs a `ConversionError` from an invalid `n` when expecting a time value.
-    fn invalid_time(n: u32) -> Self {
-        Self {
-            unit: LockTimeUnit::Seconds,
-            input: n,
-        }
-    }
-}
-
-impl fmt::Display for ConversionError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "invalid lock time value {}, {}", self.input, self.unit)
-    }
-}
-
-impl std::error::Error for ConversionError {}
-
-/// Describes the two types of locking, lock-by-blockheight and lock-by-blocktime.
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-enum LockTimeUnit {
-    /// Lock by blockheight.
-    Blocks,
-    /// Lock by blocktime.
-    Seconds,
-}
-
-impl fmt::Display for LockTimeUnit {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Self::Blocks => write!(f, "expected lock-by-blockheight (must be < {})", LOCK_TIME_THRESHOLD),
-            Self::Seconds => write!(f, "expected lock-by-blocktime (must be >= {})", LOCK_TIME_THRESHOLD),
-        }
-    }
-}
-
-/// Errors than occur when operating on lock times.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[non_exhaustive]
-pub enum OperationError {
-    /// Cannot compare different lock time units (height vs time).
-    InvalidComparison,
-}
-
-impl fmt::Display for OperationError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Self::InvalidComparison => f.write_str("cannot compare different lock units (height vs time)"),
-        }
-    }
-}
-
-impl std::error::Error for OperationError {}
 
 #[cfg(test)]
 mod tests {
