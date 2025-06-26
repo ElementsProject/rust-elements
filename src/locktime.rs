@@ -66,7 +66,6 @@ pub const LOCK_TIME_THRESHOLD: u32 = 500_000_000;
 /// ```
 #[allow(clippy::derive_ord_xor_partial_ord)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub enum LockTime {
     /// A block height lock time value.
     ///
@@ -272,6 +271,24 @@ impl fmt::Display for LockTime {
                 Self::Seconds(ref t) => fmt::Display::fmt(t, f),
             }
         }
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for LockTime {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: serde::Serializer {
+        self.to_consensus_u32().serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for LockTime {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de> {
+        u32::deserialize(deserializer).map(Self::from_consensus)
     }
 }
 
