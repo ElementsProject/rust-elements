@@ -463,7 +463,7 @@ mod tests {
             block.block_hash().to_string(),
             "287ca47e8da47eb8c28d870663450bb026922eadb30a1b2f8293e6e9d1ca5322"
         );
-        assert_eq!(block.header.version, 0x20000000);
+        assert_eq!(block.header.version, 0x2000_0000);
         assert_eq!(block.header.height, 2);
         assert_eq!(block.txdata.len(), 1);
         assert_eq!(block.size(), serialize(&block).len());
@@ -675,7 +675,7 @@ mod tests {
             block.block_hash().to_string(),
             "e935d06cf3a616eb4d551338598b84daa0e8592ed14673263597f6af4b4a6ea6"
         );
-        assert_eq!(block.header.version, 0x20000000);
+        assert_eq!(block.header.version, 0x2000_0000);
         assert_eq!(block.header.height, 1);
         assert_eq!(block.txdata.len(), 3);
         assert_eq!(block.size(), serialize(&block).len());
@@ -706,7 +706,7 @@ mod tests {
             block.block_hash().to_string(),
             "bcc6eb2ab6c97b9b4590825b9136f100b22e090c0469818572b8b93926a79f28"
         );
-        assert_eq!(block.header.version, 0x20000000);
+        assert_eq!(block.header.version, 0x2000_0000);
         if let ExtData::Proof { challenge, solution } = block.header.ext {
             assert_eq!(challenge.len(), 1 + 3 * 34 + 2);
             assert_eq!(solution.len(), 144);
@@ -727,7 +727,7 @@ mod tests {
             } else {
                 panic!("Current block dynafed params not compact");
             }
-            if let dynafed::Params::Null { .. } = proposed {
+            if let dynafed::Params::Null = proposed {
                 /* pass */
             } else {
                 panic!("Proposed block dynafed params not compact");
@@ -740,7 +740,7 @@ mod tests {
             block.block_hash().to_string(),
             "4961df970cf12d789383974e6ab439f780d956b5a50162ca9d281362e46c605a"
         );
-        assert_eq!(block.header.version, 0x20000000);
+        assert_eq!(block.header.version, 0x2000_0000);
 
         // Full current and proposal
         let block: Block = hex_deserialize!("\

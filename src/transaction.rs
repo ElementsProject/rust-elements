@@ -187,7 +187,7 @@ impl Sequence {
     /// The maximum allowable sequence number.
     ///
     /// This sequence number disables lock-time and replace-by-fee.
-    pub const MAX: Self = Sequence(0xFFFFFFFF);
+    pub const MAX: Self = Sequence(0xFFFF_FFFF);
     /// Zero value sequence.
     ///
     /// This sequence number enables replace-by-fee and lock-time.
@@ -197,7 +197,7 @@ impl Sequence {
     pub const ENABLE_LOCKTIME_NO_RBF: Self = Sequence::MIN_NO_RBF;
     /// The sequence number that enables replace-by-fee and absolute lock-time but
     /// disables relative lock-time.
-    pub const ENABLE_RBF_NO_LOCKTIME: Self = Sequence(0xFFFFFFFD);
+    pub const ENABLE_RBF_NO_LOCKTIME: Self = Sequence(0xFFFF_FFFD);
 
     /// The lowest sequence number that does not opt-in for replace-by-fee.
     ///
@@ -206,11 +206,11 @@ impl Sequence {
     /// (Explicit Signalling [BIP-125]).
     ///
     /// [BIP-125]: <https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki]>
-    const MIN_NO_RBF: Self = Sequence(0xFFFFFFFE);
+    const MIN_NO_RBF: Self = Sequence(0xFFFF_FFFE);
     /// BIP-68 relative lock-time disable flag mask
-    const LOCK_TIME_DISABLE_FLAG_MASK: u32 = 0x80000000;
+    const LOCK_TIME_DISABLE_FLAG_MASK: u32 = 0x8000_0000;
     /// BIP-68 relative lock-time type flag mask
-    const LOCK_TYPE_MASK: u32 = 0x00400000;
+    const LOCK_TYPE_MASK: u32 = 0x0040_0000;
 
     /// Returns `true` if the sequence number indicates that the transaction is finalised.
     ///
@@ -502,12 +502,12 @@ pub struct TxIn {
 impl Default for TxIn {
     fn default() -> Self {
         Self {
-            previous_output: Default::default(), // same as in rust-bitcoin
+            previous_output: OutPoint::default(), // same as in rust-bitcoin
             is_pegin: false,
             script_sig: Script::new(),
             sequence: Sequence::MAX, // same as in rust-bitcoin
-            asset_issuance: Default::default(),
-            witness: Default::default()
+            asset_issuance: AssetIssuance::default(),
+            witness: TxInWitness::default()
         }
     }
 }
@@ -545,7 +545,7 @@ impl Decodable for TxIn {
         let has_issuance;
         // Pegin/issuance flags are encoded into the high bits of `vout`, *except*
         // if vout is all 1's; this indicates a coinbase transaction
-        if outp.vout == 0xffffffff {
+        if outp.vout == 0xffff_ffff {
             is_pegin = false;
             has_issuance = false;
         } else {
@@ -602,7 +602,7 @@ impl TxIn {
     /// Extracts witness data from a pegin. Will return `None` if any data
     /// cannot be parsed. The combination of `is_pegin()` returning `true`
     /// and `pegin_data()` returning `None` indicates an invalid transaction.
-    pub fn pegin_data(&self) -> Option<PeginData> {
+    pub fn pegin_data(&self) -> Option<PeginData<'_>> {
         self.pegin_prevout().and_then(|p| {
             PeginData::from_pegin_witness(&self.witness.pegin_witness, p).ok()
         })
@@ -615,11 +615,11 @@ impl TxIn {
 
     /// Obtain the outpoint flag corresponding to this input
     pub fn outpoint_flag(&self) -> u8 {
-        ((self.is_pegin as u8) << 6 ) | ((self.has_issuance() as u8) << 7)
+        (u8::from(self.is_pegin) << 6) | (u8::from(self.has_issuance()) << 7)
     }
 
     /// Compute the issuance asset ids from this [`TxIn`]. This function does not check
-    /// whether there is an issuance in this input. Returns (asset_id, token_id)
+    /// whether there is an issuance in this input. Returns (`asset_id`, `token_id`)
     pub fn issuance_ids(&self) -> (AssetId, AssetId) {
         let entropy = if self.asset_issuance.asset_blinding_nonce == ZERO_TWEAK {
             let contract_hash =
@@ -668,12 +668,12 @@ impl TxOutWitness {
 
     /// The rangeproof len if is present, otherwise 0
     pub fn rangeproof_len(&self) -> usize {
-        self.rangeproof.as_ref().map(|prf| prf.len()).unwrap_or(0)
+        self.rangeproof.as_ref().map_or(0, |prf| prf.len())
     }
 
     /// The surjection proof len if is present, otherwise 0
     pub fn surjectionproof_len(&self) -> usize {
-        self.surjection_proof.as_ref().map(|prf| prf.len()).unwrap_or(0)
+        self.surjection_proof.as_ref().map_or(0, |prf| prf.len())
     }
 }
 
@@ -749,7 +749,7 @@ impl TxOut {
         }
     }
 
-    /// Whether this data represents nulldata (OP_RETURN followed by pushes,
+    /// Whether this data represents nulldata (`OP_RETURN` followed by pushes,
     /// not necessarily minimal)
     pub fn is_null_data(&self) -> bool {
         let mut iter = self.script_pubkey.instructions();
@@ -777,7 +777,7 @@ impl TxOut {
 
     /// If this output is a pegout, returns the destination genesis block,
     /// the destination script pubkey, and any additional data
-    pub fn pegout_data(&self) -> Option<PegoutData> {
+    pub fn pegout_data(&self) -> Option<PegoutData<'_>> {
         // Must be NULLDATA
         if !self.is_null_data() {
             return None;
@@ -797,7 +797,7 @@ impl TxOut {
 
         // Parse destination scriptpubkey
         let script_pubkey = bitcoin::ScriptBuf::from(iter.next()?.ok()?.push_bytes()?.to_owned());
-        if script_pubkey.len() == 0 {
+        if script_pubkey.is_empty() {
             return None;
         }
 
@@ -832,7 +832,7 @@ impl TxOut {
 
     /// Extracts the minimum value from the rangeproof, if there is one, or returns 0.
     pub fn minimum_value(&self) -> u64 {
-        let min_value = if self.script_pubkey.is_op_return() { 0 } else { 1 };
+        let min_value = u64::from(self.script_pubkey.is_op_return());
 
         match self.value {
             confidential::Value::Null => min_value,
@@ -935,7 +935,7 @@ impl Transaction {
     pub fn discount_weight(&self) -> usize {
         let mut weight = self.scaled_size(4);
 
-        for out in self.output.iter() {
+        for out in &self.output {
             let rp_len = out.witness.rangeproof_len();
             let sp_len = out.witness.surjectionproof_len();
             let witness_weight = VarInt(sp_len as u64).size() + sp_len + VarInt(rp_len as u64).size() + rp_len;
@@ -974,9 +974,9 @@ impl Transaction {
                 }
             ) + if witness_flag {
                 let amt_prf_len = input.witness.amount_rangeproof.as_ref()
-                    .map(|x| x.len()).unwrap_or(0);
+                    .map_or(0, |x| x.len());
                 let keys_prf_len = input.witness.inflation_keys_rangeproof.as_ref()
-                    .map(|x| x.len()).unwrap_or(0);
+                    .map_or(0, |x| x.len());
 
                 VarInt(amt_prf_len as u64).size() +
                 amt_prf_len +
@@ -1373,10 +1373,10 @@ mod tests {
         assert_eq!(tx.weight(), tx.size() * 4);
         assert!(!tx.output[0].is_fee());
         assert!(tx.output[1].is_fee());
-        assert_eq!(tx.output[0].value, confidential::Value::Explicit(9999996700));
-        assert_eq!(tx.output[1].value, confidential::Value::Explicit(      3300));
-        assert_eq!(tx.output[0].minimum_value(), 9999996700);
-        assert_eq!(tx.output[1].minimum_value(),       3300);
+        assert_eq!(tx.output[0].value, confidential::Value::Explicit(9_999_996_700));
+        assert_eq!(tx.output[1].value, confidential::Value::Explicit(3300));
+        assert_eq!(tx.output[0].minimum_value(), 9_999_996_700);
+        assert_eq!(tx.output[1].minimum_value(), 3300);
         let fee_asset = "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23".parse().unwrap();
         assert_eq!(tx.fee_in(fee_asset), 3300);
         assert_eq!(tx.all_fees()[&fee_asset], 3300);
@@ -1688,7 +1688,7 @@ mod tests {
                     ).unwrap(),
                     vout: 0,
                 },
-                value: 100000000,
+                value: 100_000_000,
                 asset: tx.output[0].asset.explicit().unwrap(),
                 genesis_hash: bitcoin::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
@@ -1803,7 +1803,7 @@ mod tests {
             tx.output[0].pegout_data(),
             Some(super::PegoutData {
                 asset: tx.output[0].asset,
-                value: 99993900,
+                value: 99_993_900,
                 genesis_hash: bitcoin::BlockHash::from_str(
                     "0f9188f13cb7b2c71f2a335e3a4fc328bf5beb436012afca590b1a11466e2206"
                 ).unwrap(),

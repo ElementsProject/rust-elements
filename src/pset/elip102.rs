@@ -2,7 +2,7 @@
 //! An implementation of ELIP0102 as defined in
 //! <https://github.com/ElementsProject/ELIPs/blob/main/elip-0102.mediawiki>
 //!
-//! ELIP0102 defines how to encode the extra data for LiquiDEX in a PSET.
+//! ELIP0102 defines how to encode the extra data for `LiquiDEX` in a PSET.
 //!
 
 use crate::pset::{
@@ -19,7 +19,7 @@ pub const PSBT_ELEMENTS_LIQUIDEX_IN_ABF: u8 = 0x00u8;
 /// Output Asset Blinding Factor keytype as defined in ELIP0102
 pub const PSBT_ELEMENTS_LIQUIDEX_OUT_ABF: u8 = 0x00u8;
 
-/// Prefix for PSET LiquiDEX extension as defined in ELIP0102
+/// Prefix for PSET `LiquiDEX` extension as defined in ELIP0102
 pub const PSET_LIQUIDEX_PREFIX: &[u8] = b"pset_liquidex";
 
 fn prop_key(keytype: u8) -> ProprietaryKey {
@@ -30,7 +30,7 @@ fn prop_key(keytype: u8) -> ProprietaryKey {
     }
 }
 
-/// ELIP0102 LiquiDEX extensions
+/// ELIP0102 `LiquiDEX` extensions
 impl Input {
     /// Set Asset Blinding Factor
     pub fn set_abf(&mut self, abf: AssetBlindingFactor) {
@@ -47,7 +47,7 @@ impl Input {
     }
 }
 
-/// ELIP0102 LiquiDEX extensions
+/// ELIP0102 `LiquiDEX` extensions
 impl Output {
     /// Set Asset Blinding Factor
     pub fn set_abf(&mut self, abf: AssetBlindingFactor) {

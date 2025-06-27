@@ -152,7 +152,7 @@ impl Encodable for Key {
         len += self.type_value.consensus_encode(&mut s)?;
 
         for key in &self.key {
-            len += key.consensus_encode(&mut s)?
+            len += key.consensus_encode(&mut s)?;
         }
 
         Ok(len)
@@ -210,9 +210,9 @@ impl<Subtype> ProprietaryKey<Subtype>
 where
     Subtype: Copy + From<u8> + Into<u8>,
 {
-    /// Constructs [ProprietaryKey] from [Key]; returns
-    /// [Error::InvalidProprietaryKey] if `key` do not starts with 0xFC byte
-    pub fn from_key(key: Key) -> Result<Self, Error> {
+    /// Constructs [`ProprietaryKey`] from [Key]; returns
+    /// [`Error::InvalidProprietaryKey`] if `key` do not starts with 0xFC byte
+    pub fn from_key(key: &Key) -> Result<Self, Error> {
         if key.type_value != 0xFC {
             return Err(Error::InvalidProprietaryKey);
         }

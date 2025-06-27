@@ -31,23 +31,23 @@ use secp256k1_zkp::Tweak;
 // (Not used in pset) Type: Unsigned Transaction PSET_GLOBAL_UNSIGNED_TX = 0x00
 const PSET_GLOBAL_UNSIGNED_TX: u8 = 0x00;
 //
-/// Type: Extended Public Key PSET_GLOBAL_XPUB = 0x01
+/// Type: Extended Public Key `PSET_GLOBAL_XPUB` = 0x01
 const PSET_GLOBAL_XPUB: u8 = 0x01;
 
-/// Type: Tx Version PSET_GLOBAL_TX_VERSION = 0x02
+/// Type: Tx Version `PSET_GLOBAL_TX_VERSION` = 0x02
 const PSET_GLOBAL_TX_VERSION: u8 = 0x02;
-/// Type: Fallback Locktime PSET_GLOBAL_FALLBACK_LOCKTIME = 0x03
+/// Type: Fallback Locktime `PSET_GLOBAL_FALLBACK_LOCKTIME` = 0x03
 const PSET_GLOBAL_FALLBACK_LOCKTIME: u8 = 0x03;
-/// Type: Tx Input Count PSET_GLOBAL_INPUT_COUNT = 0x04
+/// Type: Tx Input Count `PSET_GLOBAL_INPUT_COUNT` = 0x04
 const PSET_GLOBAL_INPUT_COUNT: u8 = 0x04;
-/// Type: Tx Output Count PSET_GLOBAL_OUTPUT_COUNT = 0x05
+/// Type: Tx Output Count `PSET_GLOBAL_OUTPUT_COUNT` = 0x05
 const PSET_GLOBAL_OUTPUT_COUNT: u8 = 0x05;
-/// Type: Transaction Modifiable Flags PSET_GLOBAL_TX_MODIFIABLE = 0x06
+/// Type: Transaction Modifiable Flags `PSET_GLOBAL_TX_MODIFIABLE` = 0x06
 const PSET_GLOBAL_TX_MODIFIABLE: u8 = 0x06;
 
-/// Type: Version Number PSET_GLOBAL_VERSION = 0xFB
+/// Type: Version Number `PSET_GLOBAL_VERSION` = 0xFB
 const PSET_GLOBAL_VERSION: u8 = 0xFB;
-/// Type: Proprietary Use Type PSET_GLOBAL_PROPRIETARY = 0xFC
+/// Type: Proprietary Use Type `PSET_GLOBAL_PROPRIETARY` = 0xFC
 const PSET_GLOBAL_PROPRIETARY: u8 = 0xFC;
 
 /// Proprietary fields in elements
@@ -165,15 +165,14 @@ impl Map for Global {
             | PSET_GLOBAL_TX_MODIFIABLE
             | PSET_GLOBAL_TX_VERSION => return Err(Error::DuplicateKey(raw_key).into()),
             PSET_GLOBAL_PROPRIETARY => {
-                let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
+                let prop_key = raw::ProprietaryKey::from_key(&raw_key)?;
                 if prop_key.is_pset_key() && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR {
                     if raw_value.is_empty() && prop_key.key.len() == 32 {
                         let scalar = Tweak::from_slice(&prop_key.key)?;
-                        if !self.scalars.contains(&scalar) {
-                            self.scalars.push(scalar);
-                        } else {
+                        if self.scalars.contains(&scalar) {
                             return Err(Error::DuplicateKey(raw_key).into());
                         }
+                        self.scalars.push(scalar);
                     } else {
                         return Err(Error::InvalidKey(raw_key))?;
                     }
@@ -206,7 +205,7 @@ impl Map for Global {
     }
 
     fn get_pairs(&self) -> Result<Vec<raw::Pair>, encode::Error> {
-        let mut rv: Vec<raw::Pair> = Default::default();
+        let mut rv: Vec<raw::Pair> = Vec::default();
 
         let TxData {
             version,
@@ -269,21 +268,21 @@ impl Map for Global {
             rv.push(raw::Pair {
                 key: key.to_key(),
                 value: vec![], // This is a bug in elements core c++, parses this value as vec![0]
-            })
+            });
         }
 
         impl_pset_get_pair! {
             rv.push_prop(self.elements_tx_modifiable_flag as <PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE, _>)
         }
 
-        for (key, value) in self.proprietary.iter() {
+        for (key, value) in &self.proprietary {
             rv.push(raw::Pair {
                 key: key.to_key(),
                 value: value.clone(),
             });
         }
 
-        for (key, value) in self.unknown.iter() {
+        for (key, value) in &self.unknown {
             rv.push(raw::Pair {
                 key: key.clone(),
                 value: value.clone(),
@@ -368,9 +367,9 @@ impl_psetmap_consensus_encoding!(Global);
 impl Decodable for Global {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
         let mut version: Option<u32> = None;
-        let mut unknowns: BTreeMap<raw::Key, Vec<u8>> = Default::default();
+        let mut unknowns: BTreeMap<raw::Key, Vec<u8>> = BTreeMap::new();
         let mut xpub_map: BTreeMap<Xpub, (Fingerprint, DerivationPath)> =
-            Default::default();
+            BTreeMap::new();
         let mut proprietary = BTreeMap::new();
         let mut scalars = Vec::new();
 
@@ -415,39 +414,39 @@ impl Decodable for Global {
                             }
                         }
                         PSET_GLOBAL_XPUB => {
-                            if !raw_key.key.is_empty() {
-                                let xpub = Xpub::decode(&raw_key.key)
-                                    .map_err(|_| encode::Error::ParseFailed(
-                                        "Can't deserialize Xpub from global XPUB key data"
-                                    ))?;
-
-                                if raw_value.is_empty() || raw_value.len() % 4 != 0 {
-                                    return Err(encode::Error::ParseFailed(
-                                        "Incorrect length of global xpub derivation data",
-                                    ));
-                                }
-
-                                let child_count = raw_value.len() / 4 - 1;
-                                let mut decoder = Cursor::new(raw_value);
-                                let mut fingerprint = [0u8; 4];
-                                decoder.read_exact(&mut fingerprint[..])?;
-                                let mut path = Vec::<ChildNumber>::with_capacity(child_count);
-                                while let Ok(index) = u32::consensus_decode(&mut decoder) {
-                                    path.push(ChildNumber::from(index))
-                                }
-                                let derivation = DerivationPath::from(path);
-                                // Keys, according to BIP-174, must be unique
-                                if xpub_map
-                                    .insert(xpub, (Fingerprint::from(fingerprint), derivation))
-                                    .is_some()
-                                {
-                                    return Err(encode::Error::ParseFailed(
-                                        "Repeated global xpub key",
-                                    ));
-                                }
-                            } else {
+                            if raw_key.key.is_empty() {
                                 return Err(encode::Error::ParseFailed(
                                     "Xpub global key must contain serialized Xpub data",
+                                ));
+                            }
+
+                            let xpub = Xpub::decode(&raw_key.key)
+                                .map_err(|_| encode::Error::ParseFailed(
+                                    "Can't deserialize Xpub from global XPUB key data"
+                                ))?;
+
+                            if raw_value.is_empty() || raw_value.len() % 4 != 0 {
+                                return Err(encode::Error::ParseFailed(
+                                    "Incorrect length of global xpub derivation data",
+                                ));
+                            }
+
+                            let child_count = raw_value.len() / 4 - 1;
+                            let mut decoder = Cursor::new(raw_value);
+                            let mut fingerprint = [0u8; 4];
+                            decoder.read_exact(&mut fingerprint[..])?;
+                            let mut path = Vec::<ChildNumber>::with_capacity(child_count);
+                            while let Ok(index) = u32::consensus_decode(&mut decoder) {
+                                path.push(ChildNumber::from(index));
+                            }
+                            let derivation = DerivationPath::from(path);
+                            // Keys, according to BIP-174, must be unique
+                            if xpub_map
+                                .insert(xpub, (Fingerprint::from(fingerprint), derivation))
+                                .is_some()
+                            {
+                                return Err(encode::Error::ParseFailed(
+                                    "Repeated global xpub key",
                                 ));
                             }
                         }
@@ -457,17 +456,16 @@ impl Decodable for Global {
                             }
                         }
                         PSET_GLOBAL_PROPRIETARY => {
-                            let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
+                            let prop_key = raw::ProprietaryKey::from_key(&raw_key)?;
                             if prop_key.is_pset_key()
                                 && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_SCALAR
                             {
                                 if raw_value.is_empty() && prop_key.key.len() == 32 {
                                     let scalar = Tweak::from_slice(&prop_key.key)?;
-                                    if !scalars.contains(&scalar) {
-                                        scalars.push(scalar);
-                                    } else {
+                                    if scalars.contains(&scalar) {
                                         return Err(Error::DuplicateKey(raw_key).into());
                                     }
+                                    scalars.push(scalar);
                                 } else {
                                     return Err(Error::InvalidKey(raw_key))?;
                                 }

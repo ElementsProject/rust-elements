@@ -59,7 +59,7 @@ pub enum Error {
     HexError(crate::hex::Error),
     /// Got a time-based locktime when expecting a height-based one, or vice-versa
     BadLockTime(crate::LockTime),
-    /// VarInt was encoded in a non-minimal way.
+    /// `VarInt` was encoded in a non-minimal way.
     NonMinimalVarInt,
 }
 
@@ -76,7 +76,7 @@ impl fmt::Display for Error {
                 "oversized vector allocation: requested {}, maximum {}",
                 r, m
             ),
-            Error::ParseFailed(ref e) => write!(f, "parse failed: {}", e),
+            Error::ParseFailed(e) => write!(f, "parse failed: {}", e),
             Error::UnexpectedEOF => write!(f, "unexpected EOF"),
             Error::InvalidConfidentialPrefix(p) => {
                 write!(f, "invalid confidential prefix: 0x{:02x}", p)
@@ -260,7 +260,7 @@ impl VarInt {
         match self.0 {
             0..=0xFC => 1,
             0xFD..=0xFFFF => 3,
-            0x10000..=0xFFFFFFFF => 5,
+            0x10000..=0xFFFF_FFFF => 5,
             _ => 9,
         }
     }

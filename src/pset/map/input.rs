@@ -38,64 +38,64 @@ use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak, ZERO_TWEAK};
 
 use crate::{OutPoint, Sequence};
 
-/// Type: Non-Witness UTXO PSET_IN_NON_WITNESS_UTXO = 0x00
+/// Type: Non-Witness UTXO `PSET_IN_NON_WITNESS_UTXO` = 0x00
 const PSET_IN_NON_WITNESS_UTXO: u8 = 0x00;
-/// Type: Witness UTXO PSET_IN_WITNESS_UTXO = 0x01
+/// Type: Witness UTXO `PSET_IN_WITNESS_UTXO` = 0x01
 const PSET_IN_WITNESS_UTXO: u8 = 0x01;
-/// Type: Partial Signature PSET_IN_PARTIAL_SIG = 0x02
+/// Type: Partial Signature `PSET_IN_PARTIAL_SIG` = 0x02
 const PSET_IN_PARTIAL_SIG: u8 = 0x02;
-/// Type: Sighash Type PSET_IN_SIGHASH_TYPE = 0x03
+/// Type: Sighash Type `PSET_IN_SIGHASH_TYPE` = 0x03
 const PSET_IN_SIGHASH_TYPE: u8 = 0x03;
-/// Type: Redeem Script PSET_IN_REDEEM_SCRIPT = 0x04
+/// Type: Redeem Script `PSET_IN_REDEEM_SCRIPT` = 0x04
 const PSET_IN_REDEEM_SCRIPT: u8 = 0x04;
-/// Type: Witness Script PSET_IN_WITNESS_SCRIPT = 0x05
+/// Type: Witness Script `PSET_IN_WITNESS_SCRIPT` = 0x05
 const PSET_IN_WITNESS_SCRIPT: u8 = 0x05;
-/// Type: BIP 32 Derivation Path PSET_IN_BIP32_DERIVATION = 0x06
+/// Type: BIP 32 Derivation Path `PSET_IN_BIP32_DERIVATION` = 0x06
 const PSET_IN_BIP32_DERIVATION: u8 = 0x06;
-/// Type: Finalized scriptSig PSET_IN_FINAL_SCRIPTSIG = 0x07
+/// Type: Finalized scriptSig `PSET_IN_FINAL_SCRIPTSIG` = 0x07
 const PSET_IN_FINAL_SCRIPTSIG: u8 = 0x07;
-/// Type: Finalized scriptWitness PSET_IN_FINAL_SCRIPTWITNESS = 0x08
+/// Type: Finalized scriptWitness `PSET_IN_FINAL_SCRIPTWITNESS` = 0x08
 const PSET_IN_FINAL_SCRIPTWITNESS: u8 = 0x08;
-/// Type: RIPEMD160 preimage PSET_IN_RIPEMD160 = 0x0a
+/// Type: RIPEMD160 preimage `PSET_IN_RIPEMD160` = 0x0a
 const PSET_IN_RIPEMD160: u8 = 0x0a;
-/// Type: SHA256 preimage PSET_IN_SHA256 = 0x0b
+/// Type: SHA256 preimage `PSET_IN_SHA256` = 0x0b
 const PSET_IN_SHA256: u8 = 0x0b;
-/// Type: HASH160 preimage PSET_IN_HASH160 = 0x0c
+/// Type: HASH160 preimage `PSET_IN_HASH160` = 0x0c
 const PSET_IN_HASH160: u8 = 0x0c;
-/// Type: HASH256 preimage PSET_IN_HASH256 = 0x0d
+/// Type: HASH256 preimage `PSET_IN_HASH256` = 0x0d
 const PSET_IN_HASH256: u8 = 0x0d;
-/// Type: (Mandatory) Previous TXID PSET_IN_PREVIOUS_TXID = 0x0e
+/// Type: (Mandatory) Previous TXID `PSET_IN_PREVIOUS_TXID` = 0x0e
 const PSET_IN_PREVIOUS_TXID: u8 = 0x0e;
-/// Type: (Mandatory) Spent Output Index PSET_IN_OUTPUT_INDEX = 0x0f
+/// Type: (Mandatory) Spent Output Index `PSET_IN_OUTPUT_INDEX` = 0x0f
 const PSET_IN_OUTPUT_INDEX: u8 = 0x0f;
-/// Type: Sequence Number PSET_IN_SEQUENCE = 0x10
+/// Type: Sequence Number `PSET_IN_SEQUENCE` = 0x10
 const PSET_IN_SEQUENCE: u8 = 0x10;
-/// Type: Required Time-based Locktime PSET_IN_REQUIRED_TIME_LOCKTIME = 0x11
+/// Type: Required Time-based Locktime `PSET_IN_REQUIRED_TIME_LOCKTIME` = 0x11
 const PSET_IN_REQUIRED_TIME_LOCKTIME: u8 = 0x11;
-/// Type: Required Height-based Locktime PSET_IN_REQUIRED_HEIGHT_LOCKTIME = 0x12
+/// Type: Required Height-based Locktime `PSET_IN_REQUIRED_HEIGHT_LOCKTIME` = 0x12
 const PSET_IN_REQUIRED_HEIGHT_LOCKTIME: u8 = 0x12;
-/// Type: Schnorr Signature in Key Spend PSBT_IN_TAP_KEY_SIG = 0x13
+/// Type: Schnorr Signature in Key Spend `PSBT_IN_TAP_KEY_SIG` = 0x13
 const PSBT_IN_TAP_KEY_SIG: u8 = 0x13;
-/// Type: Schnorr Signature in Script Spend PSBT_IN_TAP_SCRIPT_SIG = 0x14
+/// Type: Schnorr Signature in Script Spend `PSBT_IN_TAP_SCRIPT_SIG` = 0x14
 const PSBT_IN_TAP_SCRIPT_SIG: u8 = 0x14;
-/// Type: Taproot Leaf Script PSBT_IN_TAP_LEAF_SCRIPT = 0x14
+/// Type: Taproot Leaf Script `PSBT_IN_TAP_LEAF_SCRIPT` = 0x14
 const PSBT_IN_TAP_LEAF_SCRIPT: u8 = 0x15;
-/// Type: Taproot Key BIP 32 Derivation Path PSBT_IN_TAP_BIP32_DERIVATION = 0x16
+/// Type: Taproot Key BIP 32 Derivation Path `PSBT_IN_TAP_BIP32_DERIVATION` = 0x16
 const PSBT_IN_TAP_BIP32_DERIVATION: u8 = 0x16;
-/// Type: Taproot Internal Key PSBT_IN_TAP_INTERNAL_KEY = 0x17
+/// Type: Taproot Internal Key `PSBT_IN_TAP_INTERNAL_KEY` = 0x17
 const PSBT_IN_TAP_INTERNAL_KEY: u8 = 0x17;
-/// Type: Taproot Merkle Root PSBT_IN_TAP_MERKLE_ROOT = 0x18
+/// Type: Taproot Merkle Root `PSBT_IN_TAP_MERKLE_ROOT` = 0x18
 const PSBT_IN_TAP_MERKLE_ROOT: u8 = 0x18;
-/// Type: Proprietary Use Type PSET_IN_PROPRIETARY = 0xFC
+/// Type: Proprietary Use Type `PSET_IN_PROPRIETARY` = 0xFC
 const PSET_IN_PROPRIETARY: u8 = 0xFC;
 
 // Elements Proprietary types:
 /// Issuance Value: The explicit little endian 64-bit integer
 /// for the value of this issuance. This is mutually exclusive with
-/// PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT
+/// `PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT`
 const PSBT_ELEMENTS_IN_ISSUANCE_VALUE: u8 = 0x00;
 /// Issuance Value Commitment: The 33 byte Value Commitment.
-/// This is mutually exclusive with PSBT_IN_ISSUANCE_VALUE.
+/// This is mutually exclusive with `PSBT_IN_ISSUANCE_VALUE`.
 const PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT: u8 = 0x01;
 /// Issuance Value Rangeproof: The rangeproof
 const PSBT_ELEMENTS_IN_ISSUANCE_VALUE_RANGEPROOF: u8 = 0x02;
@@ -117,11 +117,11 @@ const PSBT_ELEMENTS_IN_PEG_IN_VALUE: u8 = 0x08;
 const PSBT_ELEMENTS_IN_PEG_IN_WITNESS: u8 = 0x09;
 /// Issuance Inflation Keys Amount: The value for the inflation keys output to
 /// set in this issuance. This is mutually exclusive with
-/// PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT.
+/// `PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT`.
 const PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS: u8 = 0x0a;
 /// Issuance Inflation Keys Amount Commitment: The 33 byte commitment to the
 /// inflation keys output value in this issuance. This is mutually exclusive
-/// with PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS
+/// with `PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS`
 const PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT: u8 = 0x0b;
 /// Issuance Blinding Nonce: The 32 byte asset blinding nonce. For new assets,
 /// must be 0. For reissuances, this is a revelation of the blinding factor for
@@ -139,29 +139,29 @@ const PSBT_ELEMENTS_IN_ISSUANCE_ASSET_ENTROPY: u8 = 0x0d;
 /// the blinding factors for the UTXOs that they are involved in.
 const PSBT_ELEMENTS_IN_UTXO_RANGEPROOF: u8 = 0x0e;
 /// An explicit value rangeproof that proves that the value commitment in
-/// PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT matches the explicit value in
-/// PSBT_ELEMENTS_IN_ISSUANCE_VALUE. If provided, PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT
+/// `PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT` matches the explicit value in
+/// `PSBT_ELEMENTS_IN_ISSUANCE_VALUE`. If provided, `PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT`
 /// must be provided too.
 const PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF: u8 = 0x0f;
 /// An explicit value rangeproof that proves that the value commitment in
-/// PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT matches the explicit value
-/// in PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS. If provided,
-/// PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT must be provided too.
+/// `PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT` matches the explicit value
+/// in `PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS`. If provided,
+/// `PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT` must be provided too.
 const PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF: u8 = 0x10;
 /// The explicit value for the input being spent. If provided,
-/// PSBT_ELEMENTS_IN_VALUE_PROOF must be provided too.
+/// `PSBT_ELEMENTS_IN_VALUE_PROOF` must be provided too.
 const PSBT_ELEMENTS_IN_EXPLICIT_VALUE: u8 = 0x11;
 /// An explicit value rangeproof that proves that the value commitment in this
-/// input's UTXO matches the explicit value in PSBT_ELEMENTS_IN_EXPLICIT_VALUE.
-/// If provided, PSBT_ELEMENTS_IN_EXPLICIT_VALUE must be provided too.
+/// input's UTXO matches the explicit value in `PSBT_ELEMENTS_IN_EXPLICIT_VALUE`.
+/// If provided, `PSBT_ELEMENTS_IN_EXPLICIT_VALUE` must be provided too.
 const PSBT_ELEMENTS_IN_VALUE_PROOF: u8 = 0x12;
 /// The explicit asset for the input being spent. If provided,
-/// PSBT_ELEMENTS_IN_ASSET_PROOF must be provided too.
+/// `PSBT_ELEMENTS_IN_ASSET_PROOF` must be provided too.
 const PSBT_ELEMENTS_IN_EXPLICIT_ASSET: u8 = 0x13;
 /// An asset surjection proof with this input's asset as the only asset in the
 /// input set in order to prove that the asset commitment in the UTXO matches
-/// the explicit asset in PSBT_ELEMENTS_IN_EXPLICIT_ASSET. If provided,
-/// PSBT_ELEMENTS_IN_EXPLICIT_ASSET must be provided too.
+/// the explicit asset in `PSBT_ELEMENTS_IN_EXPLICIT_ASSET`. If provided,
+/// `PSBT_ELEMENTS_IN_EXPLICIT_ASSET` must be provided too.
 const PSBT_ELEMENTS_IN_ASSET_PROOF: u8 = 0x14;
 /// A boolean flag. 0x00 indicates the issuance should not be blinded,
 /// 0x01 indicates it should be. If not specified, assumed to be 0x01.
@@ -174,11 +174,11 @@ const PSBT_ELEMENTS_IN_BLINDED_ISSUANCE: u8 = 0x15;
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
 pub struct Input {
     /// The non-witness transaction this input spends from. Should only be
-    /// [std::option::Option::Some] for inputs which spend non-segwit outputs or
+    /// [`std::option::Option::Some`] for inputs which spend non-segwit outputs or
     /// if it is unknown whether an input spends a segwit output.
     pub non_witness_utxo: Option<Transaction>,
     /// The transaction output this input spends from. Should only be
-    /// [std::option::Option::Some] for inputs which spend segwit outputs,
+    /// [`std::option::Option::Some`] for inputs which spend segwit outputs,
     /// including P2SH embedded ones.
     pub witness_utxo: Option<TxOut>,
     /// A map from public keys to their corresponding signature as would be
@@ -264,7 +264,7 @@ pub struct Input {
     pub issuance_value_rangeproof: Option<Box<RangeProof>>,
     /// Issuance keys rangeproof
     pub issuance_keys_rangeproof: Option<Box<RangeProof>>,
-    /// Pegin Transaction. Should be a bitcoin::Transaction
+    /// Pegin Transaction. Should be a `bitcoin::Transaction`
     pub pegin_tx: Option<bitcoin::Transaction>,
     /// Pegin Transaction proof
     // TODO: Look for Merkle proof structs
@@ -317,7 +317,56 @@ pub struct Input {
 
 impl Default for Input {
     fn default() -> Self {
-        Self { non_witness_utxo: Default::default(), witness_utxo: Default::default(), partial_sigs: Default::default(), sighash_type: Default::default(), redeem_script: Default::default(), witness_script: Default::default(), bip32_derivation: Default::default(), final_script_sig: Default::default(), final_script_witness: Default::default(), ripemd160_preimages: Default::default(), sha256_preimages: Default::default(), hash160_preimages: Default::default(), hash256_preimages: Default::default(), previous_txid: Txid::all_zeros(), previous_output_index: Default::default(), sequence: Default::default(), required_time_locktime: Default::default(), required_height_locktime: Default::default(), tap_key_sig: Default::default(), tap_script_sigs: Default::default(), tap_scripts: Default::default(), tap_key_origins: Default::default(), tap_internal_key: Default::default(), tap_merkle_root: Default::default(), issuance_value_amount: Default::default(), issuance_value_comm: Default::default(), issuance_value_rangeproof: Default::default(), issuance_keys_rangeproof: Default::default(), pegin_tx: Default::default(), pegin_txout_proof: Default::default(), pegin_genesis_hash: Default::default(), pegin_claim_script: Default::default(), pegin_value: Default::default(), pegin_witness: Default::default(), issuance_inflation_keys: Default::default(), issuance_inflation_keys_comm: Default::default(), issuance_blinding_nonce: Default::default(), issuance_asset_entropy: Default::default(), in_utxo_rangeproof: Default::default(), in_issuance_blind_value_proof: Default::default(), in_issuance_blind_inflation_keys_proof: Default::default(), amount: Default::default(), blind_value_proof: Default::default(), asset: Default::default(), blind_asset_proof: Default::default(), blinded_issuance: Default::default(), proprietary: Default::default(), unknown: Default::default() }
+        Self {
+            non_witness_utxo: None,
+            witness_utxo: None,
+            partial_sigs: BTreeMap::new(),
+            sighash_type: None,
+            redeem_script: None,
+            witness_script: None,
+            bip32_derivation: BTreeMap::new(),
+            final_script_sig: None,
+            final_script_witness: None,
+            ripemd160_preimages: BTreeMap::new(),
+            sha256_preimages: BTreeMap::new(),
+            hash160_preimages: BTreeMap::new(),
+            hash256_preimages: BTreeMap::new(),
+            previous_txid: Txid::all_zeros(),
+            previous_output_index: 0,
+            sequence: None,
+            required_time_locktime: None,
+            required_height_locktime: None,
+            tap_key_sig: None,
+            tap_script_sigs: BTreeMap::new(),
+            tap_scripts: BTreeMap::new(),
+            tap_key_origins: BTreeMap::new(),
+            tap_internal_key: None,
+            tap_merkle_root: None,
+            issuance_value_amount: None,
+            issuance_value_comm: None,
+            issuance_value_rangeproof: None,
+            issuance_keys_rangeproof: None,
+            pegin_tx: None,
+            pegin_txout_proof: None,
+            pegin_genesis_hash: None,
+            pegin_claim_script: None,
+            pegin_value: None,
+            pegin_witness: None,
+            issuance_inflation_keys: None,
+            issuance_inflation_keys_comm: None,
+            issuance_blinding_nonce: None,
+            issuance_asset_entropy: None,
+            in_utxo_rangeproof: None,
+            in_issuance_blind_value_proof: None,
+            in_issuance_blind_inflation_keys_proof: None,
+            amount: None,
+            blind_value_proof: None,
+            asset: None,
+            blind_asset_proof: None,
+            blinded_issuance: None,
+            proprietary: BTreeMap::new(),
+            unknown: BTreeMap::new(),
+        }
     }
 }
 
@@ -430,8 +479,10 @@ impl Input {
     /// If the `sighash_type` field is set to a non-standard ECDSA sighash value.
     pub fn ecdsa_hash_ty(&self) -> Option<EcdsaSighashType> {
         self.sighash_type
-            .map(|sighash_type| sighash_type.ecdsa_hash_ty())
-            .unwrap_or(Some(EcdsaSighashType::All))
+            .map_or(
+                Some(EcdsaSighashType::All),
+                PsbtSighashType::ecdsa_hash_ty,
+            )
     }
 
     /// Obtains the [`SchnorrSighashType`] for this input if one is specified. If no sighash type is
@@ -442,8 +493,10 @@ impl Input {
     /// If the `sighash_type` field is set to a invalid Schnorr sighash value.
     pub fn schnorr_hash_ty(&self) -> Option<SchnorrSighashType> {
         self.sighash_type
-            .map(|sighash_type| sighash_type.schnorr_hash_ty())
-            .unwrap_or(Some(SchnorrSighashType::Default))
+            .map_or(
+                Some(SchnorrSighashType::Default),
+                PsbtSighashType::schnorr_hash_ty,
+            )
     }
 
     /// Create a psbt input from prevout
@@ -456,7 +509,7 @@ impl Input {
         }
     }
 
-    /// Create a pset input from TxIn
+    /// Create a pset input from `TxIn`
     pub fn from_txin(txin: TxIn) -> Self {
         let mut ret = Self::from_prevout(txin.previous_output);
         let has_issuance = txin.has_issuance();
@@ -481,7 +534,7 @@ impl Input {
                 confidential::Value::Null => {}
                 confidential::Value::Explicit(x) => ret.issuance_inflation_keys = Some(x),
                 confidential::Value::Confidential(comm) => {
-                    ret.issuance_inflation_keys_comm = Some(comm)
+                    ret.issuance_inflation_keys_comm = Some(comm);
                 }
             }
 
@@ -493,7 +546,7 @@ impl Input {
     }
 
     /// Compute the issuance asset ids from pset. This function does not check
-    /// whether there is an issuance in this input. Returns (asset_id, token_id)
+    /// whether there is an issuance in this input. Returns (`asset_id`, `token_id`)
     pub fn issuance_ids(&self) -> (AssetId, AssetId) {
         let issue_nonce = self.issuance_blinding_nonce.unwrap_or(ZERO_TWEAK);
         let entropy = if issue_nonce == ZERO_TWEAK {
@@ -605,7 +658,7 @@ impl Map for Input {
                 pset_insert_hash_pair(
                     &mut self.ripemd160_preimages,
                     raw_key,
-                    raw_value,
+                    &raw_value,
                     error::PsetHash::Ripemd,
                 )?;
             }
@@ -613,7 +666,7 @@ impl Map for Input {
                 pset_insert_hash_pair(
                     &mut self.sha256_preimages,
                     raw_key,
-                    raw_value,
+                    &raw_value,
                     error::PsetHash::Sha256,
                 )?;
             }
@@ -621,7 +674,7 @@ impl Map for Input {
                 pset_insert_hash_pair(
                     &mut self.hash160_preimages,
                     raw_key,
-                    raw_value,
+                    &raw_value,
                     error::PsetHash::Hash160,
                 )?;
             }
@@ -629,7 +682,7 @@ impl Map for Input {
                 pset_insert_hash_pair(
                     &mut self.hash256_preimages,
                     raw_key,
-                    raw_value,
+                    &raw_value,
                     error::PsetHash::Hash256,
                 )?;
             }
@@ -682,75 +735,75 @@ impl Map for Input {
                 }
             }
             PSET_IN_PROPRIETARY => {
-                let prop_key = raw::ProprietaryKey::from_key(raw_key.clone())?;
+                let prop_key = raw::ProprietaryKey::from_key(&raw_key)?;
                 if prop_key.is_pset_key() {
                     match prop_key.subtype {
                         PSBT_ELEMENTS_IN_ISSUANCE_VALUE => {
-                            impl_pset_prop_insert_pair!(self.issuance_value_amount <= <raw_key: _> | <raw_value : u64>)
+                            impl_pset_prop_insert_pair!(self.issuance_value_amount <= <raw_key: _> | <raw_value : u64>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_VALUE_COMMITMENT => {
-                            impl_pset_prop_insert_pair!(self.issuance_value_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>)
+                            impl_pset_prop_insert_pair!(self.issuance_value_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_VALUE_RANGEPROOF => {
-                            impl_pset_prop_insert_pair!(self.issuance_value_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
+                            impl_pset_prop_insert_pair!(self.issuance_value_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_KEYS_RANGEPROOF => {
-                            impl_pset_prop_insert_pair!(self.issuance_keys_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
+                            impl_pset_prop_insert_pair!(self.issuance_keys_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
                         }
                         PSBT_ELEMENTS_IN_PEG_IN_TX => {
-                            impl_pset_prop_insert_pair!(self.pegin_tx <= <raw_key: _> | <raw_value : bitcoin::Transaction>)
+                            impl_pset_prop_insert_pair!(self.pegin_tx <= <raw_key: _> | <raw_value : bitcoin::Transaction>);
                         }
                         // No support for TxOutProof struct yet
                         PSBT_ELEMENTS_IN_PEG_IN_TXOUT_PROOF => {
-                            impl_pset_prop_insert_pair!(self.pegin_txout_proof <= <raw_key: _> | <raw_value : Vec<u8>>)
+                            impl_pset_prop_insert_pair!(self.pegin_txout_proof <= <raw_key: _> | <raw_value : Vec<u8>>);
                         }
                         PSBT_ELEMENTS_IN_PEG_IN_GENESIS => {
-                            impl_pset_prop_insert_pair!(self.pegin_genesis_hash <= <raw_key: _> | <raw_value : BlockHash>)
+                            impl_pset_prop_insert_pair!(self.pegin_genesis_hash <= <raw_key: _> | <raw_value : BlockHash>);
                         }
                         PSBT_ELEMENTS_IN_PEG_IN_CLAIM_SCRIPT => {
-                            impl_pset_prop_insert_pair!(self.pegin_claim_script <= <raw_key: _> | <raw_value : Script>)
+                            impl_pset_prop_insert_pair!(self.pegin_claim_script <= <raw_key: _> | <raw_value : Script>);
                         }
                         PSBT_ELEMENTS_IN_PEG_IN_VALUE => {
-                            impl_pset_prop_insert_pair!(self.pegin_value <= <raw_key: _> | <raw_value : u64>)
+                            impl_pset_prop_insert_pair!(self.pegin_value <= <raw_key: _> | <raw_value : u64>);
                         }
                         PSBT_ELEMENTS_IN_PEG_IN_WITNESS => {
-                            impl_pset_prop_insert_pair!(self.pegin_witness <= <raw_key: _> | <raw_value : Vec<Vec<u8>>>)
+                            impl_pset_prop_insert_pair!(self.pegin_witness <= <raw_key: _> | <raw_value : Vec<Vec<u8>>>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS => {
-                            impl_pset_prop_insert_pair!(self.issuance_inflation_keys <= <raw_key: _> | <raw_value : u64>)
+                            impl_pset_prop_insert_pair!(self.issuance_inflation_keys <= <raw_key: _> | <raw_value : u64>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_INFLATION_KEYS_COMMITMENT => {
-                            impl_pset_prop_insert_pair!(self.issuance_inflation_keys_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>)
+                            impl_pset_prop_insert_pair!(self.issuance_inflation_keys_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_BLINDING_NONCE => {
-                            impl_pset_prop_insert_pair!(self.issuance_blinding_nonce <= <raw_key: _> | <raw_value : Tweak>)
+                            impl_pset_prop_insert_pair!(self.issuance_blinding_nonce <= <raw_key: _> | <raw_value : Tweak>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_ASSET_ENTROPY => {
-                            impl_pset_prop_insert_pair!(self.issuance_asset_entropy <= <raw_key: _> | <raw_value : [u8;32]>)
+                            impl_pset_prop_insert_pair!(self.issuance_asset_entropy <= <raw_key: _> | <raw_value : [u8;32]>);
                         }
                         PSBT_ELEMENTS_IN_UTXO_RANGEPROOF => {
-                            impl_pset_prop_insert_pair!(self.in_utxo_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
+                            impl_pset_prop_insert_pair!(self.in_utxo_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF => {
-                            impl_pset_prop_insert_pair!(self.in_issuance_blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
+                            impl_pset_prop_insert_pair!(self.in_issuance_blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF => {
-                            impl_pset_prop_insert_pair!(self.in_issuance_blind_inflation_keys_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
+                            impl_pset_prop_insert_pair!(self.in_issuance_blind_inflation_keys_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
                         }
                         PSBT_ELEMENTS_IN_EXPLICIT_VALUE => {
-                            impl_pset_prop_insert_pair!(self.amount <= <raw_key: _> | <raw_value : u64>)
+                            impl_pset_prop_insert_pair!(self.amount <= <raw_key: _> | <raw_value : u64>);
                         }
                         PSBT_ELEMENTS_IN_VALUE_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>)
+                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
                         }
                         PSBT_ELEMENTS_IN_EXPLICIT_ASSET => {
-                            impl_pset_prop_insert_pair!(self.asset <= <raw_key: _> | <raw_value : AssetId>)
+                            impl_pset_prop_insert_pair!(self.asset <= <raw_key: _> | <raw_value : AssetId>);
                         }
                         PSBT_ELEMENTS_IN_ASSET_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>)
+                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>);
                         }
                         PSBT_ELEMENTS_IN_BLINDED_ISSUANCE => {
-                            impl_pset_prop_insert_pair!(self.blinded_issuance <= <raw_key: _> | <raw_value : u8>)
+                            impl_pset_prop_insert_pair!(self.blinded_issuance <= <raw_key: _> | <raw_value : u8>);
                         }
                         _ => match self.proprietary.entry(prop_key) {
                             Entry::Vacant(empty_key) => {
@@ -783,7 +836,7 @@ impl Map for Input {
     }
 
     fn get_pairs(&self) -> Result<Vec<raw::Pair>, encode::Error> {
-        let mut rv: Vec<raw::Pair> = Default::default();
+        let mut rv: Vec<raw::Pair> = Vec::default();
 
         impl_pset_get_pair! {
             rv.push(self.non_witness_utxo as <PSET_IN_NON_WITNESS_UTXO, _>)
@@ -980,14 +1033,14 @@ impl Map for Input {
             rv.push_prop(self.blinded_issuance as <PSBT_ELEMENTS_IN_BLINDED_ISSUANCE, _>)
         }
 
-        for (key, value) in self.proprietary.iter() {
+        for (key, value) in &self.proprietary {
             rv.push(raw::Pair {
                 key: key.to_key(),
                 value: value.clone(),
             });
         }
 
-        for (key, value) in self.unknown.iter() {
+        for (key, value) in &self.unknown {
             rv.push(raw::Pair {
                 key: key.clone(),
                 value: value.clone(),
@@ -1120,7 +1173,7 @@ impl Decodable for Input {
 fn pset_insert_hash_pair<H>(
     map: &mut BTreeMap<H, Vec<u8>>,
     raw_key: raw::Key,
-    raw_value: Vec<u8>,
+    raw_value: &[u8],
     hash_type: error::PsetHash,
 ) -> Result<(), encode::Error>
 where
@@ -1132,7 +1185,7 @@ where
     let key_val: H = serialize::Deserialize::deserialize(&raw_key.key)?;
     match map.entry(key_val) {
         Entry::Vacant(empty_key) => {
-            let val: Vec<u8> = serialize::Deserialize::deserialize(&raw_value)?;
+            let val: Vec<u8> = serialize::Deserialize::deserialize(raw_value)?;
             if <H as hashes::Hash>::hash(&val) != key_val {
                 return Err(pset::Error::InvalidPreimageHashPair {
                     preimage: val,

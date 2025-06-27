@@ -77,7 +77,7 @@ macro_rules! impl_psetmap_consensus_encoding {
 #[rustfmt::skip]
 macro_rules! impl_pset_prop_insert_pair {
     ($slf:ident.$unkeyed_name:ident <= <$raw_key:ident: _>|<$raw_value:ident: $unkeyed_value_type:ty>) => {
-        if $crate::pset::raw::ProprietaryKey::<u8>::from_key($raw_key.clone())?.key.is_empty() {
+        if $crate::pset::raw::ProprietaryKey::<u8>::from_key(&$raw_key)?.key.is_empty() {
             if $slf.$unkeyed_name.is_none() {
                 let val: $unkeyed_value_type = $crate::pset::serialize::Deserialize::deserialize(&$raw_value)?;
                 $slf.$unkeyed_name = Some(val)

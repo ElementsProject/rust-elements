@@ -430,13 +430,14 @@ impl Address {
                 version: witver,
                 program: ref witprog,
             } => script::Builder::new()
-                .push_int(witver.to_u8() as i64)
+                .push_int(i64::from(witver.to_u8()))
                 .push_slice(witprog),
         }
         .into_script()
     }
 
     /// Convert this address to an unconfidential address.
+    #[must_use]
     pub fn to_unconfidential(&self) -> Address {
         Address {
             params: self.params,
@@ -446,6 +447,7 @@ impl Address {
     }
 
     /// Convert this address to a confidential address with the given blinding pubkey.
+    #[must_use]
     pub fn to_confidential(&self, blinding_pubkey: secp256k1_zkp::PublicKey) -> Address {
         Address {
             params: self.params,
@@ -492,19 +494,11 @@ impl Address {
         // When blinded, the structure is:
         // <1: blinding prefix> <1: regular prefix> <33: blinding pubkey> <20: hash160>
 
-        let (blinded, prefix) = match data[0] == params.blinded_prefix {
-            true => {
-                if data.len() != 55 {
-                    return Err(AddressError::InvalidLength(data.len()));
-                }
-                (true, data[1])
-            }
-            false => {
-                if data.len() != 21 {
-                    return Err(AddressError::InvalidLength(data.len()));
-                }
-                (false, data[0])
-            }
+        let blinded = data[0] == params.blinded_prefix;
+        let prefix = match (blinded, data.len()) {
+            (true, 55) => data[1],
+            (false, 21) => data[0],
+            (_, len) => return Err(AddressError::InvalidLength(len)),
         };
 
         let (blinding_pubkey, payload_data) = match blinded {
@@ -534,7 +528,7 @@ impl Address {
     }
 
     /// Parse the address using the given parameters.
-    /// When using the built-in parameters, you can use [FromStr].
+    /// When using the built-in parameters, you can use [`FromStr`].
     pub fn parse_with_params(
         s: &str,
         params: &'static AddressParams,
@@ -670,14 +664,10 @@ fn find_prefix(bech32: &str) -> &str {
 /// The first prefix can be mixed case, but the second one is expected in
 /// lower case.
 fn match_prefix(prefix_mixed: &str, target: Hrp) -> bool {
-    if target.len() != prefix_mixed.len() {
-        false
-    } else {
-        target
-            .lowercase_char_iter()
-            .zip(prefix_mixed.chars())
-            .all(|(char_lower, char_mixed)| char_lower == char_mixed.to_ascii_lowercase())
-    }
+    target.len() == prefix_mixed.len() && target
+        .lowercase_char_iter()
+        .zip(prefix_mixed.chars())
+        .all(|(char_lower, char_mixed)| char_lower == char_mixed.to_ascii_lowercase())
 }
 
 impl FromStr for Address {
@@ -692,7 +682,7 @@ impl FromStr for Address {
         let net_arr = [liq, ele, liq_test];
 
         let prefix = find_prefix(s);
-        for net in net_arr.iter() {
+        for net in &net_arr {
             // Bech32.
             if match_prefix(prefix, net.bech_hrp) {
                 return Address::from_bech32(s, false, net);
@@ -712,7 +702,7 @@ impl FromStr for Address {
         }
 
         let p = data[0];
-        for net in net_arr.iter() {
+        for net in &net_arr {
             if p == net.p2pkh_prefix || p == net.p2sh_prefix || p == net.blinded_prefix {
                 return Address::from_base58(&data, net);
             }

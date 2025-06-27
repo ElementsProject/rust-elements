@@ -33,9 +33,10 @@ use crate::encode::{self, Decodable, Encodable};
 use crate::issuance::AssetId;
 
 /// A CT commitment to an amount
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Value {
     /// No value
+    #[default]
     Null,
     /// Value is explicitly encoded
     Explicit(u64),
@@ -99,7 +100,7 @@ impl Value {
     }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [Value::is_explicit] returns false.
+    /// Returns [None] if [`Value::is_explicit`] returns false.
     pub fn explicit(&self) -> Option<u64> {
         match *self {
             Value::Explicit(i) => Some(i),
@@ -108,7 +109,7 @@ impl Value {
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [Value::is_confidential] returns false.
+    /// Returns [None] if [`Value::is_confidential`] returns false.
     pub fn commitment(&self) -> Option<PedersenCommitment> {
         match *self {
             Value::Confidential(i) => Some(i),
@@ -130,12 +131,6 @@ impl fmt::Display for Value {
             Value::Explicit(n) => write!(f, "{}", n),
             Value::Confidential(commitment) => write!(f, "{:02x}", commitment),
         }
-    }
-}
-
-impl Default for Value {
-    fn default() -> Self {
-        Value::Null
     }
 }
 
@@ -252,9 +247,10 @@ impl<'de> Deserialize<'de> for Value {
 }
 
 /// A CT commitment to an asset
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Asset {
     /// No value
+    #[default]
     Null,
     /// Asset entropy is explicitly encoded
     Explicit(AssetId),
@@ -306,7 +302,7 @@ impl Asset {
     }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [Asset::is_explicit] returns false.
+    /// Returns [None] if [`Asset::is_explicit`] returns false.
     pub fn explicit(&self) -> Option<AssetId> {
         match *self {
             Asset::Explicit(i) => Some(i),
@@ -315,7 +311,7 @@ impl Asset {
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [Asset::is_confidential] returns false.
+    /// Returns [None] if [`Asset::is_confidential`] returns false.
     pub fn commitment(&self) -> Option<Generator> {
         match *self {
             Asset::Confidential(i) => Some(i),
@@ -359,13 +355,6 @@ impl fmt::Display for Asset {
         }
     }
 }
-
-impl Default for Asset {
-    fn default() -> Self {
-        Asset::Null
-    }
-}
-
 
 impl Encodable for Asset {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
@@ -481,9 +470,10 @@ impl<'de> Deserialize<'de> for Asset {
 }
 
 /// A CT commitment to an output nonce (i.e. a public key)
-#[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
+#[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Nonce {
     /// No value
+    #[default]
     Null,
     /// There should be no such thing as an "explicit nonce", but Elements will deserialize
     /// such a thing (and insists that its size be 32 bytes). So we stick a 32-byte type here
@@ -504,7 +494,7 @@ impl Nonce {
         Self::with_ephemeral_sk(secp, ephemeral_sk, receiver_blinding_pk)
     }
 
-    /// Similar to [Nonce::new_confidential], but with a given `ephemeral_sk`
+    /// Similar to [`Nonce::new_confidential`], but with a given `ephemeral_sk`
     /// instead of sampling it from rng.
     pub fn with_ephemeral_sk<C: Signing>(
         secp: &Secp256k1<C>,
@@ -579,7 +569,7 @@ impl Nonce {
     }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [Nonce::is_explicit] returns false.
+    /// Returns [None] if [`Nonce::is_explicit`] returns false.
     pub fn explicit(&self) -> Option<[u8; 32]> {
         match *self {
             Nonce::Explicit(i) => Some(i),
@@ -588,7 +578,7 @@ impl Nonce {
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [Nonce::is_confidential] returns false.
+    /// Returns [None] if [`Nonce::is_confidential`] returns false.
     pub fn commitment(&self) -> Option<PublicKey> {
         match *self {
             Nonce::Confidential(i) => Some(i),
@@ -608,19 +598,13 @@ impl fmt::Display for Nonce {
         match *self {
             Nonce::Null => f.write_str("null"),
             Nonce::Explicit(n) => {
-                for b in n.iter() {
+                for b in &n {
                     write!(f, "{:02x}", b)?;
                 }
                 Ok(())
             }
             Nonce::Confidential(pk) => write!(f, "{:02x}", pk),
         }
-    }
-}
-
-impl Default for Nonce {
-    fn default() -> Self {
-        Nonce::Null
     }
 }
 
@@ -756,7 +740,7 @@ impl AssetBlindingFactor {
         self.0
     }
 
-    /// Get a unblinded/zero AssetBlinding factor
+    /// Get a unblinded/zero `AssetBlinding` factor
     pub fn zero() -> Self {
         AssetBlindingFactor(ZERO_TWEAK)
     }
@@ -857,13 +841,14 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
                 where
                     E: ::serde::de::Error,
                 {
-                    if v.len() != 32 {
-                        Err(E::invalid_length(v.len(), &stringify!($len)))
-                    } else {
-                        let mut ret = [0; 32];
-                        ret.copy_from_slice(v);
-                        let inner = Tweak::from_inner(ret).map_err(E::custom)?;
-                        Ok(AssetBlindingFactor(inner))
+                    use core::convert::TryFrom;
+
+                    match <[u8; 32]>::try_from(v) {
+                        Ok(ret) => {
+                            let inner = Tweak::from_inner(ret).map_err(E::custom)?;
+                            Ok(AssetBlindingFactor(inner))
+                        }
+                        Err(_) => Err(E::invalid_length(v.len(), &stringify!($len))),
                     }
                 }
             }
@@ -923,7 +908,7 @@ impl ValueBlindingFactor {
         self.0
     }
 
-    /// Get a unblinded/zero AssetBlinding factor
+    /// Get a unblinded/zero `AssetBlinding` factor
     pub fn zero() -> Self {
         ValueBlindingFactor(ZERO_TWEAK)
     }
@@ -1060,13 +1045,14 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
                 where
                     E: ::serde::de::Error,
                 {
-                    if v.len() != 32 {
-                        Err(E::invalid_length(v.len(), &stringify!($len)))
-                    } else {
-                        let mut ret = [0; 32];
-                        ret.copy_from_slice(v);
-                        let inner = Tweak::from_inner(ret).map_err(E::custom)?;
-                        Ok(ValueBlindingFactor(inner))
+                    use core::convert::TryFrom;
+
+                    match <[u8; 32]>::try_from(v) {
+                        Ok(ret) => {
+                            let inner = Tweak::from_inner(ret).map_err(E::custom)?;
+                            Ok(ValueBlindingFactor(inner))
+                        }
+                        Err(_) => Err(E::invalid_length(v.len(), &stringify!($len))),
                     }
                 }
             }
@@ -1182,7 +1168,7 @@ mod tests {
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
-                Token::U64(63601271583539200),
+                Token::U64(63_601_271_583_539_200),
                 Token::SeqEnd
             ]
         );

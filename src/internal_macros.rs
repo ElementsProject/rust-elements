@@ -211,7 +211,7 @@ macro_rules! serde_string_impl {
     };
 }
 
-/// A combination of serde_struct_impl and serde_string_impl where string is
+/// A combination of `serde_struct_impl` and `serde_string_impl` where string is
 /// used for human-readable serialization and struct is used for
 /// non-human-readable serialization.
 macro_rules! serde_struct_human_string_impl {

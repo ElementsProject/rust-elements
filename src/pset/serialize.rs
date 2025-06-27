@@ -166,8 +166,8 @@ impl Serialize for KeySource {
 
         rv.append(&mut self.0.to_bytes().to_vec());
 
-        for cnum in self.1.into_iter() {
-            rv.append(&mut serialize(&u32::from(*cnum)))
+        for cnum in &self.1 {
+            rv.append(&mut serialize(&u32::from(*cnum)));
         }
 
         rv
@@ -182,7 +182,7 @@ impl Deserialize for KeySource {
         };
 
         let fprint: Fingerprint = Fingerprint::from(prefix);
-        let mut dpath: Vec<ChildNumber> = Default::default();
+        let mut dpath: Vec<ChildNumber> = Vec::default();
 
         let mut d = &bytes[4..];
         while !d.is_empty() {
@@ -227,7 +227,7 @@ impl Serialize for confidential::Value {
         match self {
             confidential::Value::Null => vec![], // should never be invoked
             confidential::Value::Explicit(x) => Serialize::serialize(x),
-            y => encode::serialize(y), // confidential can serialized as is
+            confidential::Value::Confidential(_) => encode::serialize(self), // confidential can serialized as is
         }
     }
 }
@@ -272,7 +272,7 @@ impl Serialize for confidential::Asset {
         match self {
             confidential::Asset::Null => vec![], // should never be invoked
             confidential::Asset::Explicit(x) => Serialize::serialize(x),
-            y => encode::serialize(y), // confidential can serialized as is
+            confidential::Asset::Confidential(_) => encode::serialize(self), // confidential can serialized as is
         }
     }
 }
@@ -438,7 +438,7 @@ impl Serialize for TapTree {
         match (self.0.branch().len(), self.0.branch().last()) {
             (1, Some(Some(root))) => {
                 let mut buf = Vec::new();
-                for leaf_info in root.leaves.iter() {
+                for leaf_info in &root.leaves {
                     // # Cast Safety:
                     //
                     // TaprootMerkleBranch can only have len atmost 128(TAPROOT_CONTROL_MAX_NODE_COUNT).

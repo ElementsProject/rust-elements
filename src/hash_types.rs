@@ -15,7 +15,7 @@
 //! File defines types for hashes used throughout the library.
 //!
 //! These types are needed in order
-//! to avoid mixing data of the same hash format (like SHA256d) but of different meaning
+//! to avoid mixing data of the same hash format (like `SHA256d`) but of different meaning
 //! (transaction id, block hash etc).
 
 use crate::hashes::{hash160, hash_newtype, sha256, sha256d, Hash};

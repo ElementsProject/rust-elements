@@ -100,7 +100,7 @@ impl<W: io::Write + ?Sized> WriteExt for W {
     }
     #[inline]
     fn emit_bool(&mut self, v: bool) -> Result<(), io::Error> {
-        self.write_all(&[v as u8])
+        self.write_all(&[u8::from(v)])
     }
     #[inline]
     fn emit_slice(&mut self, v: &[u8]) -> Result<usize, io::Error> {
@@ -119,7 +119,7 @@ impl<W: io::Write + ?Sized> WriteExt for W {
                 self.emit_u16(i as u16)?;
                 Ok(3)
             }
-            i @ 0x10000..=0xFFFFFFFF => {
+            i @ 0x10000..=0xFFFF_FFFF => {
                 self.emit_u8(0xFE)?;
                 self.emit_u32(i as u32)?;
                 Ok(5)
@@ -166,7 +166,7 @@ impl<R: io::Read + ?Sized> ReadExt for R {
         match self.read_u8()? {
             0xFF => {
                 let x = self.read_u64()?;
-                if x < 0x100000000 {
+                if x < 0x1_0000_0000 {
                     Err(encode::Error::NonMinimalVarInt)
                 } else {
                     Ok(x)
@@ -177,7 +177,7 @@ impl<R: io::Read + ?Sized> ReadExt for R {
                 if x < 0x10000 {
                     Err(encode::Error::NonMinimalVarInt)
                 } else {
-                    Ok(x as u64)
+                    Ok(u64::from(x))
                 }
             }
             0xFD => {
@@ -185,10 +185,10 @@ impl<R: io::Read + ?Sized> ReadExt for R {
                 if x < 0xFD {
                     Err(encode::Error::NonMinimalVarInt)
                 } else {
-                    Ok(x as u64)
+                    Ok(u64::from(x))
                 }
             }
-            n => Ok(n as u64),
+            n => Ok(u64::from(n)),
         }
     }
 }

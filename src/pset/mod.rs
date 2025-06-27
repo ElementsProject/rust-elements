@@ -96,7 +96,7 @@ impl PartiallySignedTransaction {
             .collect();
         Self { global, inputs, outputs }
     }
-    /// Create a PartiallySignedTransaction with zero inputs
+    /// Create a `PartiallySignedTransaction` with zero inputs
     /// zero outputs with a version 2 and tx version 2
     pub fn new_v2() -> Self {
         PartiallySignedTransaction {
@@ -257,7 +257,7 @@ impl PartiallySignedTransaction {
         // changed by Updaters and Combiners, the sequence number in this unsigned
         // transaction must be set to 0 (not final, nor the sequence in PSBT_IN_SEQUENCE).
         // The lock time in this unsigned transaction must be computed as described previously.
-        for inp in tx.input.iter_mut() {
+        for inp in &mut tx.input {
             inp.sequence = Sequence::from_height(0);
         }
         Ok(tx.txid())
@@ -274,7 +274,7 @@ impl PartiallySignedTransaction {
         }
     }
 
-    /// Extract the Transaction from a PartiallySignedTransaction by filling in
+    /// Extract the Transaction from a `PartiallySignedTransaction` by filling in
     /// the available signature information in place.
     pub fn extract_tx(&self) -> Result<Transaction, Error> {
         // This should never trigger any error, should be panic here?
@@ -283,7 +283,7 @@ impl PartiallySignedTransaction {
         let mut inputs = vec![];
         let mut outputs = vec![];
 
-        for psetin in self.inputs.iter() {
+        for psetin in &self.inputs {
             let txin = TxIn {
                 previous_output: OutPoint::new(psetin.previous_txid, psetin.previous_output_index),
                 is_pegin: psetin.is_pegin(),
@@ -296,19 +296,19 @@ impl PartiallySignedTransaction {
                     script_witness: psetin
                         .final_script_witness
                         .as_ref()
-                        .map(|x| x.to_owned())
+                        .map(Vec::to_owned)
                         .unwrap_or_default(),
                     pegin_witness: psetin
                         .pegin_witness
                         .as_ref()
-                        .map(|x| x.to_owned())
+                        .map(Vec::to_owned)
                         .unwrap_or_default(),
                 },
             };
             inputs.push(txin);
         }
 
-        for out in self.outputs.iter() {
+        for out in &self.outputs {
             let txout = TxOut {
                 asset: match (out.asset_comm, out.asset) {
                     (Some(gen), _) => confidential::Asset::Confidential(gen),
@@ -402,8 +402,8 @@ impl PartiallySignedTransaction {
 
         // collect input factors
         let inp_secrets = inp_txout_sec
-            .iter()
-            .map(|(_i, sec)| (sec.value, sec.asset_bf, sec.value_bf))
+            .values()
+            .map(|sec| (sec.value, sec.asset_bf, sec.value_bf))
             .collect::<Vec<_>>();
 
         Ok((inp_secrets, blind_out_indices))
@@ -441,7 +441,7 @@ impl PartiallySignedTransaction {
                         value: 0, // This value really does not matter in surjection proofs
                         value_bf: ValueBlindingFactor::zero(),
                     };
-                    ret.push(SurjectionInput::from_txout_secrets(secrets))
+                    ret.push(SurjectionInput::from_txout_secrets(secrets));
                 }
                 if inp.issuance_inflation_keys.is_some()
                     || inp.issuance_inflation_keys_comm.is_some()
@@ -452,7 +452,7 @@ impl PartiallySignedTransaction {
                         value: 0, // This value really does not matter in surjection proofs
                         value_bf: ValueBlindingFactor::zero(),
                     };
-                    ret.push(SurjectionInput::from_txout_secrets(secrets))
+                    ret.push(SurjectionInput::from_txout_secrets(secrets));
                 }
             }
         }
@@ -463,8 +463,8 @@ impl PartiallySignedTransaction {
     /// should call the `blind_last` function which balances the blinding factors
     /// `inp_secrets` and must be consistent by [`Output`] `blinder_index` field
     /// For each output that is to be blinded, the following must be true
-    /// 1. The blinder_index must be set in pset output field
-    /// 2. the corresponding inp_secrets\[out.blinder_index\] must be present
+    /// 1. The `blinder_index` must be set in pset output field
+    /// 2. the corresponding `inp_secrets`\[`out.blinder_index`\] must be present
     ///
     /// Issuances and re-issuance inputs are not blinded.
     /// # Parameters
@@ -569,7 +569,7 @@ impl PartiallySignedTransaction {
     /// This function balances the blinding factors with partial information about
     /// blinding inputs and scalars from [`Global`] scalars field.
     /// `inp_secrets` and `out_secrets` must be consistent by [`Output`] `blinder_index` field
-    /// For each output, the corresponding inp_secrets\[out.blinder_index\] must be present
+    /// For each output, the corresponding `inp_secrets`\[`out.blinder_index`\] must be present
     /// # Parameters
     ///
     /// * `inp_secrets`: [`TxOutSecrets`] corresponding to owned inputs. Use [`None`] for non-owned outputs
@@ -634,7 +634,7 @@ impl PartiallySignedTransaction {
             ValueBlindingFactor::last(secp, value, out_abf, &inp_secrets, &exp_out_secrets);
 
         // Add all the scalars
-        for value_diff in self.global.scalars.iter() {
+        for value_diff in &self.global.scalars {
             final_vbf += ValueBlindingFactor(*value_diff);
         }
 
@@ -688,7 +688,7 @@ impl PartiallySignedTransaction {
                     .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?,
             ));
 
-            self.global.scalars.clear()
+            self.global.scalars.clear();
         }
         Ok(())
     }

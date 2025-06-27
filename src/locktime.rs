@@ -11,7 +11,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-//! Provides type [`LockTime`] that implements the logic around nLockTime/OP_CHECKLOCKTIMEVERIFY.
+//! Provides type [`LockTime`] that implements the logic around `nLockTime/OP_CHECKLOCKTIMEVERIFY`.
 //!
 //! There are two types of lock time: lock-by-blockheight and lock-by-blocktime, distinguished by
 //! whether `LockTime < LOCKTIME_THRESHOLD`.
@@ -45,7 +45,7 @@ pub const LOCK_TIME_THRESHOLD: u32 = 500_000_000;
 /// A lock time value, representing either a block height or a UNIX timestamp (seconds since epoch).
 ///
 /// Used for transaction lock time (`nLockTime` in Bitcoin Core and [`crate::Transaction::lock_time`]
-/// in this library) and also for the argument to opcode 'OP_CHECKLOCKTIMEVERIFY`.
+/// in this library) and also for the argument to opcode `OP_CHECKLOCKTIMEVERIFY`.
 ///
 /// ### Relevant BIPs
 ///
@@ -54,13 +54,13 @@ pub const LOCK_TIME_THRESHOLD: u32 = 500_000_000;
 ///
 /// # Examples
 /// ```
-/// # use elements::{LockTime, LockTime::*};
+/// # use elements::LockTime;
 /// # let n = LockTime::from_consensus(100);          // n OP_CHECKLOCKTIMEVERIFY
 /// # let lock_time = LockTime::from_consensus(100);  // nLockTime
 /// // To compare lock times there are various `is_satisfied_*` methods, you may also use:
 /// let is_satisfied = match (n, lock_time) {
-///     (Blocks(n), Blocks(lock_time)) => n <= lock_time,
-///     (Seconds(n), Seconds(lock_time)) => n <= lock_time,
+///     (LockTime::Blocks(n), LockTime::Blocks(lock_time)) => n <= lock_time,
+///     (LockTime::Seconds(n), LockTime::Seconds(lock_time)) => n <= lock_time,
 ///     _ => panic!("handle invalid comparison error"),
 /// };
 /// ```
@@ -100,7 +100,7 @@ impl LockTime {
     /// transaction with nLocktime==0 is able to be included immediately in any block.
     pub const ZERO: LockTime = LockTime::Blocks(Height(0));
 
-    /// Constructs a `LockTime` from an nLockTime value or the argument to OP_CHEKCLOCKTIMEVERIFY.
+    /// Constructs a `LockTime` from an nLockTime value or the argument to `OP_CHEKCLOCKTIMEVERIFY`.
     ///
     /// # Examples
     ///
@@ -197,11 +197,9 @@ impl LockTime {
     /// ````
     #[inline]
     pub fn is_satisfied_by(&self, height: Height, time: Time) -> bool {
-        use LockTime::*;
-
         match *self {
-            Blocks(n) => n <= height,
-            Seconds(n) => n <= time,
+            LockTime::Blocks(n) => n <= height,
+            LockTime::Seconds(n) => n <= time,
         }
     }
 
@@ -216,13 +214,13 @@ impl LockTime {
     /// # Examples
     ///
     /// ```rust
-    /// # use elements::{LockTime, LockTime::*};
+    /// # use elements::LockTime;
     /// # let n = LockTime::from_consensus(100);          // n OP_CHECKLOCKTIMEVERIFY
     /// # let lock_time = LockTime::from_consensus(100);  // nLockTime
     ///
     /// let is_satisfied = match (n, lock_time) {
-    ///     (Blocks(n), Blocks(lock_time)) => n <= lock_time,
-    ///     (Seconds(n), Seconds(lock_time)) => n <= lock_time,
+    ///     (LockTime::Blocks(n), LockTime::Blocks(lock_time)) => n <= lock_time,
+    ///     (LockTime::Seconds(n), LockTime::Seconds(lock_time)) => n <= lock_time,
     ///     _ => panic!("invalid comparison"),
     /// };
     ///
@@ -254,11 +252,9 @@ impl From<Time> for LockTime {
 
 impl PartialOrd for LockTime {
     fn partial_cmp(&self, other: &LockTime) -> Option<Ordering> {
-        use LockTime::*;
-
         match (*self, *other) {
-            (Blocks(ref a), Blocks(ref b)) => a.partial_cmp(b),
-            (Seconds(ref a), Seconds(ref b)) => a.partial_cmp(b),
+            (Self::Blocks(ref a), Self::Blocks(ref b)) => a.partial_cmp(b),
+            (Self::Seconds(ref a), Self::Seconds(ref b)) => a.partial_cmp(b),
             (_, _) => None,
         }
     }
@@ -266,17 +262,15 @@ impl PartialOrd for LockTime {
 
 impl fmt::Display for LockTime {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use LockTime::*;
-
         if f.alternate() {
             match *self {
-                Blocks(ref h) => write!(f, "block-height {}", h),
-                Seconds(ref t) => write!(f, "block-time {} (seconds since epoch)", t),
+                Self::Blocks(ref h) => write!(f, "block-height {}", h),
+                Self::Seconds(ref t) => write!(f, "block-time {} (seconds since epoch)", t),
             }
         } else {
             match *self {
-                Blocks(ref h) => fmt::Display::fmt(h, f),
-                Seconds(ref t) => fmt::Display::fmt(t, f),
+                Self::Blocks(ref h) => fmt::Display::fmt(h, f),
+                Self::Seconds(ref t) => fmt::Display::fmt(t, f),
             }
         }
     }
@@ -486,24 +480,20 @@ pub enum Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::Error::*;
-
         match *self {
-            Conversion(ref e) => write_err!(f, "error converting lock time value"; e),
-            Operation(ref e) => write_err!(f, "error during lock time operation"; e),
-            Parse(ref e) => write_err!(f, "failed to parse lock time from string"; e),
+            Self::Conversion(ref e) => write_err!(f, "error converting lock time value"; e),
+            Self::Operation(ref e) => write_err!(f, "error during lock time operation"; e),
+            Self::Parse(ref e) => write_err!(f, "failed to parse lock time from string"; e),
         }
     }
 }
 
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        use self::Error::*;
-
         match *self {
-            Conversion(ref e) => Some(e),
-            Operation(ref e) => Some(e),
-            Parse(ref e) => Some(e),
+            Self::Conversion(ref e) => Some(e),
+            Self::Operation(ref e) => Some(e),
+            Self::Parse(ref e) => Some(e),
         }
     }
 }
@@ -572,11 +562,9 @@ enum LockTimeUnit {
 
 impl fmt::Display for LockTimeUnit {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use LockTimeUnit::*;
-
         match *self {
-            Blocks => write!(f, "expected lock-by-blockheight (must be < {})", LOCK_TIME_THRESHOLD),
-            Seconds => write!(f, "expected lock-by-blocktime (must be >= {})", LOCK_TIME_THRESHOLD),
+            Self::Blocks => write!(f, "expected lock-by-blockheight (must be < {})", LOCK_TIME_THRESHOLD),
+            Self::Seconds => write!(f, "expected lock-by-blocktime (must be >= {})", LOCK_TIME_THRESHOLD),
         }
     }
 }
@@ -591,10 +579,8 @@ pub enum OperationError {
 
 impl fmt::Display for OperationError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        use self::OperationError::*;
-
         match *self {
-            InvalidComparison => f.write_str("cannot compare different lock units (height vs time)"),
+            Self::InvalidComparison => f.write_str("cannot compare different lock units (height vs time)"),
         }
     }
 }

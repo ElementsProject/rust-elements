@@ -75,17 +75,17 @@ impl AssetId {
         0x3d, 0x1c, 0x04, 0xed, 0xe9, 0x79, 0x02, 0x6f,
     ]));
 
-    /// Create an [AssetId] from its inner type.
+    /// Create an [`AssetId`] from its inner type.
     pub const fn from_inner(midstate: sha256::Midstate) -> AssetId {
         AssetId(midstate)
     }
 
-    /// Convert the [AssetId] into its inner type.
+    /// Convert the [`AssetId`] into its inner type.
     pub fn into_inner(self) -> sha256::Midstate {
         self.0
     }
 
-    /// Copies a byte slice into an AssetId object
+    /// Copies a byte slice into an `AssetId` object
     pub fn from_slice(sl: &[u8]) -> Result<AssetId, hashes::FromSliceError> {
         sha256::Midstate::from_slice(sl).map(AssetId)
     }
@@ -244,12 +244,10 @@ impl<'de> ::serde::Deserialize<'de> for AssetId {
                 where
                     E: ::serde::de::Error,
                 {
-                    if v.len() != 32 {
-                        Err(E::invalid_length(v.len(), &stringify!($len)))
-                    } else {
-                        let mut ret = [0; 32];
-                        ret.copy_from_slice(v);
-                        Ok(AssetId(sha256::Midstate::from_byte_array(ret)))
+                    use core::convert::TryFrom;
+                    match <[u8; 32]>::try_from(v) {
+                        Ok(ret) => Ok(AssetId(sha256::Midstate::from_byte_array(ret))),
+                        Err(_) => Err(E::invalid_length(v.len(), &stringify!($len))),
                     }
                 }
             }
