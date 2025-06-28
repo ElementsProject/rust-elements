@@ -87,7 +87,6 @@ const PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF: u8 = 0x0a;
 /// A key-value map for an output of the corresponding index in the unsigned
 /// transaction.
 #[derive(Clone, Default, Debug, PartialEq)]
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct Output {
     /// The redeem script for this output.
     pub redeem_script: Option<Script>,
@@ -95,14 +94,12 @@ pub struct Output {
     pub witness_script: Option<Script>,
     /// A map from public keys needed to spend this output to their
     /// corresponding master key fingerprints and derivation paths.
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub bip32_derivation: BTreeMap<PublicKey, KeySource>,
     /// The internal pubkey
     pub tap_internal_key: Option<XOnlyPublicKey>,
     /// Taproot Output tree
     pub tap_tree: Option<TapTree>,
     /// Map of tap root x only keys to origin info and leaf hashes contained in it
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::btreemap_as_seq"))]
     pub tap_key_origins: BTreeMap<XOnlyPublicKey, (Vec<TapLeafHash>, KeySource)>,
     /// (PSET) The explicit amount of the output
     pub amount: Option<u64>,
@@ -131,22 +128,13 @@ pub struct Output {
     pub blind_asset_proof: Option<Box<SurjectionProof>>,
     /// Pset
     /// Other fields
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "crate::serde_utils::btreemap_as_seq_byte_values")
-    )]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
     /// Unknown key-value pairs for this output.
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "crate::serde_utils::btreemap_as_seq_byte_values")
-    )]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
 /// Taproot Tree representing a finalized [`TaprootBuilder`] (a complete binary tree)
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct TapTree(pub(crate) TaprootBuilder);
 
 impl PartialEq for TapTree {

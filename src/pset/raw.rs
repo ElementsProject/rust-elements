@@ -24,12 +24,10 @@ use crate::encode::{self, deserialize, serialize, Decodable, Encodable, VarInt, 
 use crate::hex;
 /// A PSET key in its raw byte form.
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Ord, PartialOrd)]
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct Key {
     /// The type of this PSET key.
     pub type_value: u8,
     /// The key itself in raw byte form.
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::hex_bytes"))]
     pub key: Vec<u8>,
 }
 
@@ -47,12 +45,10 @@ impl Key {
 
 /// A PSET key-value pair in its raw byte form.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct Pair {
     /// The key of this key-value pair.
     pub key: Key,
     /// The value of this key-value pair in raw byte form.
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::hex_bytes"))]
     pub value: Vec<u8>,
 }
 
@@ -61,7 +57,6 @@ pub type ProprietaryType = u8;
 
 /// Proprietary keys (i.e. keys starting with 0xFC byte) with their internal
 /// structure according to BIP 174.
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ProprietaryKey<Subtype = ProprietaryType>
 where
@@ -69,12 +64,10 @@ where
 {
     /// Proprietary type prefix used for grouping together keys under some
     /// application and avoid namespace collision
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::hex_bytes"))]
     pub prefix: Vec<u8>,
     /// Custom proprietary subtype
     pub subtype: Subtype,
     /// Additional key bytes (like serialized public key data etc)
-    #[cfg_attr(feature = "serde", serde(with = "crate::serde_utils::hex_bytes"))]
     pub key: Vec<u8>,
 }
 

@@ -64,8 +64,6 @@ mod parse;
 pub mod pset;
 pub mod schnorr;
 pub mod script;
-#[cfg(feature = "serde")]
-mod serde_utils;
 pub mod sighash;
 pub mod taproot;
 mod transaction;

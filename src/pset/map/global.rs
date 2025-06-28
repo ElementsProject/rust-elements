@@ -58,7 +58,6 @@ const PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE: u8 = 0x01;
 
 /// Global transaction data
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct TxData {
     /// Transaction version. Must be 2.
     pub version: u32,
@@ -93,10 +92,8 @@ impl Default for TxData {
 
 /// A key-value map for global data.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct Global {
     /// Global transaction data
-    #[cfg_attr(feature = "serde", serde(flatten))]
     pub tx_data: TxData,
     /// The version number of this PSET. Must be present.
     pub version: u32,
@@ -109,16 +106,8 @@ pub struct Global {
     /// Elements tx modifiable flag
     pub elements_tx_modifiable_flag: Option<u8>,
     /// Other Proprietary fields
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "crate::serde_utils::btreemap_as_seq_byte_values")
-    )]
     pub proprietary: BTreeMap<raw::ProprietaryKey, Vec<u8>>,
     /// Unknown global key-value pairs.
-    #[cfg_attr(
-        feature = "serde",
-        serde(with = "crate::serde_utils::btreemap_as_seq_byte_values")
-    )]
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
