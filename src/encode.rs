@@ -24,6 +24,7 @@ use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 use crate::hashes::{sha256, Hash};
 use crate::pset;
 use crate::transaction::{Transaction, TxIn, TxOut};
+use crate::Len64 as _;
 
 pub use bitcoin::{self, consensus::encode::MAX_VEC_SIZE};
 
@@ -224,7 +225,7 @@ pub(crate) fn consensus_encode_with_size<S: crate::WriteExt>(
     data: &[u8],
     mut s: S,
 ) -> Result<usize, Error> {
-    let vi_len = VarInt(data.len() as u64).consensus_encode(&mut s)?;
+    let vi_len = VarInt(data.len64()).consensus_encode(&mut s)?;
     s.emit_slice(data)?;
     Ok(vi_len + data.len())
 }
@@ -336,7 +337,7 @@ macro_rules! impl_vec {
             #[inline]
             fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
                 let mut len = 0;
-                len += VarInt(self.len() as u64).consensus_encode(&mut s)?;
+                len += VarInt(self.len64()).consensus_encode(&mut s)?;
                 for c in self.iter() {
                     len += c.consensus_encode(&mut s)?;
                 }

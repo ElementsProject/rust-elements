@@ -98,3 +98,39 @@ pub use crate::transaction::{
     AssetIssuance, EcdsaSighashType, OutPoint, PeginData, PegoutData, Transaction, TxIn,
     TxInWitness, TxOut, TxOutWitness,
 };
+
+/// Utility trait for producing lengths in u64, for use in weight computations.
+trait Len64 {
+    fn len64(&self) -> u64;
+}
+
+impl<T> Len64 for [T] {
+    fn len64(&self) -> u64 { self.len() as u64 }
+}
+impl<T> Len64 for &[T] {
+    fn len64(&self) -> u64 { (*self).len64() }
+}
+impl<T> Len64 for Vec<T> {
+    fn len64(&self) -> u64 { self[..].len64() }
+}
+impl Len64 for crate::script::Script {
+    fn len64(&self) -> u64 { self[..].len64() }
+}
+impl Len64 for secp256k1_zkp::RangeProof {
+    fn len64(&self) -> u64 { self.serialize().len64() }
+}
+impl Len64 for secp256k1_zkp::SurjectionProof {
+    fn len64(&self) -> u64 { self.serialize().len64() }
+}
+impl Len64 for bitcoin::VarInt {
+    fn len64(&self) -> u64 { self.size() as u64 }
+}
+impl Len64 for crate::encode::VarInt {
+    fn len64(&self) -> u64 { self.size() as u64 }
+}
+impl<T: Len64> Len64 for Option<T> {
+    fn len64(&self) -> u64 { self.as_ref().map_or(0, T::len64) }
+}
+impl<T: Len64> Len64 for Box<T> {
+    fn len64(&self) -> u64 { (**self).len64() }
+}

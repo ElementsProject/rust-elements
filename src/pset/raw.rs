@@ -99,24 +99,31 @@ impl fmt::Display for Key {
 
 impl Decodable for Key {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
+        use core::convert::TryFrom;
+
         let VarInt(byte_size): VarInt = Decodable::consensus_decode(&mut d)?;
 
         if byte_size == 0 {
             return Err(Error::NoMorePairs.into());
         }
+        let key_byte_size = match usize::try_from(byte_size) {
+            Ok(n) => n - 1,
+            Err(_) => return Err(encode::Error::OversizedVectorAllocation {
+                requested: usize::MAX,
+                max: MAX_VEC_SIZE,
+            }),
+        };
 
-        let key_byte_size: u64 = byte_size - 1;
-
-        if key_byte_size > MAX_VEC_SIZE as u64 {
+        if key_byte_size > MAX_VEC_SIZE {
             return Err(encode::Error::OversizedVectorAllocation {
-                requested: key_byte_size as usize,
+                requested: key_byte_size,
                 max: MAX_VEC_SIZE,
             });
         }
 
         let type_value: u8 = Decodable::consensus_decode(&mut d)?;
 
-        let mut key = Vec::with_capacity(key_byte_size as usize);
+        let mut key = Vec::with_capacity(key_byte_size);
         for _ in 0..key_byte_size {
             key.push(Decodable::consensus_decode(&mut d)?);
         }
@@ -127,8 +134,10 @@ impl Decodable for Key {
 
 impl Encodable for Key {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
+        use crate::Len64 as _;
+
         let mut len = 0;
-        len += VarInt((self.key.len() + 1) as u64).consensus_encode(&mut s)?;
+        len += VarInt(self.key.len64() + 1).consensus_encode(&mut s)?;
 
         len += self.type_value.consensus_encode(&mut s)?;
 

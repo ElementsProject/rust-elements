@@ -18,7 +18,7 @@ fn do_test(data: &[u8]) {
             }
             assert_eq!(tx.has_witness(), false);
             let no_witness_len = elements::encode::serialize(&tx).len();
-            assert_eq!(no_witness_len * 3 + len, calculated_weight);
+            assert_eq!(no_witness_len * 3 + len, calculated_weight.to_wu() as usize);
 
             for output in &tx.output {
                 output.is_null_data();
