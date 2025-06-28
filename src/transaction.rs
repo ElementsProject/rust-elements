@@ -898,21 +898,8 @@ impl Transaction {
 
     /// Get the "weight" of this transaction; roughly equivalent to BIP141, in that witness data is
     /// counted as 1 while non-witness data is counted as 4.
-    #[deprecated(since = "0.19.1", note = "Please use `Transaction::weight` instead.")]
-    pub fn get_weight(&self) -> usize {
-        self.weight()
-    }
-
-    /// Get the "weight" of this transaction; roughly equivalent to BIP141, in that witness data is
-    /// counted as 1 while non-witness data is counted as 4.
     pub fn weight(&self) -> usize {
         self.scaled_size(4)
-    }
-
-    /// Gets the regular byte-wise consensus-serialized size of this transaction.
-    #[deprecated(since = "0.19.1", note = "Please use `Transaction::size` instead.")]
-    pub fn get_size(&self) -> usize {
-        self.size()
     }
 
     /// Gets the regular byte-wise consensus-serialized size of this transaction.
