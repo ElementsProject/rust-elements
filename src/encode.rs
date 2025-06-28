@@ -147,6 +147,22 @@ pub trait Encodable {
     /// the underlying `Write` errors. Returns the number of bytes written on
     /// success
     fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error>;
+
+    /// The length of the object, in bytes, when encoded.
+    #[inline]
+    fn encoded_length(&self) -> usize {
+        self.consensus_encode(io::sink()).expect("no errors on sink")
+    }
+
+    /// The length of the object, in bytes, when encoded.
+    ///
+    /// Convenience function to minimize the amount of explicit casting that
+    /// users need to do. No object in Bitcoin or Elements will ever approach
+    /// [`u64::MAX`] in encoded size, regardless of the range of `usize`.
+    #[inline]
+    fn encoded_len64(&self) -> u64 {
+        self.encoded_length() as u64
+    }
 }
 
 /// Data which can be encoded in a consensus-consistent way
