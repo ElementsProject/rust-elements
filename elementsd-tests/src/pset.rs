@@ -57,7 +57,7 @@ fn tx_issuance() {
 
     let contract_hash = ContractHash::from_byte_array([0u8; 32]);
     let entropy = AssetId::generate_asset_entropy(prevout, contract_hash);
-    let asset_id = AssetId::from_entropy(entropy.clone());
+    let asset_id = AssetId::from_entropy(entropy);
     let reissuance_id = AssetId::reissuance_token_from_entropy(entropy, is_21);
 
     let value = elementsd.call(
@@ -140,7 +140,7 @@ fn rtt(base64: &str) -> String {
 
 fn psbt_rtt(elementsd: &ElementsD, base64: &str) {
     use bitcoin::base64::prelude::{Engine as _, BASE64_STANDARD};
-    let a = elementsd.decode_psbt(&base64).unwrap();
+    let a = elementsd.decode_psbt(base64).unwrap();
 
     let b_psbt: PartiallySignedTransaction = base64.parse().unwrap();
     let mut b_bytes = serialize(&b_psbt);

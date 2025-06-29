@@ -69,7 +69,7 @@ fn funded_tap_txout(
 
     let (blind_sk, blind_pk) = if blind {
         let sk = secp256k1_zkp::SecretKey::new(&mut thread_rng());
-        let pk = secp256k1_zkp::PublicKey::from_secret_key(&secp, &sk);
+        let pk = secp256k1_zkp::PublicKey::from_secret_key(secp, &sk);
         (Some(sk), Some(pk))
     } else {
         (None, None)
@@ -149,7 +149,7 @@ fn taproot_spend_test(
     blind_tx: bool,
     key_spend: bool,
 ) {
-    let test_data = funded_tap_txout(&elementsd, &secp, blind_prevout);
+    let test_data = funded_tap_txout(elementsd, secp, blind_prevout);
 
     // create a new spend that spends the above output
     let mut tx = Transaction {
@@ -182,11 +182,11 @@ fn taproot_spend_test(
     if blind_tx {
         // set the nNonce as some confidential key to mark the output for blinding
         let sk = secp256k1_zkp::SecretKey::new(&mut thread_rng());
-        let pk = secp256k1_zkp::PublicKey::from_secret_key(&secp, &sk);
+        let pk = secp256k1_zkp::PublicKey::from_secret_key(secp, &sk);
         tx.output[0].nonce = confidential::Nonce::Confidential(pk);
         tx.blind(
             &mut thread_rng(),
-            &secp,
+            secp,
             &[test_data.txout_secrets],
             false
         )
@@ -216,11 +216,11 @@ fn taproot_spend_test(
         let tweak = secp256k1_zkp::Scalar::from_be_bytes(tweak.to_byte_array()).expect("hash value greater than curve order");
         let sig = secp.sign_schnorr(
             &secp256k1_zkp::Message::from_digest_slice(&sighash_msg[..]).unwrap(),
-            &output_keypair.add_xonly_tweak(&secp, &tweak).unwrap(),
+            &output_keypair.add_xonly_tweak(secp, &tweak).unwrap(),
         );
 
         let schnorr_sig = SchnorrSig {
-            sig: sig,
+            sig,
             hash_ty: sighash_ty,
         };
 
@@ -247,7 +247,7 @@ fn taproot_spend_test(
         let ctrl_block = test_data.spend_info.control_block(&script_ver).unwrap();
 
         let schnorr_sig = SchnorrSig {
-            sig: sig,
+            sig,
             hash_ty: sighash_ty,
         };
 
