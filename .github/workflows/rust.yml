@@ -1,114 +1,173 @@
-on:
+on:   # yamllint disable-line rule:truthy
+  pull_request:
   push:
     branches:
       - master
-  pull_request: {}
+      - 'test-ci/**'
 
 name: Continuous integration
 
 jobs:
+  Prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      nightly_version: ${{ steps.read_toolchain.outputs.nightly_version }}
+      msrv_version: ${{ steps.read_msrv.outputs.msrv_version }}
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Read nightly version"
+        id: read_toolchain
+        run: |
+          set -euo pipefail
+          version=$(cat nightly-version)
+          echo "nightly_version=$version" >> $GITHUB_OUTPUT
+      - name: Read MSRV from clippy.toml
+        id: read_msrv
+        run: |
+          set -euo pipefail
+          msrv=$(grep '^msrv *= *"' clippy.toml | sed -E 's/.*"([^"]+)".*/\1/')
+          echo "msrv_version=$msrv" >> "$GITHUB_OUTPUT"
+
   Stable:
     name: Test - stable toolchain
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
     steps:
-      - name: Checkout Crate
-        uses: actions/checkout@v3
-      - name: Checkout Toolchain
-        # https://github.com/dtolnay/rust-toolchain
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
         uses: dtolnay/rust-toolchain@stable
-      - name: Running test script
-        env:
-          DO_DOCS: true
-          DO_DOCSRS: false
-          DO_FUZZ: false
-          DO_INTEGRATION: false
-          DO_LINT: true
-          DO_FEATURE_MATRIX: true
-        run: ./contrib/test.sh
+      - name: "Set dependencies"
+        run: cp Cargo-latest.lock Cargo.lock
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh stable
 
   Nightly:
     name: Test - nightly toolchain
+    needs: Prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
     steps:
-      - name: Checkout Crate
-        uses: actions/checkout@v3
-      - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@nightly
-      - name: Running test script
-        env:
-          DO_DOCS: true
-          DO_DOCSRS: true
-          DO_FUZZ: false
-          DO_INTEGRATION: false
-          DO_LINT: false
-          DO_FEATURE_MATRIX: true
-        run: ./contrib/test.sh
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
+      - name: "Set dependencies"
+        run: cp Cargo-latest.lock Cargo.lock
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh nightly
 
   MSRV:
-    name: Test - 1.63.0 toolchain
+    name: Test - MSRV
+    needs: Prepare
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
     steps:
-      - name: Checkout Crate
-        uses: actions/checkout@v3
-      - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@1.63.0
-      - name: Running test script
-        env:
-          DO_DOCS: false
-          DO_DOCSRS: false
-          DO_FUZZ: false
-          DO_INTEGRATION: false
-          DO_LINT: false
-          DO_FEATURE_MATRIX: true
-        run: ./contrib/test.sh
-
-  Fuzz:
-    name: Fuzztests - 1.63.0 toolchain
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: Checkout Crate
-        uses: actions/checkout@v3
-      - name: Checkout Toolchain
-        uses: dtolnay/rust-toolchain@1.63.0
-      - name: Install test dependencies
-        run: sudo apt-get update -y && sudo apt-get install -y binutils-dev libunwind8-dev libcurl4-openssl-dev libelf-dev libdw-dev cmake gcc libiberty-dev
-      - name: Running test script
-        env:
-          DO_DOCS: false
-          DO_DOCSRS: false
-          DO_FUZZ: true
-          DO_INTEGRATION: false
-          DO_LINT: false
-          DO_FEATURE_MATRIX: false
-        run: ./contrib/test.sh
-
-  Integration:
-    name: Integration tests - stable
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: Checkout Crate
-        uses: actions/checkout@v3
-      - name: Checkout Toolchain
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
         uses: dtolnay/rust-toolchain@stable
-      - name: Running test script
-        env:
-          DO_DOCS: false
-          DO_DOCSRS: false
-          DO_FUZZ: false
-          DO_INTEGRATION: true
-          DO_LINT: false
-          DO_FEATURE_MATRIX: false
-        run: ./contrib/test.sh
+        with:
+          toolchain: ${{ needs.Prepare.outputs.msrv_version }}
+      - name: "Set dependencies"
+        run: cp Cargo-latest.lock Cargo.lock
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh msrv
+
+  Lint:
+    name: Lint - nightly toolchain
+    needs: Prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [recent]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
+      - name: Install clippy
+        run: rustup component add clippy
+      - name: "Set dependencies"
+        run: cp Cargo-latest.lock Cargo.lock
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh lint
+
+  Docs:
+    name: Docs - stable toolchain
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [recent]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@stable
+      - name: "Set dependencies"
+        run: cp Cargo-latest.lock Cargo.lock
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh docs
+
+  Docsrs:
+    name: Docs - nightly toolchain
+    needs: Prepare
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [recent]
+    steps:
+      - name: "Checkout repo"
+        uses: actions/checkout@v4
+      - name: "Checkout maintainer tools"
+        uses: ./.github/actions/checkout-maintainer-tools
+      - name: "Select toolchain"
+        uses: dtolnay/rust-toolchain@v1
+        with:
+          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
+      - name: "Set dependencies"
+        run: cp Cargo-latest.lock Cargo.lock
+      - name: "Run test script"
+        run: ./maintainer-tools/ci/run_task.sh docsrs
+
+#  Format:
+#    name: Format - nightly toolchain
+#    needs: Prepare
+#    runs-on: ubuntu-latest
+#    strategy:
+#      fail-fast: false
+#    steps:
+#      - name: "Checkout repo"
+#        uses: actions/checkout@v4
+#      - name: "Select toolchain"
+#        uses: dtolnay/rust-toolchain@v1
+#        with:
+#          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
+#      - name: "Install rustfmt"
+#        run: rustup component add rustfmt
+#      - name: "Check formatting"
+#        run: cargo fmt --all -- --check
 
   Wasm:
     name: Check WASM

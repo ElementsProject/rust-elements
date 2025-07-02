@@ -10,6 +10,7 @@ use elementsd::bitcoind::{self, BitcoinD};
 use elementsd::ElementsD;
 use std::str::FromStr;
 
+#[allow(dead_code)]
 trait Call {
     fn call(&self, cmd: &str, args: &[Value]) -> Value;
     fn decode_psbt(&self, psbt: &str) -> Option<Value>;
