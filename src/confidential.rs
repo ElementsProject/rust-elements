@@ -70,15 +70,6 @@ impl Value {
         Value::Confidential(comm)
     }
 
-    /// Serialized length, in bytes
-    pub fn encoded_length(&self) -> usize {
-        match *self {
-            Value::Null => 1,
-            Value::Explicit(..) => 9,
-            Value::Confidential(..) => 33,
-        }
-    }
-
     /// Create from commitment.
     pub fn from_commitment(bytes: &[u8]) -> Result<Self, encode::Error> {
         Ok(Value::Confidential(PedersenCommitment::from_slice(bytes)?))
@@ -145,6 +136,14 @@ impl Encodable for Value {
             Value::Confidential(commitment) => commitment.consensus_encode(&mut s),
         }
     }
+
+    fn encoded_length(&self) -> usize {
+        match *self {
+            Self::Null => 1,
+            Self::Explicit(..) => 9,
+            Self::Confidential(..) => 33,
+        }
+    }
 }
 
 impl Encodable for PedersenCommitment {
@@ -152,6 +151,8 @@ impl Encodable for PedersenCommitment {
         e.write_all(&self.serialize())?;
         Ok(33)
     }
+
+    fn encoded_length(&self) -> usize { 33 }
 }
 
 impl Decodable for Value {
@@ -272,15 +273,6 @@ impl Asset {
         ))
     }
 
-    /// Serialized length, in bytes
-    pub fn encoded_length(&self) -> usize {
-        match *self {
-            Asset::Null => 1,
-            Asset::Explicit(..) => 33,
-            Asset::Confidential(..) => 33,
-        }
-    }
-
     /// Create from commitment.
     pub fn from_commitment(bytes: &[u8]) -> Result<Self, encode::Error> {
         Ok(Asset::Confidential(Generator::from_slice(bytes)?))
@@ -367,6 +359,14 @@ impl Encodable for Asset {
             Asset::Confidential(generator) => generator.consensus_encode(&mut s)
         }
     }
+
+    fn encoded_length(&self) -> usize {
+        match *self {
+            Self::Null => 1,
+            Self::Explicit(..) => 33,
+            Self::Confidential(..) => 33,
+        }
+    }
 }
 
 impl Encodable for Generator {
@@ -374,6 +374,8 @@ impl Encodable for Generator {
         e.write_all(&self.serialize())?;
         Ok(33)
     }
+
+    fn encoded_length(&self) -> usize { 33 }
 }
 
 impl Decodable for Asset {
@@ -537,15 +539,6 @@ impl Nonce {
         SecretKey::from_slice(&shared_secret[..32]).expect("always has exactly 32 bytes")
     }
 
-    /// Serialized length, in bytes
-    pub fn encoded_length(&self) -> usize {
-        match *self {
-            Nonce::Null => 1,
-            Nonce::Explicit(..) => 33,
-            Nonce::Confidential(..) => 33,
-        }
-    }
-
     /// Create from commitment.
     pub fn from_commitment(bytes: &[u8]) -> Result<Self, encode::Error> {
         Ok(Nonce::Confidential(
@@ -619,6 +612,14 @@ impl Encodable for Nonce {
             Nonce::Confidential(commitment) => commitment.consensus_encode(&mut s),
         }
     }
+
+    fn encoded_length(&self) -> usize {
+        match *self {
+            Self::Null => 1,
+            Self::Explicit(..) => 33,
+            Self::Confidential(..) => 33,
+        }
+    }
 }
 
 impl Encodable for PublicKey {
@@ -626,6 +627,8 @@ impl Encodable for PublicKey {
         e.write_all(&self.serialize())?;
         Ok(33)
     }
+
+    fn encoded_length(&self) -> usize { 33 }
 }
 
 impl Decodable for Nonce {
