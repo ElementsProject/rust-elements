@@ -241,7 +241,7 @@ impl Sequence {
         self.is_relative_lock_time() & (self.0 & Sequence::LOCK_TYPE_MASK == 0)
     }
 
-    /// Returns `true` if the sequene number encodes a time interval based relative lock-time.
+    /// Returns `true` if the sequence number encodes a time interval based relative lock-time.
     #[inline]
     pub fn is_time_locked(&self) -> bool {
         self.is_relative_lock_time() & (self.0 & Sequence::LOCK_TYPE_MASK > 0)
@@ -479,7 +479,7 @@ impl<'tx> PeginData<'tx> {
 /// A transaction input, which defines old coins to be consumed
 #[derive(Clone, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct TxIn {
-    /// The reference to the previous output that is being used an an input
+    /// The reference to the previous output that is being used as an input
     pub previous_output: OutPoint,
     /// Flag indicating that `previous_outpoint` refers to something on the main chain
     pub is_pegin: bool,
