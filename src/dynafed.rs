@@ -152,7 +152,7 @@ impl FullParams {
         crate::fast_merkle_root::fast_merkle_root(&leaves[..])
     }
 
-    /// Turns paramers into compact parameters.
+    /// Turns parameters into compact parameters.
     /// This returns self for compact params and [None] for null ones.
     pub fn into_compact(self) -> Params {
         Params::Compact {
@@ -388,7 +388,7 @@ impl Params {
         }
     }
 
-    /// Turns paramers into compact parameters.
+    /// Turns parameters into compact parameters.
     /// This returns self for compact params and [None] for null ones.
     pub fn into_compact(self) -> Option<Params> {
         match self {
