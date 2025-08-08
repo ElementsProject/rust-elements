@@ -82,7 +82,7 @@ const SEP: char = '1';
 /// checksum in any way.
 ///
 /// Unless you are attempting to validate a string with multiple checksums then you likely do not
-/// want to use this type directly, instead use [`CheckedHrpstring::new(s)`].
+/// want to use this type directly, instead use [`CheckedHrpstring::new`].
 #[derive(Debug)]
 pub struct UncheckedHrpstring<'s> {
     /// The human-readable part, guaranteed to be lowercase ASCII characters.
