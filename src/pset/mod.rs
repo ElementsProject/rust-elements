@@ -47,8 +47,8 @@ use crate::{
     TxOutSecrets,
 };
 use crate::{
-    LockTime, OutPoint, Sequence, SurjectionInput, Transaction, TxIn, TxInType,
-    TxInWitness, TxOut, TxOutWitness, Txid,
+    LockTime, OutPoint, Sequence, SurjectionInput, Transaction, TxIn,
+    TxInWitness, TxOut, TxOutWitness, Txid, CtLocation, CtLocationType,
 };
 use secp256k1_zkp::rand::{CryptoRng, RngCore};
 use secp256k1_zkp::{self, RangeProof, SecretKey, SurjectionProof};
@@ -481,7 +481,7 @@ impl PartiallySignedTransaction {
         rng: &mut R,
         secp: &secp256k1_zkp::Secp256k1<C>,
         inp_txout_sec: &HashMap<usize, TxOutSecrets>,
-    ) -> Result<BTreeMap<TxInType, (AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, PsetBlindError> {
+    ) -> Result<BTreeMap<CtLocation, (AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, PsetBlindError> {
         let (inp_secrets, outs_to_blind) = self.blind_checks(inp_txout_sec)?;
 
         let mut ret = BTreeMap::new(); // return all the random values used
@@ -541,7 +541,8 @@ impl PartiallySignedTransaction {
                 ));
             }
             // return blinding factors used
-            ret.insert(TxInType::Input(i), (abf, vbf, ephemeral_sk));
+            let location = CtLocation{ input_index: i, ty: CtLocationType::Input};
+            ret.insert(location, (abf, vbf, ephemeral_sk));
         }
 
         // safe to unwrap because we have checked that there is atleast one output to blind
@@ -582,7 +583,7 @@ impl PartiallySignedTransaction {
         rng: &mut R,
         secp: &secp256k1_zkp::Secp256k1<C>,
         inp_txout_sec: &HashMap<usize, TxOutSecrets>,
-    ) -> Result<BTreeMap<TxInType, (AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, PsetBlindError> {
+    ) -> Result<BTreeMap<CtLocation, (AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, PsetBlindError> {
         let (mut inp_secrets, mut outs_to_blind) = self.blind_checks(inp_txout_sec)?;
 
         let mut ret = BTreeMap::new();
@@ -661,7 +662,8 @@ impl PartiallySignedTransaction {
         );
         let (value_commitment, nonce, rangeproof) =
             blind_res.map_err(|e| PsetBlindError::ConfidentialTxOutError(last_out_index, e))?;
-        ret.insert(TxInType::Input(last_out_index), (out_abf, final_vbf, ephemeral_sk));
+        let location = CtLocation{ input_index: last_out_index, ty: CtLocationType::Input};
+        ret.insert(location, (out_abf, final_vbf, ephemeral_sk));
 
         // mutate the pset
         {

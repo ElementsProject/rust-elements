@@ -916,16 +916,29 @@ impl TxIn {
     }
 }
 
+/// Inputs or pseudo-inputs.
+#[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq, Hash)]
+pub enum CtLocationType {
+    /// Regular input
+    Input,
+
+    /// Issuance pseudo-input
+    Issuance,
+
+    /// Reissuance pseudo-input
+    Reissuance,
+}
+
 /// Data structure for Unifying inputs and pseudo-inputs.
 #[derive(Debug, Clone, Copy, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub enum TxInType {
-    /// Regular input
-    Input(usize),
-    /// Issuance Pseudo-input
-    Issuance(usize),
-    /// Re-issuance pseudo-input
-    ReIssuance(usize),
+pub struct CtLocation {
+    /// Input index
+    pub input_index: usize,
+
+    /// Input or pseudo-input type
+    pub ty: CtLocationType,
 }
+
 
 impl Transaction {
     /// Verify that the transaction has correctly calculated blinding
@@ -1078,7 +1091,7 @@ impl Transaction {
         secp: &Secp256k1<C>,
         spent_utxo_secrets: &[TxOutSecrets],
         blind_issuances: bool,
-    ) -> Result<BTreeMap<TxInType, (AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, BlindError>
+    ) -> Result<BTreeMap<CtLocation, (AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, BlindError>
     where
         R: RngCore + CryptoRng,
         C: Signing,
@@ -1090,13 +1103,13 @@ impl Transaction {
                 let (iss_vbf, iss_sk, tkn_vbf, tkn_sk) = txin.blind_issuances(secp, rng)?;
                 if txin.asset_issuance.amount.is_confidential() {
                     blinds.insert(
-                        TxInType::Issuance(i),
+                        CtLocation{ input_index: i, ty: CtLocationType::Issuance },
                         (AssetBlindingFactor::zero(), iss_vbf, iss_sk),
                     );
                 }
                 if txin.asset_issuance.inflation_keys.is_confidential() {
                     blinds.insert(
-                        TxInType::ReIssuance(i),
+                        CtLocation{ input_index: i, ty: CtLocationType::Reissuance },
                         (AssetBlindingFactor::zero(), tkn_vbf, tkn_sk),
                     );
                 }
@@ -1144,7 +1157,8 @@ impl Transaction {
                     spent_utxo_secrets,
                 )?;
 
-                blinds.insert(TxInType::Input(i), (abf, vbf, ephemeral_sk));
+                let location = CtLocation { input_index: i, ty: CtLocationType::Input};
+                blinds.insert(location, (abf, vbf, ephemeral_sk));
                 out_secrets.push(TxOutSecrets::new(
                     out.asset.explicit().unwrap(),
                     abf,
@@ -1184,7 +1198,8 @@ impl Transaction {
             &out_secrets,
         )?;
 
-        blinds.insert(TxInType::Input(last_index), (abf, vbf, ephemeral_sk));
+        let location = CtLocation{ input_index: last_index, ty: CtLocationType::Input };
+        blinds.insert(location, (abf, vbf, ephemeral_sk));
         self.output[last_index] = conf_out;
         Ok(blinds)
     }
