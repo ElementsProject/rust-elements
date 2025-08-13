@@ -78,7 +78,7 @@ pub use bitcoin::hashes;
 pub use crate::address::{Address, AddressError, AddressParams};
 pub use crate::blind::{
     BlindAssetProofs, BlindError, BlindValueProofs, ConfidentialTxOutError, RangeProofMessage,
-    SurjectionInput, TxOutError, TxOutSecrets, UnblindError, VerificationError,
+    SurjectionInput, TxOutError, TxOutSecrets, UnblindError, VerificationError, TxInType,
 };
 pub use crate::block::ExtData as BlockExtData;
 pub use crate::block::{Block, BlockHeader};
