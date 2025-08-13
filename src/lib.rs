@@ -32,8 +32,7 @@ pub extern crate bitcoin;
 pub extern crate secp256k1_zkp;
 /// Re-export of serde crate
 #[cfg(feature = "serde")]
-#[macro_use]
-pub extern crate actual_serde as serde;
+pub extern crate serde;
 #[cfg(all(test, feature = "serde"))]
 extern crate serde_test;
 
@@ -65,8 +64,6 @@ mod parse;
 pub mod pset;
 pub mod schnorr;
 pub mod script;
-#[cfg(feature = "serde")]
-mod serde_utils;
 pub mod sighash;
 pub mod taproot;
 mod transaction;
@@ -74,6 +71,12 @@ mod transaction;
 mod endian;
 // re-export bitcoin deps which we re-use
 pub use bitcoin::hashes;
+// Re-export units which are identical in Bitcoin and Elements
+pub use bitcoin_units::{
+    BlockHeight, BlockHeightInterval, BlockMtp, BlockMtpInterval, BlockTime,
+    MathOp, NumOpError, NumOpResult,
+    Weight,
+};
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressError, AddressParams};
 pub use crate::blind::{
@@ -95,3 +98,39 @@ pub use crate::transaction::{
     AssetIssuance, EcdsaSighashType, OutPoint, PeginData, PegoutData, Transaction, TxIn,
     TxInWitness, TxOut, TxOutWitness,
 };
+
+/// Utility trait for producing lengths in u64, for use in weight computations.
+trait Len64 {
+    fn len64(&self) -> u64;
+}
+
+impl<T> Len64 for [T] {
+    fn len64(&self) -> u64 { self.len() as u64 }
+}
+impl<T> Len64 for &[T] {
+    fn len64(&self) -> u64 { (*self).len64() }
+}
+impl<T> Len64 for Vec<T> {
+    fn len64(&self) -> u64 { self[..].len64() }
+}
+impl Len64 for crate::script::Script {
+    fn len64(&self) -> u64 { self[..].len64() }
+}
+impl Len64 for secp256k1_zkp::RangeProof {
+    fn len64(&self) -> u64 { self.serialize().len64() }
+}
+impl Len64 for secp256k1_zkp::SurjectionProof {
+    fn len64(&self) -> u64 { self.serialize().len64() }
+}
+impl Len64 for bitcoin::VarInt {
+    fn len64(&self) -> u64 { self.size() as u64 }
+}
+impl Len64 for crate::encode::VarInt {
+    fn len64(&self) -> u64 { self.size() as u64 }
+}
+impl<T: Len64> Len64 for Option<T> {
+    fn len64(&self) -> u64 { self.as_ref().map_or(0, T::len64) }
+}
+impl<T: Len64> Len64 for Box<T> {
+    fn len64(&self) -> u64 { (**self).len64() }
+}
