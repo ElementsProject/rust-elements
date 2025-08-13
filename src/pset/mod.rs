@@ -478,7 +478,7 @@ impl PartiallySignedTransaction {
         rng: &mut R,
         secp: &secp256k1_zkp::Secp256k1<C>,
         inp_txout_sec: &HashMap<usize, TxOutSecrets>,
-    ) -> Result<Vec<(AssetBlindingFactor, ValueBlindingFactor)>, PsetBlindError> {
+    ) -> Result<Vec<(AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, PsetBlindError> {
         let (inp_secrets, outs_to_blind) = self.blind_checks(inp_txout_sec)?;
 
         if outs_to_blind.is_empty() {
@@ -491,7 +491,7 @@ impl PartiallySignedTransaction {
         let mut ret = vec![]; // return all the random values used
         for i in outs_to_blind {
             let txout = self.outputs[i].to_txout();
-            let (txout, abf, vbf, _) = txout
+            let (txout, abf, vbf, ephemeral_sk) = txout
                 .to_non_last_confidential(
                     rng,
                     secp,
@@ -538,7 +538,7 @@ impl PartiallySignedTransaction {
                 ));
             }
             // return blinding factors used
-            ret.push((abf, vbf));
+            ret.push((abf, vbf, ephemeral_sk));
         }
 
         // safe to unwrap because we have checked that there is atleast one output to blind
