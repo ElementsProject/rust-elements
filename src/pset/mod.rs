@@ -579,9 +579,10 @@ impl PartiallySignedTransaction {
         rng: &mut R,
         secp: &secp256k1_zkp::Secp256k1<C>,
         inp_txout_sec: &HashMap<usize, TxOutSecrets>,
-    ) -> Result<(), PsetBlindError> {
+    ) -> Result<Vec<(AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, PsetBlindError> {
         let (mut inp_secrets, mut outs_to_blind) = self.blind_checks(inp_txout_sec)?;
 
+        let mut ret = vec![];
         if outs_to_blind.is_empty() {
             // Atleast one output must be marked for blinding for pset blind_last
             return Err(PsetBlindError::AtleastOneOutputBlind);
@@ -594,7 +595,7 @@ impl PartiallySignedTransaction {
             let ind = self.outputs[last_out_index].blinder_index;
             self.outputs[last_out_index].blinder_index = None;
             // Blind normally without the last index
-            self.blind_non_last(rng, secp, inp_txout_sec)?;
+            ret = self.blind_non_last(rng, secp, inp_txout_sec)?;
             // Restore who blinded the last output
             self.outputs[last_out_index].blinder_index = ind;
             // inp_secrets contributed to self.global.scalars, unset it so we don't count them
@@ -657,6 +658,7 @@ impl PartiallySignedTransaction {
         );
         let (value_commitment, nonce, rangeproof) =
             blind_res.map_err(|e| PsetBlindError::ConfidentialTxOutError(last_out_index, e))?;
+        ret.push((out_abf, final_vbf, ephemeral_sk));
 
         // mutate the pset
         {
@@ -690,7 +692,7 @@ impl PartiallySignedTransaction {
 
             self.global.scalars.clear();
         }
-        Ok(())
+        Ok(ret)
     }
 }
 
