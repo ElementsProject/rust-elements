@@ -33,6 +33,7 @@ use secp256k1_zkp::{Verification, Secp256k1};
 use crate::encode::{self, Decodable, Encodable};
 use crate::hashes::Hash;
 use crate::{hex, opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
+use crate::Len64 as _;
 
 use bitcoin::PublicKey;
 
@@ -780,7 +781,7 @@ impl Builder {
     #[must_use]
     pub fn push_slice(mut self, data: &[u8]) -> Builder {
         // Start with a PUSH opcode
-        match data.len() as u64 {
+        match data.len64() {
             n if n < opcodes::Ordinary::OP_PUSHDATA1 as u64 => { self.0.push(n as u8); },
             n if n < 0x100 => {
                 self.0.push(opcodes::Ordinary::OP_PUSHDATA1.into_u8());
