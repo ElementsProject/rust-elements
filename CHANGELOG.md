@@ -1,4 +1,13 @@
 
+# 0.26.0 - 2025-08-22
+
+* [#249](https://github.com/ElementsProject/rust-elements/pull/249) docs: fix changelog links
+* [#243](https://github.com/ElementsProject/rust-elements/pull/243) pset: blind: return ephemeral private key
+* [#242](https://github.com/ElementsProject/rust-elements/pull/242) Edoc: fix CheckHrpstring::new reference
+* [#236](https://github.com/ElementsProject/rust-elements/pull/236) chore: fix some minor issues in comments
+* [#230](https://github.com/ElementsProject/rust-elements/pull/230) ci: add lockfile and use rust-bitcoin-maintainer-tools CI setup
+* [#228](https://github.com/ElementsProject/rust-elements/pull/228) Enable a ton of pedantic clippy lints
+
 # 0.25.2 - 2025-04-18
 
 * [#226](https://github.com/ElementsProject/rust-elements/pull/226) elip102: rename from elip101
