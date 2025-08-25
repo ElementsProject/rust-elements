@@ -1,66 +1,66 @@
 
 # 0.25.2 - 2025-04-18
 
-* [https://github.com/ElementsProject/rust-elements/pull/226](elip102: rename from elip101)
-* [https://github.com/ElementsProject/rust-elements/pull/225](Make AssetId::from_inner a const function)
-* [https://github.com/ElementsProject/rust-elements/pull/224](pset: input: insert non-pset proprietary keys)
-* [https://github.com/ElementsProject/rust-elements/pull/223](clippy: fix for new rust stable)
-* [https://github.com/ElementsProject/rust-elements/pull/195](Fix WASM build and add a job in CI)
-* [https://github.com/ElementsProject/rust-elements/pull/222](elementsd-tests: blind asset issuance based on node version)
-* [https://github.com/ElementsProject/rust-elements/pull/220](tx: discountct: add missing testcase)
-* [https://github.com/ElementsProject/rust-elements/pull/221](ci: fixes for rust stable clippy, and rust 1.56.1 compilation)
+* [#226](https://github.com/ElementsProject/rust-elements/pull/226) elip102: rename from elip101
+* [#225](https://github.com/ElementsProject/rust-elements/pull/225) Make AssetId::from_inner a const function
+* [#224](https://github.com/ElementsProject/rust-elements/pull/224) pset: input: insert non-pset proprietary keys
+* [#223](https://github.com/ElementsProject/rust-elements/pull/223) clippy: fix for new rust stable
+* [#195](https://github.com/ElementsProject/rust-elements/pull/195) Fix WASM build and add a job in CI
+* [#222](https://github.com/ElementsProject/rust-elements/pull/222) elementsd-tests: blind asset issuance based on node version
+* [#220](https://github.com/ElementsProject/rust-elements/pull/220) tx: discountct: add missing testcase
+* [#221](https://github.com/ElementsProject/rust-elements/pull/221) ci: fixes for rust stable clippy, and rust 1.56.1 compilation
 
 # 0.25.1 - 2024-10-24
 
-* [https://github.com/ElementsProject/rust-elements/pull/218](discount: fix weight calculation)
+* [#218](https://github.com/ElementsProject/rust-elements/pull/218) discount: fix weight calculation
 
 # 0.25.0 - 2024-09-23
 
-* [https://github.com/ElementsProject/rust-elements/pull/216](add Address::is_liquid)
-* [https://github.com/ElementsProject/rust-elements/pull/215](docs: add a bunch of paragraph breaks.)
-* [https://github.com/ElementsProject/rust-elements/pull/213](ELIP-0101: rename from LiquiDEX )
-* [https://github.com/ElementsProject/rust-elements/pull/212](Stop implementing elements::Encodable with bitcoin::Encodable)
-* [https://github.com/ElementsProject/rust-elements/pull/210](Address err refactor)
-* [https://github.com/ElementsProject/rust-elements/pull/209](upgrade to bitcoin 0.32)
-* [https://github.com/ElementsProject/rust-elements/pull/207](Add elip_liquidex module)
-* [https://github.com/ElementsProject/rust-elements/pull/206](pset: elip100: add and get token metadata)
-* [https://github.com/ElementsProject/rust-elements/pull/204](tx: add discount_weight and discount_vsize)
-* [https://github.com/ElementsProject/rust-elements/pull/203](transaction: range-check pegin data when parsing)
-* [https://github.com/ElementsProject/rust-elements/pull/201](pset: add optional asset blinding factor to input and output)
-* [https://github.com/ElementsProject/rust-elements/pull/200](pset: input: add blinded issuance flag)
-* [https://github.com/ElementsProject/rust-elements/pull/199](pset: input: add explicit amount and asset, and their proofs)
+* [#216](https://github.com/ElementsProject/rust-elements/pull/216) add Address::is_liquid
+* [#215](https://github.com/ElementsProject/rust-elements/pull/215) docs: add a bunch of paragraph breaks.
+* [#213](https://github.com/ElementsProject/rust-elements/pull/213) ELIP-0101: rename from LiquiDEX
+* [#212](https://github.com/ElementsProject/rust-elements/pull/212) Stop implementing elements::Encodable with bitcoin::Encodable
+* [#210](https://github.com/ElementsProject/rust-elements/pull/210) Address err refactor
+* [#209](https://github.com/ElementsProject/rust-elements/pull/209) upgrade to bitcoin 0.32
+* [#207](https://github.com/ElementsProject/rust-elements/pull/207) Add elip_liquidex module
+* [#206](https://github.com/ElementsProject/rust-elements/pull/206) pset: elip100: add and get token metadata
+* [#204](https://github.com/ElementsProject/rust-elements/pull/204) tx: add discount_weight and discount_vsize
+* [#203](https://github.com/ElementsProject/rust-elements/pull/203) transaction: range-check pegin data when parsing
+* [#201](https://github.com/ElementsProject/rust-elements/pull/201) pset: add optional asset blinding factor to input and output
+* [#200](https://github.com/ElementsProject/rust-elements/pull/200) pset: input: add blinded issuance flag
+* [#199](https://github.com/ElementsProject/rust-elements/pull/199) pset: input: add explicit amount and asset, and their proofs
 
 # 0.24.1 - 2024-01-30
 
-* [https://github.com/ElementsProject/rust-elements/pull/196](Add constructor to `FullParams`)
+* [#196](https://github.com/ElementsProject/rust-elements/pull/196) Add constructor to `FullParams`
 
 # 0.24.0 - 2024-01-12
 
-* [https://github.com/ElementsProject/rust-elements/pull/188](Update rust-bitcoin to 0.31.0, and associated dependencies)
-* [https://github.com/ElementsProject/rust-elements/pull/186](Updated doc for impl Value blind method - returns blinded value*)
-* [https://github.com/ElementsProject/rust-elements/pull/185](Exposed RangeProofMessage publically)
-* [https://github.com/ElementsProject/rust-elements/pull/183](elip100: add missing AssetMetadata::new method)
-* [https://github.com/ElementsProject/rust-elements/pull/182](ELIP-0100 implementation)
-* [https://github.com/ElementsProject/rust-elements/pull/178](pset: fix remove_output)
-* [https://github.com/ElementsProject/rust-elements/pull/177](rename pset::str::Error to ParseError and expose it)
-* [https://github.com/ElementsProject/rust-elements/pull/176](Remove slip77)
-* [https://github.com/ElementsProject/rust-elements/pull/175](Add to and from base64 string to pset)
-* [https://github.com/ElementsProject/rust-elements/pull/173](Fix examples)
-* [https://github.com/ElementsProject/rust-elements/pull/171](Create explicit empty and null values for some types)
+* [#188](https://github.com/ElementsProject/rust-elements/pull/188) Update rust-bitcoin to 0.31.0, and associated dependencies
+* [#186](https://github.com/ElementsProject/rust-elements/pull/186) Updated doc for impl Value blind method - returns blinded value*
+* [#185](https://github.com/ElementsProject/rust-elements/pull/185) Exposed RangeProofMessage publically
+* [#183](https://github.com/ElementsProject/rust-elements/pull/183) elip100: add missing AssetMetadata::new method
+* [#182](https://github.com/ElementsProject/rust-elements/pull/182) ELIP-0100 implementation
+* [#178](https://github.com/ElementsProject/rust-elements/pull/178) pset: fix remove_output
+* [#177](https://github.com/ElementsProject/rust-elements/pull/177) rename pset::str::Error to ParseError and expose it
+* [#176](https://github.com/ElementsProject/rust-elements/pull/176) Remove slip77
+* [#175](https://github.com/ElementsProject/rust-elements/pull/175) Add to and from base64 string to pset
+* [#173](https://github.com/ElementsProject/rust-elements/pull/173) Fix examples
+* [#171](https://github.com/ElementsProject/rust-elements/pull/171) Create explicit empty and null values for some types
 
 # 0.23.0 - 2023-06-18
 
-* https://github.com/ElementsProject/rust-elements/pull/167 Implement Ord for Transaction
-* https://github.com/ElementsProject/rust-elements/pull/168 add Height::ZERO associated constant
-* https://github.com/ElementsProject/rust-elements/pull/169 rename all Sighash types downcasing the middle "h", for example: SigHash -> Sighash
+* [#167](https://github.com/ElementsProject/rust-elements/pull/167) Implement Ord for Transaction
+* [#168](https://github.com/ElementsProject/rust-elements/pull/168) add Height::ZERO associated constant
+* [#168](https://github.com/ElementsProject/rust-elements/pull/169) rename all Sighash types downcasing the middle "h", for example: SigHash -> Sighash
 
 # 0.22.0 - 2023-06-08
 
-* [https://github.com/ElementsProject/rust-elements/pull/159](Update `TapTweak`, and `schnorr` module generally, to match rust-bitcoin)
-* [https://github.com/ElementsProject/rust-elements/pull/160](Make `Prevouts` generic over type of `TxOut`)
-* [https://github.com/ElementsProject/rust-elements/pull/161](Add `Transaction::vsize` method)
-* [https://github.com/ElementsProject/rust-elements/pull/157](dynafed: extract `FullParams` from `Params`)
-* [https://github.com/ElementsProject/rust-elements/pull/166](**Update bitcoin dependency to 0.30.0 and secp256k1-zkp dependency to 0.9.1**)
+* [#159](https://github.com/ElementsProject/rust-elements/pull/159) Update `TapTweak`, and `schnorr` module generally, to match rust-bitcoin
+* [#160](https://github.com/ElementsProject/rust-elements/pull/160) Make `Prevouts` generic over type of `TxOut`
+* [#161](https://github.com/ElementsProject/rust-elements/pull/161) Add `Transaction::vsize` method
+* [#157](https://github.com/ElementsProject/rust-elements/pull/157) dynafed: extract `FullParams` from `Params`
+* [#166](https://github.com/ElementsProject/rust-elements/pull/166) **Update bitcoin dependency to 0.30.0 and secp256k1-zkp dependency to 0.9.1**
 
 # 0.21.1 - 2022-10-21
 
