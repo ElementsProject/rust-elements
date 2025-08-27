@@ -28,7 +28,7 @@ use crate::issuance::AssetId;
 use crate::opcodes;
 use crate::parse::impl_parse_str_through_int;
 use crate::script::Instruction;
-use crate::{LockTime, Script, Txid, Wtxid};
+use crate::{LockTime, Script, Txid, Weight, Wtxid};
 use secp256k1_zkp::{
     RangeProof, SurjectionProof, Tweak, ZERO_TWEAK,
 };
@@ -171,8 +171,7 @@ impl ::std::str::FromStr for OutPoint {
 /// [BIP-68]: <https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki>
 /// [BIP-125]: <https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki>
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct Sequence(pub u32);
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -899,46 +898,35 @@ impl Transaction {
 
     /// Get the "weight" of this transaction; roughly equivalent to BIP141, in that witness data is
     /// counted as 1 while non-witness data is counted as 4.
-    #[deprecated(since = "0.19.1", note = "Please use `Transaction::weight` instead.")]
-    pub fn get_weight(&self) -> usize {
-        self.weight()
-    }
-
-    /// Get the "weight" of this transaction; roughly equivalent to BIP141, in that witness data is
-    /// counted as 1 while non-witness data is counted as 4.
-    pub fn weight(&self) -> usize {
-        self.scaled_size(4)
+    pub fn weight(&self) -> Weight {
+        Weight::from_wu(self.scaled_size(4))
     }
 
     /// Gets the regular byte-wise consensus-serialized size of this transaction.
-    #[deprecated(since = "0.19.1", note = "Please use `Transaction::size` instead.")]
-    pub fn get_size(&self) -> usize {
-        self.size()
-    }
-
-    /// Gets the regular byte-wise consensus-serialized size of this transaction.
+    #[deprecated(since = "0.26.0", note = "use Self::weight or Self::vsize or Self::encoded_length instead")]
     pub fn size(&self) -> usize {
-        self.scaled_size(1)
+        self.scaled_size(1) as usize
     }
 
     /// Returns the "virtual size" (vsize) of this transaction.
     ///
     /// Will be `ceil(weight / 4.0)`.
     #[inline]
-    pub fn vsize(&self) -> usize {
-        let weight = self.weight();
-        (weight + 4 - 1) / 4
+    pub fn vsize(&self) -> u64 {
+        self.weight().to_vbytes_ceil()
     }
 
     /// Get the "discount weight" of this transaction; this is the weight minus the output witnesses and minus the
     /// differences between asset and nonce commitments from their explicit values (weighted as part of the base transaction).
-    pub fn discount_weight(&self) -> usize {
+    pub fn discount_weight(&self) -> Weight {
+        use crate::Len64 as _;
+
         let mut weight = self.scaled_size(4);
 
         for out in &self.output {
-            let rp_len = out.witness.rangeproof_len();
-            let sp_len = out.witness.surjectionproof_len();
-            let witness_weight = VarInt(sp_len as u64).size() + sp_len + VarInt(rp_len as u64).size() + rp_len;
+            let rp_len = out.witness.rangeproof.len64();
+            let sp_len = out.witness.surjection_proof.len64();
+            let witness_weight = VarInt(sp_len).len64() + sp_len + VarInt(rp_len).len64() + rp_len;
             weight -= witness_weight.saturating_sub(2); // explicit transactions have 1 byte for each empty proof
             if out.value.is_confidential() {
                 weight -= (33 - 9) * 4;
@@ -948,79 +936,79 @@ impl Transaction {
             }
         }
 
-        weight
+        Weight::from_wu(weight)
     }
 
     /// Returns the "discount virtual size" (discountvsize) of this transaction.
     ///
     /// Will be `ceil(discount weight / 4.0)`.
-    pub fn discount_vsize(&self) -> usize {
-        (self.discount_weight() + 4 - 1) / 4
+    pub fn discount_vsize(&self) -> u64 {
+        self.discount_weight().to_vbytes_ceil()
     }
 
-    fn scaled_size(&self, scale_factor: usize) -> usize {
+    fn scaled_size(&self, scale_factor: u64) -> u64 {
+        use crate::Len64 as _;
+
         let witness_flag = self.has_witness();
 
         let input_weight = self.input.iter().map(|input| {
             scale_factor * (
                 32 + 4 + 4 + // output + nSequence
-                VarInt(input.script_sig.len() as u64).size() +
-                input.script_sig.len() + if input.has_issuance() {
+                VarInt(input.script_sig.len64()).len64() +
+                input.script_sig.len64() + if input.has_issuance() {
                     64 +
-                    input.asset_issuance.amount.encoded_length() +
-                    input.asset_issuance.inflation_keys.encoded_length()
+                    input.asset_issuance.amount.encoded_len64() +
+                    input.asset_issuance.inflation_keys.encoded_len64()
                 } else {
                     0
                 }
             ) + if witness_flag {
-                let amt_prf_len = input.witness.amount_rangeproof.as_ref()
-                    .map_or(0, |x| x.len());
-                let keys_prf_len = input.witness.inflation_keys_rangeproof.as_ref()
-                    .map_or(0, |x| x.len());
+                let amt_prf_len = input.witness.amount_rangeproof.len64();
+                let keys_prf_len = input.witness.inflation_keys_rangeproof.len64();
 
-                VarInt(amt_prf_len as u64).size() +
+                VarInt(amt_prf_len).len64() +
                 amt_prf_len +
-                VarInt(keys_prf_len as u64).size() +
+                VarInt(keys_prf_len).len64() +
                 keys_prf_len +
-                VarInt(input.witness.script_witness.len() as u64).size() +
+                VarInt(input.witness.script_witness.len64()).len64() +
                 input.witness.script_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).size() +
-                    wit.len()
-                ).sum::<usize>() +
-                VarInt(input.witness.pegin_witness.len() as u64).size() +
+                    VarInt(wit.len64()).len64() +
+                    wit.len64()
+                ).sum::<u64>() +
+                VarInt(input.witness.pegin_witness.len64()).len64() +
                 input.witness.pegin_witness.iter().map(|wit|
-                    VarInt(wit.len() as u64).size() +
-                    wit.len()
-                ).sum::<usize>()
+                    VarInt(wit.len64()).len64() +
+                    wit.len64()
+                ).sum::<u64>()
             } else {
                 0
             }
-        }).sum::<usize>();
+        }).sum::<u64>();
 
         let output_weight = self.output.iter().map(|output| {
             scale_factor * (
-                output.asset.encoded_length() +
-                output.value.encoded_length() +
-                output.nonce.encoded_length() +
-                VarInt(output.script_pubkey.len() as u64).size() +
-                output.script_pubkey.len()
+                output.asset.encoded_len64() +
+                output.value.encoded_len64() +
+                output.nonce.encoded_len64() +
+                VarInt(output.script_pubkey.len64()).len64() +
+                output.script_pubkey.len64()
             ) + if witness_flag {
-                let range_prf_len = output.witness.rangeproof_len();
-                let surj_prf_len = output.witness.surjectionproof_len();
-                VarInt(surj_prf_len as u64).size() +
+                let range_prf_len = output.witness.rangeproof.len64();
+                let surj_prf_len = output.witness.surjection_proof.len64();
+                VarInt(surj_prf_len).len64() +
                 surj_prf_len +
-                VarInt(range_prf_len as u64).size() +
+                VarInt(range_prf_len).len64() +
                 range_prf_len
             } else {
                 0
             }
-        }).sum::<usize>();
+        }).sum::<u64>();
 
         scale_factor * (
             4 + // version
             4 + // locktime
-            VarInt(self.input.len() as u64).size() +
-            VarInt(self.output.len() as u64).size() +
+            VarInt(self.input.len64()).len64() +
+            VarInt(self.output.len64()).len64() +
             1 // segwit flag byte (note this is *not* witness data in Elements)
         ) + input_weight + output_weight
     }
@@ -1369,8 +1357,8 @@ mod tests {
         );
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 2);
-        assert_eq!(tx.size(), serialize(&tx).len());
-        assert_eq!(tx.weight(), tx.size() * 4);
+        assert_eq!(tx.encoded_length(), serialize(&tx).len());
+        assert_eq!(tx.weight().to_wu(), tx.vsize() * 4);
         assert!(!tx.output[0].is_fee());
         assert!(tx.output[1].is_fee());
         assert_eq!(tx.output[0].value, confidential::Value::Explicit(9_999_996_700));
@@ -1579,8 +1567,8 @@ mod tests {
             tx.txid().to_string(),
             "d606b563122409191e3b114a41d5611332dc58237ad5d2dccded302664fd56c4"
         );
-        assert_eq!(tx.size(), serialize(&tx).len());
-        assert_eq!(tx.weight(), 7296);
+        assert_eq!(tx.encoded_length(), serialize(&tx).len());
+        assert_eq!(tx.weight().to_wu(), 7296);
         assert_eq!(tx.input.len(), 1);
         assert!(!tx.input[0].is_coinbase());
         assert!(!tx.is_coinbase());
@@ -1622,8 +1610,8 @@ mod tests {
             "cc1f895908af2509e55719e662acf4a50ca4dcf0454edd718459241745e2b0aa"
         );
         assert_eq!(tx.input.len(), 1);
-        assert_eq!(tx.size(), serialize(&tx).len());
-        assert_eq!(tx.weight(), 769);
+        assert_eq!(tx.encoded_length(), serialize(&tx).len());
+        assert_eq!(tx.weight().to_wu(), 769);
         assert!(tx.input[0].is_coinbase());
         assert!(!tx.input[0].is_pegin());
         assert_eq!(tx.input[0].pegin_data(), None);
@@ -2434,89 +2422,89 @@ mod tests {
         assert_eq!(tx.input.len(), 1);
         assert!(tx.input[0].is_pegin());
         assert_eq!(tx.output.len(), 2);
-        assert_eq!(tx.weight(), 2403);
+        assert_eq!(tx.weight().to_wu(), 2403);
         assert_eq!(tx.vsize(), 601);
-        assert_eq!(tx.discount_weight(), 2403);
+        assert_eq!(tx.discount_weight().to_wu(), 2403);
         assert_eq!(tx.discount_vsize(), 601);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/1in2out_tx.hex"));
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 2);
-        assert_eq!(tx.weight(), 5330);
+        assert_eq!(tx.weight().to_wu(), 5330);
         assert_eq!(tx.vsize(), 1333);
-        assert_eq!(tx.discount_weight(), 863);
+        assert_eq!(tx.discount_weight().to_wu(), 863);
         assert_eq!(tx.discount_vsize(), 216);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/1in3out_tx.hex"));
         assert_eq!(tx.input.len(), 1);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.weight(), 10107);
+        assert_eq!(tx.weight().to_wu(), 10107);
         assert_eq!(tx.vsize(), 2527);
-        assert_eq!(tx.discount_weight(), 1173);
+        assert_eq!(tx.discount_weight().to_wu(), 1173);
         assert_eq!(tx.discount_vsize(), 294);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in3out_exp.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.weight(), 1302);
+        assert_eq!(tx.weight().to_wu(), 1302);
         assert_eq!(tx.vsize(), 326);
-        assert_eq!(tx.discount_weight(), 1302);
+        assert_eq!(tx.discount_weight().to_wu(), 1302);
         assert_eq!(tx.discount_vsize(), 326);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in3out_tx.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.weight(), 10300);
+        assert_eq!(tx.weight().to_wu(), 10300);
         assert_eq!(tx.vsize(), 2575);
-        assert_eq!(tx.discount_weight(), 1302);
+        assert_eq!(tx.discount_weight().to_wu(), 1302);
         assert_eq!(tx.discount_vsize(), 326);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in3out_tx.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.weight(), 10300);
+        assert_eq!(tx.weight().to_wu(), 10300);
         assert_eq!(tx.vsize(), 2575);
-        assert_eq!(tx.discount_weight(), 1302);
+        assert_eq!(tx.discount_weight().to_wu(), 1302);
         assert_eq!(tx.discount_vsize(), 326);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in3out_tx2.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.weight(), 10536);
+        assert_eq!(tx.weight().to_wu(), 10536);
         assert_eq!(tx.vsize(), 2634);
-        assert_eq!(tx.discount_weight(), 1538);
+        assert_eq!(tx.discount_weight().to_wu(), 1538);
         assert_eq!(tx.discount_vsize(), 385);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/3in3out_tx.hex"));
         assert_eq!(tx.input.len(), 3);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.weight(), 10922);
+        assert_eq!(tx.weight().to_wu(), 10922);
         assert_eq!(tx.vsize(), 2731);
-        assert_eq!(tx.discount_weight(), 1860);
+        assert_eq!(tx.discount_weight().to_wu(), 1860);
         assert_eq!(tx.discount_vsize(), 465);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/4in3out_tx.hex"));
         assert_eq!(tx.input.len(), 4);
         assert_eq!(tx.output.len(), 3);
-        assert_eq!(tx.weight(), 11192);
+        assert_eq!(tx.weight().to_wu(), 11192);
         assert_eq!(tx.vsize(), 2798);
-        assert_eq!(tx.discount_weight(), 2130);
+        assert_eq!(tx.discount_weight().to_wu(), 2130);
         assert_eq!(tx.discount_vsize(), 533);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in4out_tx.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 4);
-        assert_eq!(tx.weight(), 15261);
+        assert_eq!(tx.weight().to_wu(), 15261);
         assert_eq!(tx.vsize(), 3816);
-        assert_eq!(tx.discount_weight(), 1764);
+        assert_eq!(tx.discount_weight().to_wu(), 1764);
         assert_eq!(tx.discount_vsize(), 441);
 
         let tx: Transaction = hex_deserialize!(include_str!("../tests/data/2in5out_tx.hex"));
         assert_eq!(tx.input.len(), 2);
         assert_eq!(tx.output.len(), 5);
-        assert_eq!(tx.weight(), 20030);
+        assert_eq!(tx.weight().to_wu(), 20030);
         assert_eq!(tx.vsize(), 5008);
-        assert_eq!(tx.discount_weight(), 2034);
+        assert_eq!(tx.discount_weight().to_wu(), 2034);
         assert_eq!(tx.discount_vsize(), 509);
     }
 }

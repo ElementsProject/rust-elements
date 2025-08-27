@@ -24,7 +24,8 @@ use crate::dynafed;
 use crate::hashes::{Hash, sha256};
 use crate::Transaction;
 use crate::encode::{self, serialize, Decodable, Encodable, VarInt};
-use crate::{BlockHash, Script, TxMerkleNode};
+use crate::{BlockHash, Script, TxMerkleNode, Weight};
+use crate::Len64 as _;
 
 /// Data related to block signatures
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -365,29 +366,19 @@ impl Block {
     }
 
     /// Get the size of the block
-    #[deprecated(since = "0.19.1", note = "Please use `Block::size` instead.")]
-    pub fn get_size(&self) -> usize {
-        self.size()
-    }
-
-    /// Get the size of the block
+    #[deprecated(since = "0.26.0", note = "use Self::weight or Self::encoded_length instead")]
     pub fn size(&self) -> usize {
         // The size of the header + the size of the varint with the tx count + the txs themselves
-        let base_size = serialize(&self.header).len() + VarInt(self.txdata.len() as u64).size();
-        let txs_size: usize = self.txdata.iter().map(Transaction::size).sum();
+        let base_size = serialize(&self.header).len() + VarInt(self.txdata.len64()).size();
+        let txs_size = self.txdata.iter().map(Transaction::encoded_length).sum::<usize>();
         base_size + txs_size
     }
 
     /// Get the weight of the block
-    #[deprecated(since = "0.19.1", note = "Please use `Block::weight` instead.")]
-    pub fn get_weight(&self) -> usize {
-        self.weight()
-    }
-
-    /// Get the weight of the block
-    pub fn weight(&self) -> usize {
-        let base_weight = 4 * (serialize(&self.header).len() + VarInt(self.txdata.len() as u64).size());
-        let txs_weight: usize = self.txdata.iter().map(Transaction::weight).sum();
+    pub fn weight(&self) -> Weight {
+        let base_weight = Weight::from_vb(self.header.encoded_len64() + VarInt(self.txdata.len64()).len64())
+            .expect("base weight does not overflow the Weight type");
+        let txs_weight = self.txdata.iter().map(Transaction::weight).sum::<Weight>();
         base_weight + txs_weight
     }
 }
@@ -466,8 +457,8 @@ mod tests {
         assert_eq!(block.header.version, 0x2000_0000);
         assert_eq!(block.header.height, 2);
         assert_eq!(block.txdata.len(), 1);
-        assert_eq!(block.size(), serialize(&block).len());
-        assert_eq!(block.weight(), 1089);
+        assert_eq!(block.encoded_length(), serialize(&block).len());
+        assert_eq!(block.weight().to_wu(), 1089);
 
         // Block with 3 transactions ... the rangeproofs are very large :)
         let block: Block = hex_deserialize!(
@@ -678,7 +669,7 @@ mod tests {
         assert_eq!(block.header.version, 0x2000_0000);
         assert_eq!(block.header.height, 1);
         assert_eq!(block.txdata.len(), 3);
-        assert_eq!(block.size(), serialize(&block).len());
+        assert_eq!(block.encoded_length(), serialize(&block).len());
 
         // 2-of-3 signed block from Liquid integration tests
         let block: Block = hex_deserialize!(

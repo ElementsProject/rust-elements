@@ -59,7 +59,6 @@ pub use self::map::{Global, GlobalTxData, Input, Output, PsbtSighashType, TapTre
 
 /// A Partially Signed Transaction.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
 pub struct PartiallySignedTransaction {
     /// The key-value pairs for all global data.
     pub global: Global,
@@ -775,6 +774,26 @@ impl Decodable for PartiallySignedTransaction {
         Ok(pset)
     }
 }
+
+#[cfg(feature = "base64")]
+#[cfg(feature = "serde")]
+impl serde::Serialize for PartiallySignedTransaction {
+    fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        self.to_string().serialize(s)
+    }
+}
+
+#[cfg(feature = "base64")]
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for PartiallySignedTransaction {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        use serde::de::Error as _;
+
+        let b64 = String::deserialize(d)?;
+        b64.parse().map_err(D::Error::custom)
+    }
+}
+
 
 #[cfg(test)]
 mod tests {

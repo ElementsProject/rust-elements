@@ -294,7 +294,7 @@ impl TaprootSpendInfo {
 /// branches in a DFS(Depth first search) walk to construct this tree.
 // Similar to Taproot Builder in bitcoin core
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct TaprootBuilder {
     // The following doc-comment is from bitcoin core, but modified for rust
     // The comment below describes the current state of the builder for a given tree.
@@ -444,7 +444,7 @@ impl TaprootBuilder {
 
 /// Structure to represent the node information in taproot tree
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct NodeInfo {
     /// Merkle Hash for this node
     pub(crate) hash: sha256::Hash,
@@ -498,7 +498,7 @@ impl NodeInfo {
 
 /// Data Structure to store information about taproot leaf node
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct LeafInfo {
     // The underlying script
     pub(crate) script: Script,
@@ -529,8 +529,7 @@ impl LeafInfo {
 // The type of hash is sha256::Hash because the vector might contain
 // both TapNodeHash and TapLeafHash
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct TaprootMerkleBranch(Vec<sha256::Hash>);
 
 impl TaprootMerkleBranch {
@@ -602,7 +601,7 @@ impl TaprootMerkleBranch {
 
 /// Control Block data structure used in Tapscript satisfaction
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct ControlBlock {
     /// The tapleaf version,
     pub leaf_version: LeafVersion,
@@ -711,7 +710,7 @@ impl ControlBlock {
 
 /// The leaf version for tapleafs
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde",  derive(serde::Serialize, serde::Deserialize))]
 pub struct LeafVersion(u8);
 
 impl Default for LeafVersion {
