@@ -16,7 +16,6 @@ use std::collections::btree_map::Entry;
 use std::{collections::BTreeMap, io};
 
 use crate::taproot::TapLeafHash;
-use crate::taproot::{NodeInfo, TaprootBuilder};
 
 use crate::encode::Decodable;
 use crate::pset::map::Map;
@@ -144,47 +143,7 @@ pub struct Output {
     pub unknown: BTreeMap<raw::Key, Vec<u8>>,
 }
 
-/// Taproot Tree representing a finalized [`TaprootBuilder`] (a complete binary tree)
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
-pub struct TapTree(pub(crate) TaprootBuilder);
-
-impl PartialEq for TapTree {
-    fn eq(&self, other: &Self) -> bool {
-        self.node_info().hash.eq(&other.node_info().hash)
-    }
-}
-
-impl Eq for TapTree {}
-
-impl TapTree {
-    // get the inner node info as the builder is finalized
-    fn node_info(&self) -> &NodeInfo {
-        // The builder algorithm invariant guarantees that is_complete builder
-        // have only 1 element in branch and that is not None.
-        // We make sure that we only allow is_complete builders via the from_inner
-        // constructor
-        self.0.branch()[0]
-            .as_ref()
-            .expect("from_inner only parses is_complete builders")
-    }
-
-    /// Convert a [`TaprootBuilder`] into a tree if it is complete binary tree.
-    /// Returns the inner as Err if it is not a complete tree
-    pub fn from_inner(inner: TaprootBuilder) -> Result<Self, TaprootBuilder> {
-        if inner.is_complete() {
-            Ok(TapTree(inner))
-        } else {
-            Err(inner)
-        }
-    }
-
-    /// Convert self into builder [`TaprootBuilder`]. The builder is guaranteed to
-    /// be finalized.
-    pub fn into_inner(self) -> TaprootBuilder {
-        self.0
-    }
-}
+pub use elements26::pset::TapTree;
 
 impl Output {
     /// Create a new explicit pset output

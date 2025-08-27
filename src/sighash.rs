@@ -27,7 +27,8 @@ use crate::script::Script;
 use std::ops::{Deref, DerefMut};
 use std::io;
 use crate::endian;
-use crate::transaction::{EcdsaSighashType, Transaction, TxIn, TxOut, TxInWitness};
+use elements26::{EcdsaSighashType, TxIn, TxInWitness};
+use crate::transaction::{Transaction, TxOut};
 use crate::confidential;
 use crate::Sequence;
 use std::fmt;
@@ -35,7 +36,6 @@ use crate::taproot::{TapSighashHash, TapLeafHash};
 
 use crate::BlockHash;
 
-use crate::transaction::SighashTypeParseError;
 /// Efficiently calculates signature hash message for legacy, segwit and taproot inputs.
 #[derive(Debug)]
 pub struct SighashCache<T: Deref<Target = Transaction>> {
@@ -229,6 +229,18 @@ impl<'s> ScriptPath<'s> {
 impl<'s> From<ScriptPath<'s>> for TapLeafHash {
     fn from(script_path: ScriptPath<'s>) -> TapLeafHash {
         script_path.leaf_hash()
+    }
+}
+
+ /// Break the sighash flag into the "real" sighash flag and the ANYONECANPAY boolean
+fn split_anyonecanpay_flag(flag: EcdsaSighashType) -> (EcdsaSighashType, bool) {
+    match flag {
+        EcdsaSighashType::All => (EcdsaSighashType::All, false),
+        EcdsaSighashType::None => (EcdsaSighashType::None, false),
+        EcdsaSighashType::Single => (EcdsaSighashType::Single, false),
+        EcdsaSighashType::AllPlusAnyoneCanPay => (EcdsaSighashType::All, true),
+        EcdsaSighashType::NonePlusAnyoneCanPay => (EcdsaSighashType::None, true),
+        EcdsaSighashType::SinglePlusAnyoneCanPay => (EcdsaSighashType::Single, true),
     }
 }
 
@@ -511,7 +523,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
     ) -> Result<(), encode::Error> {
         let zero_hash = sha256d::Hash::all_zeros();
 
-        let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
+        let (sighash, anyone_can_pay) = split_anyonecanpay_flag(sighash_type);
 
         self.tx.version.consensus_encode(&mut writer)?;
 
@@ -606,7 +618,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
     ) -> Result<(), encode::Error> {
         assert!(input_index < self.tx.input.len());  // Panic on OOB
 
-        let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
+        let (sighash, anyone_can_pay) = split_anyonecanpay_flag(sighash_type);
 
         // Special-case sighash_single bug because this is easy enough.
         if sighash == EcdsaSighashType::Single && input_index >= self.tx.output.len() {
@@ -846,124 +858,7 @@ impl From<encode::Error> for Error {
     }
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-/// The `Annex` struct is a slice wrapper enforcing first byte to be `0x50`
-pub struct Annex<'a>(&'a [u8]);
-
-impl<'a> Annex<'a> {
-    /// Creates a new `Annex` struct checking the first byte is `0x50`
-    pub fn new(annex_bytes: &'a [u8]) -> Result<Self, Error> {
-        if annex_bytes.first() == Some(&0x50) {
-            Ok(Annex(annex_bytes))
-        } else {
-            Err(Error::WrongAnnex)
-        }
-    }
-
-    /// Returns the Annex bytes data (including first byte `0x50`)
-    pub fn as_bytes(&self) -> &[u8] {
-        self.0
-    }
-}
-
-impl Encodable for Annex<'_> {
-    fn consensus_encode<W: io::Write>(&self, writer: W) -> Result<usize, encode::Error> {
-        encode::consensus_encode_with_size(self.0, writer)
-    }
-}
-
-/// Hashtype of an input's signature, encoded in the last byte of the signature
-/// Fixed values so they can be casted as integer types for encoding
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum SchnorrSighashType {
-    /// 0x0: Used when not explicitly specified, defaulting to [`SchnorrSighashType::All`]
-    Default = 0x00,
-    /// 0x1: Sign all outputs
-    All = 0x01,
-    /// 0x2: Sign no outputs --- anyone can choose the destination
-    None = 0x02,
-    /// 0x3: Sign the output whose index matches this input's index. If none exists,
-    /// sign the hash `0000000000000000000000000000000000000000000000000000000000000001`.
-    /// (This rule is probably an unintentional C++ism, but it's consensus so we have
-    /// to follow it.)
-    Single = 0x03,
-    /// 0x81: Sign all outputs but only this input
-    AllPlusAnyoneCanPay = 0x81,
-    /// 0x82: Sign no outputs and only this input
-    NonePlusAnyoneCanPay = 0x82,
-    /// 0x83: Sign one output and only this input (see `Single` for what "one output" means)
-    SinglePlusAnyoneCanPay = 0x83,
-
-    /// Reserved for future use, `#[non_exhaustive]` is not available with current MSRV
-    Reserved = 0xFF,
-}
-
-serde_string_impl!(SchnorrSighashType, "a SchnorrSighashType data");
-
-impl SchnorrSighashType {
-    /// Break the sighash flag into the "real" sighash flag and the ANYONECANPAY boolean
-    pub fn split_anyonecanpay_flag(self) -> (SchnorrSighashType, bool) {
-        match self {
-            SchnorrSighashType::Default => (SchnorrSighashType::Default, false),
-            SchnorrSighashType::All => (SchnorrSighashType::All, false),
-            SchnorrSighashType::None => (SchnorrSighashType::None, false),
-            SchnorrSighashType::Single => (SchnorrSighashType::Single, false),
-            SchnorrSighashType::AllPlusAnyoneCanPay => (SchnorrSighashType::All, true),
-            SchnorrSighashType::NonePlusAnyoneCanPay => (SchnorrSighashType::None, true),
-            SchnorrSighashType::SinglePlusAnyoneCanPay => (SchnorrSighashType::Single, true),
-            SchnorrSighashType::Reserved => (SchnorrSighashType::Reserved, false),
-        }
-    }
-
-    /// Create a [`SchnorrSighashType`] from raw u8
-    pub fn from_u8(hash_ty: u8) -> Option<Self> {
-        match hash_ty {
-            0x00 => Some(SchnorrSighashType::Default),
-            0x01 => Some(SchnorrSighashType::All),
-            0x02 => Some(SchnorrSighashType::None),
-            0x03 => Some(SchnorrSighashType::Single),
-            0x81 => Some(SchnorrSighashType::AllPlusAnyoneCanPay),
-            0x82 => Some(SchnorrSighashType::NonePlusAnyoneCanPay),
-            0x83 => Some(SchnorrSighashType::SinglePlusAnyoneCanPay),
-            _x => None,
-        }
-    }
-}
-
-impl fmt::Display for SchnorrSighashType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s = match self {
-            SchnorrSighashType::Default => "SIGHASH_DEFAULT",
-            SchnorrSighashType::All => "SIGHASH_ALL",
-            SchnorrSighashType::None => "SIGHASH_NONE",
-            SchnorrSighashType::Single => "SIGHASH_SINGLE",
-            SchnorrSighashType::AllPlusAnyoneCanPay => "SIGHASH_ALL|SIGHASH_ANYONECANPAY",
-            SchnorrSighashType::NonePlusAnyoneCanPay => "SIGHASH_NONE|SIGHASH_ANYONECANPAY",
-            SchnorrSighashType::SinglePlusAnyoneCanPay => "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY",
-            SchnorrSighashType::Reserved => "SIGHASH_RESERVED",
-        };
-        f.write_str(s)
-    }
-}
-
-impl std::str::FromStr for SchnorrSighashType {
-    type Err = SighashTypeParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "SIGHASH_DEFAULT" => Ok(SchnorrSighashType::Default),
-            "SIGHASH_ALL" => Ok(SchnorrSighashType::All),
-            "SIGHASH_NONE" => Ok(SchnorrSighashType::None),
-            "SIGHASH_SINGLE" => Ok(SchnorrSighashType::Single),
-            "SIGHASH_ALL|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::AllPlusAnyoneCanPay),
-            "SIGHASH_NONE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::NonePlusAnyoneCanPay),
-            "SIGHASH_SINGLE|SIGHASH_ANYONECANPAY" => Ok(SchnorrSighashType::SinglePlusAnyoneCanPay),
-            "SIGHASH_RESERVED" => Ok(SchnorrSighashType::Reserved),
-            _ => Err(SighashTypeParseError{ unrecognized: s.to_owned() }),
-        }
-    }
-}
-
+pub use elements26::sighash::{Annex, SchnorrSighashType};
 
 #[cfg(test)]
 mod tests{

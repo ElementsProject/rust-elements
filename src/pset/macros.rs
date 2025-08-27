@@ -198,32 +198,3 @@ macro_rules! impl_pset_get_pair {
         }
     };
 }
-
-// macros for serde of hashes
-macro_rules! impl_pset_hash_de_serialize {
-    ($hash_type:ty) => {
-        impl_pset_hash_serialize!($hash_type);
-        impl_pset_hash_deserialize!($hash_type);
-    };
-}
-
-macro_rules! impl_pset_hash_deserialize {
-    ($hash_type:ty) => {
-        impl $crate::pset::serialize::Deserialize for $hash_type {
-            fn deserialize(bytes: &[u8]) -> Result<Self, $crate::encode::Error> {
-                <$hash_type>::from_slice(&bytes[..])
-                    .map_err(|e| $crate::pset::Error::from(e).into())
-            }
-        }
-    };
-}
-
-macro_rules! impl_pset_hash_serialize {
-    ($hash_type:ty) => {
-        impl $crate::pset::serialize::Serialize for $hash_type {
-            fn serialize(&self) -> Vec<u8> {
-                self.to_byte_array().to_vec()
-            }
-        }
-    };
-}

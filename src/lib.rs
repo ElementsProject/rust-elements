@@ -46,52 +46,41 @@ extern crate serde_json;
 
 #[macro_use]
 mod internal_macros;
-pub mod address;
-pub mod blech32;
+
 mod blind;
 mod block;
-pub mod confidential;
-pub mod dynafed;
-pub mod encode;
-mod error;
-mod ext;
-mod fast_merkle_root;
-pub mod hash_types;
-pub mod hex;
-pub mod issuance;
-pub mod locktime;
-pub mod opcodes;
-mod parse;
+mod endian;
 pub mod pset;
-pub mod schnorr;
-pub mod script;
 #[cfg(feature = "serde")]
 mod serde_utils;
 pub mod sighash;
-pub mod taproot;
 mod transaction;
-// consider making upstream public
-mod endian;
+
+pub use elements26::{address, blech32, confidential, dynafed, encode, hex, issuance, locktime, opcodes};
+pub use elements26::{schnorr, script, taproot};
 // re-export bitcoin deps which we re-use
 pub use bitcoin::hashes;
 // export everything at the top level so it can be used as `elements::Transaction` etc.
-pub use crate::address::{Address, AddressError, AddressParams};
-pub use crate::blind::{
+pub use elements26::{Address, AddressError, AddressParams};
+pub use elements26::{
     BlindAssetProofs, BlindError, BlindValueProofs, ConfidentialTxOutError, RangeProofMessage,
     SurjectionInput, TxOutError, TxOutSecrets, UnblindError, VerificationError,
 };
+pub use elements26::{ReadExt, WriteExt};
+pub use elements26::fast_merkle_root;
+pub use elements26::hash_types::{self, *};
+pub use elements26::{AssetId, ContractHash};
+pub use elements26::LockTime;
+pub use elements26::{SchnorrSig, SchnorrSigError};
+pub use elements26::Script;
+pub use elements26::Sequence;
+pub use elements26::{
+    AssetIssuance, EcdsaSighashType, OutPoint, PeginData, PegoutData, TxIn,
+    TxInWitness, TxOutWitness,
+};
+
 pub use crate::block::ExtData as BlockExtData;
 pub use crate::block::{Block, BlockHeader};
-pub use crate::ext::{ReadExt, WriteExt};
-pub use crate::fast_merkle_root::fast_merkle_root;
-pub use crate::hash_types::*;
-pub use crate::issuance::{AssetId, ContractHash};
-pub use crate::locktime::LockTime;
-pub use crate::schnorr::{SchnorrSig, SchnorrSigError};
-pub use crate::script::Script;
 pub use crate::sighash::SchnorrSighashType;
-pub use crate::transaction::Sequence;
-pub use crate::transaction::{
-    AssetIssuance, EcdsaSighashType, OutPoint, PeginData, PegoutData, Transaction, TxIn,
-    TxInWitness, TxOut, TxOutWitness,
-};
+pub use crate::transaction::{TxOut, Transaction};
+

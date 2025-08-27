@@ -23,7 +23,6 @@
 use std::collections::HashMap;
 use std::{cmp, io};
 
-mod error;
 #[macro_use]
 mod macros;
 mod map;
@@ -42,7 +41,7 @@ use crate::blind::{BlindAssetProofs, BlindValueProofs};
 use crate::confidential;
 use crate::encode::{self, Decodable, Encodable};
 use crate::{
-    blind::RangeProofMessage,
+    RangeProofMessage,
     confidential::{AssetBlindingFactor, ValueBlindingFactor},
     TxOutSecrets,
 };
@@ -50,7 +49,7 @@ use crate::{OutPoint, LockTime, Sequence, SurjectionInput, Transaction, TxIn, Tx
 use secp256k1_zkp::rand::{CryptoRng, RngCore};
 use secp256k1_zkp::{self, RangeProof, SecretKey, SurjectionProof};
 
-pub use self::error::{Error, PsetBlindError};
+pub use elements26::pset::{Error, PsetBlindError, PsetHash};
 use self::map::Map;
 pub use self::map::{Global, GlobalTxData, Input, Output, PsbtSighashType, TapTree};
 
@@ -635,7 +634,7 @@ impl PartiallySignedTransaction {
 
         // Add all the scalars
         for value_diff in self.global.scalars.iter() {
-            final_vbf += ValueBlindingFactor(*value_diff);
+            final_vbf += ValueBlindingFactor::from_slice(value_diff.as_ref()).expect("length match");
         }
 
         let receiver_blinding_pk = &self.outputs[last_out_index]

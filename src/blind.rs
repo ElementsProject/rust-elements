@@ -15,449 +15,23 @@
 //! # Transactions Blinding
 //!
 
-use std::{self, collections::BTreeMap, fmt};
+use std::collections::BTreeMap;
 
 use secp256k1_zkp::{
     self,
     rand::{CryptoRng, RngCore},
-    PedersenCommitment, SecretKey, Tag, Tweak, Verification, ZERO_TWEAK,
+    PedersenCommitment, SecretKey, Verification, ZERO_TWEAK,
 };
 use secp256k1_zkp::{Generator, RangeProof, Secp256k1, Signing, SurjectionProof};
 
-use crate::{AddressParams, Script, TxIn};
+use crate::{AddressParams, Script};
 
-use crate::hashes;
 use crate::{
-    confidential::{Asset, AssetBlindingFactor, Nonce, Value, ValueBlindingFactor},
+    confidential::{Asset, AssetBlindingFactor, Value, ValueBlindingFactor},
     Address, AssetId, Transaction, TxOut, TxOutWitness,
 };
 
-/// Transaction Output related errors
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TxOutError {
-    /// Unexpected Null Value
-    UnExpectedNullValue,
-    /// Unexpected Null asset
-    UnExpectedNullAsset,
-    /// Money should be between 0 and 21_000_000
-    MoneyOutofRange,
-    /// Zero value explicit txout with non-provably unspendable script
-    NonUnspendableZeroValue,
-    /// Zero value pedersen commitment with provably unspendable script
-    ZeroValueCommitment,
-    /// Incorrect Blinding factors
-    IncorrectBlindingFactors,
-}
-
-impl std::error::Error for TxOutError {}
-
-impl fmt::Display for TxOutError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        match self {
-            TxOutError::UnExpectedNullValue => write!(f, "UnExpected Null Value"),
-            TxOutError::UnExpectedNullAsset => write!(f, "UnExpected Null Asset"),
-            TxOutError::MoneyOutofRange => write!(
-                f,
-                "Explicit amount must be\
-                less than 21 million"
-            ),
-            TxOutError::NonUnspendableZeroValue => {
-                write!(
-                    f,
-                    "Zero value explicit amounts must be provably unspendable.\
-                    See IsUnspendable in elements"
-                )
-            }
-            TxOutError::ZeroValueCommitment => {
-                write!(
-                    f,
-                    "Tried to create pedersen commitment with zero value.\
-                    Zero value is only allowed for provable unspendable scripts,
-                    in which case the verification check can ignore the txout"
-                )
-            }
-            TxOutError::IncorrectBlindingFactors => {
-                write!(f, "Incorrect Blinding factors")
-            }
-        }
-    }
-}
-
-/// Transaction Verification Errors
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum VerificationError {
-    /// Verification of rangeproof failed
-    RangeProofError(usize, secp256k1_zkp::Error),
-    /// Missing Range Proof
-    RangeProofMissing(usize),
-    /// Verification of SurjectionProof failed
-    SurjectionProofError(usize, secp256k1_zkp::Error),
-    /// Surjection Proof verification error
-    SurjectionProofVerificationError(usize),
-    /// Missing Range Proof
-    SurjectionProofMissing(usize),
-    /// Spent Txout error
-    SpentTxOutError(usize, TxOutError),
-    /// Current transaction txout error
-    TxOutError(usize, TxOutError),
-    /// Issuance transaction verification not supported yet
-    IssuanceTransactionInput(usize),
-    /// Spent input len must match the len of transaction input
-    UtxoInputLenMismatch,
-    /// Balance Check failed
-    BalanceCheckFailed,
-}
-
-impl fmt::Display for VerificationError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            VerificationError::RangeProofError(i, e) => {
-                write!(f, "Rangeproof Error {} : for output index {}", i, e)
-            }
-            VerificationError::SurjectionProofError(i, e) => {
-                write!(f, "Surjection Proof Error {} : for output index {}", i, e)
-            }
-            VerificationError::SurjectionProofVerificationError(i) => {
-                write!(
-                    f,
-                    "Surjection proof verification failed for output index {}",
-                    i
-                )
-            }
-            VerificationError::IssuanceTransactionInput(i) => {
-                write!(f, "Issuance transaction input {} not supported yet", i)
-            }
-            VerificationError::UtxoInputLenMismatch => {
-                write!(f, "Utxo len must match the len of transaction inputs")
-            }
-            VerificationError::SpentTxOutError(i, e) => {
-                write!(f, "Input index {} spent utxo error: {}", i, e)
-            }
-            VerificationError::TxOutError(i, e) => {
-                write!(f, "Output index {} txout: {}", i, e)
-            }
-            VerificationError::BalanceCheckFailed => {
-                write!(
-                    f,
-                    "Confidential transaction verification balance check failed"
-                )
-            }
-            VerificationError::RangeProofMissing(i) => {
-                write!(f, "Missing Rangeproof for output index {}", i)
-            }
-            VerificationError::SurjectionProofMissing(i) => {
-                write!(f, "Missing Surjection Proof for output index {}", i)
-            }
-        }
-    }
-}
-
-impl std::error::Error for VerificationError {}
-
-/// Errors encountered when constructing confidential transaction outputs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ConfidentialTxOutError {
-    /// The script pubkey does not represent a valid address
-    /// This is not a fundamental limitation, just a limitation of how
-    /// the code API is structured
-    InvalidAddress,
-    /// The address provided does not have a blinding key.
-    NoBlindingKeyInAddress,
-    /// Error originated in `secp256k1_zkp`.
-    Upstream(secp256k1_zkp::Error),
-    /// General TxOut errors
-    TxOutError(usize, TxOutError),
-    /// Expected Explicit Asset for blinding
-    ExpectedExplicitAsset,
-    /// Expected Explicit Value for blinding
-    ExpectedExplicitValue,
-}
-
-impl fmt::Display for ConfidentialTxOutError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        match self {
-            ConfidentialTxOutError::NoBlindingKeyInAddress => {
-                write!(f, "address does not include a blinding key")
-            }
-            ConfidentialTxOutError::Upstream(e) => write!(f, "{}", e),
-            ConfidentialTxOutError::TxOutError(i, e) => {
-                write!(f, "Txout error {} at index: {}", e, i)
-            }
-            ConfidentialTxOutError::ExpectedExplicitAsset => {
-                write!(f, "Expected explicit asset for blinding")
-            }
-            ConfidentialTxOutError::ExpectedExplicitValue => {
-                write!(f, "Expected explicit value for blinding")
-            }
-            ConfidentialTxOutError::InvalidAddress => {
-                write!(
-                    f,
-                    "Only sending to valid addresses is supported as of now. \
-                Manually construct transactions to send to custom script pubkeys"
-                )
-            }
-        }
-    }
-}
-
-impl std::error::Error for ConfidentialTxOutError {}
-
-impl From<secp256k1_zkp::Error> for ConfidentialTxOutError {
-    fn from(from: secp256k1_zkp::Error) -> Self {
-        ConfidentialTxOutError::Upstream(from)
-    }
-}
-/// The Rangeproof message
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub struct RangeProofMessage {
-    /// The asset id
-    pub asset: AssetId,
-    /// The asset blinding factor
-    pub bf: AssetBlindingFactor,
-}
-
-impl RangeProofMessage {
-    /// Converts the message to bytes
-    pub fn to_bytes(&self) -> [u8; 64] {
-        let mut message = [0u8; 64];
-
-        message[..32].copy_from_slice(self.asset.into_tag().as_ref());
-        message[32..].copy_from_slice(self.bf.into_inner().as_ref());
-
-        message
-    }
-}
-
-/// Information about Transaction Input Asset
-#[cfg_attr(
-    feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "actual_serde")
-)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, Hash)]
-pub struct TxOutSecrets {
-    /// Asset
-    pub asset: AssetId,
-    /// Asset Blinding Factor
-    pub asset_bf: AssetBlindingFactor,
-    /// Value
-    pub value: u64,
-    /// Value Blinding factor
-    pub value_bf: ValueBlindingFactor,
-}
-
-impl TxOutSecrets {
-    /// Create a new [`TxOutSecrets`]
-    pub fn new(
-        asset: AssetId,
-        asset_bf: AssetBlindingFactor,
-        value: u64,
-        value_bf: ValueBlindingFactor,
-    ) -> Self {
-        Self {
-            asset,
-            asset_bf,
-            value,
-            value_bf,
-        }
-    }
-
-    /// Gets the surjection inputs from [`TxOutSecrets`].
-    ///
-    /// Returns a tuple (assetid, blind_factor, generator) if the blinds are
-    /// consistent with asset commitment
-    /// Otherwise, returns an error
-    pub fn surjection_inputs<C: Signing>(&self, secp: &Secp256k1<C>) -> (Generator, Tag, Tweak) {
-        let tag = self.asset.into_tag();
-        let bf = self.asset_bf.into_inner();
-        let gen = Generator::new_blinded(secp, tag, bf);
-        (gen, tag, bf)
-    }
-
-    /// Gets the required fields for last value blinding factor calculation from [`TxOutSecrets`]
-    pub fn value_blind_inputs(&self) -> (u64, AssetBlindingFactor, ValueBlindingFactor) {
-        (self.value, self.asset_bf, self.value_bf)
-    }
-}
-
-/// Data structure used to provide inputs to [`SurjectionProof`] methods.
-///
-/// Inputs for which we don't know the secrets can be [`SurjectionInput::Unknown`],
-/// while inputs from user's wallet should be [`SurjectionInput::Known`]
-///
-/// Explicit assets can be provided as [`SurjectionInput::Unknown`]. There is no
-/// need to construct a `Known` variant with secrets
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum SurjectionInput {
-    /// Unknown inputs for whom we don't know the secrets(asset tags/blinding factors)
-    Unknown(Asset),
-    /// Known inputs for whom we know blinding factors
-    Known {
-        /// Asset
-        asset: AssetId,
-        /// Asset Blinding Factor
-        asset_bf: AssetBlindingFactor,
-    },
-}
-
-impl From<TxOutSecrets> for SurjectionInput {
-    fn from(v: TxOutSecrets) -> Self {
-        Self::Known {
-            asset: v.asset,
-            asset_bf: v.asset_bf,
-        }
-    }
-}
-
-impl From<Asset> for SurjectionInput {
-    fn from(v: Asset) -> Self {
-        Self::Unknown(v)
-    }
-}
-
-impl SurjectionInput {
-    /// Creates a new [`SurjectionInput`] from commitment
-    pub fn from_comm(asset: Asset) -> Self {
-        Self::Unknown(asset)
-    }
-
-    /// Creates a new [`SurjectionInput`] from [`TxOutSecrets`]
-    pub fn from_txout_secrets(secrets: TxOutSecrets) -> Self {
-        Self::from(secrets)
-    }
-
-    /// Handy method to convert [`SurjectionInput`] into a surjection target
-    /// that can be used while creating a new [SurjectionProof].
-    ///
-    /// Only errors when the input asset is Null.
-    pub fn surjection_target<C: Signing>(
-        &self,
-        secp: &Secp256k1<C>,
-    ) -> Result<(Generator, Tag, Tweak), TxOutError> {
-        match self {
-            SurjectionInput::Unknown(asset) => {
-                let gen = asset
-                    .into_asset_gen(secp)
-                    .ok_or(TxOutError::UnExpectedNullAsset)?;
-                // Return the input as 0 tag and 0 tweak. This also correctly handles explicit case
-                Ok((gen, Tag::default(), ZERO_TWEAK))
-            }
-            SurjectionInput::Known { asset, asset_bf } => {
-                let tag = asset.into_tag();
-                let bf = asset_bf.into_inner();
-                let gen = Generator::new_blinded(secp, tag, bf);
-                Ok((gen, tag, bf))
-            }
-        }
-    }
-}
-
-impl Asset {
-    /// Blinds the asset such that there is a surjection proof between
-    /// the input assets and the output blinded asset.
-    ///
-    /// # Returns:
-    ///
-    /// A pair of blinded asset and corresponding proof as ([`Asset`], [`SurjectionProof`])
-    pub fn blind<R, C, S>(
-        self,
-        rng: &mut R,
-        secp: &Secp256k1<C>,
-        asset_bf: AssetBlindingFactor,
-        spent_utxo_secrets: &[S],
-    ) -> Result<(Self, SurjectionProof), ConfidentialTxOutError>
-    where
-        R: RngCore + CryptoRng,
-        C: Signing,
-        S: Into<SurjectionInput> + Copy,
-    {
-        let asset = self
-            .explicit()
-            .ok_or(ConfidentialTxOutError::ExpectedExplicitAsset)?;
-        let out_asset = Asset::new_confidential(secp, asset, asset_bf);
-
-        let inputs = spent_utxo_secrets
-            .iter()
-            .enumerate()
-            .map(|(i, surject_inp)| {
-                (*surject_inp)
-                    .into()
-                    .surjection_target(secp)
-                    .map_err(|e| ConfidentialTxOutError::TxOutError(i, e))
-            })
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let surjection_proof = SurjectionProof::new(
-            secp,
-            rng,
-            asset.into_tag(),
-            asset_bf.into_inner(),
-            inputs.as_ref(),
-        )?;
-
-        Ok((out_asset, surjection_proof))
-    }
-}
-
-impl Value {
-    /// Blinds the values and outputs the blinded value along with [`RangeProof`].
-    /// This computes the nonce by doing an ECDH with `receiver_blinding_pk` and `ephemeral_sk`
-    ///
-    /// # Returns:
-    ///
-    /// A pair of blinded value, nonce and corresponding proof as ([`Value`], [`Nonce`], [`RangeProof`])
-    /// The nonce here refers to public key corresponding to the input `ephemeral_sk`
-    pub fn blind<C: Signing>(
-        self,
-        secp: &Secp256k1<C>,
-        vbf: ValueBlindingFactor,
-        receiver_blinding_pk: secp256k1_zkp::PublicKey,
-        ephemeral_sk: SecretKey,
-        spk: &Script,
-        msg: &RangeProofMessage,
-    ) -> Result<(Self, Nonce, RangeProof), ConfidentialTxOutError> {
-        let (nonce, shared_secret) =
-            Nonce::with_ephemeral_sk(secp, ephemeral_sk, &receiver_blinding_pk);
-
-        let (value_commit, rangeproof) =
-            self.blind_with_shared_secret(secp, vbf, shared_secret, spk, msg)?;
-        Ok((value_commit, nonce, rangeproof))
-    }
-
-    /// Blinds with the given shared_secret(instead of computing it via ECDH)
-    /// This is useful while blinding assets as there is no counter party to provide
-    /// the blinding key.
-    pub fn blind_with_shared_secret<C: Signing>(
-        self,
-        secp: &Secp256k1<C>,
-        vbf: ValueBlindingFactor,
-        shared_secret: SecretKey,
-        spk: &Script,
-        msg: &RangeProofMessage,
-    ) -> Result<(Self, RangeProof), ConfidentialTxOutError> {
-        let value = self
-            .explicit()
-            .ok_or(ConfidentialTxOutError::ExpectedExplicitValue)?;
-        let out_asset_commitment =
-            Generator::new_blinded(secp, msg.asset.into_tag(), msg.bf.into_inner());
-        let value_commitment = Value::new_confidential(secp, value, out_asset_commitment, vbf);
-
-        let rangeproof = RangeProof::new(
-            secp,
-            TxOut::RANGEPROOF_MIN_VALUE,
-            value_commitment.commitment().expect("confidential value"),
-            value,
-            vbf.into_inner(),
-            &msg.to_bytes(),
-            spk.as_bytes(),
-            shared_secret,
-            TxOut::RANGEPROOF_EXP_SHIFT,
-            TxOut::RANGEPROOF_MIN_PRIV_BITS,
-            out_asset_commitment,
-        )?;
-        Ok((value_commitment, rangeproof))
-    }
-}
+use crate::{BlindError, ConfidentialTxOutError, RangeProofMessage, SurjectionInput, TxOutError, TxOutSecrets, UnblindError, VerificationError};
 
 impl TxOut {
     /// Rangeproof minimum value
@@ -779,7 +353,7 @@ impl TxOut {
         let asset_bf = AssetBlindingFactor::from_slice(&asset_bf[..32])?;
 
         let value = opening.value;
-        let value_bf = ValueBlindingFactor(opening.blinding_factor);
+        let value_bf = ValueBlindingFactor::from_slice(opening.blinding_factor.as_ref()).expect("correct length");
 
         Ok(TxOutSecrets {
             asset,
@@ -787,131 +361,6 @@ impl TxOut {
             value,
             value_bf,
         })
-    }
-}
-
-/// Errors encountered when unblinding `TxOut`s.
-#[derive(Debug)]
-pub enum UnblindError {
-    /// The `TxOut` is not fully confidential.
-    NotConfidential,
-    /// Transaction output does not have a nonce commitment.
-    MissingNonce,
-    /// Transaction output does not have a rangeproof.
-    MissingRangeproof,
-    /// Malformed asset ID.
-    MalformedAssetId(hashes::FromSliceError),
-    /// Error originated in `secp256k1_zkp`.
-    Upstream(secp256k1_zkp::Error),
-}
-
-impl fmt::Display for UnblindError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        match self {
-            UnblindError::MissingNonce => write!(f, "missing nonce in txout"),
-            UnblindError::MalformedAssetId(_) => write!(f, "malformed asset id"),
-            UnblindError::Upstream(e) => write!(f, "{}", e),
-            UnblindError::NotConfidential => write!(f, "cannot unblind non-confidential txout"),
-            UnblindError::MissingRangeproof => write!(f, "missing rangeproof in txout"),
-        }
-    }
-}
-
-impl std::error::Error for UnblindError {
-    fn cause(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            UnblindError::MissingNonce => None,
-            UnblindError::MalformedAssetId(e) => Some(e),
-            UnblindError::Upstream(e) => Some(e),
-            UnblindError::NotConfidential => None,
-            UnblindError::MissingRangeproof => None,
-        }
-    }
-}
-
-impl From<secp256k1_zkp::Error> for UnblindError {
-    fn from(from: secp256k1_zkp::Error) -> Self {
-        UnblindError::Upstream(from)
-    }
-}
-
-impl From<hashes::FromSliceError> for UnblindError {
-    fn from(from: hashes::FromSliceError) -> Self {
-        UnblindError::MalformedAssetId(from)
-    }
-}
-
-impl TxIn {
-    /// Blind issuances for this [`TxIn`]. Asset amount and token amount must be
-    /// set in [`AssetIssuance`](crate::AssetIssuance) field for this input
-    pub fn blind_issuances_with_bfs<C: Signing>(
-        &mut self,
-        secp: &Secp256k1<C>,
-        issue_vbf: ValueBlindingFactor,
-        token_vbf: ValueBlindingFactor,
-        issue_sk: SecretKey,
-        token_sk: SecretKey,
-    ) -> Result<(), BlindError> {
-        if !self.has_issuance() {
-            return Err(BlindError::NoIssuanceToBlind);
-        }
-        let (asset_id, token_id) = self.issuance_ids();
-        let arr = vec![
-            (issue_vbf, self.asset_issuance.amount, issue_sk, asset_id),
-            (
-                token_vbf,
-                self.asset_issuance.inflation_keys,
-                token_sk,
-                token_id,
-            ),
-        ];
-        for (i, (bf, amt, blind_sk, asset)) in arr.into_iter().enumerate() {
-            let v = match amt {
-                Value::Null => continue, // nothing to blind
-                Value::Explicit(0) => return Err(BlindError::ZeroValueBlindingNotAllowed),
-                Value::Confidential(_) => return Err(BlindError::IssuanceAmountMustBeExplicit),
-                Value::Explicit(v) => Value::Explicit(v),
-            };
-            let spk = Script::new();
-            let msg = RangeProofMessage {
-                asset,
-                bf: AssetBlindingFactor::zero(),
-            };
-            let (comm, prf) = v.blind_with_shared_secret(secp, bf, blind_sk, &spk, &msg)?;
-            if i == 0 {
-                self.asset_issuance.amount = comm;
-                self.witness.amount_rangeproof = Some(Box::new(prf));
-            } else {
-                self.asset_issuance.inflation_keys = comm;
-                self.witness.inflation_keys_rangeproof = Some(Box::new(prf));
-            }
-        }
-        Ok(())
-    }
-
-    /// Blind issuances for this [`TxIn`]. Asset amount and token amount must be
-    /// set in [`AssetIssuance`](crate::AssetIssuance) field for this input
-    ///
-    /// Returns (issuance_blinding_factor, issue_blind_sec_key, token_blinding_factor, token_blind_sec_key)
-    pub fn blind_issuances<C: Signing, R: RngCore + CryptoRng>(
-        &mut self,
-        secp: &Secp256k1<C>,
-        rng: &mut R,
-    ) -> Result<
-        (
-            ValueBlindingFactor,
-            SecretKey,
-            ValueBlindingFactor,
-            SecretKey,
-        ),
-        BlindError,
-    > {
-        let issue_vbf = ValueBlindingFactor::new(rng);
-        let token_vbf = ValueBlindingFactor::new(rng);
-        let issue_sk = SecretKey::new(rng);
-        let token_sk = SecretKey::new(rng);
-        self.blind_issuances_with_bfs(secp, issue_vbf, token_vbf, issue_sk, token_sk)?;
-        Ok((issue_vbf, issue_sk, token_vbf, token_sk))
     }
 }
 
@@ -1189,70 +638,6 @@ impl Transaction {
     }
 }
 
-/// Errors encountered when blinding transaction outputs.
-#[derive(Debug, Clone, Copy)]
-pub enum BlindError {
-    /// The script pubkey does not represent a valid address
-    /// This is not a fundamental limitation, just a limitation of how
-    /// the code API is structured
-    InvalidAddress,
-    /// Too few blinding inputs
-    TooFewBlindingOutputs,
-    /// All outputs must be explicit asset/amounts
-    MustHaveAllExplicitTxOuts,
-    /// General TxOut errors
-    ConfidentialTxOutError(ConfidentialTxOutError),
-    /// No Issuances to blind in this TxIn
-    NoIssuanceToBlind,
-    /// Zero Value Blinding not allowed
-    ZeroValueBlindingNotAllowed,
-    /// Issuance Amount must be explicit
-    IssuanceAmountMustBeExplicit,
-}
-
-impl fmt::Display for BlindError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
-        match self {
-            BlindError::InvalidAddress => {
-                write!(
-                    f,
-                    "Only sending to valid addresses is supported as of now. \
-                Manually construct transactions to send to custom script pubkeys"
-                )
-            }
-            BlindError::TooFewBlindingOutputs => {
-                write!(
-                    f,
-                    "Transactions must have atleast confidential outputs \
-                    marked for blinding. To mark a output for blinding set nonce field\
-                    with a blinding pubkey"
-                )
-            }
-            BlindError::MustHaveAllExplicitTxOuts => {
-                write!(f, "Transaction must all outputs explicit")
-            }
-            BlindError::ConfidentialTxOutError(e) => {
-                write!(f, "{}", e)
-            }
-            BlindError::NoIssuanceToBlind => write!(f, "No Issuance present"),
-            BlindError::ZeroValueBlindingNotAllowed => {
-                write!(f, "Zero value blinding is not allowed")
-            }
-            BlindError::IssuanceAmountMustBeExplicit => {
-                write!(f, "Issuance amount must be explicit to blind")
-            }
-        }
-    }
-}
-
-impl std::error::Error for BlindError {}
-
-impl From<ConfidentialTxOutError> for BlindError {
-    fn from(from: ConfidentialTxOutError) -> Self {
-        BlindError::ConfidentialTxOutError(from)
-    }
-}
-
 /// A trait to create and verify explicit rangeproofs
 pub trait BlindValueProofs: Sized {
     /// Outputs a `[RangeProof]` that blinded value
@@ -1265,16 +650,6 @@ pub trait BlindValueProofs: Sized {
         asset_gen: Generator,
         vbf: ValueBlindingFactor,
     ) -> Result<Self, secp256k1_zkp::Error>;
-
-    /// Verify that the Rangeproof proves that commitment
-    /// is actually bound to the explicit value
-    fn blind_value_proof_verify<C: secp256k1_zkp::Verification>(
-        &self,
-        secp: &Secp256k1<C>,
-        explicit_val: u64,
-        asset_gen: Generator,
-        value_commit: PedersenCommitment,
-    ) -> bool;
 }
 
 impl BlindValueProofs for RangeProof {
@@ -1302,22 +677,6 @@ impl BlindValueProofs for RangeProof {
             asset_gen,           // additional gen
         )
     }
-
-    /// Verify that the Rangeproof proves that commitment
-    /// is actually bound to the explicit value
-    fn blind_value_proof_verify<C: secp256k1_zkp::Verification>(
-        &self,
-        secp: &Secp256k1<C>,
-        explicit_val: u64,
-        asset_gen: Generator,
-        value_commit: PedersenCommitment,
-    ) -> bool {
-        let r = self.verify(secp, value_commit, &[], asset_gen);
-        match r {
-            Ok(e) => e.start == explicit_val && e.end - 1 == explicit_val,
-            Err(..) => false,
-        }
-    }
 }
 
 /// A trait to create and verify explicit surjection proofs
@@ -1330,15 +689,6 @@ pub trait BlindAssetProofs: Sized {
         asset: AssetId,
         abf: AssetBlindingFactor,
     ) -> Result<Self, secp256k1_zkp::Error>;
-
-    /// Verify that the Surjection proves that asset commitment
-    /// is actually bound to the explicit asset
-    fn blind_asset_proof_verify(
-        &self,
-        secp: &Secp256k1<secp256k1_zkp::All>,
-        asset: AssetId,
-        asset_commit: Generator,
-    ) -> bool;
 }
 
 impl BlindAssetProofs for SurjectionProof {
@@ -1357,22 +707,12 @@ impl BlindAssetProofs for SurjectionProof {
             &[(gen, asset.into_tag(), ZERO_TWEAK)],
         )
     }
-
-    fn blind_asset_proof_verify(
-        &self,
-        secp: &Secp256k1<secp256k1_zkp::All>,
-        asset: AssetId,
-        asset_commit: Generator,
-    ) -> bool {
-        let gen = Generator::new_unblinded(secp, asset.into_tag());
-        self.verify(secp, asset_commit, &[gen])
-    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::confidential;
+    use crate::confidential::{self, Nonce};
     use crate::encode;
     use crate::encode::deserialize;
     use crate::hex::FromHex;
@@ -1533,7 +873,7 @@ mod tests {
         let vbf = ValueBlindingFactor::new(&mut thread_rng());
         let v = confidential::Value::new_confidential(SECP256K1, explicit_val, asset_gen, vbf);
         let value_comm = v.commitment().unwrap();
-        let proof = RangeProof::blind_value_proof(
+        let _ = RangeProof::blind_value_proof(
             &mut thread_rng(),
             SECP256K1,
             explicit_val,
@@ -1542,9 +882,6 @@ mod tests {
             vbf,
         )
         .unwrap();
-
-        let res = proof.blind_value_proof_verify(SECP256K1, explicit_val, asset_gen, value_comm);
-        assert!(res);
     }
 
     #[test]
@@ -1553,13 +890,10 @@ mod tests {
         let abf = AssetBlindingFactor::new(&mut thread_rng());
         let asset = confidential::Asset::new_confidential(SECP256K1, id, abf);
 
-        let asset_comm = asset.commitment().unwrap();
+        let _ = asset.commitment().unwrap();
         // Create the proof
-        let proof =
+        let _ =
             SurjectionProof::blind_asset_proof(&mut thread_rng(), SECP256K1, id, abf).unwrap();
-
-        let res = proof.blind_asset_proof_verify(SECP256K1, id, asset_comm);
-        assert!(res);
     }
 
     #[test]
