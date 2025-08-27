@@ -1,4 +1,10 @@
 
+# 0.26.1 - 2025-08-28
+
+* [#250](https://github.com/ElementsProject/rust-elements/pull/250) API cleanups
+  * implement `Encodable` and `Decodable` for `Vec<T>` whenever `T` is `Encodable`/`Decodable` and `'static`
+  * add missing export of error sub-type `pset::PsetHash`
+
 # 0.26.0 - 2025-08-22
 
 * [#249](https://github.com/ElementsProject/rust-elements/pull/249) docs: fix changelog links
