@@ -53,7 +53,7 @@ use crate::{
 use secp256k1_zkp::rand::{CryptoRng, RngCore};
 use secp256k1_zkp::{self, RangeProof, SecretKey, SurjectionProof};
 
-pub use self::error::{Error, PsetBlindError};
+pub use self::error::{Error, PsetBlindError, PsetHash};
 use self::map::Map;
 pub use self::map::{Global, GlobalTxData, Input, Output, PsbtSighashType, TapTree};
 
