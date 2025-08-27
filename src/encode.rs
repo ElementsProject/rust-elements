@@ -16,14 +16,13 @@
 //!
 
 use std::io::Cursor;
-use std::{error, fmt, io, mem};
+use std::{any, error, fmt, io, mem};
 
 use bitcoin::ScriptBuf;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use crate::hashes::{sha256, Hash};
 use crate::pset;
-use crate::transaction::{Transaction, TxIn, TxOut};
 
 pub use bitcoin::{self, consensus::encode::MAX_VEC_SIZE};
 
@@ -314,47 +313,84 @@ impl Decodable for bitcoin::hashes::sha256d::Hash {
 }
 
 // Vectors
-macro_rules! impl_vec {
-    ($type: ty) => {
-        impl Encodable for Vec<$type> {
-            #[inline]
-            fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
-                let mut len = 0;
-                len += VarInt(self.len() as u64).consensus_encode(&mut s)?;
-                for c in self.iter() {
-                    len += c.consensus_encode(&mut s)?;
-                }
-                Ok(len)
+impl<T: Encodable + any::Any> Encodable for [T] {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, Error> {
+        if any::TypeId::of::<T>() == any::TypeId::of::<u8>() {
+            // SAFETY: checked that T is exactly u8, so &self, of type, &[T], is exactly &[u8]
+            let u8_slice = unsafe {
+                std::slice::from_raw_parts(self.as_ptr().cast::<u8>(), self.len())
+            };
+            consensus_encode_with_size(u8_slice, s)
+        } else {
+            let mut len = 0;
+            len += VarInt(self.len() as u64).consensus_encode(&mut s)?;
+            for c in self {
+                len += c.consensus_encode(&mut s)?;
             }
+            Ok(len)
         }
-
-        impl Decodable for Vec<$type> {
-            #[inline]
-            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
-                let len = VarInt::consensus_decode(&mut d)?.0;
-                let byte_size = (len as usize)
-                    .checked_mul(mem::size_of::<$type>())
-                    .ok_or(self::Error::ParseFailed("Invalid length"))?;
-                if byte_size > MAX_VEC_SIZE {
-                    return Err(self::Error::OversizedVectorAllocation {
-                        requested: byte_size,
-                        max: MAX_VEC_SIZE,
-                    });
-                }
-                let mut ret = Vec::with_capacity(len as usize);
-                for _ in 0..len {
-                    ret.push(Decodable::consensus_decode(&mut d)?);
-                }
-                Ok(ret)
-            }
-        }
-    };
+    }
 }
-impl_vec!(TxIn);
-impl_vec!(TxOut);
-impl_vec!(Transaction);
-impl_vec!(TapLeafHash);
-impl_vec!(Vec<u8>); // Vec<Vec<u8>>
+
+impl<T: Encodable + any::Any> Encodable for Vec<T> {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+        self[..].consensus_encode(s)
+    }
+}
+
+impl<T: Encodable + any::Any> Encodable for Box<[T]> {
+    #[inline]
+    fn consensus_encode<S: io::Write>(&self, s: S) -> Result<usize, Error> {
+        self[..].consensus_encode(s)
+    }
+}
+
+impl<T: Decodable + any::Any> Decodable for Vec<T> {
+    #[inline]
+    fn consensus_decode<D: crate::ReadExt>(mut d: D) -> Result<Self, Error> {
+        if any::TypeId::of::<T>() == any::TypeId::of::<u8>() {
+            let s = VarInt::consensus_decode(&mut d)?.0 as usize;
+            if s > MAX_VEC_SIZE {
+                return Err(self::Error::OversizedVectorAllocation {
+                    requested: s,
+                    max: MAX_VEC_SIZE,
+                });
+            }
+            let mut v = vec![0; s];
+            d.read_slice(&mut v)?;
+            // SAFETY: checked that T is exactly u8, so v, of type, Vec<u8>, is exactly Vec<T>
+            unsafe {
+                Ok(std::mem::transmute::<Vec<u8>, Vec<T>>(v))
+            }
+        } else {
+            let len = VarInt::consensus_decode(&mut d)?.0;
+            let byte_size = (len as usize)
+                .checked_mul(mem::size_of::<T>())
+                .ok_or(self::Error::ParseFailed("Invalid length"))?;
+            if byte_size > MAX_VEC_SIZE {
+                return Err(self::Error::OversizedVectorAllocation {
+                    requested: byte_size,
+                    max: MAX_VEC_SIZE,
+                });
+            }
+            let mut ret = Vec::with_capacity(len as usize);
+            for _ in 0..len {
+                ret.push(Decodable::consensus_decode(&mut d)?);
+            }
+            Ok(ret)
+        }
+    }
+}
+
+impl<T: Decodable + any::Any> Decodable for Box<[T]> {
+    #[inline]
+    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
+        let v = Vec::<T>::consensus_decode(d)?;
+        Ok(v.into())
+    }
+}
 
 macro_rules! impl_array {
     ( $size:literal ) => {
@@ -382,38 +418,6 @@ macro_rules! impl_array {
 impl_array!(4);
 impl_array!(32);
 impl_array!(33);
-
-impl Encodable for Box<[u8]> {
-    fn consensus_encode<W: io::Write>(&self, mut w: W) -> Result<usize, Error> {
-        consensus_encode_with_size(&self[..], &mut w)
-    }
-}
-impl Decodable for Box<[u8]> {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        let v = Vec::<u8>::consensus_decode(d)?;
-        Ok(v.into())
-    }
-}
-
-impl Encodable for Vec<u8> {
-    fn consensus_encode<W: io::Write>(&self, mut w: W) -> Result<usize, Error> {
-        consensus_encode_with_size(&self[..], &mut w)
-    }
-}
-impl Decodable for Vec<u8> {
-    fn consensus_decode<D: crate::ReadExt>(mut d: D) -> Result<Self, Error> {
-        let s = VarInt::consensus_decode(&mut d)?.0 as usize;
-        if s > MAX_VEC_SIZE {
-            return Err(self::Error::OversizedVectorAllocation {
-                requested: s,
-                max: MAX_VEC_SIZE,
-            });
-        }
-        let mut v = vec![0; s];
-        d.read_slice(&mut v)?;
-        Ok(v)
-    }
-}
 
 macro_rules! impl_box_option {
     ($type: ty) => {
