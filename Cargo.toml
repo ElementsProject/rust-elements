@@ -12,19 +12,21 @@ edition = "2018"
 [features]
 default = ["json-contract"]
 
-json-contract = ["serde_json"]
+json-contract = ["serde_json", "elements26/json-contract" ]
 "serde" = [
     "bitcoin/serde",
     "bitcoin/serde",
+    "elements26/serde",
     "secp256k1-zkp/serde",
     "actual-serde",
 ]
-base64 = ["bitcoin/base64"]
+base64 = ["bitcoin/base64", "elements26/base64"]
 
 [dependencies]
 bech32 = "0.11.0"
 bitcoin = "0.32.2"
 secp256k1-zkp = { version = "0.11.0", features = ["global-context", "hashes"] }
+elements26 = { package = "elements", version = "0.26.1" }
 
 # Used for ContractHash::from_json_contract.
 serde_json = { version = "1.0", optional = true }
