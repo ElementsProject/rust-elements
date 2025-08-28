@@ -1,4 +1,8 @@
 
+# 0.25.3 - 2025-08-28
+
+* Semver-trick all types from 0.26.1
+
 # 0.25.2 - 2025-04-18
 
 * [https://github.com/ElementsProject/rust-elements/pull/226](elip102: rename from elip101)
