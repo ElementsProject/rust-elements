@@ -26,9 +26,13 @@ use secp256k1_zkp;
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
 /// Enum for marking pset hash error
 pub enum PsetHash {
+    /// Bad preimage for `RIPEMD160` hash.
     Ripemd,
+    /// Bad preimage for `SHA256` hash.
     Sha256,
+    /// Bad preimage for `RIPEMD160-SHA256` hash.
     Hash160,
+    /// Bad preimage for double-`SHA256` hash.
     Hash256,
 }
 /// Ways that a Partially Signed Transaction might fail.
