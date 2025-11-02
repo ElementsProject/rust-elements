@@ -19,6 +19,7 @@ use std::io::Cursor;
 use std::{any, error, fmt, io, mem};
 
 use bitcoin::ScriptBuf;
+use hex_conservative::{DecodeFixedLengthBytesError, DecodeVariableLengthBytesError};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use crate::hashes::{sha256, Hash};
@@ -54,8 +55,10 @@ pub enum Error {
     Secp256k1zkp(secp256k1_zkp::Error),
     /// Pset related Errors
     PsetError(pset::Error),
-    /// Hex parsing errors
-    HexError(crate::hex::Error),
+    /// Hex fixed parsing errors
+    HexFixedError(DecodeFixedLengthBytesError),
+    /// Hex variable parsing errors
+    HexVariableError(DecodeVariableLengthBytesError),
     /// Got a time-based locktime when expecting a height-based one, or vice-versa
     BadLockTime(crate::LockTime),
     /// `VarInt` was encoded in a non-minimal way.
@@ -83,7 +86,8 @@ impl fmt::Display for Error {
             Error::Secp256k1(ref e) => write!(f, "{}", e),
             Error::Secp256k1zkp(ref e) => write!(f, "{}", e),
             Error::PsetError(ref e) => write!(f, "Pset Error: {}", e),
-            Error::HexError(ref e) => write!(f, "Hex error {}", e),
+            Error::HexFixedError(ref e) => write!(f, "Hex fixed error: {}", e),
+            Error::HexVariableError(ref e) => write!(f, "Hex variable error: {}", e),
             Error::BadLockTime(ref lt) => write!(f, "Invalid locktime {}", lt),
             Error::NonMinimalVarInt => write!(f, "non-minimal varint"),
         }
@@ -134,9 +138,16 @@ impl From<secp256k1_zkp::Error> for Error {
 }
 
 #[doc(hidden)]
-impl From<crate::hex::Error> for Error {
-    fn from(e: crate::hex::Error) -> Self {
-        Error::HexError(e)
+impl From<DecodeFixedLengthBytesError> for Error {
+    fn from(e: DecodeFixedLengthBytesError) -> Self {
+        Error::HexFixedError(e)
+    }
+}
+
+#[doc(hidden)]
+impl From<DecodeVariableLengthBytesError> for Error {
+    fn from(e: DecodeVariableLengthBytesError) -> Self {
+        Error::HexVariableError(e)
     }
 }
 
