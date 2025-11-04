@@ -27,6 +27,7 @@
 use std::default::Default;
 use std::{fmt, io, ops, str};
 
+use hex_conservative::DecodeVariableLengthBytesError;
 use secp256k1_zkp::{Verification, Secp256k1};
 #[cfg(feature = "serde")] use serde;
 
@@ -78,17 +79,17 @@ impl fmt::UpperHex for Script {
 }
 
 impl hex::FromHex for Script {
-    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
-        where I: Iterator<Item=Result<u8, hex::Error>> +
-            ExactSizeIterator +
-            DoubleEndedIterator,
-    {
-        Vec::from_byte_iter(iter).map(|v| Script(Box::<[u8]>::from(v)))
+    type Err = DecodeVariableLengthBytesError;
+
+    fn from_hex(s: &str) -> Result<Self, Self::Err> {
+        hex_conservative::decode_to_vec(s).map(|v| Script(Box::<[u8]>::from(v)))
     }
 }
+
 impl str::FromStr for Script {
-    type Err = hex::Error;
-    fn from_str(s: &str) -> Result<Self, hex::Error> {
+    type Err = <Self as hex::FromHex>::Err;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         hex::FromHex::from_hex(s)
     }
 }

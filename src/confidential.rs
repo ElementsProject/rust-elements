@@ -720,6 +720,60 @@ impl<'de> Deserialize<'de> for Nonce {
     }
 }
 
+/// Error decoding hexadecimal string into tweak-like value.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum TweakHexDecodeError {
+    /// Invalid hexadecimal string.
+    InvalidHex(hex_conservative::DecodeFixedLengthBytesError),
+    /// Invalid tweak after decoding hexadecimal string.
+    InvalidTweak(secp256k1_zkp::Error),
+}
+
+impl fmt::Display for TweakHexDecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            TweakHexDecodeError::InvalidHex(err) => {
+                write!(f, "Invalid hex: {}", err)
+            }
+            TweakHexDecodeError::InvalidTweak(err) => {
+                write!(f, "Invalid tweak: {}", err)
+            }
+        }
+    }
+}
+
+#[doc(hidden)]
+impl From<hex_conservative::DecodeFixedLengthBytesError> for TweakHexDecodeError {
+    fn from(err: hex_conservative::DecodeFixedLengthBytesError) -> Self {
+        TweakHexDecodeError::InvalidHex(err)
+    }
+}
+
+#[doc(hidden)]
+impl From<secp256k1_zkp::Error> for TweakHexDecodeError {
+    fn from(err: secp256k1_zkp::Error) -> Self {
+        TweakHexDecodeError::InvalidTweak(err)
+    }
+}
+
+impl From<TweakHexDecodeError> for encode::Error {
+    fn from(value: TweakHexDecodeError) -> Self {
+        match value {
+            TweakHexDecodeError::InvalidHex(err) => encode::Error::HexFixedError(err),
+            TweakHexDecodeError::InvalidTweak(err) => encode::Error::Secp256k1zkp(err),
+        }
+    }
+}
+
+impl std::error::Error for TweakHexDecodeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            TweakHexDecodeError::InvalidHex(err) => Some(err),
+            TweakHexDecodeError::InvalidTweak(err) => Some(err),
+        }
+    }
+}
+
 /// Blinding factor used for asset commitments.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct AssetBlindingFactor(pub(crate) Tweak);
@@ -747,16 +801,13 @@ impl AssetBlindingFactor {
 }
 
 impl hex::FromHex for AssetBlindingFactor {
-    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
-        where I: Iterator<Item=Result<u8, hex::Error>> +
-            ExactSizeIterator +
-            DoubleEndedIterator
-    {
-        let slice = <[u8; 32]>::from_byte_iter(iter.rev())?;
-        // Incorrect Return Error
-        // See: https://github.com/rust-bitcoin/bitcoin_hashes/issues/124
-        let inner = Tweak::from_inner(slice)
-            .map_err(|_e| hex::Error::InvalidChar(0))?;
+    type Err = TweakHexDecodeError;
+
+    fn from_hex(s: &str) -> Result<Self, Self::Err> {
+        let mut slice: [u8; 32] = hex_conservative::decode_to_array(s)?;
+        slice.reverse();
+
+        let inner = Tweak::from_inner(slice)?;
         Ok(AssetBlindingFactor(inner))
     }
 }
@@ -951,16 +1002,13 @@ impl Neg for ValueBlindingFactor {
 }
 
 impl hex::FromHex for ValueBlindingFactor {
-    fn from_byte_iter<I>(iter: I) -> Result<Self, hex::Error>
-        where I: Iterator<Item=Result<u8, hex::Error>> +
-            ExactSizeIterator +
-            DoubleEndedIterator
-    {
-        let slice = <[u8; 32]>::from_byte_iter(iter.rev())?;
-        // Incorrect Return Error
-        // See: https://github.com/rust-bitcoin/bitcoin_hashes/issues/124
-        let inner = Tweak::from_inner(slice)
-            .map_err(|_e| hex::Error::InvalidChar(0))?;
+    type Err = TweakHexDecodeError;
+
+    fn from_hex(s: &str) -> Result<Self, Self::Err> {
+        let mut slice: [u8; 32] = hex_conservative::decode_to_array(s)?;
+        slice.reverse();
+
+        let inner = Tweak::from_inner(slice)?;
         Ok(ValueBlindingFactor(inner))
     }
 }

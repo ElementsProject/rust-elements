@@ -23,26 +23,7 @@
 
 use std::{fmt, io, str};
 
-/// Hex decoding error.
-#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Error {
-    /// Non-hexadecimal character.
-    InvalidChar(u8),
-    /// Purported hex string had odd length.
-    OddLengthString(usize),
-    /// Tried to parse fixed-length hash from a string with the wrong type (expected, got).
-    InvalidLength(usize, usize),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match *self {
-            Error::InvalidChar(ch) => write!(f, "invalid hex character {}", ch),
-            Error::OddLengthString(ell) => write!(f, "odd hex string length {}", ell),
-            Error::InvalidLength(ell, ell2) => write!(f, "bad hex string length {} (expected {})", ell2, ell),
-        }
-    }
-}
+use hex_conservative::{decode_to_vec, DecodeVariableLengthBytesError};
 
 /// Trait for objects that can be serialized as hex strings.
 pub trait ToHex {
@@ -52,15 +33,12 @@ pub trait ToHex {
 
 /// Trait for objects that can be deserialized from hex strings.
 pub trait FromHex: Sized {
-    /// Produces an object from a byte iterator.
-    fn from_byte_iter<I>(iter: I) -> Result<Self, Error>
-    where
-        I: Iterator<Item = Result<u8, Error>> + ExactSizeIterator + DoubleEndedIterator;
+    /// Error returned by [`FromHex::from_hex`], may differ depending
+    /// on whether `Self` is fixed size of variable length.
+    type Err;
 
     /// Produces an object from a hex string.
-    fn from_hex(s: &str) -> Result<Self, Error> {
-        Self::from_byte_iter(HexIterator::new(s)?)
-    }
+    fn from_hex(s: &str) -> Result<Self, Self::Err>;
 }
 
 impl<T: fmt::LowerHex> ToHex for T {
@@ -69,81 +47,6 @@ impl<T: fmt::LowerHex> ToHex for T {
         format!("{:x}", self)
     }
 }
-
-/// Iterator over a hex-encoded string slice which decodes hex and yields bytes.
-pub struct HexIterator<'a> {
-    /// The `Bytes` iterator whose next two bytes will be decoded to yield
-    /// the next byte.
-    iter: str::Bytes<'a>,
-}
-
-impl<'a> HexIterator<'a> {
-    /// Constructs a new `HexIterator` from a string slice.
-    ///
-    /// # Errors
-    ///
-    /// If the input string is of odd length.
-    pub fn new(s: &'a str) -> Result<HexIterator<'a>, Error> {
-        if s.len() % 2 != 0 {
-            Err(Error::OddLengthString(s.len()))
-        } else {
-            Ok(HexIterator { iter: s.bytes() })
-        }
-    }
-}
-
-fn chars_to_hex(hi: u8, lo: u8) -> Result<u8, Error> {
-    let hih = (hi as char)
-        .to_digit(16)
-        .ok_or(Error::InvalidChar(hi))?;
-    let loh = (lo as char)
-        .to_digit(16)
-        .ok_or(Error::InvalidChar(lo))?;
-
-    let ret = (hih << 4) + loh;
-    Ok(ret as u8)
-}
-
-impl Iterator for HexIterator<'_> {
-    type Item = Result<u8, Error>;
-
-    fn next(&mut self) -> Option<Result<u8, Error>> {
-        let hi = self.iter.next()?;
-        let lo = self.iter.next().unwrap();
-        Some(chars_to_hex(hi, lo))
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let (min, max) = self.iter.size_hint();
-        (min / 2, max.map(|x| x / 2))
-    }
-}
-
-impl io::Read for HexIterator<'_> {
-    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        let mut bytes_read = 0usize;
-        for dst in buf {
-            match self.next() {
-                Some(Ok(src)) => {
-                    *dst = src;
-                    bytes_read += 1;
-                },
-                _ => break,
-            }
-        }
-        Ok(bytes_read)
-    }
-}
-
-impl DoubleEndedIterator for HexIterator<'_> {
-    fn next_back(&mut self) -> Option<Result<u8, Error>> {
-        let lo = self.iter.next_back()?;
-        let hi = self.iter.next_back().unwrap();
-        Some(chars_to_hex(hi, lo))
-    }
-}
-
-impl ExactSizeIterator for HexIterator<'_> {}
 
 /// Outputs hex into an object implementing `fmt::Write`.
 ///
@@ -232,30 +135,20 @@ impl io::Write for HexWriter {
 }
 
 impl FromHex for Vec<u8> {
-    fn from_byte_iter<I>(iter: I) -> Result<Self, Error>
-    where
-        I: Iterator<Item = Result<u8, Error>> + ExactSizeIterator + DoubleEndedIterator,
-    {
-        iter.collect()
+    type Err = DecodeVariableLengthBytesError;
+
+    fn from_hex(s: &str) -> Result<Self, Self::Err> {
+        decode_to_vec(s)
     }
 }
 
 macro_rules! impl_fromhex_array {
     ($len:expr) => {
         impl FromHex for [u8; $len] {
-            fn from_byte_iter<I>(iter: I) -> Result<Self, Error>
-            where
-                I: Iterator<Item = Result<u8, Error>> + ExactSizeIterator + DoubleEndedIterator,
-            {
-                if iter.len() == $len {
-                    let mut ret = [0; $len];
-                    for (n, byte) in iter.enumerate() {
-                        ret[n] = byte?;
-                    }
-                    Ok(ret)
-                } else {
-                    Err(Error::InvalidLength(2 * $len, 2 * iter.len()))
-                }
+            type Err = hex_conservative::DecodeFixedLengthBytesError;
+
+            fn from_hex(s: &str) -> Result<Self, Self::Err> {
+                hex_conservative::decode_to_array(s)
             }
         }
     }
@@ -283,6 +176,8 @@ impl_fromhex_array!(512);
 
 #[cfg(test)]
 mod tests {
+    use hex_conservative::DecodeFixedLengthBytesError;
+
     use super::*;
 
     use core::fmt;
@@ -382,29 +277,38 @@ mod tests {
         let badchar2 = "012Y456789abcdeb";
         let badchar3 = "«23456789abcdef";
 
-        assert_eq!(
-            Vec::<u8>::from_hex(oddlen),
-            Err(Error::OddLengthString(17))
+        let result = Vec::<u8>::from_hex(oddlen);
+        assert!(
+            matches!(&result, Err(DecodeVariableLengthBytesError::OddLengthString(err))
+                if err.length() == 17),
+            "Got: {:?}", result
         );
-        assert_eq!(
-            <[u8; 4]>::from_hex(oddlen),
-            Err(Error::OddLengthString(17))
+        let result = <[u8; 4]>::from_hex(oddlen);
+        assert!(
+            matches!(&result, Err(DecodeFixedLengthBytesError::InvalidLength(err))
+                if err.invalid_length() == 17),
+            "Got: {:?}", result
         );
-        assert_eq!(
-            <[u8; 8]>::from_hex(oddlen),
-            Err(Error::OddLengthString(17))
+        let result = <[u8; 8]>::from_hex(oddlen);
+        assert!(
+            matches!(&result, Err(DecodeFixedLengthBytesError::InvalidLength(err))
+                if err.invalid_length() == 17),
+            "Got: {:?}", result
         );
-        assert_eq!(
-            Vec::<u8>::from_hex(badchar1),
-            Err(Error::InvalidChar(b'Z'))
+        let result = Vec::<u8>::from_hex(badchar1);
+        assert!(
+            matches!(&result, Err(DecodeVariableLengthBytesError::InvalidChar(_))),
+            "Got: {:?}", result
         );
-        assert_eq!(
-            Vec::<u8>::from_hex(badchar2),
-            Err(Error::InvalidChar(b'Y'))
+        let result = Vec::<u8>::from_hex(badchar2);
+        assert!(
+            matches!(&result, Err(DecodeVariableLengthBytesError::InvalidChar(_))),
+            "Got: {:?}", result
         );
-        assert_eq!(
-            Vec::<u8>::from_hex(badchar3),
-            Err(Error::InvalidChar(194))
+        let result = Vec::<u8>::from_hex(badchar3);
+        assert!(
+            matches!(&result, Err(DecodeVariableLengthBytesError::InvalidChar(_))),
+            "Got: {:?}", result
         );
     }
 
@@ -417,4 +321,3 @@ mod tests {
         assert_eq!(vec.to_hex(), writer.result());
     }
 }
-

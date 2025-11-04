@@ -238,11 +238,16 @@ pub mod hex_bytes {
     }
 
     pub fn deserialize<'de, D, B>(d: D) -> Result<B, D::Error>
-        where D: serde::Deserializer<'de>, B: serde::Deserialize<'de> + FromHex,
+        where D: serde::Deserializer<'de>,
+              B: serde::Deserialize<'de> + FromHex,
+              <B as FromHex>::Err: std::fmt::Display,
     {
         struct Visitor<B>(::std::marker::PhantomData<B>);
 
-        impl<B: FromHex> serde::de::Visitor<'_> for Visitor<B> {
+        impl<B: FromHex> serde::de::Visitor<'_> for Visitor<B>
+        where
+            <B as FromHex>::Err: std::fmt::Display,
+        {
             type Value = B;
 
             fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
