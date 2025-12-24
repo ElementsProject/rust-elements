@@ -39,8 +39,6 @@ pub enum TxOutError {
     UnExpectedNullValue,
     /// Unexpected Null asset
     UnExpectedNullAsset,
-    /// Money should be between 0 and `21_000_000`
-    MoneyOutofRange,
     /// Zero value explicit txout with non-provably unspendable script
     NonUnspendableZeroValue,
     /// Zero value pedersen commitment with provably unspendable script
@@ -56,11 +54,6 @@ impl fmt::Display for TxOutError {
         match self {
             TxOutError::UnExpectedNullValue => write!(f, "UnExpected Null Value"),
             TxOutError::UnExpectedNullAsset => write!(f, "UnExpected Null Asset"),
-            TxOutError::MoneyOutofRange => write!(
-                f,
-                "Explicit amount must be\
-                less than 21 million"
-            ),
             TxOutError::NonUnspendableZeroValue => {
                 write!(
                     f,
@@ -467,8 +460,6 @@ impl TxOut {
     pub const RANGEPROOF_EXP_SHIFT: i32 = 0;
     /// Rangeproof Minimum private bits
     pub const RANGEPROOF_MIN_PRIV_BITS: u8 = 52;
-    /// Maximum explicit amount in a bitcoin `TxOut`
-    pub const MAX_MONEY: u64 = 21_000_000 * 100_000_000;
 
     /// Creates a new confidential output that is **not** the last one in the transaction.
     /// Provide input secret information by creating [`SurjectionInput`] for each input.
@@ -631,9 +622,6 @@ impl TxOut {
         match self.value {
             Value::Null => Err(TxOutError::UnExpectedNullValue),
             Value::Explicit(value) => {
-                if value > Self::MAX_MONEY {
-                    return Err(TxOutError::MoneyOutofRange);
-                }
                 if value == 0 {
                     // zero values are only allowed if they are provably
                     // unspendable.
