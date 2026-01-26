@@ -2519,4 +2519,16 @@ mod tests {
         assert_eq!(tx.discount_weight(), 2034);
         assert_eq!(tx.discount_vsize(), 509);
     }
+
+    #[test]
+    fn elip203() {
+        // Check that rust-elements can deserialize tests vector from ELIP203
+        // from
+        // https://github.com/ElementsProject/ELIPs/blob/main/elip-0203.mediawiki
+        let tx3: Transaction = hex_deserialize!(include_str!("../tests/data/elip203_3.hex"));
+        let tx4: Transaction = hex_deserialize!(include_str!("../tests/data/elip203_4.hex"));
+        let max_money = 2_100_000_000_000_000;
+        assert!(tx3.input[0].asset_issuance.amount.explicit().unwrap() > max_money);
+        assert!(tx4.input[0].asset_issuance.inflation_keys.explicit().unwrap() > max_money);
+    }
 }
