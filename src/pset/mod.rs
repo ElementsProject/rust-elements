@@ -287,8 +287,14 @@ impl PartiallySignedTransaction {
         let mut outputs = vec![];
 
         for psetin in &self.inputs {
+            let prev_index = if psetin.previous_output_index == 0xffff_ffff {
+                // special-case coinbase inputs, which do not have flags
+                psetin.previous_output_index
+            } else {
+                psetin.previous_output_index & !((1u32 << 30) | (1 << 31))
+            };
             let txin = TxIn {
-                previous_output: OutPoint::new(psetin.previous_txid, psetin.previous_output_index),
+                previous_output: OutPoint::new(psetin.previous_txid, prev_index),
                 is_pegin: psetin.is_pegin(),
                 script_sig: psetin.final_script_sig.clone().unwrap_or_default(),
                 sequence: psetin.sequence.unwrap_or(Sequence::MAX),
@@ -781,6 +787,7 @@ mod tests {
     use super::*;
     use crate::hex::{FromHex, ToHex};
 
+    #[track_caller]
     fn tx_pset_rtt(tx_hex: &str) {
         let tx: Transaction =
             encode::deserialize(&Vec::<u8>::from_hex(tx_hex).unwrap()[..]).unwrap();
