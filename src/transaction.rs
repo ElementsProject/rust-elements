@@ -1302,7 +1302,7 @@ impl ::std::error::Error for SighashTypeParseError {}
 mod tests {
     use std::str::FromStr;
 
-    use crate::encode::serialize;
+    use crate::{encode::serialize, pset::PartiallySignedTransaction};
     use crate::confidential;
     use crate::hex::FromHex;
     use secp256k1_zkp::{self, ZERO_TWEAK};
@@ -2530,5 +2530,71 @@ mod tests {
         let max_money = 2_100_000_000_000_000;
         assert!(tx3.input[0].asset_issuance.amount.explicit().unwrap() > max_money);
         assert!(tx4.input[0].asset_issuance.inflation_keys.explicit().unwrap() > max_money);
+    }
+
+    #[test]
+    fn pset_pegin_witnesses_encoding_round_trip() {
+        use crate::encode::{serialize, deserialize};
+
+        // Start with a transaction that has a pegin.
+        let base_tx: Transaction = hex_deserialize!(include_str!("../tests/data/1in2out_pegin.hex"));
+
+        // Test case (a): input witnesses but no output witnesses
+        let mut tx_input_only = base_tx.clone();
+        for output in &mut tx_input_only.output {
+            output.witness = TxOutWitness::empty();
+        }
+
+        // Test case (b): output witnesses but no input witnesses
+        let mut tx_output_only = base_tx.clone();
+        for input in &mut tx_output_only.input {
+            input.witness = TxInWitness::empty();
+        }
+
+        // Test case (c): no witnesses at all
+        let mut tx_no_witnesses = base_tx.clone();
+        for input in &mut tx_no_witnesses.input {
+            input.witness = TxInWitness::empty();
+        }
+        for output in &mut tx_no_witnesses.output {
+            output.witness = TxOutWitness::empty();
+        }
+
+        // Test all cases: serialize then deserialize and verify they match
+        let test_cases = vec![
+            ("input_witnesses_only", tx_input_only),
+            ("output_witnesses_only", tx_output_only),
+            ("no_witnesses", tx_no_witnesses),
+            ("both_witnesses", base_tx),
+        ];
+
+        for (name, original_tx) in test_cases {
+            let psbt = PartiallySignedTransaction::from_tx(original_tx.clone());
+            let psbt_tx = psbt.extract_tx().unwrap();
+            assert_eq!(original_tx, psbt_tx);
+
+            // Serialize the transaction
+            let serialized = serialize(&original_tx);
+            let serialized_psbt = serialize(&psbt_tx);
+
+            // Deserialize it back
+            let deserialized_tx: Transaction = deserialize(&serialized)
+                .unwrap_or_else(|e| panic!("Failed to deserialize {} transaction: {}", name, e));
+            let deserialized_psbt_tx: Transaction = deserialize(&serialized_psbt)
+                .unwrap_or_else(|e| panic!("Failed to deserialize {} transaction: {}", name, e));
+
+            // Verify they match exactly
+            assert_eq!(original_tx, deserialized_tx,
+                "Roundtrip failed for {} transaction", name);
+            assert_eq!(original_tx, deserialized_psbt_tx,
+                "Roundtrip failed for {} transaction", name);
+
+            // Verify reserialization is consistent
+            let reserialized = serialize(&deserialized_tx);
+            assert_eq!(serialized.len(), reserialized.len(),
+                "Serialized length changed for {} transaction", name);
+            assert_eq!(serialized, reserialized,
+                "Serialized bytes changed for {} transaction", name);
+        }
     }
 }
