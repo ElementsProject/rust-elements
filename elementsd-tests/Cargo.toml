@@ -12,3 +12,22 @@ elements = {path = "../", features = ["base64"]}
 elementsd = "0.11.0"
 rand = "0.8"
 
+[package.metadata.rbmt.lint]
+# FIXME the bulk of these are because elementsd/bitcoind is much older than rust-bitcoin.
+allowed_duplicates = [
+    "hex-conservative",
+    "base64",
+    "getrandom",
+    "wasi",
+    "windows-sys",
+    "windows-targets",
+    "windows_aarch64_gnullvm",
+    "windows_aarch64_msvc",
+    "windows_aarch64_gnu",
+    "windows_i686_gnullvm",
+    "windows_i686_msvc",
+    "windows_i686_gnu",
+    "windows_x86_64_gnullvm",
+    "windows_x86_64_msvc",
+    "windows_x86_64_gnu",
+]

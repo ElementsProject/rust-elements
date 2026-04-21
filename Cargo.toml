@@ -184,3 +184,11 @@ used_underscore_items = "warn"
 verbose_bit_mask = "warn"
 wildcard_imports = "warn"
 zero_sized_map_values = "warn"
+
+[package.metadata.rbmt.lint]
+allowed_duplicates = [
+    "hex-conservative",
+]
+
+[package.metadata.rbmt.prerelease]
+enabled = true
