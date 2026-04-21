@@ -61,8 +61,7 @@ name = "raw_blind"
 name = "tx"
 
 [workspace]
-members = ["elementsd-tests"]
-exclude = ["fuzz"]
+members = ["elementsd-tests", "fuzz"]
 
 [lints.clippy]
 # Exclude lints we don't think are valuable.
