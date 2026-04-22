@@ -1,173 +1,120 @@
-on:   # yamllint disable-line rule:truthy
-  pull_request:
-  push:
-    branches:
-      - master
-      - 'test-ci/**'
+on: [push, pull_request]
 
-name: Continuous integration
+name: Continuous Integration
+
+permissions:
+  contents: read
 
 jobs:
-  Prepare:
-    runs-on: ubuntu-latest
-    outputs:
-      nightly_version: ${{ steps.read_toolchain.outputs.nightly_version }}
-      msrv_version: ${{ steps.read_msrv.outputs.msrv_version }}
+  Test: # 6 jobs: 3 toolchains × 2 lock files.
+    name: Test - ${{ matrix.toolchain }} toolchain (${{ matrix.dep }})
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        dep: [recent]
+        toolchain: [stable, nightly, msrv]
     steps:
-      - name: "Checkout repo"
+      - name: Checkout repo
         uses: actions/checkout@v4
-      - name: "Read nightly version"
-        id: read_toolchain
+      - uses: rust-bitcoin/rust-bitcoin-maintainer-tools/.github/actions/setup-rbmt@af3c2868415b17eedc808da6d0589e10b7482660 # v0.1.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Run ${{ matrix.toolchain }} tests
         run: |
-          set -euo pipefail
-          version=$(cat nightly-version)
-          echo "nightly_version=$version" >> $GITHUB_OUTPUT
-      - name: Read MSRV from clippy.toml
-        id: read_msrv
-        run: |
-          set -euo pipefail
-          msrv=$(grep '^msrv *= *"' clippy.toml | sed -E 's/.*"([^"]+)".*/\1/')
-          echo "msrv_version=$msrv" >> "$GITHUB_OUTPUT"
-
-  Stable:
-    name: Test - stable toolchain
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v4
-      - name: "Checkout maintainer tools"
-        uses: ./.github/actions/checkout-maintainer-tools
-      - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
-      - name: "Set dependencies"
-        run: cp Cargo-latest.lock Cargo.lock
-      - name: "Run test script"
-        run: ./maintainer-tools/ci/run_task.sh stable
-
-  Nightly:
-    name: Test - nightly toolchain
-    needs: Prepare
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v4
-      - name: "Checkout maintainer tools"
-        uses: ./.github/actions/checkout-maintainer-tools
-      - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
-      - name: "Set dependencies"
-        run: cp Cargo-latest.lock Cargo.lock
-      - name: "Run test script"
-        run: ./maintainer-tools/ci/run_task.sh nightly
-
-  MSRV:
-    name: Test - MSRV
-    needs: Prepare
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-    steps:
-      - name: "Checkout repo"
-        uses: actions/checkout@v4
-      - name: "Checkout maintainer tools"
-        uses: ./.github/actions/checkout-maintainer-tools
-      - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ needs.Prepare.outputs.msrv_version }}
-      - name: "Set dependencies"
-        run: cp Cargo-latest.lock Cargo.lock
-      - name: "Run test script"
-        run: ./maintainer-tools/ci/run_task.sh msrv
+          export ELEMENTSD_EXE="$PWD/elementsd-tests/bin/elementsd"
+          if [ "${{ matrix.toolchain }}" = "msrv" ]; then
+            MSRV="$(cargo rbmt toolchains --msrv)"
+            cp "Cargo-${{ matrix.dep }}.lock" Cargo.lock
+            cargo +"$MSRV" test --locked
+          else
+            cargo rbmt --lock-file ${{ matrix.dep }} test --toolchain ${{ matrix.toolchain }}
+          fi
 
   Lint:
     name: Lint - nightly toolchain
-    needs: Prepare
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        dep: [recent]
+    runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout repo"
+      - name: Checkout Crate
         uses: actions/checkout@v4
-      - name: "Checkout maintainer tools"
-        uses: ./.github/actions/checkout-maintainer-tools
-      - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
-      - name: Install clippy
-        run: rustup component add clippy
-      - name: "Set dependencies"
-        run: cp Cargo-latest.lock Cargo.lock
-      - name: "Run test script"
-        run: ./maintainer-tools/ci/run_task.sh lint
+      - uses: rust-bitcoin/rust-bitcoin-maintainer-tools/.github/actions/setup-rbmt@af3c2868415b17eedc808da6d0589e10b7482660 # v0.1.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Run lints
+        run: cargo rbmt --lock-file recent lint
 
   Docs:
     name: Docs - stable toolchain
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        dep: [recent]
+    runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout repo"
+      - name: Checkout Crate
         uses: actions/checkout@v4
-      - name: "Checkout maintainer tools"
-        uses: ./.github/actions/checkout-maintainer-tools
-      - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@stable
-      - name: "Set dependencies"
-        run: cp Cargo-latest.lock Cargo.lock
-      - name: "Run test script"
-        run: ./maintainer-tools/ci/run_task.sh docs
+      - uses: rust-bitcoin/rust-bitcoin-maintainer-tools/.github/actions/setup-rbmt@af3c2868415b17eedc808da6d0589e10b7482660 # v0.1.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Run doc tests
+        run: cargo rbmt --lock-file recent docs
 
   Docsrs:
     name: Docs - nightly toolchain
-    needs: Prepare
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        dep: [recent]
+    runs-on: ubuntu-24.04
     steps:
-      - name: "Checkout repo"
+      - name: Checkout Crate
         uses: actions/checkout@v4
-      - name: "Checkout maintainer tools"
-        uses: ./.github/actions/checkout-maintainer-tools
-      - name: "Select toolchain"
-        uses: dtolnay/rust-toolchain@v1
-        with:
-          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
-      - name: "Set dependencies"
-        run: cp Cargo-latest.lock Cargo.lock
-      - name: "Run test script"
-        run: ./maintainer-tools/ci/run_task.sh docsrs
+      - uses: rust-bitcoin/rust-bitcoin-maintainer-tools/.github/actions/setup-rbmt@af3c2868415b17eedc808da6d0589e10b7482660 # v0.1.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Run docsrs tests
+        run: cargo rbmt --lock-file recent docsrs
 
-#  Format:
+#  Format: # 1 job, run cargo fmt directly.
 #    name: Format - nightly toolchain
-#    needs: Prepare
-#    runs-on: ubuntu-latest
-#    strategy:
-#      fail-fast: false
+#    runs-on: ubuntu-24.04
 #    steps:
-#      - name: "Checkout repo"
+#      - name: Checkout Crate
 #        uses: actions/checkout@v4
-#      - name: "Select toolchain"
-#        uses: dtolnay/rust-toolchain@v1
-#        with:
-#          toolchain: ${{ needs.Prepare.outputs.nightly_version }}
-#      - name: "Install rustfmt"
-#        run: rustup component add rustfmt
-#      - name: "Check formatting"
-#        run: cargo fmt --all -- --check
+#      - uses: rust-bitcoin/rust-bitcoin-maintainer-tools/.github/actions/setup-rbmt@af3c2868415b17eedc808da6d0589e10b7482660 # v0.1.0
+#      - name: Check formatting
+#        run: cargo rbmt --lock-file recent fmt --check
+
+  Bench:
+    name: Bench - nightly toolchain
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+      - uses: rust-bitcoin/rust-bitcoin-maintainer-tools/.github/actions/setup-rbmt@af3c2868415b17eedc808da6d0589e10b7482660 # v0.1.0
+      - uses: Swatinem/rust-cache@v2
+      - name: Run benches
+        run: cargo rbmt --lock-file recent bench
+
+  Arch32bit:
+    name: Test 32-bit version
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Add architecture i386
+        run: sudo dpkg --add-architecture i386
+      - name: Install i686 gcc
+        run: sudo apt-get update -y && sudo apt-get install -y gcc-multilib
+      - name: Install target
+        run: rustup target add i686-unknown-linux-gnu
+      - name: Run tests on i686
+        run: cargo test --target i686-unknown-linux-gnu
+
+  Cross:
+    name: Cross test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout Crate
+        uses: actions/checkout@v4
+      - name: Checkout Toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install target
+        run: rustup target add s390x-unknown-linux-gnu
+      - name: install cross
+        run: cargo install cross --locked
+      - name: run cross test
+        run: cross test --target s390x-unknown-linux-gnu
 
   Wasm:
     name: Check WASM

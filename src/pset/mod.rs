@@ -360,11 +360,11 @@ impl PartiallySignedTransaction {
 
         self.global.merge(other.global)?;
 
-        for (self_input, other_input) in self.inputs.iter_mut().zip(other.inputs.into_iter()) {
+        for (self_input, other_input) in self.inputs.iter_mut().zip(other.inputs) {
             self_input.merge(other_input)?;
         }
 
-        for (self_output, other_output) in self.outputs.iter_mut().zip(other.outputs.into_iter()) {
+        for (self_output, other_output) in self.outputs.iter_mut().zip(other.outputs) {
             self_output.merge(other_output)?;
         }
 

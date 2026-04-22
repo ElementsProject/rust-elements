@@ -8,6 +8,11 @@ homepage = "https://github.com/ElementsProject/rust-elements/"
 repository = "https://github.com/ElementsProject/rust-elements/"
 documentation = "https://docs.rs/elements/"
 edition = "2018"
+rust-version = "1.63.0"
+
+[workspace.metadata.rbmt.toolchains]
+nightly = "nightly-2026-04-17"
+stable = "1.95.0"
 
 [features]
 default = ["json-contract"]
@@ -86,7 +91,7 @@ copy_iterator = "warn"
 default_trait_access = "warn"
 doc_link_with_quotes = "warn"
 doc_markdown = "warn"
-empty_enum = "warn"
+empty_enums = "warn"
 enum_glob_use = "warn"
 expl_impl_clone_on_copy = "warn"
 explicit_deref_methods = "warn"
@@ -168,7 +173,7 @@ struct_field_names = "warn"
 too_many_lines = "allow" # FIXME 14 triggers for this lint; probably most should be fixed
 transmute_ptr_to_ptr = "warn"
 trivially_copy_pass_by_ref = "warn"
-unchecked_duration_subtraction = "warn"
+unchecked_time_subtraction = "warn"
 unicode_not_nfc = "warn"
 unnecessary_box_returns = "warn"
 unnecessary_join = "warn"
@@ -184,3 +189,11 @@ used_underscore_items = "warn"
 verbose_bit_mask = "warn"
 wildcard_imports = "warn"
 zero_sized_map_values = "warn"
+
+[package.metadata.rbmt.lint]
+allowed_duplicates = [
+    "hex-conservative",
+]
+
+[package.metadata.rbmt.prerelease]
+enabled = true
