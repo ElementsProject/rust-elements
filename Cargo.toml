@@ -8,7 +8,7 @@ homepage = "https://github.com/ElementsProject/rust-elements/"
 repository = "https://github.com/ElementsProject/rust-elements/"
 documentation = "https://docs.rs/elements/"
 edition = "2018"
-rust-version = "1.63.0"
+rust-version = "1.74.0"
 
 [workspace.metadata.rbmt.toolchains]
 nightly = "nightly-2026-04-17"
