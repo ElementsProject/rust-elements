@@ -176,9 +176,8 @@ impl Serialize for KeySource {
 
 impl Deserialize for KeySource {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let prefix = match <[u8; 4]>::try_from(&bytes[0..4]) {
-            Ok(prefix) => prefix,
-            Err(_) => return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into()),
+        let Ok(prefix) = <[u8; 4]>::try_from(&bytes[0..4]) else {
+            return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into());
         };
 
         let fprint: Fingerprint = Fingerprint::from(prefix);
