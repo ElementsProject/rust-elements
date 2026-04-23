@@ -110,9 +110,8 @@ macro_rules! serde_struct_impl {
                         }
 
                         $(
-                            let $fe = match $fe {
-                                Some(x) => x,
-                                None => return Err(A::Error::missing_field(stringify!($fe))),
+                            let Some($fe) = $fe else {
+                                return Err(A::Error::missing_field(stringify!($fe)));
                             };
                         )*
 
@@ -348,9 +347,8 @@ macro_rules! serde_struct_human_string_impl {
                             }
 
                             $(
-                                let $fe = match $fe {
-                                    Some(x) => x,
-                                    None => return Err(A::Error::missing_field(stringify!($fe))),
+                                let Some($fe) = $fe else {
+                                    return Err(A::Error::missing_field(stringify!($fe)));
                                 };
                             )*
 

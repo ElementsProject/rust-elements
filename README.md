@@ -7,7 +7,6 @@ structures and network messages related to Elements
 
 [Documentation](https://docs.rs/elements/)
 
-
 ## Minimum Supported Rust Version (MSRV)
 
-This library should always compile with any combination of features on **Rust 1.48.0**.
+This library should always compile with any combination of features on **Rust 1.74.0**.

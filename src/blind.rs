@@ -740,9 +740,8 @@ impl TxOut {
         secp: &Secp256k1<C>,
         blinding_key: SecretKey,
     ) -> Result<TxOutSecrets, UnblindError> {
-        let (commitment, additional_generator) = match (self.value, self.asset) {
-            (Value::Confidential(com), Asset::Confidential(gen)) => (com, gen),
-            _ => return Err(UnblindError::NotConfidential),
+        let (Value::Confidential(commitment), Asset::Confidential(additional_generator)) = (self.value, self.asset) else {
+            return Err(UnblindError::NotConfidential);
         };
 
         let shared_secret = self
