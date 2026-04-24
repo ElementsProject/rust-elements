@@ -1,5 +1,10 @@
+#![cfg_attr(fuzzing, no_main)]
+#![cfg_attr(not(fuzzing), allow(unused))]
 
-extern crate elements;
+use libfuzzer_sys::fuzz_target;
+
+#[cfg(not(fuzzing))]
+fn main() {}
 
 fn do_test(data: &[u8]) {
     let tx_result: Result<elements::Transaction, _> = elements::encode::deserialize(data);
@@ -9,14 +14,14 @@ fn do_test(data: &[u8]) {
             let reser = elements::encode::serialize(&tx);
             assert_eq!(data, &reser[..]);
             let len = reser.len();
-            let calculated_weight = tx.get_weight();
+            let calculated_weight = tx.weight();
             for input in &mut tx.input {
                 input.witness = elements::TxInWitness::default();
             }
             for output in &mut tx.output {
                 output.witness = elements::TxOutWitness::default();
             }
-            assert_eq!(tx.has_witness(), false);
+            assert!(!tx.has_witness());
             let no_witness_len = elements::encode::serialize(&tx).len();
             assert_eq!(no_witness_len * 3 + len, calculated_weight);
 
@@ -31,25 +36,9 @@ fn do_test(data: &[u8]) {
     }
 }
 
-#[cfg(feature = "afl")]
-extern crate afl;
-#[cfg(feature = "afl")]
-fn main() {
-    afl::read_stdio_bytes(|data| {
-        do_test(&data);
-    });
-}
-
-#[cfg(feature = "honggfuzz")]
-#[macro_use] extern crate honggfuzz;
-#[cfg(feature = "honggfuzz")]
-fn main() {
-    loop {
-        fuzz!(|data| {
-            do_test(data);
-        });
-    }
-}
+fuzz_target!(|data: &[u8]| {
+    do_test(data);
+});
 
 #[cfg(test)]
 mod tests {
@@ -58,9 +47,9 @@ mod tests {
         for (idx, c) in hex.as_bytes().iter().enumerate() {
             b <<= 4;
             match *c {
-                b'A'...b'F' => b |= c - b'A' + 10,
-                b'a'...b'f' => b |= c - b'a' + 10,
-                b'0'...b'9' => b |= c - b'0',
+                b'A'..=b'F' => b |= c - b'A' + 10,
+                b'a'..=b'f' => b |= c - b'a' + 10,
+                b'0'..=b'9' => b |= c - b'0',
                 _ => panic!("Bad hex"),
             }
             if (idx & 1) == 1 {
