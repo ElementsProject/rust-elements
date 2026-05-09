@@ -21,7 +21,7 @@ use std::{fmt, io};
 
 use super::Error;
 use crate::encode::{self, deserialize, serialize, Decodable, Encodable, VarInt, MAX_VEC_SIZE};
-use hex_conservative::DisplayHex as _;
+use hex::DisplayHex as _;
 /// A PSET key in its raw byte form.
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Ord, PartialOrd)]
 #[cfg_attr(

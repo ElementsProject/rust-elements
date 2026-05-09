@@ -28,6 +28,8 @@
 
 /// Re-export of bitcoin crate
 pub extern crate bitcoin;
+/// Re-export of hex crate
+pub extern crate hex;
 /// Re-export of secp256k1-zkp crate
 pub extern crate secp256k1_zkp;
 /// Re-export of serde crate
@@ -57,8 +59,6 @@ mod error;
 mod ext;
 mod fast_merkle_root;
 pub mod hash_types;
-pub use hex_conservative as hex;
-//pub mod hex;
 pub mod issuance;
 pub mod locktime;
 pub mod opcodes;

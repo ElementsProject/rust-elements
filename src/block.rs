@@ -395,7 +395,6 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use crate::Block;
-    use hex_conservative as hex;
 
     use super::*;
 

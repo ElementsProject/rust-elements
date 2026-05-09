@@ -53,7 +53,7 @@ pub trait Deserialize: Sized {
 
 /// Encode an object into a hex-encoded string
 pub fn serialize_hex<T: Serialize + ?Sized>(data: &T) -> String {
-    use hex_conservative::DisplayHex as _;
+    use hex::DisplayHex as _;
     Serialize::serialize(data)[..].to_lower_hex_string()
 }
 

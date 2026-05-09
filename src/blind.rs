@@ -1380,7 +1380,6 @@ mod tests {
     use crate::encode::deserialize;
     use crate::Script;
     use bitcoin::{PrivateKey, PublicKey};
-    use hex_conservative as hex;
     use rand::thread_rng;
     use secp256k1_zkp::SECP256K1;
     use std::str::FromStr;

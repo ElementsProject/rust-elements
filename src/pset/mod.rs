@@ -785,8 +785,7 @@ impl Decodable for PartiallySignedTransaction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use hex_conservative as hex;
-    use hex_conservative::DisplayHex as _;
+    use hex::DisplayHex as _;
 
     #[track_caller]
     fn tx_pset_rtt(tx_hex: &str) {

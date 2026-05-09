@@ -18,7 +18,6 @@
 //!
 
 use crate::hashes::{sha256d, Hash};
-use hex_conservative as hex;
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
     PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
     compute_adaptive_blinding_factor,
@@ -724,7 +723,7 @@ impl<'de> Deserialize<'de> for Nonce {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TweakHexDecodeError {
     /// Invalid hexadecimal string.
-    InvalidHex(hex_conservative::DecodeFixedLengthBytesError),
+    InvalidHex(hex::DecodeFixedLengthBytesError),
     /// Invalid tweak after decoding hexadecimal string.
     InvalidTweak(secp256k1_zkp::Error),
 }
@@ -743,8 +742,8 @@ impl fmt::Display for TweakHexDecodeError {
 }
 
 #[doc(hidden)]
-impl From<hex_conservative::DecodeFixedLengthBytesError> for TweakHexDecodeError {
-    fn from(err: hex_conservative::DecodeFixedLengthBytesError) -> Self {
+impl From<hex::DecodeFixedLengthBytesError> for TweakHexDecodeError {
+    fn from(err: hex::DecodeFixedLengthBytesError) -> Self {
         TweakHexDecodeError::InvalidHex(err)
     }
 }
@@ -821,7 +820,7 @@ impl str::FromStr for AssetBlindingFactor {
     type Err = encode::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut slice: [u8; 32] = hex_conservative::decode_to_array(s)?;
+        let mut slice: [u8; 32] = hex::decode_to_array(s)?;
         slice.reverse();
 
         let inner = Tweak::from_inner(slice)?;
@@ -1017,7 +1016,7 @@ impl str::FromStr for ValueBlindingFactor {
     type Err = encode::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut slice: [u8; 32] = hex_conservative::decode_to_array(s)?;
+        let mut slice: [u8; 32] = hex::decode_to_array(s)?;
         slice.reverse();
 
         let inner = Tweak::from_inner(slice)?;

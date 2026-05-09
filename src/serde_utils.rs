@@ -7,8 +7,7 @@ pub mod btreemap_byte_values {
     // NOTE: This module can be exactly copied to use with HashMap.
 
     use ::std::collections::BTreeMap;
-    use hex_conservative as hex;
-    use hex_conservative::DisplayHex as _;
+    use hex::DisplayHex as _;
     use serde;
 
     pub fn serialize<S, T>(v: &BTreeMap<T, Vec<u8>>, s: S)
@@ -224,8 +223,7 @@ pub mod hex_bytes {
     //! Module for serialization of byte arrays as hex strings.
     #![allow(missing_docs)]
 
-    use hex_conservative as hex;
-    use hex_conservative::DisplayHex as _;
+    use hex::DisplayHex as _;
     use serde;
 
     pub fn serialize<T, S>(bytes: &T, s: S) -> Result<S::Ok, S::Error>

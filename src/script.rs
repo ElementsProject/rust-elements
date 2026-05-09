@@ -219,13 +219,13 @@ impl Script {
 
     /// Parse a hex-string with no length prefix as a [`Script`].
     #[deprecated(since = "0.27.0", note = "use from_hex_no_prefix instead")]
-    pub fn from_hex(s: &str) -> Result<Self, hex_conservative::DecodeVariableLengthBytesError> {
+    pub fn from_hex(s: &str) -> Result<Self, hex::DecodeVariableLengthBytesError> {
         Self::from_hex_no_prefix(s)
     }
 
     /// Parse a hex-string with no length prefix as a [`Script`].
-    pub fn from_hex_no_prefix(s: &str) -> Result<Self, hex_conservative::DecodeVariableLengthBytesError> {
-        hex_conservative::decode_to_vec(s).map(|v| Script(Box::<[u8]>::from(v)))
+    pub fn from_hex_no_prefix(s: &str) -> Result<Self, hex::DecodeVariableLengthBytesError> {
+        hex::decode_to_vec(s).map(|v| Script(Box::<[u8]>::from(v)))
     }
 
     /// Generates P2PK-type of scriptPubkey
@@ -892,7 +892,7 @@ impl<'de> serde::Deserialize<'de> for Script {
             where
                 E: serde::de::Error,
             {
-                let v = hex_conservative::decode_to_vec(v).map_err(E::custom)?;
+                let v = hex::decode_to_vec(v).map_err(E::custom)?;
                 Ok(Script::from(v))
             }
 
@@ -946,7 +946,6 @@ impl Decodable for Script {
 
 #[cfg(test)]
 mod test {
-    use hex_conservative as hex;
     use bitcoin::PublicKey;
     use std::str::FromStr;
 

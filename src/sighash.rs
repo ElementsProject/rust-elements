@@ -969,7 +969,6 @@ impl std::str::FromStr for SchnorrSighashType {
 mod tests{
     use super::*;
     use crate::encode::deserialize;
-    use hex_conservative as hex;
     use std::str::FromStr;
 
     fn test_segwit_sighash(tx: &str, script: &str, input_index: usize, value: &str, hash_type: EcdsaSighashType, expected_result: &str) {

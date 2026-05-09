@@ -69,8 +69,7 @@ mod test {
     use super::*;
     use crate::AssetId;
     use crate::encode::{serialize_hex, Encodable};
-    use hex_conservative as hex;
-    use hex_conservative::DisplayHex as _;
+    use hex::DisplayHex as _;
 
     // b'\xfc\rpset_liquidex'
     const ELIP0102_IDENTIFIER: &str = "fc0d707365745f6c69717569646578";

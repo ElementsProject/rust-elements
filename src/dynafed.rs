@@ -16,7 +16,7 @@
 
 use std::{fmt, io};
 
-use hex_conservative::DisplayHex as _;
+use hex::DisplayHex as _;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")]
@@ -459,7 +459,6 @@ impl<'de> Deserialize<'de> for Params {
                             }
 
                             fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                                use hex_conservative as hex;
                                 Ok(HexBytes(hex::decode_to_vec(v).map_err(E::custom)?))
                             }
 

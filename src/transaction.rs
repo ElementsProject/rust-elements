@@ -1304,7 +1304,6 @@ mod tests {
 
     use crate::{encode::serialize, pset::PartiallySignedTransaction};
     use crate::confidential;
-    use hex_conservative as hex;
     use secp256k1_zkp::{self, ZERO_TWEAK};
     use crate::script;
 
