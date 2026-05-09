@@ -239,14 +239,11 @@ pub mod hex_bytes {
 
     pub fn deserialize<'de, D, B>(d: D) -> Result<B, D::Error>
         where D: serde::Deserializer<'de>,
-              B: serde::Deserialize<'de> + FromHex,
-              <B as FromHex>::Err: std::fmt::Display,
+              B: serde::Deserialize<'de> + From<Vec<u8>>,
     {
         struct Visitor<B>(::std::marker::PhantomData<B>);
 
-        impl<B: FromHex> serde::de::Visitor<'_> for Visitor<B>
-        where
-            <B as FromHex>::Err: std::fmt::Display,
+        impl<B: From<Vec<u8>>> serde::de::Visitor<'_> for Visitor<B>
         {
             type Value = B;
 
@@ -258,7 +255,7 @@ pub mod hex_bytes {
                 where E: serde::de::Error,
             {
                 if let Ok(hex) = ::std::str::from_utf8(v) {
-                    FromHex::from_hex(hex).map_err(E::custom)
+                    FromHex::from_hex(hex).map_err(E::custom).map(B::from)
                 } else {
                     Err(E::invalid_value(serde::de::Unexpected::Bytes(v), &self))
                 }
@@ -267,7 +264,7 @@ pub mod hex_bytes {
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
                 where E: serde::de::Error,
             {
-                FromHex::from_hex(v).map_err(E::custom)
+                FromHex::from_hex(v).map_err(E::custom).map(B::from)
             }
         }
 
