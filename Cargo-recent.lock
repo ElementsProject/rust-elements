@@ -204,7 +204,7 @@ dependencies = [
  "bincode",
  "bitcoin",
  "getrandom 0.2.16",
- "hex-conservative 1.0.0",
+ "hex-conservative 1.1.0",
  "rand",
  "rand_chacha",
  "secp256k1-zkp",
@@ -293,9 +293,12 @@ dependencies = [
 
 [[package]]
 name = "hex-conservative"
-version = "1.0.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9ee770c000993d17c185713463d5ebfbd1af9afae4c17cc295640104383bfbf0"
+checksum = "a7289f6b628ce69fb1a371d0fdcf8ff38cd93ec00e3010eb055d1e044998c8d1"
+dependencies = [
+ "arrayvec",
+]
 
 [[package]]
 name = "hex_lit"
