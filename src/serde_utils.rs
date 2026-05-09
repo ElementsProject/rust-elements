@@ -223,7 +223,8 @@ pub mod hex_bytes {
     //! Module for serialization of byte arrays as hex strings.
     #![allow(missing_docs)]
 
-    use crate::hex::{FromHex, ToHex};
+    use hex_conservative as hex;
+    use hex_conservative::DisplayHex as _;
     use serde;
 
     pub fn serialize<T, S>(bytes: &T, s: S) -> Result<S::Ok, S::Error>
@@ -231,7 +232,7 @@ pub mod hex_bytes {
     {
         // Don't do anything special when not human readable.
         if s.is_human_readable() {
-            s.serialize_str(&bytes.as_ref().to_hex())
+            s.collect_str(&bytes.as_ref().as_hex())
         } else {
             serde::Serialize::serialize(bytes, s)
         }
@@ -254,8 +255,8 @@ pub mod hex_bytes {
             fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
                 where E: serde::de::Error,
             {
-                if let Ok(hex) = ::std::str::from_utf8(v) {
-                    FromHex::from_hex(hex).map_err(E::custom).map(B::from)
+                if let Ok(hex) = ::core::str::from_utf8(v) {
+                    hex::decode_to_vec(hex).map_err(E::custom).map(B::from)
                 } else {
                     Err(E::invalid_value(serde::de::Unexpected::Bytes(v), &self))
                 }
@@ -264,7 +265,7 @@ pub mod hex_bytes {
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
                 where E: serde::de::Error,
             {
-                FromHex::from_hex(v).map_err(E::custom).map(B::from)
+                hex::decode_to_vec(v).map_err(E::custom).map(B::from)
             }
         }
 
