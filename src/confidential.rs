@@ -784,6 +784,12 @@ impl AssetBlindingFactor {
         AssetBlindingFactor(Tweak::new(rng))
     }
 
+    /// Parse a blinding factor from a 64-character hex string.
+    #[deprecated(since = "0.27.0", note = "use s.parse() instead")]
+    pub fn from_hex(s: &str) -> Result<Self, encode::Error> {
+        s.parse()
+    }
+
     /// Create from bytes.
     pub fn from_slice(bytes: &[u8]) -> Result<Self, secp256k1_zkp::Error> {
         Ok(AssetBlindingFactor(Tweak::from_slice(bytes)?))
@@ -797,18 +803,6 @@ impl AssetBlindingFactor {
     /// Get a unblinded/zero `AssetBlinding` factor
     pub fn zero() -> Self {
         AssetBlindingFactor(ZERO_TWEAK)
-    }
-}
-
-impl hex::FromHex for AssetBlindingFactor {
-    type Err = TweakHexDecodeError;
-
-    fn from_hex(s: &str) -> Result<Self, Self::Err> {
-        let mut slice: [u8; 32] = hex_conservative::decode_to_array(s)?;
-        slice.reverse();
-
-        let inner = Tweak::from_inner(slice)?;
-        Ok(AssetBlindingFactor(inner))
     }
 }
 
@@ -828,7 +822,11 @@ impl str::FromStr for AssetBlindingFactor {
     type Err = encode::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(hex::FromHex::from_hex(s)?)
+        let mut slice: [u8; 32] = hex_conservative::decode_to_array(s)?;
+        slice.reverse();
+
+        let inner = Tweak::from_inner(slice)?;
+        Ok(AssetBlindingFactor(inner))
     }
 }
 
@@ -846,8 +844,6 @@ impl Serialize for AssetBlindingFactor {
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for AssetBlindingFactor {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<AssetBlindingFactor, D::Error> {
-        use crate::hex::FromHex;
-
         if d.is_human_readable() {
             struct HexVisitor;
 
@@ -863,7 +859,7 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
                     E: ::serde::de::Error,
                 {
                     if let Ok(hex) = ::std::str::from_utf8(v) {
-                        AssetBlindingFactor::from_hex(hex).map_err(E::custom)
+                        hex.parse().map_err(E::custom)
                     } else {
                         Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self))
                     }
@@ -873,7 +869,7 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
                 where
                     E: ::serde::de::Error,
                 {
-                    AssetBlindingFactor::from_hex(v).map_err(E::custom)
+                    v.parse().map_err(E::custom)
                 }
             }
 
@@ -917,6 +913,12 @@ impl ValueBlindingFactor {
     /// Generate random value blinding factor.
     pub fn new<R: Rng>(rng: &mut R) -> Self {
         ValueBlindingFactor(Tweak::new(rng))
+    }
+
+    /// Parse a blinding factor from a 64-character hex string.
+    #[deprecated(since = "0.27.0", note = "use s.parse() instead")]
+    pub fn from_hex(s: &str) -> Result<Self, encode::Error> {
+        s.parse()
     }
 
     /// Create the value blinding factor of the last output of a transaction.
@@ -1001,18 +1003,6 @@ impl Neg for ValueBlindingFactor {
     }
 }
 
-impl hex::FromHex for ValueBlindingFactor {
-    type Err = TweakHexDecodeError;
-
-    fn from_hex(s: &str) -> Result<Self, Self::Err> {
-        let mut slice: [u8; 32] = hex_conservative::decode_to_array(s)?;
-        slice.reverse();
-
-        let inner = Tweak::from_inner(slice)?;
-        Ok(ValueBlindingFactor(inner))
-    }
-}
-
 impl fmt::Display for ValueBlindingFactor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         hex::format_hex_reverse(self.0.as_ref(), f)
@@ -1029,7 +1019,11 @@ impl str::FromStr for ValueBlindingFactor {
     type Err = encode::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(hex::FromHex::from_hex(s)?)
+        let mut slice: [u8; 32] = hex_conservative::decode_to_array(s)?;
+        slice.reverse();
+
+        let inner = Tweak::from_inner(slice)?;
+        Ok(ValueBlindingFactor(inner))
     }
 }
 
@@ -1047,8 +1041,6 @@ impl Serialize for ValueBlindingFactor {
 #[cfg(feature = "serde")]
 impl<'de> Deserialize<'de> for ValueBlindingFactor {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<ValueBlindingFactor, D::Error> {
-        use crate::hex::FromHex;
-
         if d.is_human_readable() {
             struct HexVisitor;
 
@@ -1064,7 +1056,7 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
                     E: ::serde::de::Error,
                 {
                     if let Ok(hex) = ::std::str::from_utf8(v) {
-                        ValueBlindingFactor::from_hex(hex).map_err(E::custom)
+                        hex.parse().map_err(E::custom)
                     } else {
                         Err(E::invalid_value(::serde::de::Unexpected::Bytes(v), &self))
                     }
@@ -1074,7 +1066,7 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
                 where
                     E: ::serde::de::Error,
                 {
-                    ValueBlindingFactor::from_hex(v).map_err(E::custom)
+                    v.parse().map_err(E::custom)
                 }
             }
 

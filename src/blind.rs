@@ -1396,7 +1396,7 @@ mod tests {
                 "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23",
             )
             .unwrap(),
-            asset_bf: AssetBlindingFactor::from_hex(
+            asset_bf: AssetBlindingFactor::from_str(
                 "a5b3d111cdaa5fc111e2723df4caf315864f25fb4610cc737f10d5a55cd4096f",
             )
             .unwrap(),
@@ -1406,7 +1406,7 @@ mod tests {
             )
             .unwrap()
             .to_sat(),
-            value_bf: ValueBlindingFactor::from_hex(
+            value_bf: ValueBlindingFactor::from_str(
                 "e36a4de359469f547571d117bc5509fb74fba73c84b0cdd6f4edfa7ff7fa457d",
             )
             .unwrap(),
