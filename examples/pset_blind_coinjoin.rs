@@ -28,7 +28,7 @@ use elements::{pset, secp256k1_zkp};
 
 use elements::encode::{deserialize, serialize_hex};
 use elements::{confidential, AssetId, TxOut};
-use elements::hex::FromHex;
+use elements::hex;
 use rand::SeedableRng;
 
 // Assume txouts are simple pay to wpkh
@@ -41,7 +41,7 @@ struct Secrets {
 }
 
 fn deser_pset(psbt_hex: &str) -> Pset {
-    deserialize::<Pset>(&Vec::<u8>::from_hex(psbt_hex).unwrap()).unwrap()
+    deserialize::<Pset>(&hex::decode_to_vec(psbt_hex).unwrap()).unwrap()
 }
 
 fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
@@ -50,15 +50,15 @@ fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
 
     let txout = TxOut {
         asset: deserialize::<confidential::Asset>(
-            &Vec::<u8>::from_hex(v["assetcommitment"].as_str().unwrap()).unwrap(),
+            &hex::decode_to_vec(v["assetcommitment"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
         value: deserialize::<confidential::Value>(
-            &Vec::<u8>::from_hex(v["amountcommitment"].as_str().unwrap()).unwrap(),
+            &hex::decode_to_vec(v["amountcommitment"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
         nonce: deserialize::<confidential::Nonce>(
-            &Vec::<u8>::from_hex(v["commitmentnonce"].as_str().unwrap()).unwrap(),
+            &hex::decode_to_vec(v["commitmentnonce"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
         script_pubkey: Script::from_hex_no_prefix(v["scriptPubKey"].as_str().unwrap()).unwrap(),
