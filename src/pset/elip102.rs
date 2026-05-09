@@ -69,7 +69,8 @@ mod test {
     use super::*;
     use crate::AssetId;
     use crate::encode::{serialize_hex, Encodable};
-    use crate::hex::{FromHex, ToHex};
+    use crate::hex::ToHex;
+    use hex_conservative as hex;
 
     // b'\xfc\rpset_liquidex'
     const ELIP0102_IDENTIFIER: &str = "fc0d707365745f6c69717569646578";
@@ -91,8 +92,8 @@ mod test {
     #[test]
     fn set_get_abf() {
         // An ABF that's different if serialized in reverse or not
-        let abf_hex = "3311111111111111111111111111111111111111111111111111111111111111";
-        let abf_bytes = Vec::<u8>::from_hex(abf_hex).unwrap();
+        const ABF_HEX: &str = "3311111111111111111111111111111111111111111111111111111111111111";
+        let abf_bytes = hex::hex!(ABF_HEX);
         let abf = AssetBlindingFactor::from_slice(&abf_bytes).unwrap();
 
         let mut input = Input::default();
@@ -101,7 +102,7 @@ mod test {
         assert_eq!(input.get_abf().unwrap().unwrap(), abf);
         let input_hex = serialize_hex(&input);
         assert!(input_hex.contains(ELIP0102_IDENTIFIER));
-        assert!(input_hex.contains(abf_hex));
+        assert!(input_hex.contains(ABF_HEX));
 
         let mut output = Output::default();
         assert!(output.get_abf().is_none());
@@ -109,7 +110,7 @@ mod test {
         assert_eq!(output.get_abf().unwrap().unwrap(), abf);
         let output_hex = serialize_hex(&output);
         assert!(output_hex.contains(ELIP0102_IDENTIFIER));
-        assert!(output_hex.contains(abf_hex));
+        assert!(output_hex.contains(ABF_HEX));
     }
 
     #[test]

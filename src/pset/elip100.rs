@@ -221,8 +221,8 @@ mod test {
 
     use crate::encode::serialize;
     use crate::{OutPoint, Txid};
-    use bitcoin::hashes::hex::FromHex;
     use bitcoin::hashes::Hash;
+    use hex_conservative as hex;
 
     use crate::{
         encode::{serialize_hex, Encodable},
@@ -340,7 +340,7 @@ mod test {
 
         pset.add_asset_metadata(asset_id, &asset_meta);
 
-        let expected_key = Vec::<u8>::from_hex(ELIP0100_ASSET_METADATA_RECORD_KEY).unwrap();
+        let expected_key = hex::hex!(ELIP0100_ASSET_METADATA_RECORD_KEY);
 
         let values: Vec<Vec<u8>> = pset
             .global
@@ -369,7 +369,7 @@ mod test {
 
         pset.add_token_metadata(token_id, &token_meta);
 
-        let expected_key = Vec::<u8>::from_hex(ELIP0100_TOKEN_METADATA_RECORD_KEY).unwrap();
+        let expected_key = hex::hex!(ELIP0100_TOKEN_METADATA_RECORD_KEY);
 
         let values: Vec<Vec<u8>> = pset
             .global

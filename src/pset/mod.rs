@@ -786,23 +786,24 @@ impl Decodable for PartiallySignedTransaction {
 mod tests {
     use super::*;
     use crate::hex::{FromHex, ToHex};
+    use hex_conservative as hex;
 
     #[track_caller]
     fn tx_pset_rtt(tx_hex: &str) {
         let tx: Transaction =
-            encode::deserialize(&Vec::<u8>::from_hex(tx_hex).unwrap()[..]).unwrap();
+            encode::deserialize(&hex::decode_to_vec(tx_hex).unwrap()).unwrap();
         let pset = PartiallySignedTransaction::from_tx(tx);
         let rtt_tx_hex = encode::serialize_hex(&pset.extract_tx().unwrap());
         assert_eq!(tx_hex, rtt_tx_hex);
         let pset_rtt_hex = encode::serialize_hex(&pset);
         let pset2: PartiallySignedTransaction =
-            encode::deserialize(&Vec::<u8>::from_hex(&pset_rtt_hex).unwrap()[..]).unwrap();
+            encode::deserialize(&hex::decode_to_vec(&pset_rtt_hex).unwrap()).unwrap();
         assert_eq!(pset, pset2);
     }
 
     fn pset_rtt(pset_hex: &str) {
         let pset: PartiallySignedTransaction =
-            encode::deserialize(&Vec::<u8>::from_hex(pset_hex).unwrap()[..]).unwrap();
+            encode::deserialize(&hex::decode_to_vec(pset_hex).unwrap()[..]).unwrap();
 
         assert_eq!(encode::serialize_hex(&pset), pset_hex);
     }
@@ -832,14 +833,15 @@ mod tests {
         use serde_json;
         use std::str::FromStr;
 
+        const PSET_HEX: &str = "70736574ff01020402000000010401010105010201fb04020000000001017a0bb9325c276764451bbc2eb82a4c8c4bb6f4007ba803e5a5ba72d0cd7c09848e1a091622d935953bf06e0b7393239c68c6f810a00fe19d11c6ae343cffd3037077da02535fe4ad0fcd675cd0f62bf73b60a554dc1569b80f1f76a2bbfc9f00d439bf4b160014d2cbec8783bd01c9f178348b08500a830a89a7f9010e20805131ba6b37165c026eed9325ac56059ba872fd569e3ed462734098688b4770010f0400000000000103088c83b50d0000000007fc04707365740220230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20104220020e5793ad956ee91ebf3543b37d110701118ed4078ffa0d477eacb8885e486ad8507fc047073657406210212bf0ea45b733dfde8ecb5e896306c4165c666c99fc5d1ab887f71393a975cea07fc047073657408040000000000010308f40100000000000007fc04707365740220230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201040000";
+
         // Initially secp context and rng global state
         let secp = secp256k1_zkp::Secp256k1::new();
         #[allow(deprecated)]
         let mut rng = rand::rngs::StdRng::seed_from_u64(0);
 
-        let pset_hex = "70736574ff01020402000000010401010105010201fb04020000000001017a0bb9325c276764451bbc2eb82a4c8c4bb6f4007ba803e5a5ba72d0cd7c09848e1a091622d935953bf06e0b7393239c68c6f810a00fe19d11c6ae343cffd3037077da02535fe4ad0fcd675cd0f62bf73b60a554dc1569b80f1f76a2bbfc9f00d439bf4b160014d2cbec8783bd01c9f178348b08500a830a89a7f9010e20805131ba6b37165c026eed9325ac56059ba872fd569e3ed462734098688b4770010f0400000000000103088c83b50d0000000007fc04707365740220230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20104220020e5793ad956ee91ebf3543b37d110701118ed4078ffa0d477eacb8885e486ad8507fc047073657406210212bf0ea45b733dfde8ecb5e896306c4165c666c99fc5d1ab887f71393a975cea07fc047073657408040000000000010308f40100000000000007fc04707365740220230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201040000";
         let mut pset: PartiallySignedTransaction =
-            encode::deserialize(&Vec::<u8>::from_hex(pset_hex).unwrap()[..]).unwrap();
+            encode::deserialize(&hex::hex!(PSET_HEX)).unwrap();
 
         let btc_txout_secrets_str = r#"
         {
@@ -874,64 +876,55 @@ mod tests {
     fn basic_pset() {
         // Invalid psets
         // Check Global mandatory field
-        let pset_str = "70736574ff010401000105010001fb040200000000";
         let pset = encode::deserialize::<PartiallySignedTransaction>(
-            &Vec::<u8>::from_hex(pset_str).unwrap()[..],
+            &hex::hex!("70736574ff010401000105010001fb040200000000"),
         );
         pset.expect_err("Missing tx version");
 
         // Check input mandatory field
-        let pset_str = "70736574ff010204020000000104010001fb040200000000";
         let pset = encode::deserialize::<PartiallySignedTransaction>(
-            &Vec::<u8>::from_hex(pset_str).unwrap()[..],
+            &hex::hex!("70736574ff010204020000000104010001fb040200000000"),
         );
         pset.expect_err("Missing inp count");
 
-        let pset_str = "70736574ff010204020000000105010001fb040200000000";
         let pset = encode::deserialize::<PartiallySignedTransaction>(
-            &Vec::<u8>::from_hex(pset_str).unwrap()[..],
+            &hex::hex!("70736574ff010204020000000105010001fb040200000000"),
         );
         pset.expect_err("Missing out count");
 
-        let pset_str = "70736574ff01020402000000010401000105010000";
         let pset = encode::deserialize::<PartiallySignedTransaction>(
-            &Vec::<u8>::from_hex(pset_str).unwrap()[..],
+            &hex::hex!("70736574ff01020402000000010401000105010000"),
         );
         pset.expect_err("Missing pset version");
         // Check inp/out count mismatch
-        let pset_str = "70736574ff01020402000000010401000105010001fb04020000000001017a0ad92644e9bf6cb8d0856a8ca713c8a212d3a62142e85454b7865217890e52ec3108a469a9811ec1c1df7a98dbc3a7f71860293e98c6fad8a7ef6828344e9172547302217d344513f0a5ed1a60ebeba01460c505ad63d95b3542fb303aca8f9382777d160014bd5c31aaea2ddc585f317ee589bc6800bc95e7e6010e208965573f41392a88d8bb106cf13a7bdc69f1ab914cd5e8de11235467b514e5a9010f040100000000";
-        let pset = encode::deserialize::<PartiallySignedTransaction>(
-            &Vec::<u8>::from_hex(pset_str).unwrap()[..],
-        );
+        let pset = encode::deserialize::<PartiallySignedTransaction>(&hex::hex!(
+            "70736574ff01020402000000010401000105010001fb04020000000001017a0ad92644e9bf6cb8d0856a8ca713c8a212d3a62142e85454b7865217890e52ec3108a469a9811ec1c1df7a98dbc3a7f71860293e98c6fad8a7ef6828344e9172547302217d344513f0a5ed1a60ebeba01460c505ad63d95b3542fb303aca8f9382777d160014bd5c31aaea2ddc585f317ee589bc6800bc95e7e6010e208965573f41392a88d8bb106cf13a7bdc69f1ab914cd5e8de11235467b514e5a9010f040100000000"
+        ));
         pset.expect_err("Input count mismatch");
 
         // input mandatory field
-        let pset_str = "70736574ff01020402000000010401010105010001fb04020000000001017a0ad92644e9bf6cb8d0856a8ca713c8a212d3a62142e85454b7865217890e52ec3108a469a9811ec1c1df7a98dbc3a7f71860293e98c6fad8a7ef6828344e9172547302217d344513f0a5ed1a60ebeba01460c505ad63d95b3542fb303aca8f9382777d160014bd5c31aaea2ddc585f317ee589bc6800bc95e7e601010f040100000000";
-        let pset = encode::deserialize::<PartiallySignedTransaction>(
-            &Vec::<u8>::from_hex(pset_str).unwrap()[..],
-        );
+        let pset = encode::deserialize::<PartiallySignedTransaction>(&hex::hex!(
+            "70736574ff01020402000000010401010105010001fb04020000000001017a0ad92644e9bf6cb8d0856a8ca713c8a212d3a62142e85454b7865217890e52ec3108a469a9811ec1c1df7a98dbc3a7f71860293e98c6fad8a7ef6828344e9172547302217d344513f0a5ed1a60ebeba01460c505ad63d95b3542fb303aca8f9382777d160014bd5c31aaea2ddc585f317ee589bc6800bc95e7e601010f040100000000"
+        ));
         pset.expect_err("Input mandatory field prevtxid");
 
         // output mandatory amount field
-        let pset_str = "70736574ff01020402000000010401000105010101fb04020000000007fc04707365740220010101010101010101010101010101010101010101010101010101010101010101040000";
-        let pset = encode::deserialize::<PartiallySignedTransaction>(
-            &Vec::<u8>::from_hex(pset_str).unwrap()[..],
-        );
+        let pset = encode::deserialize::<PartiallySignedTransaction>(&hex::hex!(
+            "70736574ff01020402000000010401000105010101fb04020000000007fc04707365740220010101010101010101010101010101010101010101010101010101010101010101040000"
+        ));
         pset.expect_err("Output non-mandatory field");
 
-        let pset_str = "70736574ff01020402000000010401000105010101fb040200000000010308170000000000000007fc0470736574022009090909090909090909090909090909090909090909090909090909090909090100";
-        let pset = encode::deserialize::<PartiallySignedTransaction>(
-            &Vec::<u8>::from_hex(pset_str).unwrap()[..],
-        );
+        let pset = encode::deserialize::<PartiallySignedTransaction>(&hex::hex!(
+            "70736574ff01020402000000010401000105010101fb040200000000010308170000000000000007fc0470736574022009090909090909090909090909090909090909090909090909090909090909090100"
+        ));
         pset.expect_err("Output mandatory field script pubkey");
 
         // Valid Psets
 
         // Check both possible conf/explicit values are allowed for pset
-        let pset_str = "70736574ff01020402000000010401000105010101fb040200000000010308170000000000000007fc0470736574012109090909090909090909090909090909090909090909090909090909090909090907fc04707365740220090909090909090909090909090909090909090909090909090909090909090901040000";
-        let pset = encode::deserialize::<PartiallySignedTransaction>(
-            &Vec::<u8>::from_hex(pset_str).unwrap()[..],
-        );
+        let pset = encode::deserialize::<PartiallySignedTransaction>(&hex::hex!(
+            "70736574ff01020402000000010401000105010101fb040200000000010308170000000000000007fc0470736574012109090909090909090909090909090909090909090909090909090909090909090907fc04707365740220090909090909090909090909090909090909090909090909090909090909090901040000"
+        ));
         pset.expect("Both conf/explicit value are allowed be present in map");
 
         // Commented code for quick test vector generation
@@ -965,14 +958,14 @@ mod tests {
     fn pset_from_elements() {
         let pset_str = include_str!("../../tests/data/pset_swap_tutorial.hex");
 
-        let bytes = Vec::<u8>::from_hex(pset_str).unwrap();
+        let bytes = hex::decode_to_vec(pset_str).unwrap();
         let pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
 
         assert_eq!(pset_str.len(), encode::serialize(&pset).to_hex().len());
         let back_hex = encode::serialize(&pset).to_hex();
         //assert_eq!(pset_str, &back_hex);  //TODO this fails, field ordering?
 
-        let bytes = Vec::<u8>::from_hex(&back_hex).unwrap();
+        let bytes = hex::decode_to_vec(&back_hex).unwrap();
         let pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
         assert_eq!(&back_hex, &encode::serialize(&pset).to_hex());
     }
@@ -981,7 +974,7 @@ mod tests {
     fn pset_remove_in_out() {
         let pset_str = include_str!("../../tests/data/pset_swap_tutorial.hex");
 
-        let bytes = Vec::<u8>::from_hex(pset_str).unwrap();
+        let bytes = hex::decode_to_vec(pset_str).unwrap();
         let mut pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
 
         let n_inputs = pset.n_inputs();

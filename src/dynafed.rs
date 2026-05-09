@@ -466,9 +466,8 @@ impl<'de> Deserialize<'de> for Params {
                             }
 
                             fn visit_str<E: de::Error>(self, v: &str) -> Result<Self::Value, E> {
-                                use crate::hex::FromHex;
-
-                                Ok(HexBytes(FromHex::from_hex(v).map_err(E::custom)?))
+                                use hex_conservative as hex;
+                                Ok(HexBytes(hex::decode_to_vec(v).map_err(E::custom)?))
                             }
 
                             fn visit_bytes<E: de::Error>(self, v: &[u8]) -> Result<Self::Value, E> {

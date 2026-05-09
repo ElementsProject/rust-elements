@@ -1381,6 +1381,7 @@ mod tests {
     use crate::hex::FromHex;
     use crate::Script;
     use bitcoin::{PrivateKey, PublicKey};
+    use hex_conservative as hex;
     use rand::thread_rng;
     use secp256k1_zkp::SECP256K1;
     use std::str::FromStr;
@@ -1388,8 +1389,8 @@ mod tests {
     #[test]
     fn test_blind_tx() {
         // tested with elements 0.20 rebase branch
-        let tx_hex = "020000000001741498f6da8f47eb438d0fb9de099b7e29c0e011b9ab64c3e0eb097a09a6a9220100000000fdffffff0301230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201000775f04dedb2d102a11e47fd7a0edfb424a43b2d3cf29d700d4b168c92e115709ff7d15070e201dd16001483641e58db3de6067f010d71c9782874572af9fb01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100000000000f42400206a1039b0fe0d110d2108f2cc49d637f95b6ac18045af5b302b3c14bf8457994160014ad65ebbed8416659141cc788c1b917d6ff3e059901230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100000000000000f9000000000000";
-        let mut tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx_hex).unwrap()[..]).unwrap();
+        const TX_HEX: &str = "020000000001741498f6da8f47eb438d0fb9de099b7e29c0e011b9ab64c3e0eb097a09a6a9220100000000fdffffff0301230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b201000775f04dedb2d102a11e47fd7a0edfb424a43b2d3cf29d700d4b168c92e115709ff7d15070e201dd16001483641e58db3de6067f010d71c9782874572af9fb01230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100000000000f42400206a1039b0fe0d110d2108f2cc49d637f95b6ac18045af5b302b3c14bf8457994160014ad65ebbed8416659141cc788c1b917d6ff3e059901230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b20100000000000000f9000000000000";
+        let mut tx: Transaction = deserialize(&hex::hex!(TX_HEX)).unwrap();
         let spent_utxo_secrets = TxOutSecrets {
             asset: AssetId::from_str(
                 "b2e15d0d7a0c94e4e2ce0fe6e8691b9e451377f6e46e8045a86f7c4b5d4f0f23",
@@ -1434,24 +1435,15 @@ mod tests {
 
         let spent_utxo = TxOut {
             asset: Asset::from_commitment(
-                &Vec::<u8>::from_hex(
-                    "0baf634b18e1880c96dcf9947b0e0fd2d38d66d723339174df3fd980148c2f0bb3",
-                )
-                .unwrap(),
+                &hex::hex!("0baf634b18e1880c96dcf9947b0e0fd2d38d66d723339174df3fd980148c2f0bb3"),
             )
             .unwrap(),
             value: Value::from_commitment(
-                &Vec::<u8>::from_hex(
-                    "093baba9076190867fbc5e43132cb2f82245caf603b493d7c0da8b7eda7912fa2c",
-                )
-                .unwrap(),
+                &hex::hex!("093baba9076190867fbc5e43132cb2f82245caf603b493d7c0da8b7eda7912fa2c"),
             )
             .unwrap(),
             nonce: Nonce::from_commitment(
-                &Vec::<u8>::from_hex(
-                    "02a96a456f4936dcf0afbc325ac3798c4464e7b66dd460d564f3f91882d6089a3b",
-                )
-                .unwrap(),
+                &hex::hex!("02a96a456f4936dcf0afbc325ac3798c4464e7b66dd460d564f3f91882d6089a3b"),
             )
             .unwrap(),
             script_pubkey: Script::from_hex("0014d2bcde17e7744f6377466ca1bd35d212954674c8")
@@ -1571,7 +1563,7 @@ mod tests {
         let secp = secp256k1_zkp::Secp256k1::new();
         let tx_str = include_str!("../tests/data/issue_tx.hex");
 
-        let bytes = Vec::<u8>::from_hex(tx_str).unwrap();
+        let bytes = hex::decode_to_vec(tx_str).unwrap();
         let tx = encode::deserialize::<Transaction>(&bytes).unwrap();
 
         let mut utxos = [
@@ -1582,50 +1574,32 @@ mod tests {
         ];
         {
             utxos[0].asset = Asset::from_commitment(
-                &Vec::<u8>::from_hex(
-                    "0ae7a52e8e4b07e00548bab151a83e5c9ab2f9a910e10dcee930a1a152a939f99e",
-                )
-                .unwrap(),
+                &hex::hex!("0ae7a52e8e4b07e00548bab151a83e5c9ab2f9a910e10dcee930a1a152a939f99e"),
             )
             .unwrap();
             utxos[0].value = Value::Explicit(1);
 
             utxos[1].asset = Asset::from_commitment(
-                &Vec::<u8>::from_hex(
-                    "0bc226167e9ee0bb5a86c8f1478ee7d7becb7bfd4d97c26a041e628c5486a8c67a",
-                )
-                .unwrap(),
+                &hex::hex!("0bc226167e9ee0bb5a86c8f1478ee7d7becb7bfd4d97c26a041e628c5486a8c67a"),
             )
             .unwrap();
             utxos[1].value = Value::Explicit(1);
 
             utxos[2].asset = Asset::from_commitment(
-                &Vec::<u8>::from_hex(
-                    "0b495dbfc356993c5ac157c3d04fadf6f198a7e35a873df482ad9e4e95daa8aa7e",
-                )
-                .unwrap(),
+                &hex::hex!("0b495dbfc356993c5ac157c3d04fadf6f198a7e35a873df482ad9e4e95daa8aa7e"),
             )
             .unwrap();
             utxos[2].value = Value::from_commitment(
-                &Vec::<u8>::from_hex(
-                    "08e0ac2ab5f3c173d5e0652a2ec209a9a370a4e510178e73c2f22f9e132341abf4",
-                )
-                .unwrap(),
+                &hex::hex!("08e0ac2ab5f3c173d5e0652a2ec209a9a370a4e510178e73c2f22f9e132341abf4"),
             )
             .unwrap();
 
             utxos[3].asset = Asset::from_commitment(
-                &Vec::<u8>::from_hex(
-                    "0aa0956d60687982d5e73d52f8c5902478754e5f0e2e5ceff5ae53fa9681c12ae1",
-                )
-                .unwrap(),
+                &hex::hex!("0aa0956d60687982d5e73d52f8c5902478754e5f0e2e5ceff5ae53fa9681c12ae1"),
             )
             .unwrap();
             utxos[3].value = Value::from_commitment(
-                &Vec::<u8>::from_hex(
-                    "094b35f1e86b097ccf0b3a826570c089c724ed9cf22620937500b14acdd169e7bf",
-                )
-                .unwrap(),
+                &hex::hex!("094b35f1e86b097ccf0b3a826570c089c724ed9cf22620937500b14acdd169e7bf"),
             )
             .unwrap();
         }

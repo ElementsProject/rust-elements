@@ -885,7 +885,6 @@ impl<'de> serde::Deserialize<'de> for Script {
         D: serde::Deserializer<'de>,
     {
         use std::fmt::Formatter;
-        use crate::hex::FromHex;
 
         struct Visitor;
         impl<'de> serde::de::Visitor<'de> for Visitor {
@@ -899,7 +898,7 @@ impl<'de> serde::Deserialize<'de> for Script {
             where
                 E: serde::de::Error,
             {
-                let v = Vec::from_hex(v).map_err(E::custom)?;
+                let v = hex_conservative::decode_to_vec(v).map_err(E::custom)?;
                 Ok(Script::from(v))
             }
 
@@ -953,7 +952,7 @@ impl Decodable for Script {
 
 #[cfg(test)]
 mod test {
-    use crate::hex::FromHex;
+    use hex_conservative as hex;
     use bitcoin::PublicKey;
     use std::str::FromStr;
 
@@ -965,6 +964,10 @@ mod test {
 
     #[test]
     fn script() {
+        // Clippy likes these at the top of the method
+        const KEYSTR_C: &str = "21032e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af";
+        const KEYSTR_U: &str = "41042e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af191923a2964c177f5b5923ae500fca49e99492d534aa3759d6b25a8bc971b133";
+
         let mut comp = vec![];
         let mut script = Builder::new();
         assert_eq!(&script[..], &comp[..]);
@@ -987,12 +990,10 @@ mod test {
         script = script.push_slice(b"NRA4VR"); comp.extend([6u8, 78, 82, 65, 52, 86, 82].iter().copied()); assert_eq!(&script[..], &comp[..]);
 
         // keys
-        let keystr = "21032e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af";
-        let key = PublicKey::from_str(&keystr[2..]).unwrap();
-        script = script.push_key(&key); comp.extend(Vec::from_hex(keystr).unwrap().iter().copied()); assert_eq!(&script[..], &comp[..]);
-        let keystr = "41042e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af191923a2964c177f5b5923ae500fca49e99492d534aa3759d6b25a8bc971b133";
-        let key = PublicKey::from_str(&keystr[2..]).unwrap();
-        script = script.push_key(&key); comp.extend(Vec::from_hex(keystr).unwrap().iter().copied()); assert_eq!(&script[..], &comp[..]);
+        let key = PublicKey::from_str(&KEYSTR_C[2..]).unwrap();
+        script = script.push_key(&key); comp.extend(hex::hex!(KEYSTR_C).iter().copied()); assert_eq!(&script[..], &comp[..]);
+        let key = PublicKey::from_str(&KEYSTR_U[2..]).unwrap();
+        script = script.push_key(&key); comp.extend(hex::hex!(KEYSTR_U).iter().copied()); assert_eq!(&script[..], &comp[..]);
 
         // opcodes
         script = script.push_opcode(opcodes::all::OP_CHECKSIG); comp.push(0xACu8); assert_eq!(&script[..], &comp[..]);
@@ -1004,7 +1005,7 @@ mod test {
         // from txid 3bb5e6434c11fb93f64574af5d116736510717f2c595eb45b52c28e31622dfff which was in my mempool when I wrote the test
         let script = Builder::new().push_opcode(opcodes::all::OP_DUP)
                                    .push_opcode(opcodes::all::OP_HASH160)
-                                   .push_slice(&Vec::from_hex("16e1ae70ff0fa102905d4af297f6912bda6cce19").unwrap())
+                                   .push_slice(&hex::hex!("16e1ae70ff0fa102905d4af297f6912bda6cce19"))
                                    .push_opcode(opcodes::all::OP_EQUALVERIFY)
                                    .push_opcode(opcodes::all::OP_CHECKSIG)
                                    .into_script();
@@ -1085,7 +1086,7 @@ mod test {
 
     #[test]
     fn script_serialize() {
-        let hex_script = Vec::from_hex("6c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52").unwrap();
+        let hex_script = hex::hex!("6c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52");
         let script: Result<Script, _> = deserialize(&hex_script);
         assert!(script.is_ok());
         assert_eq!(serialize(&script.unwrap()), hex_script);

@@ -16,7 +16,7 @@
 macro_rules! hex_pset {
     ($s:expr) => {
         $crate::encode::deserialize(
-            &<Vec<u8> as $crate::hashes::hex::FromHex>::from_hex($s).unwrap(),
+            hex_conservative::decode_to_vec($s).unwrap(),
         )
     };
 }
