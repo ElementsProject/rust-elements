@@ -7,7 +7,8 @@ pub mod btreemap_byte_values {
     // NOTE: This module can be exactly copied to use with HashMap.
 
     use ::std::collections::BTreeMap;
-    use crate::hex::{FromHex, ToHex};
+    use hex_conservative as hex;
+    use hex_conservative::DisplayHex as _;
     use serde;
 
     pub fn serialize<S, T>(v: &BTreeMap<T, Vec<u8>>, s: S)
@@ -21,7 +22,7 @@ pub mod btreemap_byte_values {
         if s.is_human_readable() {
             let mut map = s.serialize_map(Some(v.len()))?;
             for (key, value) in v {
-                map.serialize_entry(key, &value.to_hex())?;
+                map.serialize_entry(key, &value.to_lower_hex_string())?;
             }
             map.end()
         } else {
@@ -51,7 +52,7 @@ pub mod btreemap_byte_values {
             {
                 let mut ret = BTreeMap::new();
                 while let Some((key, value)) = a.next_entry()? {
-                    ret.insert(key, FromHex::from_hex(value).map_err(serde::de::Error::custom)?);
+                    ret.insert(key, hex::decode_to_vec(value).map_err(serde::de::Error::custom)?);
                 }
                 Ok(ret)
             }
