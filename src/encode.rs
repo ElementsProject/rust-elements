@@ -174,7 +174,7 @@ pub fn serialize<T: Encodable + ?Sized>(data: &T) -> Vec<u8> {
 
 /// Encode an object into a hex-encoded string
 pub fn serialize_hex<T: Encodable + ?Sized>(data: &T) -> String {
-    crate::hex::ToHex::to_hex(&serialize(data)[..])
+    hex_conservative::DisplayHex::to_lower_hex_string(&serialize(data)[..])
 }
 
 /// Deserialize an object from a vector, will error if said deserialization

@@ -18,7 +18,7 @@
 //!
 
 use crate::hashes::{sha256d, Hash};
-use crate::hex;
+use hex_conservative as hex;
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
     PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
     compute_adaptive_blinding_factor,
@@ -775,7 +775,7 @@ impl std::error::Error for TweakHexDecodeError {
 }
 
 /// Blinding factor used for asset commitments.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct AssetBlindingFactor(pub(crate) Tweak);
 
 impl AssetBlindingFactor {
@@ -806,15 +806,14 @@ impl AssetBlindingFactor {
     }
 }
 
-impl fmt::Display for AssetBlindingFactor {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        hex::format_hex_reverse(self.0.as_ref(), f)
-    }
+impl core::borrow::Borrow<[u8]> for AssetBlindingFactor {
+    fn borrow(&self) -> &[u8] { &self.0[..] }
 }
 
-impl fmt::LowerHex for AssetBlindingFactor {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        hex::format_hex_reverse(self.0.as_ref(), f)
+hex::impl_fmt_traits! {
+    #[display_backward(true)]
+    impl fmt_traits for AssetBlindingFactor {
+        const LENGTH: usize = 32;
     }
 }
 
@@ -906,7 +905,7 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
 }
 
 /// Blinding factor used for value commitments.
-#[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct ValueBlindingFactor(pub(crate) Tweak);
 
 impl ValueBlindingFactor {
@@ -1003,15 +1002,14 @@ impl Neg for ValueBlindingFactor {
     }
 }
 
-impl fmt::Display for ValueBlindingFactor {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        hex::format_hex_reverse(self.0.as_ref(), f)
-    }
+impl core::borrow::Borrow<[u8]> for ValueBlindingFactor {
+    fn borrow(&self) -> &[u8] { &self.0[..] }
 }
 
-impl fmt::LowerHex for ValueBlindingFactor {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        hex::format_hex_reverse(self.0.as_ref(), f)
+hex::impl_fmt_traits! {
+    #[display_backward(true)]
+    impl fmt_traits for ValueBlindingFactor {
+        const LENGTH: usize = 32;
     }
 }
 

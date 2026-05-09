@@ -69,8 +69,8 @@ mod test {
     use super::*;
     use crate::AssetId;
     use crate::encode::{serialize_hex, Encodable};
-    use crate::hex::ToHex;
     use hex_conservative as hex;
+    use hex_conservative::DisplayHex as _;
 
     // b'\xfc\rpset_liquidex'
     const ELIP0102_IDENTIFIER: &str = "fc0d707365745f6c69717569646578";
@@ -82,11 +82,11 @@ mod test {
         key.consensus_encode(&mut vec).unwrap();
 
         assert_eq!(
-            vec.to_hex(),
-            format!("0d{}00", PSET_LIQUIDEX_PREFIX.to_hex())
+            vec.to_lower_hex_string(),
+            format!("0d{}00", PSET_LIQUIDEX_PREFIX.to_lower_hex_string()),
         );
 
-        assert!(vec.to_hex().starts_with(&ELIP0102_IDENTIFIER[2..])); // cut proprietary prefix "fc"
+        assert!(vec.to_lower_hex_string().starts_with(&ELIP0102_IDENTIFIER[2..])); // cut proprietary prefix "fc"
     }
 
     #[test]

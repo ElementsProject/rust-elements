@@ -16,6 +16,7 @@
 
 use std::{fmt, io};
 
+use hex_conservative::DisplayHex as _;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 #[cfg(feature = "serde")]
@@ -26,22 +27,13 @@ use crate::hashes::{Hash, sha256, sha256d};
 use crate::Script;
 
 /// ad-hoc struct to fmt in hex
+#[cfg(feature = "serde")]
 struct HexBytes<'a>(&'a [u8]);
-impl fmt::Display for HexBytes<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        crate::hex::format_hex(self.0, f)
-    }
-}
-impl fmt::Debug for HexBytes<'_> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        fmt::Display::fmt(&self, f)
-    }
-}
 #[cfg(feature = "serde")]
 impl Serialize for HexBytes<'_> {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         if s.is_human_readable() {
-            s.collect_str(self)
+            s.collect_str(&self.0.as_hex())
         } else {
             s.serialize_bytes(self.0)
         }
@@ -54,10 +46,11 @@ impl fmt::Display for HexBytesArray<'_> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[")?;
         for (i, e) in self.0.iter().enumerate() {
-            if i != 0 {
-                write!(f, ", ")?;
+            if i == 0 {
+                write!(f, "{}", e.as_hex())?;
+            } else {
+                write!(f, ", {}", e.as_hex())?;
             }
-            crate::hex::format_hex(&e[..], f)?;
         }
         write!(f, "]")
     }
@@ -165,10 +158,10 @@ impl FullParams {
     /// Format for [`fmt::Debug`].
     fn fmt_debug(&self, f: &mut fmt::Formatter, name: &'static str) -> fmt::Result {
         let mut s = f.debug_struct(name);
-        s.field("signblockscript", &HexBytes(&self.signblockscript[..]));
+        s.field("signblockscript", &self.signblockscript[..].as_hex());
         s.field("signblock_witness_limit", &self.signblock_witness_limit);
-        s.field("fedpeg_program", &HexBytes(self.fedpeg_program.as_ref()));
-        s.field("fedpegscript", &HexBytes(&self.fedpegscript[..]));
+        s.field("fedpeg_program", &self.fedpeg_program.as_bytes().as_hex());
+        s.field("fedpegscript", &self.fedpegscript[..].as_hex());
         s.field("extension_space", &HexBytesArray(&self.extension_space));
         s.finish()
     }
@@ -242,7 +235,7 @@ impl fmt::Debug for Params {
             Params::Null => write!(f, "Null"),
             Params::Compact { signblockscript, signblock_witness_limit, elided_root } => {
                 let mut s = f.debug_struct("Compact");
-                s.field("signblockscript", &HexBytes(&signblockscript[..]));
+                s.field("signblockscript", &signblockscript[..].as_hex());
                 s.field("signblock_witness_limit", signblock_witness_limit);
                 s.field("elided_root", elided_root);
                 s.finish()
@@ -649,7 +642,6 @@ mod tests {
     use std::fmt::{self, Write};
 
     use crate::hashes::sha256;
-    use crate::hex::ToHex;
     use crate::{BlockHash, TxMerkleNode};
 
     use super::*;
@@ -695,7 +687,7 @@ mod tests {
             elided_root: sha256::Midstate::from_byte_array([0; 32]),
         };
         assert_eq!(
-            compact_entry.calculate_root().to_hex(),
+            format!("{:x}", compact_entry.calculate_root()),
             "f98f149fd11da6fbe26d0ee53cadd28372fa9eed2cb7080f41da7ca311531777"
         );
 
@@ -707,7 +699,7 @@ mod tests {
             ext,
         ));
         assert_eq!(
-            full_entry.calculate_root().to_hex(),
+            format!("{:x}", full_entry.calculate_root()),
             "8eb1b83cce69a3d8b0bfb7fbe77ae8f1d24b57a9cae047b8c0aba084ad878249"
         );
 
@@ -724,7 +716,7 @@ mod tests {
             height: Default::default(),
         };
         assert_eq!(
-            header.calculate_dynafed_params_root().unwrap().to_hex(),
+            format!("{:x}", header.calculate_dynafed_params_root().unwrap()),
             "113160f76dc17fe367a2def79aefe06feeea9c795310c9e88aeedc23e145982e"
         );
     }

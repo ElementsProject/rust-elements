@@ -21,7 +21,7 @@ use std::{fmt, io};
 
 use super::Error;
 use crate::encode::{self, deserialize, serialize, Decodable, Encodable, VarInt, MAX_VEC_SIZE};
-use crate::hex;
+use hex_conservative::DisplayHex as _;
 /// A PSET key in its raw byte form.
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Ord, PartialOrd)]
 #[cfg_attr(
@@ -111,8 +111,7 @@ impl ProprietaryKey {
 
 impl fmt::Display for Key {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "type: {:#x}, key: ", self.type_value)?;
-        hex::format_hex(&self.key[..], f)
+        write!(f, "type: {:#x}, key: {}", self.type_value, self.key.as_hex())
     }
 }
 

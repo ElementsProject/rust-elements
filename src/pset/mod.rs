@@ -785,8 +785,8 @@ impl Decodable for PartiallySignedTransaction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hex::ToHex;
     use hex_conservative as hex;
+    use hex_conservative::DisplayHex as _;
 
     #[track_caller]
     fn tx_pset_rtt(tx_hex: &str) {
@@ -961,13 +961,13 @@ mod tests {
         let bytes = hex::decode_to_vec(pset_str).unwrap();
         let pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
 
-        assert_eq!(pset_str.len(), encode::serialize(&pset).to_hex().len());
-        let back_hex = encode::serialize(&pset).to_hex();
+        assert_eq!(pset_str.len(), encode::serialize(&pset).to_lower_hex_string().len());
+        let back_hex = encode::serialize(&pset).to_lower_hex_string();
         //assert_eq!(pset_str, &back_hex);  //TODO this fails, field ordering?
 
         let bytes = hex::decode_to_vec(&back_hex).unwrap();
         let pset = encode::deserialize::<PartiallySignedTransaction>(&bytes).unwrap();
-        assert_eq!(&back_hex, &encode::serialize(&pset).to_hex());
+        assert_eq!(&back_hex, &encode::serialize(&pset).to_lower_hex_string());
     }
 
     #[test]
