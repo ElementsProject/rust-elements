@@ -61,7 +61,7 @@ fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
             &Vec::<u8>::from_hex(v["commitmentnonce"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
-        script_pubkey: Script::from_hex(v["scriptPubKey"].as_str().unwrap()).unwrap(),
+        script_pubkey: Script::from_hex_no_prefix(v["scriptPubKey"].as_str().unwrap()).unwrap(),
         witness: TxOutWitness::default(),
     };
 

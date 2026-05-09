@@ -785,7 +785,7 @@ impl Decodable for PartiallySignedTransaction {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hex::{FromHex, ToHex};
+    use crate::hex::ToHex;
     use hex_conservative as hex;
 
     #[track_caller]
@@ -995,7 +995,7 @@ mod tests {
 
         let policy = crate::AssetId::from_str("5ac9f65c0efcc4775e0baec4ec03abdde22473cd3cf33c0419ca290e0751b225").unwrap();
         let pk = bitcoin::key::PublicKey::from_str("020202020202020202020202020202020202020202020202020202020202020202").unwrap();
-        let script = crate::Script::from_hex("0014d2bcde17e7744f6377466ca1bd35d212954674c8").unwrap();
+        let script = crate::Script::from_hex_no_prefix("0014d2bcde17e7744f6377466ca1bd35d212954674c8").unwrap();
         let sats_in = 10000;
         let sats_fee = 1000;
         let btc_txout_secrets = TxOutSecrets {

@@ -27,13 +27,12 @@
 use std::default::Default;
 use std::{fmt, io, ops, str};
 
-use hex_conservative::DecodeVariableLengthBytesError;
 use secp256k1_zkp::{Verification, Secp256k1};
 #[cfg(feature = "serde")] use serde;
 
 use crate::encode::{self, Decodable, Encodable};
 use crate::hashes::Hash;
-use crate::{hex, opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
+use crate::{opcodes, ScriptHash, WScriptHash, PubkeyHash, WPubkeyHash};
 
 use bitcoin::PublicKey;
 
@@ -75,22 +74,6 @@ impl fmt::UpperHex for Script {
             write!(f, "{:02X}", ch)?;
         }
         Ok(())
-    }
-}
-
-impl hex::FromHex for Script {
-    type Err = DecodeVariableLengthBytesError;
-
-    fn from_hex(s: &str) -> Result<Self, Self::Err> {
-        hex_conservative::decode_to_vec(s).map(|v| Script(Box::<[u8]>::from(v)))
-    }
-}
-
-impl str::FromStr for Script {
-    type Err = <Self as hex::FromHex>::Err;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        hex::FromHex::from_hex(s)
     }
 }
 
@@ -233,6 +216,17 @@ pub fn read_uint(data: &[u8], size: usize) -> Result<usize, Error> {
 impl Script {
     /// Creates a new empty script
     pub fn new() -> Script { Script(vec![].into_boxed_slice()) }
+
+    /// Parse a hex-string with no length prefix as a [`Script`].
+    #[deprecated(since = "0.27.0", note = "use from_hex_no_prefix instead")]
+    pub fn from_hex(s: &str) -> Result<Self, hex_conservative::DecodeVariableLengthBytesError> {
+        Self::from_hex_no_prefix(s)
+    }
+
+    /// Parse a hex-string with no length prefix as a [`Script`].
+    pub fn from_hex_no_prefix(s: &str) -> Result<Self, hex_conservative::DecodeVariableLengthBytesError> {
+        hex_conservative::decode_to_vec(s).map(|v| Script(Box::<[u8]>::from(v)))
+    }
 
     /// Generates P2PK-type of scriptPubkey
     pub fn new_p2pk(pubkey: &PublicKey) -> Script {

@@ -1378,7 +1378,6 @@ mod tests {
     use crate::confidential;
     use crate::encode;
     use crate::encode::deserialize;
-    use crate::hex::FromHex;
     use crate::Script;
     use bitcoin::{PrivateKey, PublicKey};
     use hex_conservative as hex;
@@ -1446,7 +1445,7 @@ mod tests {
                 &hex::hex!("02a96a456f4936dcf0afbc325ac3798c4464e7b66dd460d564f3f91882d6089a3b"),
             )
             .unwrap(),
-            script_pubkey: Script::from_hex("0014d2bcde17e7744f6377466ca1bd35d212954674c8")
+            script_pubkey: Script::from_hex_no_prefix("0014d2bcde17e7744f6377466ca1bd35d212954674c8")
                 .unwrap(),
             witness: TxOutWitness::default(),
         };
