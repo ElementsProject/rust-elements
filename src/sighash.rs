@@ -969,18 +969,17 @@ impl std::str::FromStr for SchnorrSighashType {
 mod tests{
     use super::*;
     use crate::encode::deserialize;
-    use crate::hex::FromHex;
     use std::str::FromStr;
 
     fn test_segwit_sighash(tx: &str, script: &str, input_index: usize, value: &str, hash_type: EcdsaSighashType, expected_result: &str) {
-        let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
-        let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
+        let tx: Transaction = deserialize(&hex::decode_to_vec(tx).unwrap()).unwrap();
+        let script = Script::from(hex::decode_to_vec(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
         let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
         let expected_result = Sighash::from_slice(&raw_expected[..]).unwrap();
 
         let mut cache = SighashCache::new(&tx);
-        let value : confidential::Value = deserialize(&Vec::<u8>::from_hex(value).unwrap()[..]).unwrap();
+        let value : confidential::Value = deserialize(&hex::decode_to_vec(value).unwrap()).unwrap();
         let actual_result = cache.segwitv0_sighash(input_index, &script, value, hash_type);
         assert_eq!(actual_result, expected_result);
     }
@@ -1007,8 +1006,8 @@ mod tests{
 
 
     fn test_legacy_sighash(tx: &str, script: &str, input_index: usize, hash_type: EcdsaSighashType, expected_result: &str) {
-        let tx: Transaction = deserialize(&Vec::<u8>::from_hex(tx).unwrap()[..]).unwrap();
-        let script = Script::from(Vec::<u8>::from_hex(script).unwrap());
+        let tx: Transaction = deserialize(&hex::decode_to_vec(tx).unwrap()).unwrap();
+        let script = Script::from(hex::decode_to_vec(script).unwrap());
         // A hack to parse sha256d strings are sha256 so that we don't reverse them...
         let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
         let expected_result = Sighash::from_slice(&raw_expected[..]).unwrap();

@@ -19,7 +19,7 @@ use std::io::Cursor;
 use std::{any, error, fmt, io, mem};
 
 use bitcoin::ScriptBuf;
-use hex_conservative::{DecodeFixedLengthBytesError, DecodeVariableLengthBytesError};
+use hex::{DecodeFixedLengthBytesError, DecodeVariableLengthBytesError};
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use crate::hashes::{sha256, Hash};
@@ -174,7 +174,7 @@ pub fn serialize<T: Encodable + ?Sized>(data: &T) -> Vec<u8> {
 
 /// Encode an object into a hex-encoded string
 pub fn serialize_hex<T: Encodable + ?Sized>(data: &T) -> String {
-    crate::hex::ToHex::to_hex(&serialize(data)[..])
+    hex::DisplayHex::to_lower_hex_string(&serialize(data)[..])
 }
 
 /// Deserialize an object from a vector, will error if said deserialization

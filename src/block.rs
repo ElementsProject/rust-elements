@@ -395,7 +395,6 @@ impl Block {
 #[cfg(test)]
 mod tests {
     use crate::Block;
-    use crate::hex::FromHex;
 
     use super::*;
 
@@ -796,7 +795,7 @@ mod tests {
     fn test_failed_block() {
         let block_str = include_str!("../tests/data/failedblock.hex");
 
-        let bytes = Vec::<u8>::from_hex(block_str).unwrap();
+        let bytes = hex::decode_to_vec(block_str).unwrap();
         let _block = encode::deserialize::<Block>(&bytes).unwrap();
     }
 }

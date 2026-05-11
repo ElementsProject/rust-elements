@@ -15,7 +15,7 @@ use elements::{pset, secp256k1_zkp, SurjectionInput};
 
 use elements::encode::{deserialize, serialize_hex};
 use elements::{confidential, AssetId, TxOut};
-use elements::hex::FromHex;
+use elements::hex;
 use rand::SeedableRng;
 
 /// Pset example workflow:
@@ -36,7 +36,7 @@ struct Secrets {
 }
 
 fn deser_pset(psbt_hex: &str) -> Pset {
-    deserialize::<Pset>(&Vec::<u8>::from_hex(psbt_hex).unwrap()).unwrap()
+    deserialize::<Pset>(&hex::decode_to_vec(psbt_hex).unwrap()).unwrap()
 }
 
 fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
@@ -45,18 +45,18 @@ fn parse_txout(txout_info: &str) -> (TxOut, Secrets, pset::Input) {
 
     let txout = TxOut {
         asset: deserialize::<confidential::Asset>(
-            &Vec::<u8>::from_hex(v["assetcommitment"].as_str().unwrap()).unwrap(),
+            &hex::decode_to_vec(v["assetcommitment"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
         value: deserialize::<confidential::Value>(
-            &Vec::<u8>::from_hex(v["amountcommitment"].as_str().unwrap()).unwrap(),
+            &hex::decode_to_vec(v["amountcommitment"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
         nonce: deserialize::<confidential::Nonce>(
-            &Vec::<u8>::from_hex(v["commitmentnonce"].as_str().unwrap()).unwrap(),
+            &hex::decode_to_vec(v["commitmentnonce"].as_str().unwrap()).unwrap(),
         )
         .unwrap(),
-        script_pubkey: Script::from_hex(v["scriptPubKey"].as_str().unwrap()).unwrap(),
+        script_pubkey: Script::from_hex_no_prefix(v["scriptPubKey"].as_str().unwrap()).unwrap(),
         witness: TxOutWitness::default(),
     };
 
@@ -280,13 +280,13 @@ fn main() {
     tx.verify_tx_amt_proofs(&secp, &[btc_txout, asset_txout])
         .unwrap();
 
-    let inp0_sig = Vec::<u8>::from_hex("3044022040d1802d6e10da4c27f05eff807550e614b3d2fa20c663dbf1ebf162d3952689022001f477c953b7c543bce877e3297fccb00ef5dba21d427e79c8bfb8522713309801").unwrap();
+    let inp0_sig = hex::hex!("3044022040d1802d6e10da4c27f05eff807550e614b3d2fa20c663dbf1ebf162d3952689022001f477c953b7c543bce877e3297fccb00ef5dba21d427e79c8bfb8522713309801").to_vec();
     let inp0_pk = PublicKey::from_str(
         "0334c307ad8142e7c8a6bf1ad3552b12fbb860885ea7f2d76c1f49f93a7c4bbbe7",
     )
     .unwrap();
 
-    let inp1_sig = Vec::<u8>::from_hex("3044022017c696503f5e1539fe5cb8dd05f793bd3b6e39f193028a7299a80c94c817a02d022007889009088f46cd9d9f4d137815704170410f53d503b68c1e020292a85b93fa01").unwrap();
+    let inp1_sig = hex::hex!("3044022017c696503f5e1539fe5cb8dd05f793bd3b6e39f193028a7299a80c94c817a02d022007889009088f46cd9d9f4d137815704170410f53d503b68c1e020292a85b93fa01").to_vec();
     let inp1_pk = PublicKey::from_str(
         "03df8f51c053ba0dfb443cce9793b6dc3339ffb0ce97af4792dade3aae1eb890f6",
     )

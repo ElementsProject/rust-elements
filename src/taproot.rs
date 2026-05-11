@@ -854,7 +854,6 @@ mod tests{
     use super::*;
     use crate::hashes::HashEngine;
     use crate::hashes::sha256t::Tag;
-    use crate::hex::FromHex;
     use std::str::FromStr;
 
     fn tag_engine(tag_name: &str) -> sha256::HashEngine {
@@ -892,11 +891,11 @@ mod tests{
         let internal_key = UntweakedPublicKey::from_str("93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51").unwrap();
 
         let script_weights = vec![
-            (10, Script::from_hex("51").unwrap()), // semantics of script don't matter for this test
-            (20, Script::from_hex("52").unwrap()),
-            (20, Script::from_hex("53").unwrap()),
-            (30, Script::from_hex("54").unwrap()),
-            (19, Script::from_hex("55").unwrap()),
+            (10, Script::from_hex_no_prefix("51").unwrap()), // semantics of script don't matter for this test
+            (20, Script::from_hex_no_prefix("52").unwrap()),
+            (20, Script::from_hex_no_prefix("53").unwrap()),
+            (30, Script::from_hex_no_prefix("54").unwrap()),
+            (19, Script::from_hex_no_prefix("55").unwrap()),
         ];
         let tree_info = TaprootSpendInfo::with_huffman_tree(&secp, internal_key, script_weights.clone()).unwrap();
 
@@ -915,7 +914,7 @@ mod tests{
                 length,
                 tree_info
                     .script_map
-                    .get(&(Script::from_hex(script).unwrap(), LeafVersion::default()))
+                    .get(&(Script::from_hex_no_prefix(script).unwrap(), LeafVersion::default()))
                     .expect("Present Key")
                     .iter()
                     .next()
@@ -952,11 +951,11 @@ mod tests{
         //                                  A    B  C  / \
         //                                            D   E
         let scripts = [
-            Script::from_hex("51").unwrap(),
-            Script::from_hex("52").unwrap(),
-            Script::from_hex("53").unwrap(),
-            Script::from_hex("54").unwrap(),
-            Script::from_hex("55").unwrap(),
+            Script::from_hex_no_prefix("51").unwrap(),
+            Script::from_hex_no_prefix("52").unwrap(),
+            Script::from_hex_no_prefix("53").unwrap(),
+            Script::from_hex_no_prefix("54").unwrap(),
+            Script::from_hex_no_prefix("55").unwrap(),
         ];
         let builder = builder
             .add_leaf(2, scripts[0].clone()).unwrap()

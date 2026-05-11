@@ -7,7 +7,7 @@ use crate::{Call, setup};
 
 use bitcoin::key::{XOnlyPublicKey, Keypair};
 use bitcoin::Amount;
-use elements::hex::FromHex;
+use elements::hex;
 use elements::confidential::{AssetBlindingFactor, ValueBlindingFactor};
 use elements::encode::{deserialize, serialize_hex};
 use elements::hashes::Hash;
@@ -101,7 +101,7 @@ fn funded_tap_txout(
     elementsd.generate(1);
     let tx_hex = elementsd.get_transaction(&txid_hex);
 
-    let tx = deserialize::<Transaction>(&Vec::<u8>::from_hex(&tx_hex).unwrap()).unwrap();
+    let tx = deserialize::<Transaction>(&hex::decode_to_vec(&tx_hex).unwrap()).unwrap();
 
     let mut outpoint: Option<OutPoint> = None;
     for (i, out) in tx.output.iter().enumerate() {

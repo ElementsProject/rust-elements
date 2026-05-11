@@ -7,7 +7,7 @@ pub mod btreemap_byte_values {
     // NOTE: This module can be exactly copied to use with HashMap.
 
     use ::std::collections::BTreeMap;
-    use crate::hex::{FromHex, ToHex};
+    use hex::DisplayHex as _;
     use serde;
 
     pub fn serialize<S, T>(v: &BTreeMap<T, Vec<u8>>, s: S)
@@ -21,7 +21,7 @@ pub mod btreemap_byte_values {
         if s.is_human_readable() {
             let mut map = s.serialize_map(Some(v.len()))?;
             for (key, value) in v {
-                map.serialize_entry(key, &value.to_hex())?;
+                map.serialize_entry(key, &value.to_lower_hex_string())?;
             }
             map.end()
         } else {
@@ -51,7 +51,7 @@ pub mod btreemap_byte_values {
             {
                 let mut ret = BTreeMap::new();
                 while let Some((key, value)) = a.next_entry()? {
-                    ret.insert(key, FromHex::from_hex(value).map_err(serde::de::Error::custom)?);
+                    ret.insert(key, hex::decode_to_vec(value).map_err(serde::de::Error::custom)?);
                 }
                 Ok(ret)
             }
@@ -223,7 +223,7 @@ pub mod hex_bytes {
     //! Module for serialization of byte arrays as hex strings.
     #![allow(missing_docs)]
 
-    use crate::hex::{FromHex, ToHex};
+    use hex::DisplayHex as _;
     use serde;
 
     pub fn serialize<T, S>(bytes: &T, s: S) -> Result<S::Ok, S::Error>
@@ -231,7 +231,7 @@ pub mod hex_bytes {
     {
         // Don't do anything special when not human readable.
         if s.is_human_readable() {
-            s.serialize_str(&bytes.as_ref().to_hex())
+            s.collect_str(&bytes.as_ref().as_hex())
         } else {
             serde::Serialize::serialize(bytes, s)
         }
@@ -239,14 +239,11 @@ pub mod hex_bytes {
 
     pub fn deserialize<'de, D, B>(d: D) -> Result<B, D::Error>
         where D: serde::Deserializer<'de>,
-              B: serde::Deserialize<'de> + FromHex,
-              <B as FromHex>::Err: std::fmt::Display,
+              B: serde::Deserialize<'de> + From<Vec<u8>>,
     {
         struct Visitor<B>(::std::marker::PhantomData<B>);
 
-        impl<B: FromHex> serde::de::Visitor<'_> for Visitor<B>
-        where
-            <B as FromHex>::Err: std::fmt::Display,
+        impl<B: From<Vec<u8>>> serde::de::Visitor<'_> for Visitor<B>
         {
             type Value = B;
 
@@ -257,8 +254,8 @@ pub mod hex_bytes {
             fn visit_bytes<E>(self, v: &[u8]) -> Result<Self::Value, E>
                 where E: serde::de::Error,
             {
-                if let Ok(hex) = ::std::str::from_utf8(v) {
-                    FromHex::from_hex(hex).map_err(E::custom)
+                if let Ok(hex) = ::core::str::from_utf8(v) {
+                    hex::decode_to_vec(hex).map_err(E::custom).map(B::from)
                 } else {
                     Err(E::invalid_value(serde::de::Unexpected::Bytes(v), &self))
                 }
@@ -267,7 +264,7 @@ pub mod hex_bytes {
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
                 where E: serde::de::Error,
             {
-                FromHex::from_hex(v).map_err(E::custom)
+                hex::decode_to_vec(v).map_err(E::custom).map(B::from)
             }
         }
 

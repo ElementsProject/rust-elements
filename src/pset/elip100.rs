@@ -221,12 +221,11 @@ mod test {
 
     use crate::encode::serialize;
     use crate::{OutPoint, Txid};
-    use bitcoin::hashes::hex::FromHex;
     use bitcoin::hashes::Hash;
+    use hex::DisplayHex as _;
 
     use crate::{
         encode::{serialize_hex, Encodable},
-        hex::ToHex,
         pset::{elip100::PSET_HWW_PREFIX, map::Map, PartiallySignedTransaction},
         AssetId,
     };
@@ -280,7 +279,10 @@ mod test {
             crate::ContractHash::from_json_contract(VALID_CONTRACT).unwrap(),
             contract_hash
         );
-        assert_eq!(asset_metadata.serialize().to_hex(),"b47b22656e74697479223a7b22646f6d61696e223a227465746865722e746f227d2c226973737565725f7075626b6579223a22303333376363656563306265656130323332656265313463626130313937613966626434356663663265633934363734396465393230653731343334633262393034222c226e616d65223a2254657468657220555344222c22707265636973696f6e223a382c227469636b6572223a2255534474222c2276657273696f6e223a307d688628ce04bab832e264ba83944033a6ae59d8e6350402c0baf50e2759d2969500000000");
+        assert_eq!(
+            asset_metadata.serialize().to_lower_hex_string(),
+            "b47b22656e74697479223a7b22646f6d61696e223a227465746865722e746f227d2c226973737565725f7075626b6579223a22303333376363656563306265656130323332656265313463626130313937613966626434356663663265633934363734396465393230653731343334633262393034222c226e616d65223a2254657468657220555344222c22707265636973696f6e223a382c227469636b6572223a2255534474222c2276657273696f6e223a307d688628ce04bab832e264ba83944033a6ae59d8e6350402c0baf50e2759d2969500000000",
+        );
 
         assert_eq!(
             AssetMetadata::deserialize(&asset_metadata.serialize()).unwrap(),
@@ -297,11 +299,11 @@ mod test {
         key.consensus_encode(&mut vec).unwrap();
 
         assert_eq!(
-            vec.to_hex(),
-            format!("08{}00{}", PSET_HWW_PREFIX.to_hex(), asset_id.into_tag())
+            vec.to_lower_hex_string(),
+            format!("08{}00{}", PSET_HWW_PREFIX.to_lower_hex_string(), asset_id.into_tag())
         );
 
-        assert!(vec.to_hex().starts_with(&ELIP0100_IDENTIFIER[2..])); // cut prefix "fc: which is PSET_GLOBAL_PROPRIETARY serialized one level up
+        assert!(vec.to_lower_hex_string().starts_with(&ELIP0100_IDENTIFIER[2..])); // cut prefix "fc: which is PSET_GLOBAL_PROPRIETARY serialized one level up
     }
 
     #[test]
@@ -340,7 +342,7 @@ mod test {
 
         pset.add_asset_metadata(asset_id, &asset_meta);
 
-        let expected_key = Vec::<u8>::from_hex(ELIP0100_ASSET_METADATA_RECORD_KEY).unwrap();
+        let expected_key = hex::hex!(ELIP0100_ASSET_METADATA_RECORD_KEY);
 
         let values: Vec<Vec<u8>> = pset
             .global
@@ -351,9 +353,9 @@ mod test {
             .map(|p| p.value)
             .collect();
         assert_eq!(values.len(), 1);
-        assert_eq!(values[0].to_hex(), ELIP0100_ASSET_METADATA_RECORD_VALUE);
+        assert_eq!(values[0].to_lower_hex_string(), ELIP0100_ASSET_METADATA_RECORD_VALUE);
 
-        let txid_hex_non_convention = txid.as_byte_array().to_vec().to_hex();
+        let txid_hex_non_convention = txid.as_byte_array().to_lower_hex_string();
         assert_eq!(
             ELIP0100_ASSET_METADATA_RECORD_VALUE,
             ELIP0100_ASSET_METADATA_RECORD_VALUE_WRONG
@@ -369,7 +371,7 @@ mod test {
 
         pset.add_token_metadata(token_id, &token_meta);
 
-        let expected_key = Vec::<u8>::from_hex(ELIP0100_TOKEN_METADATA_RECORD_KEY).unwrap();
+        let expected_key = hex::hex!(ELIP0100_TOKEN_METADATA_RECORD_KEY);
 
         let values: Vec<Vec<u8>> = pset
             .global
@@ -380,7 +382,7 @@ mod test {
             .map(|p| p.value)
             .collect();
         assert_eq!(values.len(), 1);
-        assert_eq!(values[0].to_hex(), ELIP0100_TOKEN_METADATA_RECORD_VALUE);
+        assert_eq!(values[0].to_lower_hex_string(), ELIP0100_TOKEN_METADATA_RECORD_VALUE);
     }
 
     #[cfg(feature = "json-contract")]
@@ -398,6 +400,6 @@ mod test {
 
         let expected = AssetId::from_str(ELIP0100_ASSET_TAG).unwrap();
 
-        assert_eq!(asset_id.to_hex(), expected.to_hex());
+        assert_eq!(asset_id.to_string(), expected.to_string());
     }
 }
