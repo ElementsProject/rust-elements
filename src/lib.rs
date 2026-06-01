@@ -34,8 +34,7 @@ pub extern crate hex;
 pub extern crate secp256k1_zkp;
 /// Re-export of serde crate
 #[cfg(feature = "serde")]
-#[macro_use]
-pub extern crate actual_serde as serde;
+pub extern crate serde;
 #[cfg(all(test, feature = "serde"))]
 extern crate serde_test;
 
