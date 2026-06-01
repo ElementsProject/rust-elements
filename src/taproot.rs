@@ -16,7 +16,7 @@
 use std::cmp::Reverse;
 use std::{error, io, fmt};
 
-use crate::hashes::{sha256, sha256t_hash_newtype, Hash, HashEngine};
+use crate::hashes::{sha256t_hash_newtype, Hash, HashEngine};
 use crate::schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
 use crate::Script;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
@@ -373,7 +373,7 @@ impl TaprootBuilder {
     /// Add a hidden/omitted node at a depth `depth` to the builder.
     /// This will error if the node are not provided in a DFS walk order. The depth of the
     /// root node is 0 and it's immediate child would be at depth 1.
-    pub fn add_hidden(self, depth: usize, hash: sha256::Hash) -> Result<Self, TaprootBuilderError> {
+    pub fn add_hidden(self, depth: usize, hash: TapNodeHash) -> Result<Self, TaprootBuilderError> {
         let node = NodeInfo::new_hidden(hash);
         self.insert(node, depth)
     }
@@ -447,14 +447,14 @@ impl TaprootBuilder {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NodeInfo {
     /// Merkle Hash for this node
-    pub(crate) hash: sha256::Hash,
+    pub(crate) hash: TapNodeHash,
     /// information about leaves inside this node
     pub(crate) leaves: Vec<LeafInfo>,
 }
 
 impl NodeInfo {
     /// Creates a new `NodeInfo` with omitted/hidden info
-    pub fn new_hidden(hash: sha256::Hash) -> Self {
+    pub fn new_hidden(hash: TapNodeHash) -> Self {
         Self {
             hash,
             leaves: vec![],
@@ -490,7 +490,7 @@ impl NodeInfo {
             eng.input(a.hash.as_ref());
         };
         Ok(Self {
-            hash: sha256::Hash::from_engine(eng),
+            hash: TapNodeHash::from_engine(eng),
             leaves: all_leaves,
         })
     }
@@ -519,9 +519,9 @@ impl LeafInfo {
     }
 
     // Computes a leaf hash for the given leaf
-    fn hash(&self) -> sha256::Hash {
+    fn hash(&self) -> TapNodeHash {
         let leaf_hash = TapLeafHash::from_script(&self.script, self.ver);
-        sha256::Hash::from_byte_array(leaf_hash.to_byte_array())
+        TapNodeHash::from_byte_array(leaf_hash.to_byte_array())
     }
 }
 
@@ -530,11 +530,11 @@ impl LeafInfo {
 // both TapNodeHash and TapLeafHash
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct TaprootMerkleBranch(Vec<sha256::Hash>);
+pub struct TaprootMerkleBranch(Vec<TapNodeHash>);
 
 impl TaprootMerkleBranch {
     /// Obtain a reference to inner
-    pub fn as_inner(&self) -> &[sha256::Hash] {
+    pub fn as_inner(&self) -> &[TapNodeHash] {
         &self.0
     }
 
@@ -551,7 +551,7 @@ impl TaprootMerkleBranch {
                 // TODO: Use chunks_exact after MSRV changes to 1.31
                 .chunks(TAPROOT_CONTROL_NODE_SIZE)
                 .map(|chunk| {
-                    sha256::Hash::from_slice(chunk)
+                    TapNodeHash::from_slice(chunk)
                         .expect("chunk exact always returns the correct size")
                 })
                 .collect();
@@ -570,11 +570,11 @@ impl TaprootMerkleBranch {
 
     /// Serialize self as bytes
     pub fn serialize(&self) -> Vec<u8> {
-        self.0.iter().flat_map(sha256::Hash::as_byte_array).copied().collect::<Vec<u8>>()
+        self.0.iter().flat_map(TapNodeHash::as_byte_array).copied().collect::<Vec<u8>>()
     }
 
     // Internal function to append elements to proof
-    fn push(&mut self, h: sha256::Hash) -> Result<(), TaprootBuilderError> {
+    fn push(&mut self, h: TapNodeHash) -> Result<(), TaprootBuilderError> {
         if self.0.len() >= TAPROOT_CONTROL_MAX_NODE_COUNT {
             Err(TaprootBuilderError::InvalidMerkleTreeDepth(self.0.len()))
         } else {
@@ -583,9 +583,12 @@ impl TaprootMerkleBranch {
         }
     }
 
-    /// Create a `MerkleProof` from Vec<[`sha256::Hash`]>. Returns an error when
-    /// inner proof len is more than `TAPROOT_CONTROL_MAX_NODE_COUNT` (128)
-    pub fn from_inner(inner: Vec<sha256::Hash>) -> Result<Self, TaprootError> {
+    /// Create a `MerkleProof` from Vec<[`TapNodeHash`]>.
+    ///
+    /// # Errors
+    ///
+    /// Errors if inner proof len is more than `TAPROOT_CONTROL_MAX_NODE_COUNT` (128)
+    pub fn from_inner(inner: Vec<TapNodeHash>) -> Result<Self, TaprootError> {
         if inner.len() > TAPROOT_CONTROL_MAX_NODE_COUNT {
             Err(TaprootError::InvalidMerkleTreeDepth(inner.len()))
         } else {
@@ -593,8 +596,8 @@ impl TaprootMerkleBranch {
         }
     }
 
-    /// Consume Self to get Vec<[`sha256::Hash`]>
-    pub fn into_inner(self) -> Vec<sha256::Hash> {
+    /// Consume Self to get Vec<[`TapNodeHash`]>
+    pub fn into_inner(self) -> Vec<TapNodeHash> {
         self.0
     }
 }
@@ -851,7 +854,7 @@ impl error::Error for TaprootError {}
 #[cfg(test)]
 mod tests{
     use super::*;
-    use crate::hashes::HashEngine;
+    use crate::hashes::{sha256, HashEngine};
     use crate::hashes::sha256t::Tag;
     use std::str::FromStr;
 
