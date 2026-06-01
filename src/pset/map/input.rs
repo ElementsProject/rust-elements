@@ -26,6 +26,7 @@ use crate::{schnorr, AssetId, ContractHash};
 use crate::{confidential, locktime};
 use crate::encode::{self, Decodable};
 use crate::hashes::{self, hash160, ripemd160, sha256, sha256d, Hash};
+use crate::issuance::AssetEntropy;
 use crate::pset::map::Map;
 use crate::pset::raw;
 use crate::pset::serialize;
@@ -560,7 +561,7 @@ impl Input {
             AssetId::generate_asset_entropy(prevout, contract_hash)
         } else {
             // re-issuance
-            sha256::Midstate::from_byte_array(self.issuance_asset_entropy.unwrap_or_default())
+            AssetEntropy::from_byte_array(self.issuance_asset_entropy.unwrap_or_default())
         };
         let asset_id = AssetId::from_entropy(entropy);
         let token_id =

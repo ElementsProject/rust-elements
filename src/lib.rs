@@ -85,7 +85,7 @@ pub use crate::block::{Block, BlockHeader};
 pub use crate::ext::{ReadExt, WriteExt};
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;
-pub use crate::issuance::{AssetId, ContractHash};
+pub use crate::issuance::{AssetEntropy, AssetId, ContractHash};
 pub use crate::locktime::LockTime;
 pub use crate::schnorr::{SchnorrSig, SchnorrSigError};
 pub use crate::script::Script;

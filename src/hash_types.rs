@@ -75,12 +75,11 @@ impl_hashencode!(TxMerkleNode);
 #[cfg(feature = "serde")]
 mod serde_tests {
     use super::*;
-    use crate::{AssetId, ContractHash};
+    use crate::{AssetEntropy, AssetId, ContractHash};
 
     // Some types are currently just bare midstates. We will replace them with
     // newtypes in the following commits. To ensure this does not break serde,
     // test them here.
-    type AssetEntropy = sha256::Midstate;
     type ElidedRoot = sha256::Midstate;
     
     /// An arbitrary test vector.
