@@ -15,7 +15,7 @@
 //! # Addresses
 //!
 
-use std::convert::TryFrom as _;
+use std::convert::{TryFrom as _, TryInto as _};
 use std::error;
 use std::fmt;
 use std::fmt::Write as _;
@@ -23,8 +23,8 @@ use std::str::FromStr;
 
 use bech32::{Bech32, Bech32m, ByteIterExt, Fe32, Fe32IterExt, Hrp};
 use crate::blech32::{Blech32, Blech32m};
-use crate::hashes::Hash;
 use bitcoin::base58;
+use bitcoin::hashes::Hash as _;
 use bitcoin::PublicKey;
 use internals::array::ArrayExt as _;
 use internals::slice::SliceExt;
@@ -329,12 +329,12 @@ impl Address {
     ) -> Address {
         let ws = script::Builder::new()
             .push_int(0)
-            .push_slice(&WScriptHash::hash(&script[..])[..])
+            .push_slice(WScriptHash::hash_script(script).as_ref())
             .into_script();
 
         Address {
             params,
-            payload: Payload::ScriptHash(ScriptHash::hash(&ws[..])),
+            payload: Payload::ScriptHash(ScriptHash::hash_script(&ws)),
             blinding_pubkey: blinder,
         }
     }
@@ -386,9 +386,9 @@ impl Address {
     ) -> Option<Address> {
         Some(Address {
             payload: if script.is_p2pkh() {
-                Payload::PubkeyHash(Hash::from_slice(&script.as_bytes()[3..23]).unwrap())
+                Payload::PubkeyHash(PubkeyHash::from_byte_array(script.as_bytes()[3..23].try_into().unwrap()))
             } else if script.is_p2sh() {
-                Payload::ScriptHash(Hash::from_slice(&script.as_bytes()[2..22]).unwrap())
+                Payload::ScriptHash(ScriptHash::from_byte_array(script.as_bytes()[2..22].try_into().unwrap()))
             } else if script.is_v0_p2wpkh() {
                 Payload::WitnessProgram {
                     version: Fe32::Q,
@@ -418,12 +418,12 @@ impl Address {
             Payload::PubkeyHash(ref hash) => script::Builder::new()
                 .push_opcode(opcodes::all::OP_DUP)
                 .push_opcode(opcodes::all::OP_HASH160)
-                .push_slice(&hash[..])
+                .push_slice(hash.as_ref())
                 .push_opcode(opcodes::all::OP_EQUALVERIFY)
                 .push_opcode(opcodes::all::OP_CHECKSIG),
             Payload::ScriptHash(ref hash) => script::Builder::new()
                 .push_opcode(opcodes::all::OP_HASH160)
-                .push_slice(&hash[..])
+                .push_slice(hash.as_byte_array())
                 .push_opcode(opcodes::all::OP_EQUAL),
             Payload::WitnessProgram {
                 version: witver,
@@ -566,12 +566,12 @@ impl fmt::Display for Address {
                     prefixed[0] = self.params.blinded_prefix;
                     prefixed[1] = self.params.p2pkh_prefix;
                     prefixed[2..35].copy_from_slice(&blinder.serialize());
-                    prefixed[35..].copy_from_slice(&hash[..]);
+                    prefixed[35..].copy_from_slice(hash.as_ref());
                     base58::encode_check_to_fmt(fmt, &prefixed[..])
                 } else {
                     let mut prefixed = [0; 21];
                     prefixed[0] = self.params.p2pkh_prefix;
-                    prefixed[1..].copy_from_slice(&hash[..]);
+                    prefixed[1..].copy_from_slice(hash.as_ref());
                     base58::encode_check_to_fmt(fmt, &prefixed[..])
                 }
             }
@@ -581,12 +581,12 @@ impl fmt::Display for Address {
                     prefixed[0] = self.params.blinded_prefix;
                     prefixed[1] = self.params.p2sh_prefix;
                     prefixed[2..35].copy_from_slice(&blinder.serialize());
-                    prefixed[35..].copy_from_slice(&hash[..]);
+                    prefixed[35..].copy_from_slice(hash.as_byte_array());
                     base58::encode_check_to_fmt(fmt, &prefixed[..])
                 } else {
                     let mut prefixed = [0; 21];
                     prefixed[0] = self.params.p2sh_prefix;
-                    prefixed[1..].copy_from_slice(&hash[..]);
+                    prefixed[1..].copy_from_slice(hash.as_byte_array());
                     base58::encode_check_to_fmt(fmt, &prefixed[..])
                 }
             }
@@ -937,7 +937,7 @@ mod test {
             "93c7378d96518a75448821c4f7c8f4bae7ce60f804d03d1f0628dd5dd0f5de51",
         )
         .unwrap();
-        let tap_node_hash = TapNodeHash::all_zeros();
+        let tap_node_hash = TapNodeHash::from_byte_array([0; 32]);
 
         let mut expected = IntoIterator::into_iter([
             "2dszRCFv8Ub4ytKo1Q1vXXGgSx7mekNDwSJ",

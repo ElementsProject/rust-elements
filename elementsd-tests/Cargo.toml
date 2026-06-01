@@ -16,6 +16,7 @@ rand = "0.8"
 [package.metadata.rbmt.lint]
 # FIXME the bulk of these are because elementsd/bitcoind is much older than rust-bitcoin.
 allowed_duplicates = [
+    "bitcoin_hashes",
     "bitcoin-internals",
     "hex-conservative",
     "base64",

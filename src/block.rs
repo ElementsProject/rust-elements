@@ -21,7 +21,7 @@ use std::io;
 #[cfg(feature = "serde")] use std::fmt;
 
 use crate::dynafed;
-use crate::hashes::Hash;
+use crate::hashes::{HashEngine as _, sha256d};
 use crate::Transaction;
 use crate::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::{BlockHash, Script, TxMerkleNode};
@@ -235,7 +235,7 @@ impl BlockHeader {
         };
 
         // Everything except the signblock witness goes into the hash
-        let mut enc = BlockHash::engine();
+        let mut enc = sha256d::Hash::engine();
         version.consensus_encode(&mut enc).unwrap();
         self.prev_blockhash.consensus_encode(&mut enc).unwrap();
         self.merkle_root.consensus_encode(&mut enc).unwrap();
@@ -250,7 +250,7 @@ impl BlockHeader {
                 proposed.consensus_encode(&mut enc).unwrap();
             },
         }
-        BlockHash::from_engine(enc)
+        BlockHash(enc.finalize())
     }
 
     /// Returns true if this is a block with dynamic federations enabled.

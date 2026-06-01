@@ -18,7 +18,7 @@
 //! to avoid mixing data of the same hash format (like `SHA256d`) but of different meaning
 //! (transaction id, block hash etc).
 
-use crate::hashes::{hash160, hash_newtype, sha256, sha256d, Hash};
+use crate::hashes::{hash160, sha256, sha256d};
 
 // Re-export bitcoin's pubkeyhash types. We already re-export bitcoin's `PublicKey` type.
 pub use bitcoin::{PubkeyHash, WPubkeyHash};
@@ -30,7 +30,7 @@ macro_rules! impl_hashencode {
                 &self,
                 w: W,
             ) -> Result<usize, crate::encode::Error> {
-                self.0.consensus_encode(w)
+                self.as_byte_array().consensus_encode(w)
             }
         }
 
@@ -44,31 +44,52 @@ macro_rules! impl_hashencode {
     };
 }
 
-hash_newtype! {
+hashes::hash_newtype! {
     /// An elements transaction ID
-    pub struct Txid(sha256d::Hash);
+    pub struct Txid(pub(crate) sha256d::Hash);
     /// An elements witness transaction ID
-    pub struct Wtxid(sha256d::Hash);
+    pub struct Wtxid(pub(crate) sha256d::Hash);
     /// An elements blockhash
-    pub struct BlockHash(sha256d::Hash);
+    pub struct BlockHash(pub(crate) sha256d::Hash);
 
     /// "Hash of the transaction according to the signature algorithm"
-    pub struct Sighash(sha256d::Hash);
+    pub struct Sighash(pub(crate) sha256d::Hash);
 
     /// A hash of Bitcoin Script bytecode.
-    pub struct ScriptHash(hash160::Hash);
+    pub struct ScriptHash(pub(crate) hash160::Hash);
     /// SegWit version of a Bitcoin Script bytecode hash.
-    pub struct WScriptHash(sha256::Hash);
+    pub struct WScriptHash(pub(crate) sha256::Hash);
 
     /// A hash of the Merkle tree branch or root for transactions
     pub struct TxMerkleNode(sha256d::Hash);
 }
+
+
+hashes::impl_hex_for_newtype!(Txid, Wtxid, BlockHash, ScriptHash, WScriptHash, TxMerkleNode);
+#[cfg(feature = "serde")]
+hashes::impl_serde_for_newtype!(Txid, Wtxid, BlockHash, ScriptHash, WScriptHash, TxMerkleNode);
+// We do not implement serde or display/fromstr for 'Sighash'. In general it's dangerous
+// to deserialize sighashes; they must be the output of a cryptographic hash function.
+hashes::impl_debug_only_for_newtype!(Sighash);
 
 impl_hashencode!(Txid);
 impl_hashencode!(Wtxid);
 impl_hashencode!(Sighash);
 impl_hashencode!(BlockHash);
 impl_hashencode!(TxMerkleNode);
+
+impl BlockHash {
+    /// Dummy hash used as the previous blockhash of the genesis block.
+    pub const GENESIS_PREVIOUS_BLOCK_HASH: Self = Self::from_byte_array([0; 32]);
+}
+
+impl Txid {
+    /// The `Txid` used in a coinbase prevout.
+    ///
+    /// This is used as the "txid" of the dummy input of a coinbase transaction. This is not a real
+    /// TXID and should not be used in any other contexts.
+    pub const COINBASE_PREVOUT: Self = Self::from_byte_array([0; 32]);
+}
 
 impl ScriptHash {
     /// Computes the `ScriptHash` of a script.
