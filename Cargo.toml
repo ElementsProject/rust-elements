@@ -191,6 +191,7 @@ zero_sized_map_values = "warn"
 
 [package.metadata.rbmt.lint]
 allowed_duplicates = [
+    "bitcoin_hashes",
     "bitcoin-internals",
     "hex-conservative",
 ]

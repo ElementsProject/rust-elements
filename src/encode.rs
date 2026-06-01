@@ -298,16 +298,14 @@ impl Decodable for bitcoin::ScriptBuf {
     }
 }
 
-impl Encodable for bitcoin::hashes::sha256d::Hash {
+impl Encodable for hashes::sha256d::Hash {
     fn consensus_encode<W: io::Write>(&self, mut w: W) -> Result<usize, Error> {
         self.as_byte_array().consensus_encode(&mut w)
     }
 }
-impl Decodable for bitcoin::hashes::sha256d::Hash {
+impl Decodable for hashes::sha256d::Hash {
     fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(Self::from_byte_array(
-            <<Self as Hash>::Bytes>::consensus_decode(d)?,
-        ))
+        Ok(Self::from_byte_array(<[u8; 32]>::consensus_decode(d)?))
     }
 }
 

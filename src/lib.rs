@@ -28,6 +28,8 @@
 
 /// Re-export of bitcoin crate
 pub extern crate bitcoin;
+/// Re-export of `bitcoin_hashes` crate
+pub extern crate hashes;
 /// Re-export of hex crate
 pub extern crate hex;
 /// Re-export of secp256k1-zkp crate
@@ -74,8 +76,6 @@ mod transaction;
 mod endian;
 pub mod genesis;
 
-// re-export bitcoin deps which we re-use
-pub use bitcoin::hashes;
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressError, AddressParams};
 pub use crate::blind::{

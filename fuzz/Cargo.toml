@@ -22,6 +22,7 @@ use_self = "warn"
 
 [package.metadata.rbmt.lint]
 allowed_duplicates = [
+    "bitcoin_hashes",
     "bitcoin-internals",
     "hex-conservative",
     "getrandom",

@@ -22,7 +22,7 @@
 use std::borrow::Borrow;
 use crate::encode::{self, Encodable};
 use crate::hash_types::Sighash;
-use crate::hashes::{sha256d, Hash, sha256};
+use crate::hashes::{sha256d, sha256t, sha256, HashEngine as _};
 use crate::script::Script;
 use std::ops::{Deref, DerefMut};
 use std::io;
@@ -427,7 +427,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
-        let mut enc = TapSighashHash::engine();
+        let mut enc = sha256t::Hash::engine();
         self.taproot_encode_signing_data_to(
             &mut enc,
             input_index,
@@ -437,7 +437,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
             sighash_type,
             genesis_hash,
         )?;
-        Ok(TapSighashHash::from_engine(enc))
+        Ok(TapSighashHash(enc.finalize()))
     }
 
     /// Compute the BIP341 sighash for a key spend
@@ -448,7 +448,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
-        let mut enc = TapSighashHash::engine();
+        let mut enc = sha256t::Hash::engine();
         self.taproot_encode_signing_data_to(
             &mut enc,
             input_index,
@@ -458,7 +458,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
             sighash_type,
             genesis_hash,
         )?;
-        Ok(TapSighashHash::from_engine(enc))
+        Ok(TapSighashHash(enc.finalize()))
     }
 
     /// Compute the BIP341 sighash for a script spend
@@ -473,7 +473,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         sighash_type: SchnorrSighashType,
         genesis_hash: BlockHash,
     ) -> Result<TapSighashHash, Error> {
-        let mut enc = TapSighashHash::engine();
+        let mut enc = sha256t::Hash::engine();
         self.taproot_encode_signing_data_to(
             &mut enc,
             input_index,
@@ -483,7 +483,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
             sighash_type,
             genesis_hash
         )?;
-        Ok(TapSighashHash::from_engine(enc))
+        Ok(TapSighashHash(enc.finalize()))
     }
 
     /// Encode the BIP143 signing data for any flag type into a given object implementing a
@@ -505,7 +505,7 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         value: confidential::Value,
         sighash_type: EcdsaSighashType,
     ) -> Result<(), encode::Error> {
-        let zero_hash = sha256d::Hash::all_zeros();
+        let zero_hash = [0u8; 32];
 
         let (sighash, anyone_can_pay) = sighash_type.split_anyonecanpay_flag();
 
@@ -548,9 +548,9 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         if sighash != EcdsaSighashType::Single && sighash != EcdsaSighashType::None {
             self.segwit_cache().outputs.consensus_encode(&mut writer)?;
         } else if sighash == EcdsaSighashType::Single && input_index < self.tx.output.len() {
-            let mut single_enc = Sighash::engine();
+            let mut single_enc = sha256d::Hash::engine();
             self.tx.output[input_index].consensus_encode(&mut single_enc)?;
-            Sighash::from_engine(single_enc).consensus_encode(&mut writer)?;
+            Sighash(single_enc.finalize()).consensus_encode(&mut writer)?;
         } else {
             zero_hash.consensus_encode(&mut writer)?;
         }
@@ -576,10 +576,10 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         value: confidential::Value,
         sighash_type: EcdsaSighashType
     ) -> Sighash {
-        let mut enc = Sighash::engine();
+        let mut enc = sha256d::Hash::engine();
         self.encode_segwitv0_signing_data_to(&mut enc, input_index, script_code, value, sighash_type)
             .expect("engines don't error");
-        Sighash::from_engine(enc)
+        Sighash(enc.finalize())
     }
 
     /// Encodes the signing data from which a signature hash for a given input index with a given
@@ -689,10 +689,10 @@ impl<R: Deref<Target = Transaction>> SighashCache<R> {
         script_pubkey: &Script,
         sighash_type: EcdsaSighashType,
     ) -> Sighash {
-        let mut engine = Sighash::engine();
+        let mut engine = sha256d::Hash::engine();
         self.encode_legacy_signing_data_to(&mut engine, input_index, script_pubkey, sighash_type)
             .expect("engines don't error");
-        Sighash::from_engine(engine)
+        Sighash(engine.finalize())
     }
 
     #[inline]
@@ -965,14 +965,12 @@ impl std::str::FromStr for SchnorrSighashType {
 mod tests{
     use super::*;
     use crate::encode::deserialize;
-    use std::str::FromStr;
 
     fn test_segwit_sighash(tx: &str, script: &str, input_index: usize, value: &str, hash_type: EcdsaSighashType, expected_result: &str) {
         let tx: Transaction = deserialize(&hex::decode_to_vec(tx).unwrap()).unwrap();
         let script = Script::from(hex::decode_to_vec(script).unwrap());
-        // A hack to parse sha256d strings are sha256 so that we don't reverse them...
-        let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
-        let expected_result = Sighash::from_slice(&raw_expected[..]).unwrap();
+        let raw_expected = hex::decode_to_array(expected_result).unwrap();
+        let expected_result = Sighash::from_byte_array(raw_expected);
 
         let mut cache = SighashCache::new(&tx);
         let value : confidential::Value = deserialize(&hex::decode_to_vec(value).unwrap()).unwrap();
@@ -1004,9 +1002,8 @@ mod tests{
     fn test_legacy_sighash(tx: &str, script: &str, input_index: usize, hash_type: EcdsaSighashType, expected_result: &str) {
         let tx: Transaction = deserialize(&hex::decode_to_vec(tx).unwrap()).unwrap();
         let script = Script::from(hex::decode_to_vec(script).unwrap());
-        // A hack to parse sha256d strings are sha256 so that we don't reverse them...
-        let raw_expected = crate::hashes::sha256::Hash::from_str(expected_result).unwrap();
-        let expected_result = Sighash::from_slice(&raw_expected[..]).unwrap();
+        let raw_expected = hex::decode_to_array(expected_result).unwrap();
+        let expected_result = Sighash::from_byte_array(raw_expected);
         let sighash_cache = SighashCache::new(&tx);
         let actual_result = sighash_cache.legacy_sighash(input_index, &script, hash_type);
         assert_eq!(actual_result, expected_result);
