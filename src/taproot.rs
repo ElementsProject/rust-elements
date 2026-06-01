@@ -723,6 +723,9 @@ impl Default for LeafVersion {
 }
 
 impl LeafVersion {
+    /// The leaf version used for Tapscript branches.
+    pub const TAPSCRIPT: Self = Self(TAPROOT_LEAF_TAPSCRIPT);
+
     /// Obtain `LeafVersion` from u8, will error when last bit of ver is even or
     /// when ver is 0x50 (`ANNEX_TAG`)
     // Text from BIP341:

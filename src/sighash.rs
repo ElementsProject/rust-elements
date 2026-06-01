@@ -27,6 +27,7 @@ use crate::script::Script;
 use std::ops::{Deref, DerefMut};
 use std::io;
 use crate::endian;
+use crate::taproot::LeafVersion;
 use crate::transaction::{EcdsaSighashType, Transaction, TxIn, TxOut, TxInWitness};
 use crate::confidential;
 use crate::Sequence;
@@ -105,7 +106,7 @@ const KEY_VERSION_0: u8 = 0u8;
 pub struct ScriptPath<'s> {
     script: &'s Script,
     code_separator_pos: u32,
-    leaf_version: u8,
+    leaf_version: LeafVersion,
 }
 
 /// Possible errors in computing the signature message
@@ -203,7 +204,7 @@ impl<T> Prevouts<'_, T> where T: Borrow<TxOut> {
 
 impl<'s> ScriptPath<'s> {
     /// Create a new `ScriptPath` structure
-    pub fn new(script: &'s Script, code_separator_pos: u32, leaf_version: u8) -> Self {
+    pub fn new(script: &'s Script, code_separator_pos: u32, leaf_version: LeafVersion) -> Self {
         ScriptPath {
             script,
             code_separator_pos,
@@ -212,17 +213,12 @@ impl<'s> ScriptPath<'s> {
     }
     /// Create a new `ScriptPath` structure using default values for `code_separator_pos` and `leaf_version`
     pub fn with_defaults(script: &'s Script) -> Self {
-        Self::new(script, 0xFFFF_FFFFu32, 0xc4)
+        Self::new(script, 0xFFFF_FFFFu32, LeafVersion::TAPSCRIPT)
     }
 
     /// Compute the leaf hash
     pub fn leaf_hash(&self) -> TapLeafHash {
-        let mut enc = TapLeafHash::engine();
-
-        self.leaf_version.consensus_encode(&mut enc).expect("Writing to hash enging should never fail");
-        self.script.consensus_encode(&mut enc).expect("Writing to hash enging should never fail");
-
-        TapLeafHash::from_engine(enc)
+        TapLeafHash::from_script(self.script, self.leaf_version)
     }
 }
 
