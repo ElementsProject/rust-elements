@@ -211,8 +211,7 @@ macro_rules! impl_pset_hash_deserialize {
     ($hash_type:ty) => {
         impl $crate::pset::serialize::Deserialize for $hash_type {
             fn deserialize(bytes: &[u8]) -> Result<Self, $crate::encode::Error> {
-                <$hash_type>::from_slice(&bytes[..])
-                    .map_err(|e| $crate::pset::Error::from(e).into())
+                $crate::encode::deserialize(bytes).map(Self::from_byte_array)
             }
         }
     };

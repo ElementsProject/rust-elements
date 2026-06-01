@@ -427,6 +427,7 @@ macro_rules! impl_array {
     };
 }
 impl_array!(4);
+impl_array!(20);
 impl_array!(32);
 impl_array!(33);
 
