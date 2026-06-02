@@ -124,7 +124,7 @@ mod test {
         pset.add_input(input);
         let mut output = Output {
             amount: Some(1),
-            asset: Some(AssetId::from_slice(&[9; 32]).unwrap()),
+            asset: Some(AssetId::from_byte_array([9; 32])),
             ..Default::default()
         };
         output.set_abf(abf);

@@ -15,6 +15,7 @@
 //! # Transactions Blinding
 //!
 
+use core::convert::TryFrom;
 use std::{self, collections::BTreeMap, fmt};
 
 use secp256k1_zkp::{
@@ -26,7 +27,6 @@ use secp256k1_zkp::{Generator, RangeProof, Secp256k1, Signing, SurjectionProof};
 
 use crate::{AddressParams, Script, TxIn};
 
-use crate::hashes;
 use crate::{
     confidential::{Asset, AssetBlindingFactor, Nonce, Value, ValueBlindingFactor},
     Address, AssetId, Transaction, TxOut, TxOutWitness,
@@ -762,7 +762,8 @@ impl TxOut {
         )?;
 
         let (asset, asset_bf) = opening.message.as_ref().split_at(32);
-        let asset = AssetId::from_slice(asset)?;
+        let asset = <[u8; 32]>::try_from(asset).map_err(UnblindError::MalformedAssetId)?;
+        let asset = AssetId::from_byte_array(asset);
         let asset_bf = AssetBlindingFactor::from_slice(&asset_bf[..32])?;
 
         let value = opening.value;
@@ -787,7 +788,7 @@ pub enum UnblindError {
     /// Transaction output does not have a rangeproof.
     MissingRangeproof,
     /// Malformed asset ID.
-    MalformedAssetId(hashes::FromSliceError),
+    MalformedAssetId(core::array::TryFromSliceError),
     /// Error originated in `secp256k1_zkp`.
     Upstream(secp256k1_zkp::Error),
 }
@@ -819,12 +820,6 @@ impl std::error::Error for UnblindError {
 impl From<secp256k1_zkp::Error> for UnblindError {
     fn from(from: secp256k1_zkp::Error) -> Self {
         UnblindError::Upstream(from)
-    }
-}
-
-impl From<hashes::FromSliceError> for UnblindError {
-    fn from(from: hashes::FromSliceError) -> Self {
-        UnblindError::MalformedAssetId(from)
     }
 }
 
@@ -1515,7 +1510,7 @@ mod tests {
 
     #[test]
     fn blind_value_proof_test() {
-        let id = AssetId::from_slice(&[1u8; 32]).unwrap();
+        let id = AssetId::from_byte_array([1u8; 32]);
         let abf = AssetBlindingFactor::new(&mut thread_rng());
         let asset = confidential::Asset::new_confidential(SECP256K1, id, abf);
 
@@ -1541,7 +1536,7 @@ mod tests {
 
     #[test]
     fn blind_asset_proof_test() {
-        let id = AssetId::from_slice(&[1u8; 32]).unwrap();
+        let id = AssetId::from_byte_array([1u8; 32]);
         let abf = AssetBlindingFactor::new(&mut thread_rng());
         let asset = confidential::Asset::new_confidential(SECP256K1, id, abf);
 
