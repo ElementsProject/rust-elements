@@ -20,7 +20,9 @@ use crate::encode::{self, Encodable, Decodable};
 use crate::hashes::{hash_newtype, sha256, sha256d, Hash};
 use crate::fast_merkle_root::fast_merkle_root;
 use secp256k1_zkp::Tag;
+use crate::genesis::{commit_to_custom_network_parameters, NetworkParams};
 use crate::transaction::OutPoint;
+use crate::Txid;
 
 /// The zero hash.
 const ZERO32: [u8; 32] = [
@@ -81,6 +83,14 @@ impl AssetId {
         0x3d, 0x1c, 0x04, 0xed, 0xe9, 0x79, 0x02, 0x6f,
     ]);
 
+    /// The asset ID for L-BTC, Bitcoin on the Liquidtestnet network.
+    pub const LIQUIDTESTNET_BTC: AssetId = AssetId([
+        0x49, 0x9a, 0x81, 0x85, 0x45, 0xf6, 0xba, 0xe3,
+        0x9f, 0xc0, 0x3b, 0x63, 0x7f, 0x2a, 0x4e, 0x1e,
+        0x64, 0xe5, 0x90, 0xca, 0xc1, 0xbc, 0x3a, 0x6f,
+        0x6d, 0x71, 0xaa, 0x44, 0x43, 0x65, 0x4c, 0x14,
+    ]);
+
     /// Generate the asset entropy from the issuance prevout and the contract hash.
     pub fn generate_asset_entropy(
         prevout: OutPoint,
@@ -137,6 +147,30 @@ impl AssetId {
     pub fn into_tag(self) -> Tag {
         self.0.into()
     }
+
+    /// Pegged asset id for given network parameters
+    pub fn pegged_asset_id_for_network_params(params: &NetworkParams) -> AssetId {
+        match params.network_id.as_str() {
+            "liquidv1" => Self::LIQUID_BTC,
+            "liquidtestnet" => Self::LIQUIDTESTNET_BTC,
+            _ => {
+                // Else calculate the asset_id
+                Self::pegged_asset_id_for_params_and_parent_chain_hash(
+                    params,
+                    bitcoin::Network::Regtest.chain_hash(),
+                )
+            }
+        }
+    }
+
+    /// Calculate the `AssetId` for the pegged asset for a given set of network parameters assuming
+    /// a Regtest parent network
+    fn pegged_asset_id_for_params_and_parent_chain_hash(params: &NetworkParams, parent_chainhash: bitcoin::blockdata::constants::ChainHash) -> AssetId {
+        let commit = commit_to_custom_network_parameters(params);
+        let asset_outpoint = OutPoint::new(Txid::from_slice(commit.as_slice()).expect("txid"), 0);
+        let asset_entropy = AssetId::generate_asset_entropy(asset_outpoint, ContractHash::from_slice(parent_chainhash.to_bytes().as_slice()).unwrap());
+        AssetId::from_entropy(asset_entropy)
+    }
 }
 
 impl Encodable for AssetId {
@@ -155,6 +189,7 @@ impl Decodable for AssetId {
 mod test {
     use super::*;
     use std::str::FromStr;
+    use bitcoin::constants::ChainHash;
 
     #[test]
     fn example_elements_core() {
@@ -258,5 +293,53 @@ mod test {
             AssetId::LIQUID_BTC.to_string(),
             "6f0279e9ed041c3d710a9f57d0c02928416460c4b722ae3457a11eec381c526d",
         );
+    }
+
+    #[test]
+    fn liquid_asset_ids() {
+        // Testing the two most common Regtest networks using in Liquid and CLN codebases
+        let network_params = NetworkParams::custom_network("elementsregtest".to_string(), None, None, None);
+        let asset_id = AssetId::pegged_asset_id_for_params_and_parent_chain_hash(
+            &network_params,
+            bitcoin::Network::Regtest.chain_hash(),
+        );
+
+        let elementsregtest_asset_id = AssetId([
+            0x23, 0x0f, 0x4f, 0x5d, 0x4b, 0x7c, 0x6f, 0xa8, 0x45, 0x80, 0x6e, 0xe4,
+            0xf6, 0x77, 0x13, 0x45, 0x9e, 0x1b, 0x69, 0xe8, 0xe6, 0x0f, 0xce, 0xe2,
+            0xe4, 0x94, 0x0c, 0x7a, 0x0d, 0x5d, 0xe1, 0xb2,
+        ]);
+
+        assert_eq!(asset_id, elementsregtest_asset_id);
+
+        let network_params = NetworkParams::custom_network("liquid-regtest".to_string(), None, None, None);
+        let asset_id = AssetId::pegged_asset_id_for_params_and_parent_chain_hash(
+            &network_params,
+            bitcoin::Network::Regtest.chain_hash(),
+        );
+
+        let liquid_regtest_assetid = AssetId([
+            0x5c, 0xe7, 0xb9, 0x63, 0xd3, 0x7f, 0x8f, 0x2d, 0x51, 0xca, 0xfb, 0xba,
+            0x92, 0x8a, 0xaa, 0x9e, 0x22, 0x0b, 0x8b, 0xbc, 0x66, 0x05, 0x71, 0x49,
+            0x9c, 0x03, 0x62, 0x8a, 0x38, 0x51, 0xb8, 0xce,
+        ]);
+
+        assert_eq!(asset_id, liquid_regtest_assetid);
+
+        let liquidv1_params = NetworkParams::liquidv1();
+        let asset_id = AssetId::pegged_asset_id_for_params_and_parent_chain_hash(
+            &liquidv1_params,
+            bitcoin::Network::Bitcoin.chain_hash(),
+        );
+
+        assert_eq!(asset_id, AssetId::LIQUID_BTC);
+
+        let liquidtestnet_params = NetworkParams::liquidtestnet();
+        let asset_id = AssetId::pegged_asset_id_for_params_and_parent_chain_hash(
+            &liquidtestnet_params,
+            ChainHash::from([0u8; 32]),
+        );
+
+        assert_eq!(asset_id, AssetId::LIQUIDTESTNET_BTC);
     }
 }

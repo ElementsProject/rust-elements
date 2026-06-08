@@ -72,6 +72,8 @@ pub mod taproot;
 mod transaction;
 // consider making upstream public
 mod endian;
+pub mod genesis;
+
 // re-export bitcoin deps which we re-use
 pub use bitcoin::hashes;
 // export everything at the top level so it can be used as `elements::Transaction` etc.
