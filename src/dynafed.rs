@@ -23,8 +23,18 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::ser::{SerializeSeq, SerializeStruct};
 
 use crate::encode::{self, Encodable, Decodable};
-use crate::hashes::{Hash, sha256, sha256d};
+use crate::hashes::{Hash, sha256d};
 use crate::Script;
+
+impl_sha256_midstate_wrapper! {
+    /// The Merkle root of a set of dynafed parameters.
+    pub struct ParamsRoot([u8; 32]);
+}
+
+impl_sha256_midstate_wrapper! {
+    /// A hash of elided dynafed parameter data.
+    pub struct ElidedRoot([u8; 32]);
+}
 
 /// ad-hoc struct to fmt in hex
 #[cfg(feature = "serde")]
@@ -109,7 +119,7 @@ impl FullParams {
     /// Return the `extra root` of this params.
     /// The extra root commits to the consensus parameters unrelated to
     /// blocksigning: `fedpeg_program`, `fedpegscript` and `extension_space`.
-    fn extra_root(&self) -> sha256::Midstate {
+    fn extra_root(&self) -> ElidedRoot {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
             let mut engine = sha256d::Hash::engine();
             obj.consensus_encode(&mut engine).expect("engines don't error");
@@ -121,11 +131,11 @@ impl FullParams {
             serialize_hash(&self.fedpegscript).to_byte_array(),
             serialize_hash(&self.extension_space).to_byte_array(),
         ];
-        crate::fast_merkle_root::fast_merkle_root(&leaves[..])
+        ElidedRoot::from_midstate(crate::fast_merkle_root::fast_merkle_root(&leaves[..]))
     }
 
     /// Calculate the root of this [`FullParams`].
-    pub fn calculate_root(&self) -> sha256::Midstate {
+    pub fn calculate_root(&self) -> ParamsRoot {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
             let mut engine = sha256d::Hash::engine();
             obj.consensus_encode(&mut engine).expect("engines don't error");
@@ -142,7 +152,7 @@ impl FullParams {
             compact_root.to_byte_array(),
             self.extra_root().to_byte_array(),
         ];
-        crate::fast_merkle_root::fast_merkle_root(&leaves[..])
+        ParamsRoot::from_midstate(crate::fast_merkle_root::fast_merkle_root(&leaves[..]))
     }
 
     /// Turns parameters into compact parameters.
@@ -223,7 +233,7 @@ pub enum Params {
         /// Maximum, in bytes, of the size of a blocksigning witness
         signblock_witness_limit: u32,
         /// Merkle root of extra data
-        elided_root: sha256::Midstate,
+        elided_root: ElidedRoot,
     },
     /// Full dynamic federations parameters
     Full(FullParams),
@@ -319,7 +329,7 @@ impl Params {
     }
 
     /// Get the `elided_root`. Is [None] for non-[`Params::Compact`] params.
-    pub fn elided_root(&self) -> Option<&sha256::Midstate> {
+    pub fn elided_root(&self) -> Option<&ElidedRoot> {
         match *self {
             Params::Null => None,
             Params::Compact { ref elided_root, ..} => Some(elided_root),
@@ -330,16 +340,16 @@ impl Params {
     /// Return the `extra root` of this params.
     /// The extra root commits to the consensus parameters unrelated to
     /// blocksigning: `fedpeg_program`, `fedpegscript` and `extension_space`.
-    fn extra_root(&self) -> sha256::Midstate {
+    fn extra_root(&self) -> ElidedRoot {
         match *self {
-            Params::Null => sha256::Midstate::from_byte_array([0u8; 32]),
+            Params::Null => ElidedRoot::from_byte_array([0u8; 32]),
             Params::Compact { ref elided_root, .. } => *elided_root,
             Params::Full(ref f) => f.extra_root(),
         }
     }
 
     /// Calculate the root of this [Params].
-    pub fn calculate_root(&self) -> sha256::Midstate {
+    pub fn calculate_root(&self) -> ParamsRoot {
         fn serialize_hash<E: Encodable>(obj: &E) -> sha256d::Hash {
             let mut engine = sha256d::Hash::engine();
             obj.consensus_encode(&mut engine).expect("engines don't error");
@@ -347,7 +357,7 @@ impl Params {
         }
 
         if self.is_null() {
-            return sha256::Midstate::from_byte_array([0u8; 32]);
+            return ParamsRoot::from_byte_array([0u8; 32]);
         }
 
         let leaves = [
@@ -360,7 +370,7 @@ impl Params {
             compact_root.to_byte_array(),
             self.extra_root().to_byte_array(),
         ];
-        crate::fast_merkle_root::fast_merkle_root(&leaves[..])
+        ParamsRoot::from_midstate(crate::fast_merkle_root::fast_merkle_root(&leaves[..]))
     }
 
     /// Get the full params when this params are full.
@@ -626,7 +636,7 @@ impl Decodable for Params {
             1 => Ok(Params::Compact {
                 signblockscript: Decodable::consensus_decode(&mut d)?,
                 signblock_witness_limit: Decodable::consensus_decode(&mut d)?,
-                elided_root: sha256::Midstate::from_byte_array(Decodable::consensus_decode(&mut d)?),
+                elided_root: ElidedRoot::from_byte_array(Decodable::consensus_decode(&mut d)?),
             }),
             2 => Ok(Params::Full(Decodable::consensus_decode(&mut d)?)),
             _ => Err(encode::Error::ParseFailed(
@@ -640,7 +650,6 @@ impl Decodable for Params {
 mod tests {
     use std::fmt::{self, Write};
 
-    use crate::hashes::sha256;
     use crate::{BlockHash, TxMerkleNode};
 
     use super::*;
@@ -683,7 +692,7 @@ mod tests {
         let compact_entry = Params::Compact {
             signblockscript: signblockscript.clone(),
             signblock_witness_limit: signblock_wl,
-            elided_root: sha256::Midstate::from_byte_array([0; 32]),
+            elided_root: ElidedRoot::from_byte_array([0; 32]),
         };
         assert_eq!(
             format!("{:x}", compact_entry.calculate_root()),
@@ -751,7 +760,7 @@ mod tests {
         let compact = params.into_compact().unwrap();
         assert_eq!(
             to_debug_string(&compact),
-            "Compact { signblockscript: 0102, signblock_witness_limit: 3, elided_root: 0xc3058c822b22a13bb7c47cf50d3f3c7817e7d9075ff55a7d16c85b9673e7e553 }",
+            "Compact { signblockscript: 0102, signblock_witness_limit: 3, elided_root: c3058c822b22a13bb7c47cf50d3f3c7817e7d9075ff55a7d16c85b9673e7e553 }",
         );
         assert_eq!(compact.calculate_root(), full.calculate_root());
         assert_eq!(compact.elided_root(), Some(&extra_root));

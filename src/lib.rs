@@ -81,7 +81,7 @@ pub use crate::blind::{
     SurjectionInput, TxOutError, TxOutSecrets, UnblindError, VerificationError, CtLocation, CtLocationType,
 };
 pub use crate::block::ExtData as BlockExtData;
-pub use crate::block::{Block, BlockHeader};
+pub use crate::block::{Block, BlockHeader, DynafedRoot};
 pub use crate::ext::{ReadExt, WriteExt};
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;

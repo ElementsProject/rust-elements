@@ -75,13 +75,9 @@ impl_hashencode!(TxMerkleNode);
 #[cfg(feature = "serde")]
 mod serde_tests {
     use super::*;
-    use crate::{AssetEntropy, AssetId, ContractHash};
+    use crate::{AssetEntropy, AssetId, ContractHash, DynafedRoot};
+    use crate::dynafed::{ElidedRoot, ParamsRoot};
 
-    // Some types are currently just bare midstates. We will replace them with
-    // newtypes in the following commits. To ensure this does not break serde,
-    // test them here.
-    type ElidedRoot = sha256::Midstate;
-    
     /// An arbitrary test vector.
     ///
     /// Mainly its goal is to make sure we don't mess up and reverse stuff we don't
@@ -170,5 +166,7 @@ mod serde_tests {
     serde_rtt_test32!(serde_rtt_contracthash, ContractHash, REVERSED_JSON);
 
     serde_rtt_test32!(serde_rtt_entropy, AssetEntropy, REVERSED_JSON);
+    serde_rtt_test32!(serde_rtt_dynaroot, DynafedRoot, REVERSED_JSON);
     serde_rtt_test32!(serde_rtt_elidedroot, ElidedRoot, REVERSED_JSON);
+    serde_rtt_test32!(serde_rtt_paramsroot, ParamsRoot, REVERSED_JSON);
 }

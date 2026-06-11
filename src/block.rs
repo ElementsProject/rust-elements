@@ -21,10 +21,15 @@ use std::io;
 #[cfg(feature = "serde")] use std::fmt;
 
 use crate::dynafed;
-use crate::hashes::{Hash, sha256};
+use crate::hashes::Hash;
 use crate::Transaction;
 use crate::encode::{self, serialize, Decodable, Encodable, VarInt};
 use crate::{BlockHash, Script, TxMerkleNode};
+
+impl_sha256_midstate_wrapper! {
+    /// The Merkle root of a set of dynafed parameters.
+    pub struct DynafedRoot([u8; 32]);
+}
 
 /// Data related to block signatures
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
@@ -268,7 +273,7 @@ impl BlockHeader {
     }
 
     /// Calculate the root of the dynafed params. Returns [None] when not dynafed.
-    pub fn calculate_dynafed_params_root(&self) -> Option<sha256::Midstate> {
+    pub fn calculate_dynafed_params_root(&self) -> Option<crate::DynafedRoot> {
         match self.ext {
             ExtData::Proof { .. } => None,
             ExtData::Dynafed { ref current, ref proposed, .. } => {
@@ -276,7 +281,7 @@ impl BlockHeader {
                     current.calculate_root().to_byte_array(),
                     proposed.calculate_root().to_byte_array(),
                 ];
-                Some(crate::fast_merkle_root::fast_merkle_root(&leaves[..]))
+                Some(DynafedRoot::from_midstate(crate::fast_merkle_root::fast_merkle_root(&leaves[..])))
             }
         }
     }
