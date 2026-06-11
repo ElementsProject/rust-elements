@@ -43,73 +43,9 @@ hash_newtype!(
 );
 
 
-/// A hash of some data used as "asset entropy" to seed the ID of a new asset.
-#[derive(Copy, Clone, PartialEq, Eq, Default, PartialOrd, Ord, Hash)]
-pub struct AssetEntropy([u8; 32]);
-
-impl AssetEntropy {
-    /// Constructs an asset entropy from a raw byte array.
-    pub fn from_byte_array(inner: [u8; 32]) -> Self {
-        Self(inner)
-    }
-
-    /// The raw bytes of the asset entropy.
-    pub fn as_byte_array(&self) -> &[u8; 32] {
-        &self.0
-    }
-
-    /// The raw bytes of the asset entropy.
-    pub fn to_byte_array(self) -> [u8; 32] {
-        self.0
-    }
-
-    /// Convert a sha256 midstate to a [`AssetEntropy`].
-    fn from_midstate(value: sha256::Midstate) -> Self {
-        Self(value.to_byte_array())
-    }
-}
-
-impl ::std::fmt::Display for AssetEntropy {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        hex::fmt_hex_exact!(f, 32, self.0.iter().rev(), hex::Case::Lower)
-    }
-}
-
-impl ::std::fmt::Debug for AssetEntropy {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        ::std::fmt::Display::fmt(&self, f)
-    }
-}
-
-impl FromStr for AssetEntropy {
-    type Err = hex::DecodeFixedLengthBytesError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut arr = hex::decode_to_array(s)?;
-        arr.reverse();
-        Ok(Self(arr))
-    }
-}
-
-#[cfg(feature = "serde")]
-impl ::serde::Serialize for AssetEntropy {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer {
-        // "cheat" by just copying sha256d serde serialization
-        sha256d::Hash::from_byte_array(self.to_byte_array()).serialize(serializer)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de> ::serde::Deserialize<'de> for AssetEntropy {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: serde::Deserializer<'de> {
-        // "cheat" by just copying sha256d serde serialization
-        let hash = sha256d::Hash::deserialize(deserializer)?;
-        Ok(Self::from_byte_array(hash.to_byte_array()))
-    }
+impl_sha256_midstate_wrapper! {
+    /// A hash of some data used as "asset entropy" to seed the ID of a new asset.
+    pub struct AssetEntropy([u8; 32]);
 }
 
 impl ContractHash {
