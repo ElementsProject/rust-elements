@@ -85,6 +85,11 @@ impl AssetId {
         self.0
     }
 
+    /// Constructs an asset ID from a raw byte array.
+    pub fn from_byte_array(inner: [u8; 32]) -> Self {
+        Self(sha256::Midstate::from_byte_array(inner))
+    }
+
     /// Copies a byte slice into an `AssetId` object
     pub fn from_slice(sl: &[u8]) -> Result<AssetId, hashes::FromSliceError> {
         sha256::Midstate::from_slice(sl).map(AssetId)
