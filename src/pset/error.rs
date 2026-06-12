@@ -20,7 +20,6 @@ use crate::Txid;
 use super::raw;
 
 use crate::blind::ConfidentialTxOutError;
-use crate::hashes;
 use secp256k1_zkp;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -70,8 +69,6 @@ pub enum Error {
     },
     /// Unable to parse as a standard Sighash type.
     NonStandardSighashType(u32),
-    /// Parsing errors from `bitcoin_hashes`
-    HashParseError(hashes::FromSliceError),
     /// The pre-image must hash to the corresponding pset hash
     InvalidPreimageHashPair {
         /// Hash-type
@@ -148,7 +145,6 @@ impl fmt::Display for Error {
                 f.write_str("partially signed transactions must have an unsigned transaction")
             }
             Error::NoMorePairs => f.write_str("no more key-value pairs for this pset map"),
-            Error::HashParseError(e) => write!(f, "Hash Parse Error: {}", e),
             Error::InvalidPreimageHashPair {
                 ref preimage,
                 ref hash,
@@ -216,13 +212,6 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {}
-
-#[doc(hidden)]
-impl From<hashes::FromSliceError> for Error {
-    fn from(e: hashes::FromSliceError) -> Error {
-        Error::HashParseError(e)
-    }
-}
 
 impl From<encode::Error> for Error {
     fn from(err: encode::Error) -> Self {
