@@ -253,7 +253,7 @@ impl Address {
     ) -> Address {
         Address {
             params,
-            payload: Payload::ScriptHash(ScriptHash::hash(&script[..])),
+            payload: Payload::ScriptHash(ScriptHash::hash_script(script)),
             blinding_pubkey: blinder,
         }
     }
@@ -281,22 +281,23 @@ impl Address {
 
     /// Create a pay to script address that embeds a witness pay to public key
     /// This is a segwit address type that looks familiar (as p2sh) to legacy clients
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided public key is not compressed.
     pub fn p2shwpkh(
         pk: &PublicKey,
         blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        let mut hash_engine = ScriptHash::engine();
-        pk.write_into(&mut hash_engine)
-            .expect("engines don't error");
-
+        let pkh = pk.wpubkey_hash().expect("public key must be compressed");
         let builder = script::Builder::new()
             .push_int(0)
-            .push_slice(&ScriptHash::from_engine(hash_engine)[..]);
+            .push_slice(pkh.as_ref());
 
         Address {
             params,
-            payload: Payload::ScriptHash(ScriptHash::hash(builder.into_script().as_bytes())),
+            payload: Payload::ScriptHash(ScriptHash::hash_script(&builder.into_script())),
             blinding_pubkey: blinder,
         }
     }
@@ -311,7 +312,7 @@ impl Address {
             params,
             payload: Payload::WitnessProgram {
                 version: Fe32::Q,
-                program: WScriptHash::hash(&script[..])[..].to_vec(),
+                program: WScriptHash::hash_script(script).as_byte_array().to_vec(),
             },
             blinding_pubkey: blinder,
         }

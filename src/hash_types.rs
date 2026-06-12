@@ -70,6 +70,20 @@ impl_hashencode!(Sighash);
 impl_hashencode!(BlockHash);
 impl_hashencode!(TxMerkleNode);
 
+impl ScriptHash {
+    /// Computes the `ScriptHash` of a script.
+    pub fn hash_script(s: &crate::Script) -> Self {
+        Self(hash160::Hash::hash(s.as_bytes()))
+    }
+}
+
+impl WScriptHash {
+    /// Computes the `WScriptHash` of a script.
+    pub fn hash_script(s: &crate::Script) -> Self {
+        Self(sha256::Hash::hash(s.as_bytes()))
+    }
+}
+
 #[cfg(test)]
 #[cfg(feature = "serde")]
 mod serde_tests {
