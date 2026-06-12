@@ -20,6 +20,9 @@
 
 use crate::hashes::{hash160, hash_newtype, sha256, sha256d, Hash};
 
+// Re-export bitcoin's pubkeyhash types. We already re-export bitcoin's `PublicKey` type.
+pub use bitcoin::{PubkeyHash, WPubkeyHash};
+
 macro_rules! impl_hashencode {
     ($hashtype:ident) => {
         impl $crate::encode::Encodable for $hashtype {
@@ -52,12 +55,8 @@ hash_newtype! {
     /// "Hash of the transaction according to the signature algorithm"
     pub struct Sighash(sha256d::Hash);
 
-    /// A hash of a public key.
-    pub struct PubkeyHash(hash160::Hash);
     /// A hash of Bitcoin Script bytecode.
     pub struct ScriptHash(hash160::Hash);
-    /// SegWit version of a public key hash.
-    pub struct WPubkeyHash(hash160::Hash);
     /// SegWit version of a Bitcoin Script bytecode hash.
     pub struct WScriptHash(sha256::Hash);
 

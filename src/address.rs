@@ -36,7 +36,7 @@ use crate::schnorr::{TapTweak, TweakedPublicKey, UntweakedPublicKey};
 use crate::taproot::TapNodeHash;
 
 use crate::{opcodes, script};
-use crate::{PubkeyHash, ScriptHash, WPubkeyHash, WScriptHash};
+use crate::{PubkeyHash, ScriptHash, WScriptHash};
 
 /// Encoding error
 #[derive(Debug, PartialEq)]
@@ -236,13 +236,9 @@ impl Address {
         blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        let mut hash_engine = PubkeyHash::engine();
-        pk.write_into(&mut hash_engine)
-            .expect("engines don't error");
-
         Address {
             params,
-            payload: Payload::PubkeyHash(PubkeyHash::from_engine(hash_engine)),
+            payload: Payload::PubkeyHash(pk.pubkey_hash()),
             blinding_pubkey: blinder,
         }
     }
@@ -264,20 +260,20 @@ impl Address {
 
     /// Create a witness pay to public key address from a public key
     /// This is the native segwit address type for an output redeemable with a single signature
+    ///
+    /// # Panics
+    ///
+    /// Panics if the provided public key is not compressed.
     pub fn p2wpkh(
         pk: &PublicKey,
         blinder: Option<secp256k1_zkp::PublicKey>,
         params: &'static AddressParams,
     ) -> Address {
-        let mut hash_engine = WPubkeyHash::engine();
-        pk.write_into(&mut hash_engine)
-            .expect("engines don't error");
-
         Address {
             params,
             payload: Payload::WitnessProgram {
                 version: Fe32::Q,
-                program: WPubkeyHash::from_engine(hash_engine)[..].to_vec(),
+                program: pk.wpubkey_hash().expect("public key must be compressed").as_byte_array().to_vec(),
             },
             blinding_pubkey: blinder,
         }
