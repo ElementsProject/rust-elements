@@ -20,11 +20,11 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use bitcoin::{self, VarInt};
-use crate::hashes::{Hash, sha256};
+use crate::hashes::Hash;
 
 use crate::{confidential, ContractHash};
 use crate::encode::{self, Encodable, Decodable};
-use crate::issuance::AssetId;
+use crate::issuance::{AssetEntropy, AssetId};
 use crate::opcodes;
 use crate::parse::impl_parse_str_through_int;
 use crate::script::Instruction;
@@ -171,8 +171,7 @@ impl ::std::str::FromStr for OutPoint {
 /// [BIP-68]: <https://github.com/bitcoin/bips/blob/master/bip-0068.mediawiki>
 /// [BIP-125]: <https://github.com/bitcoin/bips/blob/master/bip-0125.mediawiki>
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Hash)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Sequence(pub u32);
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -627,7 +626,7 @@ impl TxIn {
             AssetId::generate_asset_entropy(self.previous_output, contract_hash)
         } else {
             // re-issuance
-            sha256::Midstate::from_byte_array(self.asset_issuance.asset_entropy)
+            AssetEntropy::from_byte_array(self.asset_issuance.asset_entropy)
         };
         let asset_id = AssetId::from_entropy(entropy);
         let token_id =

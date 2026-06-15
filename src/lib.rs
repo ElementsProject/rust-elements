@@ -34,8 +34,7 @@ pub extern crate hex;
 pub extern crate secp256k1_zkp;
 /// Re-export of serde crate
 #[cfg(feature = "serde")]
-#[macro_use]
-pub extern crate actual_serde as serde;
+pub extern crate serde;
 #[cfg(all(test, feature = "serde"))]
 extern crate serde_test;
 
@@ -82,11 +81,11 @@ pub use crate::blind::{
     SurjectionInput, TxOutError, TxOutSecrets, UnblindError, VerificationError, CtLocation, CtLocationType,
 };
 pub use crate::block::ExtData as BlockExtData;
-pub use crate::block::{Block, BlockHeader};
+pub use crate::block::{Block, BlockHeader, DynafedRoot};
 pub use crate::ext::{ReadExt, WriteExt};
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;
-pub use crate::issuance::{AssetId, ContractHash};
+pub use crate::issuance::{AssetEntropy, AssetId, ContractHash};
 pub use crate::locktime::LockTime;
 pub use crate::schnorr::{SchnorrSig, SchnorrSigError};
 pub use crate::script::Script;

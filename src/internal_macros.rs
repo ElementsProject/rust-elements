@@ -395,6 +395,94 @@ macro_rules! serde_struct_human_string_impl {
     )
 }
 
+macro_rules! impl_sha256_midstate_wrapper {
+    {
+        #[$($type_attrs:meta)*]
+        pub struct $ty:ident([u8; 32]);
+    } => {
+        $(#[$type_attrs])*
+        #[derive(Copy, Clone, PartialEq, Eq, Default, PartialOrd, Ord, Hash)]
+        pub struct $ty([u8; 32]);
+
+        impl $ty {
+            /// Constructs this wrapper struct from raw bytes.
+            pub fn from_byte_array(inner: [u8; 32]) -> Self {
+                Self(inner)
+            }
+
+            /// The raw bytes within the wrapper type.
+            pub fn as_byte_array(&self) -> &[u8; 32] {
+                &self.0
+            }
+
+            /// The raw bytes within the wrapper type.
+            pub fn to_byte_array(self) -> [u8; 32] {
+                self.0
+            }
+
+            /// (Private) convert a sha256 midstate to an object.
+            fn from_midstate(value: crate::hashes::sha256::Midstate) -> Self {
+                Self(value.to_byte_array())
+            }
+        }
+
+        impl ::std::fmt::Display for $ty {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                ::std::fmt::LowerHex::fmt(&self, f)
+            }
+        }
+
+        impl ::std::fmt::LowerHex for $ty {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                hex::fmt_hex_exact!(f, 32, self.0.iter().rev(), hex::Case::Lower)
+            }
+        }
+
+        impl ::std::fmt::UpperHex for $ty {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                hex::fmt_hex_exact!(f, 32, self.0.iter().rev(), hex::Case::Upper)
+            }
+        }
+
+        impl ::std::fmt::Debug for $ty {
+            fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+                ::std::fmt::Display::fmt(&self, f)
+            }
+        }
+
+        impl ::core::str::FromStr for $ty {
+            type Err = hex::DecodeFixedLengthBytesError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                let mut arr = hex::decode_to_array(s)?;
+                arr.reverse();
+                Ok(Self(arr))
+            }
+        }
+
+        #[cfg(feature = "serde")]
+        impl ::serde::Serialize for $ty {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+                where
+                    S: serde::Serializer {
+                // "cheat" by just copying sha256d serde serialization
+                crate::hashes::sha256d::Hash::from_byte_array(self.to_byte_array()).serialize(serializer)
+            }
+        }
+
+        #[cfg(feature = "serde")]
+        impl<'de> ::serde::Deserialize<'de> for $ty {
+            fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+                where
+                    D: serde::Deserializer<'de> {
+                // "cheat" by just copying sha256d serde serialization
+                let hash = crate::hashes::sha256d::Hash::deserialize(deserializer)?;
+                Ok(Self::from_byte_array(hash.to_byte_array()))
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 macro_rules! hex_deserialize(
     ($e:expr) => ({

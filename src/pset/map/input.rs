@@ -26,6 +26,7 @@ use crate::{schnorr, AssetId, ContractHash};
 use crate::{confidential, locktime};
 use crate::encode::{self, Decodable};
 use crate::hashes::{self, hash160, ripemd160, sha256, sha256d, Hash};
+use crate::issuance::AssetEntropy;
 use crate::pset::map::Map;
 use crate::pset::raw;
 use crate::pset::serialize;
@@ -171,7 +172,7 @@ const PSBT_ELEMENTS_IN_BLINDED_ISSUANCE: u8 = 0x15;
 /// A key-value map for an input of the corresponding index in the unsigned
 /// transaction.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize), serde(crate = "actual_serde"))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Input {
     /// The non-witness transaction this input spends from. Should only be
     /// [`std::option::Option::Some`] for inputs which spend non-segwit outputs or
@@ -560,7 +561,7 @@ impl Input {
             AssetId::generate_asset_entropy(prevout, contract_hash)
         } else {
             // re-issuance
-            sha256::Midstate::from_byte_array(self.issuance_asset_entropy.unwrap_or_default())
+            AssetEntropy::from_byte_array(self.issuance_asset_entropy.unwrap_or_default())
         };
         let asset_id = AssetId::from_entropy(entropy);
         let token_id =

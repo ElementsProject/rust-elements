@@ -20,7 +20,6 @@ use crate::Txid;
 use super::raw;
 
 use crate::blind::ConfidentialTxOutError;
-use crate::hashes;
 use secp256k1_zkp;
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -52,12 +51,6 @@ pub enum Error {
     /// PSET has an input exclusively requiring a height-based locktime and also
     /// an input requiring a time-based locktime
     LocktimeConflict,
-    /// The scriptSigs for the unsigned transaction must be empty.
-    UnsignedTxHasScriptSigs,
-    /// The scriptWitnesses for the unsigned transaction must be empty.
-    UnsignedTxHasScriptWitnesses,
-    /// A PSET must have an unsigned transaction.
-    MustHaveUnsignedTx,
     /// Signals that there are no more key-value pairs in a key-value map.
     NoMorePairs,
     /// Attempting to merge with a PSET describing a different unsigned
@@ -68,10 +61,6 @@ pub enum Error {
         /// Actual
         actual: Txid,
     },
-    /// Unable to parse as a standard Sighash type.
-    NonStandardSighashType(u32),
-    /// Parsing errors from `bitcoin_hashes`
-    HashParseError(hashes::FromSliceError),
     /// The pre-image must hash to the corresponding pset hash
     InvalidPreimageHashPair {
         /// Hash-type
@@ -101,8 +90,6 @@ pub enum Error {
     MissingInputPrevTxId,
     /// Missing Input Prev Out
     MissingInputPrevVout,
-    /// Global scalar must be 32 bytes
-    SecpScalarSizeError(usize),
     /// Missing Output Value
     MissingOutputValue,
     /// Missing Output Asset
@@ -133,22 +120,9 @@ impl fmt::Display for Error {
                 expected: ref e,
                 actual: ref a,
             } => write!(f, "different id: expected {}, actual {}", e, a),
-            Error::NonStandardSighashType(ref sht) => {
-                write!(f, "non-standard sighash type: {}", sht)
-            }
             Error::InvalidMagic => f.write_str("invalid magic"),
             Error::InvalidSeparator => f.write_str("invalid separator"),
-            Error::UnsignedTxHasScriptSigs => {
-                f.write_str("the unsigned transaction has script sigs")
-            }
-            Error::UnsignedTxHasScriptWitnesses => {
-                f.write_str("the unsigned transaction has script witnesses")
-            }
-            Error::MustHaveUnsignedTx => {
-                f.write_str("partially signed transactions must have an unsigned transaction")
-            }
             Error::NoMorePairs => f.write_str("no more key-value pairs for this pset map"),
-            Error::HashParseError(e) => write!(f, "Hash Parse Error: {}", e),
             Error::InvalidPreimageHashPair {
                 ref preimage,
                 ref hash,
@@ -177,13 +151,6 @@ impl fmt::Display for Error {
             Error::MissingOutputCount => f.write_str("PSET missing output count"),
             Error::MissingInputPrevTxId => f.write_str("PSET input missing previous txid"),
             Error::MissingInputPrevVout => f.write_str("PSET input missing previous output index"),
-            Error::SecpScalarSizeError(actual) => {
-                write!(
-                    f,
-                    "PSET blinding scalars must be 32 bytes. Found {} bytes",
-                    actual
-                )
-            }
             Error::MissingOutputValue => f.write_str(
                 "PSET output missing value. Must have \
                 at least one of explicit/confidential value set",
@@ -216,13 +183,6 @@ impl fmt::Display for Error {
 }
 
 impl error::Error for Error {}
-
-#[doc(hidden)]
-impl From<hashes::FromSliceError> for Error {
-    fn from(e: hashes::FromSliceError) -> Error {
-        Error::HashParseError(e)
-    }
-}
 
 impl From<encode::Error> for Error {
     fn from(err: encode::Error) -> Self {

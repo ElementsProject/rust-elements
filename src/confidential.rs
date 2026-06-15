@@ -1102,7 +1102,6 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::hashes::sha256;
 
     #[cfg(feature = "serde")]
     use std::str::FromStr;
@@ -1144,7 +1143,7 @@ mod tests {
 
         let assets = [
             Asset::Null,
-            Asset::Explicit(AssetId::from_inner(sha256::Midstate::from_byte_array([0; 32]))),
+            Asset::Explicit(AssetId::from_byte_array([0; 32])),
             Asset::from_commitment(&[
                 0x0a, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
                 1, 1, 1, 1, 1, 1,

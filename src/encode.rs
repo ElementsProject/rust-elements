@@ -202,18 +202,6 @@ pub fn deserialize_partial<T: Decodable>(data: &[u8]) -> Result<(T, usize), Erro
     Ok((rv, consumed))
 }
 
-impl Encodable for sha256::Midstate {
-    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
-        self.to_byte_array().consensus_encode(e)
-    }
-}
-
-impl Decodable for sha256::Midstate {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(Self::from_byte_array(<[u8; 32]>::consensus_decode(d)?))
-    }
-}
-
 pub(crate) fn consensus_encode_with_size<S: crate::WriteExt>(
     data: &[u8],
     mut s: S,
@@ -427,6 +415,7 @@ macro_rules! impl_array {
     };
 }
 impl_array!(4);
+impl_array!(20);
 impl_array!(32);
 impl_array!(33);
 

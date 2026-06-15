@@ -26,8 +26,7 @@ use hex::DisplayHex as _;
 #[derive(Debug, PartialEq, Hash, Eq, Clone, Ord, PartialOrd)]
 #[cfg_attr(
     feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "actual_serde")
+    derive(serde::Serialize, serde::Deserialize),
 )]
 pub struct Key {
     /// The type of this PSET key.
@@ -53,8 +52,7 @@ impl Key {
 #[derive(Debug, PartialEq)]
 #[cfg_attr(
     feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "actual_serde")
+    derive(serde::Serialize, serde::Deserialize),
 )]
 pub struct Pair {
     /// The key of this key-value pair.
@@ -71,8 +69,7 @@ pub type ProprietaryType = u8;
 /// structure according to BIP 174.
 #[cfg_attr(
     feature = "serde",
-    derive(Serialize, Deserialize),
-    serde(crate = "actual_serde")
+    derive(serde::Serialize, serde::Deserialize),
 )]
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct ProprietaryKey<Subtype = ProprietaryType>
