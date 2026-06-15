@@ -13,6 +13,17 @@ if cargo --version | grep "1\.56"; then
     cargo update -p serde_json --precise 1.0.98
     cargo update -p serde --precise 1.0.156
     cargo update -p ppv-lite86 --precise 0.2.8
+    cargo update -p bitcoin --precise 0.32.2
+    cargo update -p bitcoin-units --precise 0.1.2
+    cargo update -p bitcoin-io --precise 0.1.2
+    cargo update -p bitcoin_hashes --precise 0.14.2
+    cargo update -p base58ck --precise 0.1.0
+    cargo update -p itoa --precise 1.0.6
+    cargo update -p ryu --precise 1.0.9
+    cargo update -p getrandom --precise 0.2.3
+    cargo update -p quote --precise 1.0.35
+    cargo update -p proc-macro2 --precise 1.0.80
+    cargo update -p unicode-ident --precise 1.0.6
 fi
 
 if [ "$DO_FEATURE_MATRIX" = true ]
