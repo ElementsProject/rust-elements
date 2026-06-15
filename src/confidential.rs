@@ -790,6 +790,11 @@ impl AssetBlindingFactor {
     }
 
     /// Create from bytes.
+    pub fn from_byte_array(bytes: [u8; 32]) -> Result<Self, secp256k1_zkp::Error> {
+        Ok(AssetBlindingFactor(Tweak::from_inner(bytes)?))
+    }
+
+    /// Create from bytes.
     pub fn from_slice(bytes: &[u8]) -> Result<Self, secp256k1_zkp::Error> {
         Ok(AssetBlindingFactor(Tweak::from_slice(bytes)?))
     }
