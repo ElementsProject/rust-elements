@@ -27,6 +27,7 @@ use crate::hashes::Hash;
 use bitcoin::base58;
 use bitcoin::PublicKey;
 use internals::array::ArrayExt as _;
+use internals::slice::SliceExt;
 use secp256k1_zkp;
 use secp256k1_zkp::Secp256k1;
 use secp256k1_zkp::Verification;
@@ -468,13 +469,17 @@ impl Address {
         };
 
         let (blinding_pubkey, program) = match blinded {
-            true => (
+            true => {
+                let (pk, rest) = SliceExt::split_first_chunk::<33>(data.as_slice())
+                    .ok_or(AddressError::InvalidSegwitV0Encoding)?;
+                (
                 Some(
-                    secp256k1_zkp::PublicKey::from_slice(&data[..33])
+                    secp256k1_zkp::PublicKey::from_slice(pk)
                         .map_err(AddressError::InvalidBlindingPubKey)?,
-                ),
-                data[33..].to_vec(),
-            ),
+                    ),
+                    rest.to_vec(),
+                )
+            },
             false => (None, data),
         };
 
