@@ -26,6 +26,8 @@ use crate::blech32::{Blech32, Blech32m};
 use crate::hashes::Hash;
 use bitcoin::base58;
 use bitcoin::PublicKey;
+use internals::array::ArrayExt as _;
+use internals::slice::SliceExt;
 use secp256k1_zkp;
 use secp256k1_zkp::Secp256k1;
 use secp256k1_zkp::Verification;
@@ -467,13 +469,17 @@ impl Address {
         };
 
         let (blinding_pubkey, program) = match blinded {
-            true => (
+            true => {
+                let (pk, rest) = SliceExt::split_first_chunk::<33>(data.as_slice())
+                    .ok_or(AddressError::InvalidSegwitV0Encoding)?;
+                (
                 Some(
-                    secp256k1_zkp::PublicKey::from_slice(&data[..33])
+                    secp256k1_zkp::PublicKey::from_slice(pk)
                         .map_err(AddressError::InvalidBlindingPubKey)?,
-                ),
-                data[33..].to_vec(),
-            ),
+                    ),
+                    rest.to_vec(),
+                )
+            },
             false => (None, data),
         };
 
@@ -486,35 +492,39 @@ impl Address {
 
     // data.len() should be >= 1 when this method is called
     fn from_base58(data: &[u8], params: &'static AddressParams) -> Result<Address, AddressError> {
+        let len_error = AddressError::InvalidLength(data.len());
         // When unblinded, the structure is:
         // <1: regular prefix> <20: hash160>
         // When blinded, the structure is:
         // <1: blinding prefix> <1: regular prefix> <33: blinding pubkey> <20: hash160>
 
-        let blinded = data[0] == params.blinded_prefix;
-        let prefix = match (blinded, data.len()) {
-            (true, 55) => data[1],
-            (false, 21) => data[0],
-            (_, len) => return Err(AddressError::InvalidLength(len)),
+        let Some((blinding_prefix, blinded_data)) = data.split_first() else {
+            return Err(len_error);
         };
 
-        let (blinding_pubkey, payload_data) = match blinded {
-            true => (
-                Some(
-                    secp256k1_zkp::PublicKey::from_slice(&data[2..35])
-                        .map_err(AddressError::InvalidBlindingPubKey)?,
-                ),
-                &data[35..],
-            ),
-            false => (None, &data[1..]),
-        };
+        let (prefix, blinding_pubkey, hash) = if *blinding_prefix == params.blinded_prefix {
+            let Some((prefix, pubkey_and_hash)) = blinded_data.split_first() else {
+                return Err(len_error);
+            };
 
-        let payload = if prefix == params.p2pkh_prefix {
-            Payload::PubkeyHash(PubkeyHash::from_slice(payload_data).unwrap())
-        } else if prefix == params.p2sh_prefix {
-            Payload::ScriptHash(ScriptHash::from_slice(payload_data).unwrap())
+            let pubkey_and_hash = <&[u8; 53]>::try_from(pubkey_and_hash).map_err(|_| len_error)?;
+            let (pubkey, hash) = pubkey_and_hash.split_array::<33, 20>();
+
+            let blinding_pubkey = secp256k1_zkp::PublicKey::from_slice(pubkey)
+                .map_err(AddressError::InvalidBlindingPubKey)?;
+
+            (prefix, Some(blinding_pubkey), hash)
         } else {
-            return Err(AddressError::InvalidAddressVersion(prefix));
+            let hash = <&[u8; 20]>::try_from(blinded_data).map_err(|_| len_error)?;
+            (blinding_prefix, None, hash)
+        };
+
+        let payload = if *prefix == params.p2pkh_prefix {
+            Payload::PubkeyHash(PubkeyHash::from_byte_array(*hash))
+        } else if *prefix == params.p2sh_prefix {
+            Payload::ScriptHash(ScriptHash::from_byte_array(*hash))
+        } else {
+            return Err(AddressError::InvalidAddressVersion(*prefix));
         };
 
         Ok(Address {
