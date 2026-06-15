@@ -20,6 +20,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use bitcoin::{self, VarInt};
+use internals::slice::SliceExt;
 use crate::hashes::Hash;
 
 use crate::{confidential, ContractHash};
@@ -432,12 +433,12 @@ impl<'tx> PeginData<'tx> {
         pegin_witness: &'tx [Vec<u8>],
         prevout: bitcoin::OutPoint,
     ) -> Result<PeginData<'tx>, &'static str> {
-        if pegin_witness.len() != 6 {
+        let Ok(pegin_witness) = <&[Vec<u8>; 6]>::try_from(pegin_witness)  else {
             return Err("size not 6");
-        }
-        if pegin_witness[5].len() < 80 {
+        };
+        let Some((block_header, _)) = SliceExt::split_first_chunk::<80>(pegin_witness[5].as_slice()) else {
             return Err("merkle proof too short");
-        }
+        };
 
         Ok(PeginData {
             outpoint: prevout,
@@ -448,7 +449,7 @@ impl<'tx> PeginData<'tx> {
             claim_script: &pegin_witness[3],
             tx: &pegin_witness[4],
             merkle_proof: &pegin_witness[5],
-            referenced_block: bitcoin::BlockHash::hash(&pegin_witness[5][0..80]),
+            referenced_block: bitcoin::BlockHash::hash(block_header),
         })
     }
 
