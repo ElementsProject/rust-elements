@@ -14,10 +14,15 @@
 
 //! Helpers to calculate the genesis block for a given network.
 
-use crate::hashes::{sha256, Hash, HashEngine};
+use bitcoin::secp256k1::impl_array_newtype;
+use secp256k1_zkp::Tweak;
+use crate::hashes::{sha256, sha256d, Hash, HashEngine};
+use crate::opcodes::all::OP_RETURN;
 use crate::opcodes::OP_TRUE;
 use crate::pset::serialize::Serialize;
-use crate::{script, Script};
+use crate::{confidential, script, AssetId, Block, BlockExtData, BlockHash, BlockHeader, LockTime, Script, Sequence, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness};
+use crate::{AssetIssuance, ContractHash, OutPoint, Txid};
+use crate::confidential::Nonce;
 
 /// Parameters that influence chain consensus. The contents of the genesis block for a given network
 /// are defined by these values.
@@ -90,4 +95,161 @@ pub fn commit_to_custom_network_parameters(params: &NetworkParams) -> Vec<u8> {
     eng.input(format!("{:x}", params.fedpeg_script).as_bytes());
     eng.input(format!("{:x}", params.sign_block_script).as_bytes());
     sha256::Hash::from_engine(eng).serialize()
+}
+
+/// Produce the genesis transaction for a given elements Network
+fn liquid_genesis_tx(network_params: &NetworkParams) -> Transaction {
+    let commit = commit_to_custom_network_parameters(network_params);
+
+    let input = TxIn {
+        previous_output: OutPoint::default(),
+        is_pegin: false,
+        script_sig: script::Builder::new()
+            .push_slice(commit.as_slice())
+            .into_script(),
+        sequence: Sequence::default(),
+        asset_issuance: AssetIssuance::default(),
+        witness: TxInWitness::default(),
+    };
+
+    let output = TxOut {
+        asset: confidential::Asset::Explicit(AssetId::default()),
+        value: confidential::Value::Explicit(0),
+        nonce: Nonce::default(),
+        script_pubkey: script::Builder::new().push_opcode(OP_RETURN).into_script(),
+        witness: TxOutWitness::default(),
+    };
+
+    Transaction {
+        version: 1,
+        lock_time: LockTime::ZERO,
+        input: vec![input],
+        output: vec![output],
+    }
+}
+
+/// Create the confidential asset transaction for the genesis block if required by the specified Network
+fn liquid_genesis_asset_tx(network_params: &NetworkParams) -> Option<Transaction> {
+    let commit = commit_to_custom_network_parameters(network_params);
+    let asset_amount = network_params.initial_free_coins;
+    if asset_amount == 0 {
+        return None;
+    }
+    let asset_outpoint = OutPoint::new(Txid::from_slice(commit.as_slice()).expect("txid"), 0);
+    let contract_hash = ContractHash::from_byte_array([0u8; 32]);
+    let asset_entropy = AssetId::generate_asset_entropy(asset_outpoint, contract_hash);
+    let asset_id = AssetId::from_entropy(asset_entropy);
+
+    let asset_issuance = AssetIssuance {
+        asset_blinding_nonce: Tweak::default(),
+        asset_entropy: [0u8; 32],
+        amount: confidential::Value::Explicit(asset_amount),
+        inflation_keys: confidential::Value::Explicit(0),
+    };
+
+    let input = TxIn {
+        previous_output: asset_outpoint,
+        is_pegin: false,
+        script_sig: Script::new(),
+        sequence: Sequence::default(),
+        asset_issuance,
+        witness: TxInWitness::default(),
+    };
+
+    let output = TxOut {
+        asset: confidential::Asset::Explicit(asset_id),
+        value: confidential::Value::Explicit(asset_amount),
+        nonce: Nonce::default(),
+        script_pubkey: script::Builder::new().push_opcode(OP_TRUE).into_script(),
+        witness: TxOutWitness::default(),
+    };
+
+    let ret = Transaction {
+        version: 1,
+        lock_time: LockTime::ZERO,
+        input: vec![input],
+        output: vec![output],
+    };
+    Some(ret)
+}
+
+/// Constructs and returns the Liquid genesis blocks assuming default consensus parameters
+/// Does not return upstream bitcoin network blocks as they are a different format and can be
+/// acquired from the `rust-bitcoin` library
+pub fn genesis_block(params: &NetworkParams) -> Block {
+    let tx = liquid_genesis_tx(params);
+    let mut txdata = vec![tx.clone()];
+
+    let merkle_root: sha256d::Hash =
+        if let Some(asset_tx) = liquid_genesis_asset_tx(params) {
+            txdata.push(asset_tx.clone());
+            let tx_hashes = vec![tx.txid().to_raw_hash(), asset_tx.txid().to_raw_hash()];
+            bitcoin::merkle_tree::calculate_root(tx_hashes.into_iter())
+                .expect("merkle root")
+        } else {
+            tx.txid().to_raw_hash()
+        };
+
+    Block {
+        header: BlockHeader {
+            version: 1,
+            prev_blockhash: BlockHash::all_zeros(),
+            merkle_root: merkle_root.into(),
+            time: 1_296_688_602,
+            height: 0,
+            ext: BlockExtData::Proof {
+                challenge: params.sign_block_script.clone(),
+                solution: Script::default(),
+            },
+        },
+        txdata,
+    }
+}
+/// The uniquely identifying hash of the target blockchain.
+/// Liquid networks assume default consensus constants, Elements allows for modification of fedpeg and signblock scripts
+/// via configuration argument which will cause these values to differ so these are only for default parameters
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct ChainHash([u8; 32]);
+impl_array_newtype!(ChainHash, u8, 32);
+
+impl ChainHash {
+    /// `ChainHash` for Liquid v1 mainnet.
+    pub const LIQUIDV1: Self = Self([
+        3, 96, 32, 138, 136, 150, 146, 55, 44, 141, 104, 176, 132, 166, 46, 253, 246, 14, 161, 163,
+        89, 160, 76, 148, 178, 13, 34, 54, 88, 39, 102, 20,
+    ]);
+    /// `ChainHash` for Liquid testnet.
+    pub const LIQUIDTESTNET: Self = Self([
+        193, 177, 106, 226, 79, 36, 35, 174, 162, 234, 52, 85, 34, 146, 121, 59, 91, 94, 130, 153,
+        154, 30, 237, 129, 213, 106, 238, 82, 142, 218, 113, 167,
+    ]);
+
+    /// Calculates the chainhash for a set of network parameters
+    pub fn for_params(params: &NetworkParams) -> Self {
+        let genesis_block = genesis_block(params);
+        ChainHash(genesis_block.block_hash().to_byte_array())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::genesis::{genesis_block, ChainHash, NetworkParams};
+    use crate::hashes::Hash;
+
+    #[test]
+    fn genesis_block_hash() {
+        let genesis_block = genesis_block(&NetworkParams::liquidv1());
+        assert_eq!(
+            genesis_block.block_hash().to_byte_array(),
+            ChainHash::LIQUIDV1.0
+        );
+
+        let genesis_block =
+            crate::genesis::genesis_block(&NetworkParams::liquidtestnet());
+
+        assert_eq!(
+            genesis_block.block_hash().to_byte_array(),
+            ChainHash::LIQUIDTESTNET.0
+        );
+    }
 }
