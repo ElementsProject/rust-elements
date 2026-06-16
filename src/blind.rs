@@ -15,7 +15,6 @@
 //! # Transactions Blinding
 //!
 
-use internals::array::ArrayExt as _;
 use internals::slice::SliceExt;
 use std::{self, collections::BTreeMap, fmt};
 
@@ -201,26 +200,144 @@ impl From<secp256k1_zkp::Error> for ConfidentialTxOutError {
         ConfidentialTxOutError::Upstream(from)
     }
 }
-/// The Rangeproof message
-#[derive(Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
-pub struct RangeProofMessage {
-    /// The asset id
-    pub asset: AssetId,
-    /// The asset blinding factor
-    pub bf: AssetBlindingFactor,
-}
 
-impl RangeProofMessage {
-    /// Converts the message to bytes
-    pub fn to_bytes(&self) -> [u8; 64] {
-        let mut message = [0u8; 64];
+mod range_proof_message {
+    use core::fmt;
+    use internals::array::ArrayExt;
+    use secp256k1_zkp::{Generator, Signing, Secp256k1};
+    use super::{Asset, AssetId, AssetBlindingFactor};
 
-        message[..32].copy_from_slice(self.asset.into_tag().as_ref());
-        message[32..].copy_from_slice(self.bf.into_inner().as_ref());
+    /// The Rangeproof message
+    #[derive(Debug, Clone, Eq, PartialEq, Hash, Ord, PartialOrd)]
+    pub struct RangeProofMessage {
+        /// The asset id
+        asset_id: AssetId,
+        /// The asset blinding factor
+        asset_bf: AssetBlindingFactor,
+    }
 
-        message
+    impl RangeProofMessage {
+        /// Constructs a [`RangeProofMessage`] from an asset ID and blinding factor.
+        pub fn new(asset_id: AssetId, asset_bf: AssetBlindingFactor) -> Self {
+            Self { asset_id, asset_bf }
+        }
+
+        /// The asset ID embedded in the rangeproof message.
+        pub fn asset_id(&self) -> &AssetId {
+            &self.asset_id
+        }
+
+        /// The asset blinding factor embedded in the rangeproof message.
+        pub fn blinding_factor(&self) -> &AssetBlindingFactor {
+            &self.asset_bf
+        }
+
+        /// Computes the commmitment of the rangeproof message.
+        pub fn commitment<C: Signing>(&self, secp: &Secp256k1<C>) -> Generator {
+            Generator::new_blinded(secp, self.asset_id.into_tag(), self.asset_bf.into_inner())
+        }
+
+        /// Parses a message from bytes
+        pub fn from_byte_array<C: Signing>(
+            secp: &Secp256k1<C>,
+            inner: [u8; 64],
+            expected_asset: &Asset,
+        ) -> Result<Self, RangeProofMessageError> {
+            let (asset_id, asset_bf) = inner.split_array::<32, 32>();
+            let ret = Self {
+                asset_id: AssetId::from_byte_array(*asset_id),
+                asset_bf: AssetBlindingFactor::from_byte_array(*asset_bf)
+                    .map_err(RangeProofMessageError::BlindingFactorOutOfRange)?,
+            };
+
+            match expected_asset {
+                Asset::Null => return Err(RangeProofMessageError::NullExpectedAsset),
+                Asset::Explicit(asset_id) => {
+                    if ret.asset_id != *asset_id {
+                        return Err(RangeProofMessageError::ExplicitAssetMismatch {
+                            in_txout: *asset_id,
+                            in_message: ret.asset_id,
+                        })
+                    }
+                    if ret.asset_bf != AssetBlindingFactor::zero() {
+                        return Err(RangeProofMessageError::ExplicitAssetNonzeroBf {
+                            blinding_factor: ret.asset_bf,
+                        });
+                    }
+                }
+                Asset::Confidential(commitment) => {
+                    let ret_commitment = ret.commitment(secp);
+                    if ret_commitment != *commitment {
+                        return Err(RangeProofMessageError::ConfidentialAssetMismatch {
+                            in_txout: *commitment,
+                            in_message: ret_commitment,
+                        })
+                    }
+                }
+            }
+            
+            Ok(ret)
+        }
+        
+        /// Converts the message to bytes
+        pub fn to_byte_array(&self) -> [u8; 64] {
+            let mut message = [0u8; 64];
+            message[..32].copy_from_slice(self.asset_id.into_tag().as_ref());
+            message[32..].copy_from_slice(self.asset_bf.into_inner().as_ref());
+            message
+        }
+    }
+
+    #[non_exhaustive]
+    #[derive(PartialEq, Eq, Clone, Debug)]
+    pub enum RangeProofMessageError {
+        NullExpectedAsset,
+        ExplicitAssetMismatch {
+            in_txout: AssetId,
+            in_message: AssetId,
+        },
+        ExplicitAssetNonzeroBf {
+            blinding_factor: AssetBlindingFactor,
+        },
+        ConfidentialAssetMismatch {
+            in_txout: Generator,
+            in_message: Generator,
+        },
+        BlindingFactorOutOfRange(secp256k1_zkp::Error),
+    }
+
+    impl fmt::Display for RangeProofMessageError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            match *self {
+                Self::NullExpectedAsset => f.write_str("rangeproof associated with null asset"),
+                Self::ExplicitAssetMismatch { in_txout, in_message } => {
+                    write!(f, "txout had explicit asset ID {in_txout}, but rangeproof encoded asset ID {in_message}")
+                }
+                Self::ExplicitAssetNonzeroBf { blinding_factor } => {
+                    write!(f, "txout had explicit asset ID, but rangeproof encoded a nonzero asset blinding factor {blinding_factor}")
+                }
+                Self::ConfidentialAssetMismatch { in_txout, in_message } => {
+                    write!(f, "txout had asset commitment {in_txout}, but rangeproof encoded asset commitment {in_message}")
+                }
+                Self::BlindingFactorOutOfRange(ref e) => e.fmt(f),
+            }
+        }
+    }
+
+    impl std::error::Error for RangeProofMessageError {
+        fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+            match *self {
+                Self::NullExpectedAsset => None,
+                Self::ExplicitAssetMismatch { .. } => None,
+                Self::ExplicitAssetNonzeroBf { .. } => None,
+                Self::ConfidentialAssetMismatch { .. } => None,
+                Self::BlindingFactorOutOfRange(ref e) => Some(e),
+            }
+            
+        }
     }
 }
+pub use self::range_proof_message::{RangeProofMessage, RangeProofMessageError};
 
 /// Information about Transaction Input Asset
 #[cfg_attr(
@@ -432,8 +549,7 @@ impl Value {
         let value = self
             .explicit()
             .ok_or(ConfidentialTxOutError::ExpectedExplicitValue)?;
-        let out_asset_commitment =
-            Generator::new_blinded(secp, msg.asset.into_tag(), msg.bf.into_inner());
+        let out_asset_commitment = msg.commitment(secp);
         let value_commitment = Value::new_confidential(secp, value, out_asset_commitment, vbf);
 
         let rangeproof = RangeProof::new(
@@ -442,7 +558,7 @@ impl Value {
             value_commitment.commitment().expect("confidential value"),
             value,
             vbf.into_inner(),
-            &msg.to_bytes(),
+            &msg.to_byte_array(),
             spk.as_bytes(),
             shared_secret,
             TxOut::RANGEPROOF_EXP_SHIFT,
@@ -536,10 +652,10 @@ impl TxOut {
         let (out_asset, surjection_proof) =
             exp_asset.blind(rng, secp, out_secrets.asset_bf, spent_utxo_secrets)?;
 
-        let msg = RangeProofMessage {
-            asset: out_secrets.asset,
-            bf: out_secrets.asset_bf,
-        };
+        let msg = RangeProofMessage::new(
+            out_secrets.asset,
+            out_secrets.asset_bf,
+        );
         let exp_value = Value::Explicit(out_secrets.value);
         let (out_value, nonce, range_proof) = exp_value.blind(
             secp,
@@ -735,7 +851,7 @@ impl TxOut {
     /// Unblinds a transaction output, if it is confidential.
     ///
     /// It returns the secret elements of the value and asset Pedersen commitments.
-    pub fn unblind<C: Verification>(
+    pub fn unblind<C: Signing + Verification>(
         &self,
         secp: &Secp256k1<C>,
         blinding_key: SecretKey,
@@ -760,34 +876,22 @@ impl TxOut {
             shared_secret,
             self.script_pubkey.as_bytes(),
             additional_generator,
-        )?;
-
-        // Use `MissingRangeproof` error because it's available so does not require
-        // API breaks. In a later PR we should extend that enum and add #[non_exhaustive]
-        // to it. The maybe-better `MalformedAssetId` error requires we start with a
-        // std `FromSliceError` which we don't have.
-        let asset_and_bf = SliceExt::split_first_chunk::<64>(opening.message.as_ref())
-            .ok_or(UnblindError::MissingRangeproof)?
-            .0;
-        let (asset_id, asset_bf) = asset_and_bf.split_array();
-
-        let asset_id = AssetId::from_byte_array(*asset_id);
-        let asset_bf = AssetBlindingFactor::from_byte_array(*asset_bf)?;
-        if let Asset::Confidential(own_asset) = self.asset {
-            let secp = Secp256k1::signing_only(); // needed to avoid API break
-            let asset = Generator::new_blinded(&secp, asset_id.into_tag(), asset_bf.into_inner());
-            if asset != own_asset {
-                // See above about use of MissingRangeproof.
-                return Err(UnblindError::MissingRangeproof);
-            }
-        }
+        ).map_err(UnblindError::Rewind)?;
 
         let value = opening.value;
         let value_bf = ValueBlindingFactor(opening.blinding_factor);
+        let asset_and_bf = SliceExt::split_first_chunk::<64>(opening.message.as_ref())
+            .ok_or(UnblindError::MissingRangeproof)?
+            .0;
+        let message = RangeProofMessage::from_byte_array(
+            secp,
+            *asset_and_bf,
+            &self.asset,
+        ).map_err(UnblindError::RangeProofMessage)?;
 
         Ok(TxOutSecrets {
-            asset: asset_id,
-            asset_bf,
+            asset: *message.asset_id(),
+            asset_bf: *message.blinding_factor(),
             value,
             value_bf,
         })
@@ -796,6 +900,7 @@ impl TxOut {
 
 /// Errors encountered when unblinding `TxOut`s.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum UnblindError {
     /// The `TxOut` is not fully confidential.
     NotConfidential,
@@ -803,18 +908,18 @@ pub enum UnblindError {
     MissingNonce,
     /// Transaction output does not have a rangeproof.
     MissingRangeproof,
-    /// Malformed asset ID.
-    MalformedAssetId(core::array::TryFromSliceError),
+    /// Malformed rangeproof message.
+    RangeProofMessage(RangeProofMessageError),
     /// Error originated in `secp256k1_zkp`.
-    Upstream(secp256k1_zkp::Error),
+    Rewind(secp256k1_zkp::Error),
 }
 
 impl fmt::Display for UnblindError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> Result<(), fmt::Error> {
         match self {
             UnblindError::MissingNonce => write!(f, "missing nonce in txout"),
-            UnblindError::MalformedAssetId(_) => write!(f, "malformed asset id"),
-            UnblindError::Upstream(e) => write!(f, "{}", e),
+            UnblindError::RangeProofMessage(_) => f.write_str("failed to parse message embedded in rangeproof"),
+            UnblindError::Rewind(_) => f.write_str("failed to rewind rangeproof"),
             UnblindError::NotConfidential => write!(f, "cannot unblind non-confidential txout"),
             UnblindError::MissingRangeproof => write!(f, "missing rangeproof in txout"),
         }
@@ -825,17 +930,11 @@ impl std::error::Error for UnblindError {
     fn cause(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             UnblindError::MissingNonce => None,
-            UnblindError::MalformedAssetId(e) => Some(e),
-            UnblindError::Upstream(e) => Some(e),
+            UnblindError::RangeProofMessage(e) => Some(e),
+            UnblindError::Rewind(e) => Some(e),
             UnblindError::NotConfidential => None,
             UnblindError::MissingRangeproof => None,
         }
-    }
-}
-
-impl From<secp256k1_zkp::Error> for UnblindError {
-    fn from(from: secp256k1_zkp::Error) -> Self {
-        UnblindError::Upstream(from)
     }
 }
 
@@ -871,10 +970,10 @@ impl TxIn {
                 Value::Explicit(v) => Value::Explicit(v),
             };
             let spk = Script::new();
-            let msg = RangeProofMessage {
+            let msg = RangeProofMessage::new(
                 asset,
-                bf: AssetBlindingFactor::zero(),
-            };
+                AssetBlindingFactor::zero(),
+            );
             let (comm, prf) = v.blind_with_shared_secret(secp, bf, blind_sk, &spk, &msg)?;
             if i == 0 {
                 self.asset_issuance.amount = comm;
