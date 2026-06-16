@@ -1,1 +1,2 @@
 avoid-breaking-exported-api = true
+large-error-threshold = 192 # default 128 complains about two public keys in RangeProofMessageError
