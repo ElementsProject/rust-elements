@@ -15,6 +15,8 @@
 //! # Transactions Blinding
 //!
 
+use crate::internals::array::ArrayExt as _;
+use crate::internals::slice::SliceExt;
 use std::{self, collections::BTreeMap, fmt};
 
 use secp256k1_zkp::{
@@ -774,15 +776,31 @@ impl TxOut {
             additional_generator,
         )?;
 
-        let (asset, asset_bf) = opening.message.as_ref().split_at(32);
-        let asset = AssetId::from_slice(asset)?;
-        let asset_bf = AssetBlindingFactor::from_slice(&asset_bf[..32])?;
+        // Use `MissingRangeproof` error because it's available so does not require
+        // API breaks. In a later PR we should extend that enum and add #[non_exhaustive]
+        // to it. The maybe-better `MalformedAssetId` error requires we start with a
+        // std `FromSliceError` which we don't have.
+        let asset_and_bf = SliceExt::split_first_chunk::<64>(opening.message.as_ref())
+            .ok_or(UnblindError::MissingRangeproof)?
+            .0;
+        let (asset_id, asset_bf) = asset_and_bf.split_array();
+
+        let asset_id = AssetId::from_byte_array(*asset_id);
+        let asset_bf = AssetBlindingFactor::from_byte_array(*asset_bf)?;
+        if let Asset::Confidential(own_asset) = self.asset {
+            let secp = Secp256k1::signing_only(); // needed to avoid API break
+            let asset = Generator::new_blinded(&secp, asset_id.into_tag(), asset_bf.into_inner());
+            if asset != own_asset {
+                // See above about use of MissingRangeproof.
+                return Err(UnblindError::MissingRangeproof);
+            }
+        }
 
         let value = opening.value;
         let value_bf = ValueBlindingFactor(opening.blinding_factor);
 
         Ok(TxOutSecrets {
-            asset,
+            asset: asset_id,
             asset_bf,
             value,
             value_bf,

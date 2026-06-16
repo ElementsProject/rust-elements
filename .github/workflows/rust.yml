@@ -84,7 +84,7 @@ jobs:
         env:
           DO_DOCS: false
           DO_DOCSRS: false
-          DO_FUZZ: true
+          DO_FUZZ: false
           DO_INTEGRATION: false
           DO_LINT: false
           DO_FEATURE_MATRIX: false

@@ -75,6 +75,11 @@ impl AssetId {
         0x3d, 0x1c, 0x04, 0xed, 0xe9, 0x79, 0x02, 0x6f,
     ]));
 
+    /// Constructs this wrapper struct from raw bytes.
+    pub fn from_byte_array(inner: [u8; 32]) -> Self {
+        Self(sha256::Midstate::from_byte_array(inner))
+    }
+
     /// Create an [AssetId] from its inner type.
     pub const fn from_inner(midstate: sha256::Midstate) -> AssetId {
         AssetId(midstate)

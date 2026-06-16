@@ -17,7 +17,6 @@
 //! Defines traits used for (de)serializing PSET values into/from raw
 //! bytes in PSET key-value pairs.
 
-use std::convert::TryFrom;
 use std::io;
 
 use crate::confidential::{self, AssetBlindingFactor};
@@ -30,6 +29,7 @@ use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
 use bitcoin;
 use bitcoin::bip32::{ChildNumber, Fingerprint, KeySource};
 use bitcoin::{key::XOnlyPublicKey, PublicKey};
+use crate::internals::slice::SliceExt;
 use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
 
 use super::map::{PsbtSighashType, TapTree};
@@ -176,20 +176,17 @@ impl Serialize for KeySource {
 
 impl Deserialize for KeySource {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let prefix = match <[u8; 4]>::try_from(&bytes[0..4]) {
-            Ok(prefix) => prefix,
-            Err(_) => return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into()),
+        let (prefix, mut rest) = match SliceExt::split_first_chunk::<4>(bytes) {
+            Some(v) => v,
+            None => return Err(io::Error::from(io::ErrorKind::UnexpectedEof).into()),
         };
 
         let fprint: Fingerprint = Fingerprint::from(prefix);
         let mut dpath: Vec<ChildNumber> = Default::default();
 
-        let mut d = &bytes[4..];
-        while !d.is_empty() {
-            match u32::consensus_decode(&mut d) {
-                Ok(index) => dpath.push(index.into()),
-                Err(e) => return Err(e),
-            }
+        while !rest.is_empty() {
+            let index = u32::consensus_decode(&mut rest)?;
+            dpath.push(index.into());
         }
 
         Ok((fprint, dpath.into()))
