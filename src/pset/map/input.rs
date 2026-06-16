@@ -688,7 +688,7 @@ impl Map for Input {
                 )?;
             }
             PSET_IN_PREVIOUS_TXID | PSET_IN_OUTPUT_INDEX => {
-                return Err(Error::DuplicateKey(raw_key))?;
+                return Err(Error::DuplicateKey(raw_key).into());
             }
             PSET_IN_SEQUENCE => {
                 impl_pset_insert_pair! {

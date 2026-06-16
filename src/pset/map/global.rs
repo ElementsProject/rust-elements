@@ -174,7 +174,7 @@ impl Map for Global {
                         }
                         self.scalars.push(scalar);
                     } else {
-                        return Err(Error::InvalidKey(raw_key))?;
+                        return Err(Error::InvalidKey(raw_key).into());
                     }
                 } else if prop_key.is_pset_key()
                     && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
@@ -182,7 +182,7 @@ impl Map for Global {
                     if prop_key.key.is_empty() && raw_value.len() == 1 {
                         self.elements_tx_modifiable_flag = Some(raw_value[0]);
                     } else {
-                        return Err(Error::InvalidKey(raw_key))?;
+                        return Err(Error::InvalidKey(raw_key).into());
                     }
                 } else {
                     match self.proprietary.entry(prop_key) {
@@ -467,7 +467,7 @@ impl Decodable for Global {
                                     }
                                     scalars.push(scalar);
                                 } else {
-                                    return Err(Error::InvalidKey(raw_key))?;
+                                    return Err(Error::InvalidKey(raw_key).into());
                                 }
                             } else if prop_key.is_pset_key()
                                 && prop_key.subtype == PSBT_ELEMENTS_GLOBAL_TX_MODIFIABLE
@@ -475,7 +475,7 @@ impl Decodable for Global {
                                 if prop_key.key.is_empty() && raw_value.len() == 1 {
                                     elements_tx_modifiable_flag = Some(raw_value[0]);
                                 } else {
-                                    return Err(Error::InvalidKey(raw_key))?;
+                                    return Err(Error::InvalidKey(raw_key).into());
                                 }
                             } else {
                                 match proprietary.entry(prop_key) {
@@ -506,7 +506,7 @@ impl Decodable for Global {
         // Mandatory fields
         let version = version.ok_or(Error::IncorrectPsetVersion)?;
         if version != 2 {
-            return Err(Error::IncorrectPsetVersion)?;
+            return Err(Error::IncorrectPsetVersion.into());
         }
         let tx_version = tx_version.ok_or(Error::MissingTxVersion)?;
         let input_count = input_count.ok_or(Error::MissingInputCount)?.0 as usize;
