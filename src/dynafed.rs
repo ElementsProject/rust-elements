@@ -85,17 +85,17 @@ impl Serialize for HexBytesArray<'_> {
 #[derive(Clone, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub struct FullParams {
     /// "scriptPubKey" used for block signing
-    signblockscript: Script,
+    pub signblockscript: Script,
     /// Maximum, in bytes, of the size of a blocksigning witness
-    signblock_witness_limit: u32,
+    pub signblock_witness_limit: u32,
     /// Untweaked `scriptPubKey` used for pegins
-    fedpeg_program: bitcoin::ScriptBuf,
+    pub fedpeg_program: bitcoin::ScriptBuf,
     /// For v0 fedpeg programs, the witness script of the untweaked
     /// pegin address. For future versions, this data has no defined
     /// meaning and will be considered "anyone can spend".
-    fedpegscript: Vec<u8>,
+    pub fedpegscript: Vec<u8>,
     /// "Extension space" used by Liquid for PAK key entries
-    extension_space: Vec<Vec<u8>>,
+    pub extension_space: Vec<Vec<u8>>,
 }
 
 impl FullParams {
