@@ -19,7 +19,6 @@ use secp256k1_zkp::Tweak;
 use crate::hashes::{sha256, sha256d, Hash, HashEngine};
 use crate::opcodes::all::OP_RETURN;
 use crate::opcodes::OP_TRUE;
-use crate::pset::serialize::Serialize;
 use crate::{confidential, script, AssetId, Block, BlockExtData, BlockHash, BlockHeader, LockTime, Script, Sequence, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness};
 use crate::{AssetIssuance, ContractHash, OutPoint, Txid};
 use crate::confidential::Nonce;
@@ -89,12 +88,18 @@ impl NetworkParams {
 }
 
 /// Hash commitment of network parameters for a given Network
-pub fn commit_to_custom_network_parameters(params: &NetworkParams) -> Vec<u8> {
+pub fn commit_to_custom_network_parameters(params: &NetworkParams) -> sha256::Hash {
+    use hex::{BytesToHexIter, Case};
+    
     let mut eng = sha256::Hash::engine();
     eng.input(params.network_id.clone().as_bytes());
-    eng.input(format!("{:x}", params.fedpeg_script).as_bytes());
-    eng.input(format!("{:x}", params.sign_block_script).as_bytes());
-    sha256::Hash::from_engine(eng).serialize()
+    for ch in BytesToHexIter::new(params.fedpeg_script[..].iter(), Case::Lower).flatten() {
+        eng.input(&[ch.into()]);
+    }
+    for ch in BytesToHexIter::new(params.sign_block_script[..].iter(), Case::Lower).flatten() {
+        eng.input(&[ch.into()]);
+    }
+    sha256::Hash::from_engine(eng)
 }
 
 /// Produce the genesis transaction for a given elements Network
@@ -105,7 +110,7 @@ fn liquid_genesis_tx(network_params: &NetworkParams) -> Transaction {
         previous_output: OutPoint::default(),
         is_pegin: false,
         script_sig: script::Builder::new()
-            .push_slice(commit.as_slice())
+            .push_slice(commit.as_byte_array())
             .into_script(),
         sequence: Sequence::default(),
         asset_issuance: AssetIssuance::default(),
@@ -135,7 +140,7 @@ fn liquid_genesis_asset_tx(network_params: &NetworkParams) -> Option<Transaction
     if asset_amount == 0 {
         return None;
     }
-    let asset_outpoint = OutPoint::new(Txid::from_slice(commit.as_slice()).expect("txid"), 0);
+    let asset_outpoint = OutPoint::new(Txid::from_byte_array(commit.to_byte_array()), 0);
     let contract_hash = ContractHash::from_byte_array([0u8; 32]);
     let asset_entropy = AssetId::generate_asset_entropy(asset_outpoint, contract_hash);
     let asset_id = AssetId::from_entropy(asset_entropy);
@@ -183,8 +188,8 @@ pub fn genesis_block(params: &NetworkParams) -> Block {
     let merkle_root: sha256d::Hash =
         if let Some(asset_tx) = liquid_genesis_asset_tx(params) {
             txdata.push(asset_tx.clone());
-            let tx_hashes = vec![tx.txid().to_raw_hash(), asset_tx.txid().to_raw_hash()];
-            bitcoin::merkle_tree::calculate_root(tx_hashes.into_iter())
+            let tx_hashes = [tx.txid().to_raw_hash(), asset_tx.txid().to_raw_hash()];
+            bitcoin::merkle_tree::calculate_root(tx_hashes.iter().copied())
                 .expect("merkle root")
         } else {
             tx.txid().to_raw_hash()

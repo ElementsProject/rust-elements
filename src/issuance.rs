@@ -167,8 +167,8 @@ impl AssetId {
     /// a Regtest parent network
     fn pegged_asset_id_for_params_and_parent_chain_hash(params: &NetworkParams, parent_chainhash: bitcoin::blockdata::constants::ChainHash) -> AssetId {
         let commit = commit_to_custom_network_parameters(params);
-        let asset_outpoint = OutPoint::new(Txid::from_slice(commit.as_slice()).expect("txid"), 0);
-        let asset_entropy = AssetId::generate_asset_entropy(asset_outpoint, ContractHash::from_slice(parent_chainhash.to_bytes().as_slice()).unwrap());
+        let asset_outpoint = OutPoint::new(Txid::from_byte_array(commit.to_byte_array()), 0);
+        let asset_entropy = AssetId::generate_asset_entropy(asset_outpoint, ContractHash::from_byte_array(*parent_chainhash.as_ref()));
         AssetId::from_entropy(asset_entropy)
     }
 }
