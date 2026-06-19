@@ -422,7 +422,7 @@ macro_rules! impl_sha256_midstate_wrapper {
 
             /// (Private) convert a sha256 midstate to an object.
             fn from_midstate(value: crate::hashes::sha256::Midstate) -> Self {
-                Self(value.to_byte_array())
+                Self(value.to_parts().0)
             }
         }
 

@@ -332,7 +332,7 @@ impl Default for Input {
             sha256_preimages: BTreeMap::new(),
             hash160_preimages: BTreeMap::new(),
             hash256_preimages: BTreeMap::new(),
-            previous_txid: Txid::all_zeros(),
+            previous_txid: Txid::COINBASE_PREVOUT,
             previous_output_index: 0,
             sequence: None,
             required_time_locktime: None,
@@ -656,7 +656,7 @@ impl Map for Input {
                 }
             }
             PSET_IN_RIPEMD160 => {
-                pset_insert_hash_pair(
+                pset_insert_hash_pair::<ripemd160::HashEngine>(
                     &mut self.ripemd160_preimages,
                     raw_key,
                     &raw_value,
@@ -664,7 +664,7 @@ impl Map for Input {
                 )?;
             }
             PSET_IN_SHA256 => {
-                pset_insert_hash_pair(
+                pset_insert_hash_pair::<sha256::HashEngine>(
                     &mut self.sha256_preimages,
                     raw_key,
                     &raw_value,
@@ -672,7 +672,7 @@ impl Map for Input {
                 )?;
             }
             PSET_IN_HASH160 => {
-                pset_insert_hash_pair(
+                pset_insert_hash_pair::<hash160::HashEngine>(
                     &mut self.hash160_preimages,
                     raw_key,
                     &raw_value,
@@ -680,7 +680,7 @@ impl Map for Input {
                 )?;
             }
             PSET_IN_HASH256 => {
-                pset_insert_hash_pair(
+                pset_insert_hash_pair::<sha256d::HashEngine>(
                     &mut self.hash256_preimages,
                     raw_key,
                     &raw_value,
@@ -1171,26 +1171,29 @@ impl Decodable for Input {
     }
 }
 
-fn pset_insert_hash_pair<H>(
-    map: &mut BTreeMap<H, Vec<u8>>,
+fn pset_insert_hash_pair<Eng>(
+    map: &mut BTreeMap<Eng::Hash, Vec<u8>>,
     raw_key: raw::Key,
     raw_value: &[u8],
     hash_type: error::PsetHash,
 ) -> Result<(), encode::Error>
 where
-    H: hashes::Hash + serialize::Deserialize,
+    Eng: hashes::HashEngine + Default,
+    Eng::Hash: serialize::Deserialize,
 {
     if raw_key.key.is_empty() {
         return Err(pset::Error::InvalidKey(raw_key).into());
     }
-    let key_val: H = serialize::Deserialize::deserialize(&raw_key.key)?;
+    let key_val: Eng::Hash = serialize::Deserialize::deserialize(&raw_key.key)?;
     match map.entry(key_val) {
         Entry::Vacant(empty_key) => {
             let val: Vec<u8> = serialize::Deserialize::deserialize(raw_value)?;
-            if <H as hashes::Hash>::hash(&val) != key_val {
+            let mut eng = Eng::default();
+            eng.input(&val);
+            if eng.finalize() != key_val {
                 return Err(pset::Error::InvalidPreimageHashPair {
                     preimage: val,
-                    hash: Vec::from(key_val.borrow()),
+                    hash: key_val.as_byte_array().as_ref().to_vec(),
                     hash_type,
                 }
                 .into());

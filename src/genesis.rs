@@ -16,10 +16,9 @@
 
 use bitcoin::secp256k1::impl_array_newtype;
 use secp256k1_zkp::Tweak;
-use crate::hashes::{sha256, sha256d, Hash, HashEngine};
+use crate::hashes::{sha256, HashEngine};
 use crate::opcodes::all::OP_RETURN;
 use crate::opcodes::OP_TRUE;
-use crate::pset::serialize::Serialize;
 use crate::{confidential, script, AssetId, Block, BlockExtData, BlockHash, BlockHeader, LockTime, Script, Sequence, Transaction, TxIn, TxInWitness, TxOut, TxOutWitness};
 use crate::{AssetIssuance, ContractHash, OutPoint, Txid};
 use crate::confidential::Nonce;
@@ -89,12 +88,18 @@ impl NetworkParams {
 }
 
 /// Hash commitment of network parameters for a given Network
-pub fn commit_to_custom_network_parameters(params: &NetworkParams) -> Vec<u8> {
+pub fn commit_to_custom_network_parameters(params: &NetworkParams) -> sha256::Hash {
+    use hex::{BytesToHexIter, Case};
+    
     let mut eng = sha256::Hash::engine();
     eng.input(params.network_id.clone().as_bytes());
-    eng.input(format!("{:x}", params.fedpeg_script).as_bytes());
-    eng.input(format!("{:x}", params.sign_block_script).as_bytes());
-    sha256::Hash::from_engine(eng).serialize()
+    for ch in BytesToHexIter::new(params.fedpeg_script[..].iter(), Case::Lower).flatten() {
+        eng.input(&[ch.into()]);
+    }
+    for ch in BytesToHexIter::new(params.sign_block_script[..].iter(), Case::Lower).flatten() {
+        eng.input(&[ch.into()]);
+    }
+    sha256::Hash::from_engine(eng)
 }
 
 /// Produce the genesis transaction for a given elements Network
@@ -105,7 +110,7 @@ fn liquid_genesis_tx(network_params: &NetworkParams) -> Transaction {
         previous_output: OutPoint::default(),
         is_pegin: false,
         script_sig: script::Builder::new()
-            .push_slice(commit.as_slice())
+            .push_slice(commit.as_byte_array())
             .into_script(),
         sequence: Sequence::default(),
         asset_issuance: AssetIssuance::default(),
@@ -135,7 +140,7 @@ fn liquid_genesis_asset_tx(network_params: &NetworkParams) -> Option<Transaction
     if asset_amount == 0 {
         return None;
     }
-    let asset_outpoint = OutPoint::new(Txid::from_slice(commit.as_slice()).expect("txid"), 0);
+    let asset_outpoint = OutPoint::new(Txid::from_byte_array(commit.to_byte_array()), 0);
     let contract_hash = ContractHash::from_byte_array([0u8; 32]);
     let asset_entropy = AssetId::generate_asset_entropy(asset_outpoint, contract_hash);
     let asset_id = AssetId::from_entropy(asset_entropy);
@@ -180,21 +185,31 @@ pub fn genesis_block(params: &NetworkParams) -> Block {
     let tx = liquid_genesis_tx(params);
     let mut txdata = vec![tx.clone()];
 
-    let merkle_root: sha256d::Hash =
+    let merkle_root: crate::TxMerkleNode =
         if let Some(asset_tx) = liquid_genesis_asset_tx(params) {
+            // To use `bitcoin::merkle_tree::calculate_root` from bitcoin 0.32, we need a hash
+            // with fairly specific trait bounds, even though it's just used as a byte array.
+            // sha256d::Hash from the rust-bitcoin version of bitcoin_hashes works.
+            use bitcoin::hashes::sha256d::Hash as MerkleHash;
+            use bitcoin::hashes::Hash as _;
+
             txdata.push(asset_tx.clone());
-            let tx_hashes = vec![tx.txid().to_raw_hash(), asset_tx.txid().to_raw_hash()];
-            bitcoin::merkle_tree::calculate_root(tx_hashes.into_iter())
-                .expect("merkle root")
+            let tx_hashes = [
+                MerkleHash::from_byte_array(tx.txid().to_byte_array()),
+                MerkleHash::from_byte_array(asset_tx.txid().to_byte_array()),
+            ];
+            let root = bitcoin::merkle_tree::calculate_root(tx_hashes.iter().copied())
+                .expect("merkle root");
+            crate::TxMerkleNode::from_byte_array(root.to_byte_array())
         } else {
-            tx.txid().to_raw_hash()
+            crate::TxMerkleNode::from_byte_array(tx.txid().to_byte_array())
         };
 
     Block {
         header: BlockHeader {
             version: 1,
-            prev_blockhash: BlockHash::all_zeros(),
-            merkle_root: merkle_root.into(),
+            prev_blockhash: BlockHash::GENESIS_PREVIOUS_BLOCK_HASH,
+            merkle_root,
             time: 1_296_688_602,
             height: 0,
             ext: BlockExtData::Proof {
@@ -234,7 +249,6 @@ impl ChainHash {
 #[cfg(test)]
 mod test {
     use crate::genesis::{genesis_block, ChainHash, NetworkParams};
-    use crate::hashes::Hash;
 
     #[test]
     fn genesis_block_hash() {

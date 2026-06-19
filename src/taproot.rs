@@ -16,35 +16,48 @@
 use std::cmp::Reverse;
 use std::{error, io, fmt};
 
-use crate::hashes::{sha256t_hash_newtype, Hash, HashEngine};
+use crate::hashes::HashEngine as _;
 use crate::schnorr::{UntweakedPublicKey, TweakedPublicKey, TapTweak};
 use crate::Script;
 use std::collections::{BTreeMap, BTreeSet, BinaryHeap};
+use hashes::sha256t;
 use secp256k1_zkp::{self, Secp256k1, Scalar};
 use crate::encode::Encodable;
 
-// Taproot test vectors from BIP-341 state the hashes without any reversing
-sha256t_hash_newtype! {
+hashes::sha256t_tag! {
     pub struct TapLeafTag = hash_str("TapLeaf/elements");
-    /// Taproot-tagged hash for elements tapscript Merkle tree leafs.
-    #[hash_newtype(forward)]
-    pub struct TapLeafHash(_);
-
-    pub struct TapBranchTag = hash_str("TapBranch/elements");
-    /// Tagged hash used in taproot trees; see BIP-340 for tagging rules.
-    #[hash_newtype(forward)]
-    pub struct TapNodeHash(_);
-
-    pub struct TapTweakTag = hash_str("TapTweak/elements");
-    /// Taproot-tagged hash for elements public key tweaks.
-    #[hash_newtype(forward)]
-    pub struct TapTweakHash(_);
-
-    pub struct TapSighashTag = hash_str("TapSighash/elements");
-    /// Taproot-tagged hash for the elements taproot signature hash.
-    #[hash_newtype(forward)]
-    pub struct TapSighashHash(_);
 }
+hashes::sha256t_tag! {
+    pub struct TapBranchTag = hash_str("TapBranch/elements");
+}
+hashes::sha256t_tag! {
+    pub struct TapTweakTag = hash_str("TapTweak/elements");
+}
+hashes::sha256t_tag! {
+    pub struct TapSighashTag = hash_str("TapSighash/elements");
+}
+
+// Taproot test vectors from BIP-341 state the hashes without any reversing
+hashes::hash_newtype! {
+    /// Taproot-tagged hash for elements tapscript Merkle tree leafs.
+    pub struct TapLeafHash(sha256t::Hash::<TapLeafTag>);
+
+    /// Tagged hash used in taproot trees; see BIP-340 for tagging rules.
+    pub struct TapNodeHash(sha256t::Hash::<TapBranchTag>);
+
+    /// Taproot-tagged hash for elements public key tweaks.
+    pub struct TapTweakHash(sha256t::Hash::<TapTweakTag>);
+
+    /// Taproot-tagged hash for the elements taproot signature hash.
+    pub struct TapSighashHash(pub(crate) sha256t::Hash::<TapSighashTag>);
+}
+
+hashes::impl_hex_for_newtype!(TapLeafHash, TapNodeHash, TapTweakHash);
+#[cfg(feature = "serde")]
+hashes::impl_serde_for_newtype!(TapLeafHash, TapNodeHash, TapTweakHash);
+// We do not implement serde or display/fromstr for 'Sighash'. In general it's dangerous
+// to deserialize sighashes; they must be the output of a cryptographic hash function.
+hashes::impl_debug_only_for_newtype!(TapSighashHash);
 
 impl TapTweakHash {
 
@@ -54,7 +67,7 @@ impl TapTweakHash {
         internal_key: UntweakedPublicKey,
         merkle_root: Option<TapNodeHash>,
     ) -> TapTweakHash {
-        let mut eng = TapTweakHash::engine();
+        let mut eng = sha256t::Hash::engine();
         // always hash the key
         eng.input(&internal_key.serialize());
         if let Some(h) = merkle_root {
@@ -62,7 +75,7 @@ impl TapTweakHash {
         } else {
             // nothing to hash
         }
-        TapTweakHash::from_engine(eng)
+        TapTweakHash(eng.finalize())
     }
 
     /// Converts a `TapTweakHash` into a `Scalar` ready for use with key tweaking API.
@@ -75,14 +88,14 @@ impl TapTweakHash {
 impl TapLeafHash {
     /// function to compute leaf hash from components
     pub fn from_script(script: &Script, ver: LeafVersion) -> TapLeafHash {
-        let mut eng = TapLeafHash::engine();
+        let mut eng = sha256t::Hash::engine();
         ver.as_u8()
             .consensus_encode(&mut eng)
             .expect("engines don't error");
         script
             .consensus_encode(&mut eng)
             .expect("engines don't error");
-        TapLeafHash::from_engine(eng)
+        TapLeafHash(eng.finalize())
     }
 }
 
@@ -481,7 +494,7 @@ impl NodeInfo {
             b_leaf.merkle_branch.push(a.hash)?; // add hashing partner
             all_leaves.push(b_leaf);
         }
-        let mut eng = TapNodeHash::engine();
+        let mut eng = sha256t::Hash::engine();
         if a.hash < b.hash {
             eng.input(a.hash.as_ref());
             eng.input(b.hash.as_ref());
@@ -490,7 +503,7 @@ impl NodeInfo {
             eng.input(a.hash.as_ref());
         };
         Ok(Self {
-            hash: TapNodeHash::from_engine(eng),
+            hash: TapNodeHash(eng.finalize()),
             leaves: all_leaves,
         })
     }
@@ -548,11 +561,12 @@ impl TaprootMerkleBranch {
             ))
         } else {
             let inner = sl
-                // TODO: Use chunks_exact after MSRV changes to 1.31
-                .chunks(TAPROOT_CONTROL_NODE_SIZE)
+                // TODO: Use array_chunks after this stabilizes
+                .chunks_exact(TAPROOT_CONTROL_NODE_SIZE)
                 .map(|chunk| {
-                    TapNodeHash::from_slice(chunk)
-                        .expect("chunk exact always returns the correct size")
+                    use core::convert::TryFrom as _;
+                    let chunk = <&[u8; 32]>::try_from(chunk).expect("need array_chunks in stdlib");
+                    TapNodeHash::from_byte_array(*chunk)
                 })
                 .collect();
             Ok(TaprootMerkleBranch(inner))
@@ -687,7 +701,7 @@ impl ControlBlock {
         let mut curr_hash = TapNodeHash::from_byte_array(leaf_hash.to_byte_array());
         // Verify the proof
         for elem in self.merkle_branch.as_inner() {
-            let mut eng = TapNodeHash::engine();
+            let mut eng = sha256t::Hash::engine();
             if curr_hash.as_byte_array() < elem.as_byte_array() {
                 eng.input(curr_hash.as_ref());
                 eng.input(elem.as_ref());
@@ -696,7 +710,7 @@ impl ControlBlock {
                 eng.input(curr_hash.as_ref());
             }
             // Recalculate the curr hash as parent hash
-            curr_hash = TapNodeHash::from_engine(eng);
+            curr_hash = TapNodeHash(eng.finalize());
         }
         // compute the taptweak
         let tweak = TapTweakHash::from_key_and_tweak(self.internal_key, Some(curr_hash));
@@ -858,36 +872,22 @@ impl error::Error for TaprootError {}
 mod tests{
     use super::*;
     use crate::hashes::{sha256, HashEngine};
-    use crate::hashes::sha256t::Tag;
     use std::str::FromStr;
 
     fn tag_engine(tag_name: &str) -> sha256::HashEngine {
         let mut engine = sha256::Hash::engine();
         let tag_hash = sha256::Hash::hash(tag_name.as_bytes());
-        engine.input(&tag_hash[..]);
-        engine.input(&tag_hash[..]);
+        engine.input(tag_hash.as_byte_array());
+        engine.input(tag_hash.as_byte_array());
         engine
     }
 
     #[test]
-    fn test_midstates() {
-        // check that hash creation is the same as building into the same engine
-        fn empty_hash(tag_name: &str) -> [u8; 32] {
-            let mut e = tag_engine(tag_name);
-            e.input(&[]);
-            sha256::Hash::from_engine(e).to_byte_array()
-        }
-
-        // test that engine creation roundtrips
-        assert_eq!(tag_engine("TapLeaf/elements").midstate(), TapLeafTag::engine().midstate());
-        assert_eq!(tag_engine("TapBranch/elements").midstate(), TapBranchTag::engine().midstate());
-        assert_eq!(tag_engine("TapTweak/elements").midstate(), TapTweakTag::engine().midstate());
-        assert_eq!(tag_engine("TapSighash/elements").midstate(), TapSighashTag::engine().midstate());
-
-        assert_eq!(empty_hash("TapLeaf/elements"), TapLeafHash::hash(&[]).to_byte_array());
-        assert_eq!(empty_hash("TapBranch/elements"), TapNodeHash::hash(&[]).to_byte_array());
-        assert_eq!(empty_hash("TapTweak/elements"), TapTweakHash::hash(&[]).to_byte_array());
-        assert_eq!(empty_hash("TapSighash/elements"), TapSighashHash::hash(&[]).to_byte_array());
+    fn test_engine_initialization() {
+        assert_eq!(tag_engine("TapLeaf/elements").finalize().to_byte_array(), sha256t::Hash::<TapLeafTag>::engine().finalize().to_byte_array());
+        assert_eq!(tag_engine("TapBranch/elements").finalize().to_byte_array(), sha256t::Hash::<TapBranchTag>::engine().finalize().to_byte_array());
+        assert_eq!(tag_engine("TapTweak/elements").finalize().to_byte_array(), sha256t::Hash::<TapTweakTag>::engine().finalize().to_byte_array());
+        assert_eq!(tag_engine("TapSighash/elements").finalize().to_byte_array(), sha256t::Hash::<TapSighashTag>::engine().finalize().to_byte_array());
     }
 
     #[test]

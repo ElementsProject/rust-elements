@@ -23,7 +23,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde::ser::{SerializeSeq, SerializeStruct};
 
 use crate::encode::{self, Encodable, Decodable};
-use crate::hashes::{Hash, sha256d};
+use crate::hashes::sha256d;
 use crate::Script;
 
 impl_sha256_midstate_wrapper! {
@@ -149,7 +149,7 @@ impl FullParams {
         let compact_root = crate::fast_merkle_root::fast_merkle_root(&leaves[..]);
 
         let leaves = [
-            compact_root.to_byte_array(),
+            compact_root.to_parts().0,
             self.extra_root().to_byte_array(),
         ];
         ParamsRoot::from_midstate(crate::fast_merkle_root::fast_merkle_root(&leaves[..]))
@@ -364,7 +364,7 @@ impl Params {
             serialize_hash(self.signblockscript().unwrap()).to_byte_array(),
             serialize_hash(&self.signblock_witness_limit().unwrap()).to_byte_array(),
         ];
-        let compact_root = crate::fast_merkle_root::fast_merkle_root(&leaves[..]);
+        let compact_root = ElidedRoot::from_midstate(crate::fast_merkle_root::fast_merkle_root(&leaves[..]));
 
         let leaves = [
             compact_root.to_byte_array(),
@@ -718,8 +718,8 @@ mod tests {
                 signblock_witness: vec![],
             },
             version: Default::default(),
-            prev_blockhash: BlockHash::all_zeros(),
-            merkle_root: TxMerkleNode::all_zeros(),
+            prev_blockhash: BlockHash::GENESIS_PREVIOUS_BLOCK_HASH,
+            merkle_root: TxMerkleNode::from_byte_array([0; 32]),
             time: Default::default(),
             height: Default::default(),
         };

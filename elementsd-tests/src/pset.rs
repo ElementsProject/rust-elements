@@ -8,7 +8,6 @@ use crate::{setup, Call};
 
 use bitcoin::{self, Address, Amount};
 use elements::encode::serialize;
-use elements::hashes::Hash;
 use elements::hex::DisplayHex as _;
 use elements::pset::PartiallySignedTransaction;
 use elements::{AssetId, ContractHash};
