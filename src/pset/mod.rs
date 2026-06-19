@@ -747,7 +747,7 @@ impl Decodable for PartiallySignedTransaction {
 
             // Maximum pset input size supported
             if inputs_len > 10_000 {
-                return Err(Error::TooLargePset)?;
+                return Err(Error::TooLargePset.into());
             }
 
             let mut inputs: Vec<Input> = Vec::with_capacity(inputs_len);
@@ -764,7 +764,7 @@ impl Decodable for PartiallySignedTransaction {
 
             // Maximum pset input size supported
             if outputs_len > 10_000 {
-                return Err(Error::TooLargePset)?;
+                return Err(Error::TooLargePset.into());
             }
 
             let mut outputs: Vec<Output> = Vec::with_capacity(outputs_len);
