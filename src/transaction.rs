@@ -30,8 +30,10 @@ use crate::issuance::{AssetEntropy, AssetId};
 use crate::opcodes;
 use crate::parse::impl_parse_str_through_int;
 use crate::script::Instruction;
-use crate::{LockTime, RangeProof, Script, Txid, Wtxid};
-use secp256k1_zkp::{SurjectionProof, Tweak, ZERO_TWEAK};
+use crate::{LockTime, RangeProof, Script, SurjectionProof, Txid, Wtxid};
+use secp256k1_zkp::{
+    Tweak, ZERO_TWEAK,
+};
 
 /// Description of an asset issuance in a transaction input
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -642,8 +644,10 @@ pub struct TxOutWitness {
     /// Surjection proof showing that the asset commitment is legitimate
     // We Box it because surjection proof internally is an array [u8; N] that
     // allocates on stack even when the surjection proof is empty
-    pub surjection_proof: Option<Box<SurjectionProof>>,
-    /// Rangeproof showing that the value commitment is legitimate.
+    pub surjection_proof: SurjectionProof,
+    /// Rangeproof showing that the value commitment is legitimate
+    // We Box it because range proof internally is an array [u8; N] that
+    // allocates on stack even when the range proof is empty
     pub rangeproof: RangeProof,
 }
 serde_struct_impl!(TxOutWitness, surjection_proof, rangeproof);
@@ -653,14 +657,14 @@ impl TxOutWitness {
     /// Create an empty output witness.
     pub fn empty() -> Self {
         TxOutWitness {
-            surjection_proof: None,
+            surjection_proof: SurjectionProof::EMPTY,
             rangeproof: RangeProof::EMPTY,
         }
     }
 
     /// Whether this witness is null
     pub fn is_empty(&self) -> bool {
-        self.surjection_proof.is_none() && self.rangeproof.is_empty()
+        self.surjection_proof.is_empty() && self.rangeproof.is_empty()
     }
 
     /// The rangeproof len if is present, otherwise 0
@@ -670,7 +674,7 @@ impl TxOutWitness {
 
     /// The surjection proof len if is present, otherwise 0
     pub fn surjectionproof_len(&self) -> usize {
-        self.surjection_proof.as_ref().map_or(0, |prf| prf.len())
+        self.surjection_proof.len()
     }
 }
 

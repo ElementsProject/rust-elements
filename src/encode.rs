@@ -20,7 +20,7 @@ use std::{any, error, fmt, io, mem};
 
 use bitcoin::ScriptBuf;
 use hex::{DecodeFixedLengthBytesError, DecodeVariableLengthBytesError};
-use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
+use secp256k1_zkp::{self, Tweak};
 
 use crate::hashes::{sha256, Hash};
 use crate::pset;
@@ -417,31 +417,6 @@ impl_array!(20);
 impl_array!(32);
 impl_array!(33);
 
-macro_rules! impl_box_option {
-    ($type: ty) => {
-        impl Encodable for Option<Box<$type>> {
-            #[inline]
-            fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
-                match self {
-                    None => Vec::<u8>::new().consensus_encode(e),
-                    Some(v) => v.serialize().consensus_encode(e),
-                }
-            }
-        }
-
-        impl Decodable for Option<Box<$type>> {
-            #[inline]
-            fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, Error> {
-                let v: Vec<u8> = Decodable::consensus_decode(&mut d)?;
-                if v.is_empty() {
-                    Ok(None)
-                } else {
-                    Ok(Some(Box::new(<$type>::from_slice(&v)?)))
-                }
-            }
-        }
-    };
-}
 // special implementations for elements only fields
 impl Encodable for Tweak {
     fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
@@ -452,32 +427,6 @@ impl Encodable for Tweak {
 impl Decodable for Tweak {
     fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
         Ok(Tweak::from_inner(<[u8; 32]>::consensus_decode(d)?)?)
-    }
-}
-
-impl Encodable for RangeProof {
-    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
-        self.serialize().consensus_encode(e)
-    }
-}
-
-impl Decodable for RangeProof {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(RangeProof::from_slice(&<Vec<u8>>::consensus_decode(d)?)?)
-    }
-}
-
-impl Encodable for SurjectionProof {
-    fn consensus_encode<W: io::Write>(&self, e: W) -> Result<usize, Error> {
-        self.serialize().consensus_encode(e)
-    }
-}
-
-impl Decodable for SurjectionProof {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, Error> {
-        Ok(SurjectionProof::from_slice(&<Vec<u8>>::consensus_decode(
-            d,
-        )?)?)
     }
 }
 
@@ -508,6 +457,3 @@ impl Decodable for TapLeafHash {
         ))
     }
 }
-
-impl_box_option!(RangeProof);
-impl_box_option!(SurjectionProof);

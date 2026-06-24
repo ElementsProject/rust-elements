@@ -79,11 +79,11 @@ pub mod genesis;
 // export everything at the top level so it can be used as `elements::Transaction` etc.
 pub use crate::address::{Address, AddressError, AddressParams};
 pub use crate::blind::{
-    BlindAssetProofs, BlindError, ConfidentialTxOutError, CtLocation, CtLocationType,
-    RangeProofMessage, SurjectionInput, TxOutError, TxOutSecrets, UnblindError, VerificationError,
+    BlindError, ConfidentialTxOutError, CtLocation, CtLocationType, RangeProofMessage,
+    SurjectionInput, TxOutError, TxOutSecrets, UnblindError, VerificationError,
 };
 pub use crate::block::{Block, BlockHeader, DynafedRoot, ExtData as BlockExtData};
-pub use crate::confidential::RangeProof;
+pub use crate::confidential::{RangeProof, SurjectionProof};
 pub use crate::ext::{ReadExt, WriteExt};
 pub use crate::fast_merkle_root::fast_merkle_root;
 pub use crate::hash_types::*;

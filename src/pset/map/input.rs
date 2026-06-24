@@ -32,10 +32,10 @@ use crate::pset::raw;
 use crate::pset::serialize;
 use crate::pset::{self, error, Error};
 use crate::{transaction::SighashTypeParseError, SchnorrSighashType};
-use crate::{AssetIssuance, BlockHash, EcdsaSighashType, RangeProof, Script, Transaction, TxIn, TxOut, Txid};
+use crate::{AssetIssuance, BlockHash, EcdsaSighashType, RangeProof, Script, Transaction, TxIn, TxOut, Txid, SurjectionProof};
 use bitcoin::bip32::KeySource;
 use bitcoin::{PublicKey, key::XOnlyPublicKey};
-use secp256k1_zkp::{self, SurjectionProof, Tweak, ZERO_TWEAK};
+use secp256k1_zkp::{self, Tweak, ZERO_TWEAK};
 
 use crate::{OutPoint, Sequence};
 
@@ -299,7 +299,7 @@ pub struct Input {
     /// The input explicit asset
     pub asset: Option<AssetId>,
     /// The blind asset surjection proof
-    pub blind_asset_proof: Option<Box<SurjectionProof>>,
+    pub blind_asset_proof: Option<SurjectionProof>,
     /// Whether the issuance is blinded
     pub blinded_issuance: Option<u8>,
     /// Other fields
@@ -801,7 +801,7 @@ impl Map for Input {
                             impl_pset_prop_insert_pair!(self.asset <= <raw_key: _> | <raw_value : AssetId>);
                         }
                         PSBT_ELEMENTS_IN_ASSET_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>);
+                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : SurjectionProof>);
                         }
                         PSBT_ELEMENTS_IN_BLINDED_ISSUANCE => {
                             impl_pset_prop_insert_pair!(self.blinded_issuance <= <raw_key: _> | <raw_value : u8>);

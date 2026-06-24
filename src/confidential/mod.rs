@@ -18,6 +18,7 @@
 //!
 
 mod range_proof;
+mod surjection_proof;
 
 use crate::hashes::sha256d;
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
@@ -34,6 +35,7 @@ use crate::encode::{self, Decodable, Encodable};
 use crate::issuance::AssetId;
 
 pub use self::range_proof::RangeProof;
+pub use self::surjection_proof::SurjectionProof;
 
 /// A CT commitment to an amount
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]

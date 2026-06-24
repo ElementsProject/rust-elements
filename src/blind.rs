@@ -23,9 +23,9 @@ use secp256k1_zkp::{
     rand::{CryptoRng, RngCore},
     PedersenCommitment, SecretKey, Tag, Tweak, Verification, ZERO_TWEAK,
 };
-use secp256k1_zkp::{Generator, Secp256k1, Signing, SurjectionProof};
+use secp256k1_zkp::{Generator, Secp256k1, Signing};
 
-use crate::{AddressParams, RangeProof, Script, TxIn};
+use crate::{AddressParams, RangeProof, Script, TxIn, SurjectionProof};
 
 use crate::{
     confidential::{Asset, AssetBlindingFactor, Nonce, Value, ValueBlindingFactor},
@@ -497,13 +497,7 @@ impl Asset {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        let surjection_proof = SurjectionProof::new(
-            secp,
-            rng,
-            asset.into_tag(),
-            asset_bf.into_inner(),
-            inputs.as_ref(),
-        )?;
+        let surjection_proof = SurjectionProof::new(secp, rng, asset, asset_bf, inputs)?;
 
         Ok((out_asset, surjection_proof))
     }
@@ -672,7 +666,7 @@ impl TxOut {
             nonce,
             script_pubkey: spk,
             witness: TxOutWitness {
-                surjection_proof: Some(Box::new(surjection_proof)),
+                surjection_proof,
                 rangeproof,
             },
         };
@@ -1362,55 +1356,6 @@ impl std::error::Error for BlindError {}
 impl From<ConfidentialTxOutError> for BlindError {
     fn from(from: ConfidentialTxOutError) -> Self {
         BlindError::ConfidentialTxOutError(from)
-    }
-}
-
-/// A trait to create and verify explicit surjection proofs
-pub trait BlindAssetProofs: Sized {
-    /// Outputs a `[SurjectionProof]` that blinded asset
-    /// corresponfs to unblinded explicit asset
-    fn blind_asset_proof<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
-        rng: &mut R,
-        secp: &Secp256k1<C>,
-        asset: AssetId,
-        abf: AssetBlindingFactor,
-    ) -> Result<Self, secp256k1_zkp::Error>;
-
-    /// Verify that the Surjection proves that asset commitment
-    /// is actually bound to the explicit asset
-    fn blind_asset_proof_verify(
-        &self,
-        secp: &Secp256k1<secp256k1_zkp::All>,
-        asset: AssetId,
-        asset_commit: Generator,
-    ) -> bool;
-}
-
-impl BlindAssetProofs for SurjectionProof {
-    fn blind_asset_proof<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
-        rng: &mut R,
-        secp: &Secp256k1<C>,
-        asset: AssetId,
-        abf: AssetBlindingFactor,
-    ) -> Result<Self, secp256k1_zkp::Error> {
-        let gen = Generator::new_unblinded(secp, asset.into_tag());
-        SurjectionProof::new(
-            secp,
-            rng,
-            asset.into_tag(),
-            abf.into_inner(),
-            &[(gen, asset.into_tag(), ZERO_TWEAK)],
-        )
-    }
-
-    fn blind_asset_proof_verify(
-        &self,
-        secp: &Secp256k1<secp256k1_zkp::All>,
-        asset: AssetId,
-        asset_commit: Generator,
-    ) -> bool {
-        let gen = Generator::new_unblinded(secp, asset.into_tag());
-        self.verify(secp, asset_commit, &[gen])
     }
 }
 
