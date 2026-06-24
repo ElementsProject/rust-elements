@@ -141,15 +141,11 @@ impl Encodable for Value {
                 1u8.consensus_encode(&mut s)?;
                 Ok(1 + u64::swap_bytes(n).consensus_encode(&mut s)?)
             }
-            Value::Confidential(commitment) => commitment.consensus_encode(&mut s),
+            Value::Confidential(commitment) => {
+                s.write_all(&commitment.serialize())?;
+                Ok(33)
+            }
         }
-    }
-}
-
-impl Encodable for PedersenCommitment {
-    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
-        e.write_all(&self.serialize())?;
-        Ok(33)
     }
 }
 
@@ -171,13 +167,6 @@ impl Decodable for Value {
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
-    }
-}
-
-impl Decodable for PedersenCommitment {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
-        let bytes = <[u8; 33]>::consensus_decode(d)?;
-        Ok(PedersenCommitment::from_slice(&bytes)?)
     }
 }
 
@@ -363,15 +352,11 @@ impl Encodable for Asset {
                 1u8.consensus_encode(&mut s)?;
                 Ok(1 + n.consensus_encode(&mut s)?)
             }
-            Asset::Confidential(generator) => generator.consensus_encode(&mut s)
+            Asset::Confidential(generator) => {
+                s.write_all(&generator.serialize())?;
+                Ok(33)
+            }
         }
-    }
-}
-
-impl Encodable for Generator {
-    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
-        e.write_all(&self.serialize())?;
-        Ok(33)
     }
 }
 
@@ -395,14 +380,6 @@ impl Decodable for Asset {
         }
     }
 }
-
-impl Decodable for Generator {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
-        let bytes = <[u8; 33]>::consensus_decode(d)?;
-        Ok(Generator::from_slice(&bytes)?)
-    }
-}
-
 
 #[cfg(feature = "serde")]
 impl Serialize for Asset {
@@ -615,15 +592,11 @@ impl Encodable for Nonce {
                 1u8.consensus_encode(&mut s)?;
                 Ok(1 + n.consensus_encode(&mut s)?)
             }
-            Nonce::Confidential(commitment) => commitment.consensus_encode(&mut s),
+            Nonce::Confidential(commitment) => {
+                s.write_all(&commitment.serialize())?;
+                Ok(33)
+            }
         }
-    }
-}
-
-impl Encodable for PublicKey {
-    fn consensus_encode<W: io::Write>(&self, mut e: W) -> Result<usize, encode::Error> {
-        e.write_all(&self.serialize())?;
-        Ok(33)
     }
 }
 
@@ -645,13 +618,6 @@ impl Decodable for Nonce {
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
-    }
-}
-
-impl Decodable for PublicKey {
-    fn consensus_decode<D: io::Read>(d: D) -> Result<Self, encode::Error> {
-        let bytes = <[u8; 33]>::consensus_decode(d)?;
-        Ok(PublicKey::from_slice(&bytes)?)
     }
 }
 
