@@ -38,7 +38,7 @@ impl RangeProof {
         exp: i32,
         min_bits: u8,
         additional_generator: Generator,
-    ) -> Result<RangeProof, secp256k1_zkp::Error> {
+    ) -> Result<Self, secp256k1_zkp::Error> {
         secp256k1_zkp::RangeProof::new(
             secp,
             min_value,

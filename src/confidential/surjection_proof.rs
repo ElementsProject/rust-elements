@@ -72,7 +72,7 @@ impl SurjectionProof {
         abf: AssetBlindingFactor,
     ) -> Result<Self, secp256k1_zkp::Error> {
         let gen = Generator::new_unblinded(secp, asset.into_tag());
-        SurjectionProof::new(secp, rng, asset, abf, [(gen, asset.into_tag(), ZERO_TWEAK)])
+        Self::new(secp, rng, asset, abf, [(gen, asset.into_tag(), ZERO_TWEAK)])
     }
 
     /// Verifies a [`SurjectionProof`] proving that an asset matches an exact asset ID.

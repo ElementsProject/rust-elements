@@ -38,7 +38,7 @@ impl Nonce {
         Self::with_ephemeral_sk(secp, ephemeral_sk, receiver_blinding_pk)
     }
 
-    /// Similar to [`Nonce::new_confidential`], but with a given `ephemeral_sk`
+    /// Similar to [`Self::new_confidential`], but with a given `ephemeral_sk`
     /// instead of sampling it from rng.
     pub fn with_ephemeral_sk<C: Signing>(
         secp: &Secp256k1<C>,
@@ -47,13 +47,13 @@ impl Nonce {
     ) -> (Self, SecretKey) {
         let sender_pk = PublicKey::from_secret_key(secp, &ephemeral_sk);
         let shared_secret = Self::make_shared_secret(receiver_blinding_pk, &ephemeral_sk);
-        (Nonce::Confidential(sender_pk), shared_secret)
+        (Self::Confidential(sender_pk), shared_secret)
     }
 
     /// Calculate the shared secret.
     pub fn shared_secret(&self, receiver_blinding_sk: &SecretKey) -> Option<SecretKey> {
         match self {
-            Nonce::Confidential(sender_pk) =>
+            Self::Confidential(sender_pk) =>
                 Some(Self::make_shared_secret(sender_pk, receiver_blinding_sk)),
             _ => None,
         }
@@ -79,62 +79,62 @@ impl Nonce {
     /// Serialized length, in bytes
     pub fn encoded_length(&self) -> usize {
         match *self {
-            Nonce::Null => 1,
-            Nonce::Explicit(..) => 33,
-            Nonce::Confidential(..) => 33,
+            Self::Null => 1,
+            Self::Explicit(..) => 33,
+            Self::Confidential(..) => 33,
         }
     }
 
     /// Create from commitment.
     pub fn from_commitment(bytes: &[u8]) -> Result<Self, encode::Error> {
-        Ok(Nonce::Confidential(
+        Ok(Self::Confidential(
             PublicKey::from_slice(bytes).map_err(secp256k1_zkp::Error::Upstream)?,
         ))
     }
 
     /// Check if the object is null.
-    pub fn is_null(&self) -> bool { matches!(*self, Nonce::Null) }
+    pub fn is_null(&self) -> bool { matches!(*self, Self::Null) }
 
     /// Check if the object is explicit.
-    pub fn is_explicit(&self) -> bool { matches!(*self, Nonce::Explicit(_)) }
+    pub fn is_explicit(&self) -> bool { matches!(*self, Self::Explicit(_)) }
 
     /// Check if the object is confidential.
-    pub fn is_confidential(&self) -> bool { matches!(*self, Nonce::Confidential(_)) }
+    pub fn is_confidential(&self) -> bool { matches!(*self, Self::Confidential(_)) }
 
     /// Returns the explicit inner value.
-    /// Returns [None] if [`Nonce::is_explicit`] returns false.
+    /// Returns [None] if [`Self::is_explicit`] returns false.
     pub fn explicit(&self) -> Option<[u8; 32]> {
         match *self {
-            Nonce::Explicit(i) => Some(i),
+            Self::Explicit(i) => Some(i),
             _ => None,
         }
     }
 
     /// Returns the confidential commitment in case of a confidential value.
-    /// Returns [None] if [`Nonce::is_confidential`] returns false.
+    /// Returns [None] if [`Self::is_confidential`] returns false.
     pub fn commitment(&self) -> Option<PublicKey> {
         match *self {
-            Nonce::Confidential(i) => Some(i),
+            Self::Confidential(i) => Some(i),
             _ => None,
         }
     }
 }
 
 impl From<PublicKey> for Nonce {
-    fn from(from: PublicKey) -> Self { Nonce::Confidential(from) }
+    fn from(from: PublicKey) -> Self { Self::Confidential(from) }
 }
 
 impl fmt::Display for Nonce {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Nonce::Null => f.write_str("null"),
-            Nonce::Explicit(n) => {
+            Self::Null => f.write_str("null"),
+            Self::Explicit(n) => {
                 for b in &n {
                     write!(f, "{:02x}", b)?;
                 }
                 Ok(())
             }
-            Nonce::Confidential(pk) => write!(f, "{:02x}", pk),
+            Self::Confidential(pk) => write!(f, "{:02x}", pk),
         }
     }
 }
@@ -142,12 +142,12 @@ impl fmt::Display for Nonce {
 impl Encodable for Nonce {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
         match *self {
-            Nonce::Null => 0u8.consensus_encode(s),
-            Nonce::Explicit(n) => {
+            Self::Null => 0u8.consensus_encode(s),
+            Self::Explicit(n) => {
                 1u8.consensus_encode(&mut s)?;
                 Ok(1 + n.consensus_encode(&mut s)?)
             }
-            Nonce::Confidential(commitment) => {
+            Self::Confidential(commitment) => {
                 s.write_all(&commitment.serialize())?;
                 Ok(33)
             }
@@ -160,16 +160,16 @@ impl Decodable for Nonce {
         let prefix = u8::consensus_decode(&mut d)?;
 
         match prefix {
-            0 => Ok(Nonce::Null),
+            0 => Ok(Self::Null),
             1 => {
                 let explicit = Decodable::consensus_decode(&mut d)?;
-                Ok(Nonce::Explicit(explicit))
+                Ok(Self::Explicit(explicit))
             }
             p if p == 0x02 || p == 0x03 => {
                 let mut comm = [0u8; 33];
                 comm[0] = p;
                 d.read_exact(&mut comm[1..])?;
-                Ok(Nonce::Confidential(PublicKey::from_slice(&comm)?))
+                Ok(Self::Confidential(PublicKey::from_slice(&comm)?))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
@@ -182,18 +182,18 @@ impl Serialize for Nonce {
         use serde::ser::SerializeSeq;
 
         let seq_len = match *self {
-            Nonce::Null => 1,
-            Nonce::Explicit(_) | Nonce::Confidential(_) => 2,
+            Self::Null => 1,
+            Self::Explicit(_) | Self::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
         match *self {
-            Nonce::Null => seq.serialize_element(&0u8)?,
-            Nonce::Explicit(n) => {
+            Self::Null => seq.serialize_element(&0u8)?,
+            Self::Explicit(n) => {
                 seq.serialize_element(&1u8)?;
                 seq.serialize_element(&n)?;
             }
-            Nonce::Confidential(commitment) => {
+            Self::Confidential(commitment) => {
                 seq.serialize_element(&2u8)?;
                 seq.serialize_element(&commitment)?;
             }
@@ -218,13 +218,13 @@ impl<'de> Deserialize<'de> for Nonce {
             fn visit_seq<A: SeqAccess<'de>>(self, mut access: A) -> Result<Nonce, A::Error> {
                 let prefix = access.next_element::<u8>()?;
                 match prefix {
-                    Some(0) => Ok(Nonce::Null),
+                    Some(0) => Ok(Self::Value::Null),
                     Some(1) => match access.next_element()? {
-                        Some(x) => Ok(Nonce::Explicit(x)),
+                        Some(x) => Ok(Self::Value::Explicit(x)),
                         None => Err(A::Error::custom("missing explicit nonce")),
                     },
                     Some(2) => match access.next_element()? {
-                        Some(x) => Ok(Nonce::Confidential(x)),
+                        Some(x) => Ok(Self::Value::Confidential(x)),
                         None => Err(A::Error::custom("missing nonce")),
                     },
                     _ => Err(A::Error::custom("wrong or missing prefix")),

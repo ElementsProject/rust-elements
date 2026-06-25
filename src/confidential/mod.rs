@@ -17,6 +17,8 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
+#![warn(clippy::use_self)]
+
 mod asset;
 mod nonce;
 mod range_proof;
@@ -47,10 +49,10 @@ pub enum TweakHexDecodeError {
 impl fmt::Display for TweakHexDecodeError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            TweakHexDecodeError::InvalidHex(err) => {
+            Self::InvalidHex(err) => {
                 write!(f, "Invalid hex: {}", err)
             }
-            TweakHexDecodeError::InvalidTweak(err) => {
+            Self::InvalidTweak(err) => {
                 write!(f, "Invalid tweak: {}", err)
             }
         }
@@ -59,19 +61,19 @@ impl fmt::Display for TweakHexDecodeError {
 
 #[doc(hidden)]
 impl From<hex::DecodeFixedLengthBytesError> for TweakHexDecodeError {
-    fn from(err: hex::DecodeFixedLengthBytesError) -> Self { TweakHexDecodeError::InvalidHex(err) }
+    fn from(err: hex::DecodeFixedLengthBytesError) -> Self { Self::InvalidHex(err) }
 }
 
 #[doc(hidden)]
 impl From<secp256k1_zkp::Error> for TweakHexDecodeError {
-    fn from(err: secp256k1_zkp::Error) -> Self { TweakHexDecodeError::InvalidTweak(err) }
+    fn from(err: secp256k1_zkp::Error) -> Self { Self::InvalidTweak(err) }
 }
 
 impl From<TweakHexDecodeError> for encode::Error {
     fn from(value: TweakHexDecodeError) -> Self {
         match value {
-            TweakHexDecodeError::InvalidHex(err) => encode::Error::HexFixedError(err),
-            TweakHexDecodeError::InvalidTweak(err) => encode::Error::Secp256k1zkp(err),
+            TweakHexDecodeError::InvalidHex(err) => Self::HexFixedError(err),
+            TweakHexDecodeError::InvalidTweak(err) => Self::Secp256k1zkp(err),
         }
     }
 }
@@ -79,8 +81,8 @@ impl From<TweakHexDecodeError> for encode::Error {
 impl std::error::Error for TweakHexDecodeError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
-            TweakHexDecodeError::InvalidHex(err) => Some(err),
-            TweakHexDecodeError::InvalidTweak(err) => Some(err),
+            Self::InvalidHex(err) => Some(err),
+            Self::InvalidTweak(err) => Some(err),
         }
     }
 }
