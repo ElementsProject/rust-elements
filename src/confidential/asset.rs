@@ -13,6 +13,14 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::encode::{self, Decodable, Encodable};
 use crate::issuance::AssetId;
 
+type ExplicitInner = AssetId;
+type ConfInner = Generator;
+
+const EXPLICIT_LEN: usize = 32;
+const CONFIDENTIAL_LEN: usize = 33;
+const CONF_PREFIX_1: u8 = 0x0a;
+const CONF_PREFIX_2: u8 = 0x0b;
+
 /// A CT commitment to an asset
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Asset {
@@ -20,9 +28,9 @@ pub enum Asset {
     #[default]
     Null,
     /// Asset entropy is explicitly encoded
-    Explicit(AssetId),
+    Explicit(ExplicitInner),
     /// Asset is committed
-    Confidential(Generator),
+    Confidential(ConfInner),
 }
 
 impl Asset {
@@ -30,23 +38,23 @@ impl Asset {
     pub fn new_confidential<C: Signing>(
         secp: &Secp256k1<C>,
         asset: AssetId,
-        bf: AssetBlindingFactor,
+        bf: BlindingFactor,
     ) -> Self {
-        Self::Confidential(Generator::new_blinded(secp, asset.into_tag(), bf.into_inner()))
+        Self::Confidential(ConfInner::new_blinded(secp, asset.into_tag(), bf.into_inner()))
     }
 
     /// Serialized length, in bytes
     pub fn encoded_length(&self) -> usize {
         match *self {
             Self::Null => 1,
-            Self::Explicit(..) => 33,
-            Self::Confidential(..) => 33,
+            Self::Explicit(..) => 1 + EXPLICIT_LEN,
+            Self::Confidential(..) => CONFIDENTIAL_LEN,
         }
     }
 
     /// Create from commitment.
     pub fn from_commitment(bytes: &[u8]) -> Result<Self, encode::Error> {
-        Ok(Self::Confidential(Generator::from_slice(bytes)?))
+        Ok(Self::Confidential(ConfInner::from_slice(bytes)?))
     }
 
     /// Check if the object is null.
@@ -60,7 +68,7 @@ impl Asset {
 
     /// Returns the explicit inner value.
     /// Returns [None] if [`Self::is_explicit`] returns false.
-    pub fn explicit(&self) -> Option<AssetId> {
+    pub fn explicit(&self) -> Option<ExplicitInner> {
         match *self {
             Self::Explicit(i) => Some(i),
             _ => None,
@@ -69,7 +77,7 @@ impl Asset {
 
     /// Returns the confidential commitment in case of a confidential value.
     /// Returns [None] if [`Self::is_confidential`] returns false.
-    pub fn commitment(&self) -> Option<Generator> {
+    pub fn commitment(&self) -> Option<ConfInner> {
         match *self {
             Self::Confidential(i) => Some(i),
             _ => None,
@@ -84,19 +92,19 @@ impl Asset {
     pub fn into_asset_gen<C: secp256k1_zkp::Signing>(
         self,
         secp: &Secp256k1<C>,
-    ) -> Option<Generator> {
+    ) -> Option<ConfInner> {
         match self {
             // Only error is Null error which is dealt with later
             // when we have more context information about it.
             Self::Null => None,
-            Self::Explicit(x) => Some(Generator::new_unblinded(secp, x.into_tag())),
+            Self::Explicit(x) => Some(ConfInner::new_unblinded(secp, x.into_tag())),
             Self::Confidential(gen) => Some(gen),
         }
     }
 }
 
-impl From<Generator> for Asset {
-    fn from(from: Generator) -> Self { Self::Confidential(from) }
+impl From<ConfInner> for Asset {
+    fn from(from: ConfInner) -> Self { Self::Confidential(from) }
 }
 
 impl fmt::Display for Asset {
@@ -119,7 +127,7 @@ impl Encodable for Asset {
             }
             Self::Confidential(generator) => {
                 s.write_all(&generator.serialize())?;
-                Ok(33)
+                Ok(CONFIDENTIAL_LEN)
             }
         }
     }
@@ -135,11 +143,11 @@ impl Decodable for Asset {
                 let explicit = Decodable::consensus_decode(&mut d)?;
                 Ok(Self::Explicit(explicit))
             }
-            p if p == 0x0a || p == 0x0b => {
-                let mut comm = [0u8; 33];
+            p if p == CONF_PREFIX_1 || p == CONF_PREFIX_2 => {
+                let mut comm = [0u8; CONFIDENTIAL_LEN];
                 comm[0] = p;
                 d.read_exact(&mut comm[1..])?;
-                Ok(Self::Confidential(Generator::from_slice(&comm[..])?))
+                Ok(Self::Confidential(ConfInner::from_slice(&comm[..])?))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
@@ -208,9 +216,9 @@ impl<'de> Deserialize<'de> for Asset {
 
 /// Blinding factor used for asset commitments.
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub struct AssetBlindingFactor(pub(crate) Tweak);
+pub struct BlindingFactor(pub(crate) Tweak);
 
-impl AssetBlindingFactor {
+impl BlindingFactor {
     /// Generate random asset blinding factor.
     pub fn new<R: Rng>(rng: &mut R) -> Self { Self(Tweak::new(rng)) }
 
@@ -235,18 +243,18 @@ impl AssetBlindingFactor {
     pub fn zero() -> Self { Self(ZERO_TWEAK) }
 }
 
-impl core::borrow::Borrow<[u8]> for AssetBlindingFactor {
+impl core::borrow::Borrow<[u8]> for BlindingFactor {
     fn borrow(&self) -> &[u8] { &self.0[..] }
 }
 
 hex::impl_fmt_traits! {
     #[display_backward(true)]
-    impl fmt_traits for AssetBlindingFactor {
+    impl fmt_traits for BlindingFactor {
         const LENGTH: usize = 32;
     }
 }
 
-impl str::FromStr for AssetBlindingFactor {
+impl str::FromStr for BlindingFactor {
     type Err = encode::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -259,7 +267,7 @@ impl str::FromStr for AssetBlindingFactor {
 }
 
 #[cfg(feature = "serde")]
-impl Serialize for AssetBlindingFactor {
+impl Serialize for BlindingFactor {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         if s.is_human_readable() {
             s.collect_str(&self)
@@ -270,13 +278,13 @@ impl Serialize for AssetBlindingFactor {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for AssetBlindingFactor {
+impl<'de> Deserialize<'de> for BlindingFactor {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         if d.is_human_readable() {
             struct HexVisitor;
 
             impl ::serde::de::Visitor<'_> for HexVisitor {
-                type Value = AssetBlindingFactor;
+                type Value = BlindingFactor;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                     formatter.write_str("an ASCII hex string")
@@ -306,7 +314,7 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
             struct BytesVisitor;
 
             impl ::serde::de::Visitor<'_> for BytesVisitor {
-                type Value = AssetBlindingFactor;
+                type Value = BlindingFactor;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                     formatter.write_str("a bytestring")
@@ -321,7 +329,7 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
                     match <[u8; 32]>::try_from(v) {
                         Ok(ret) => {
                             let inner = Tweak::from_inner(ret).map_err(E::custom)?;
-                            Ok(AssetBlindingFactor(inner))
+                            Ok(BlindingFactor(inner))
                         }
                         Err(_) => Err(E::invalid_length(v.len(), &stringify!($len))),
                     }

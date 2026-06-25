@@ -13,6 +13,14 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use crate::encode::{self, Decodable, Encodable};
 use crate::hashes::sha256d;
 
+type ExplicitInner = [u8; 32];
+type ConfInner = PublicKey;
+
+const EXPLICIT_LEN: usize = 32;
+const CONFIDENTIAL_LEN: usize = 33;
+const CONF_PREFIX_1: u8 = 0x02;
+const CONF_PREFIX_2: u8 = 0x03;
+
 /// A CT commitment to an output nonce (i.e. a public key)
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Nonce {
@@ -22,9 +30,9 @@ pub enum Nonce {
     /// There should be no such thing as an "explicit nonce", but Elements will deserialize
     /// such a thing (and insists that its size be 32 bytes). So we stick a 32-byte type here
     /// that implements all the traits we need.
-    Explicit([u8; 32]),
+    Explicit(ExplicitInner),
     /// Nonce is committed
-    Confidential(PublicKey),
+    Confidential(ConfInner),
 }
 
 impl Nonce {
@@ -32,7 +40,7 @@ impl Nonce {
     pub fn new_confidential<R: RngCore + CryptoRng, C: Signing>(
         rng: &mut R,
         secp: &Secp256k1<C>,
-        receiver_blinding_pk: &PublicKey,
+        receiver_blinding_pk: &ConfInner,
     ) -> (Self, SecretKey) {
         let ephemeral_sk = SecretKey::new(rng);
         Self::with_ephemeral_sk(secp, ephemeral_sk, receiver_blinding_pk)
@@ -43,9 +51,9 @@ impl Nonce {
     pub fn with_ephemeral_sk<C: Signing>(
         secp: &Secp256k1<C>,
         ephemeral_sk: SecretKey,
-        receiver_blinding_pk: &PublicKey,
+        receiver_blinding_pk: &ConfInner,
     ) -> (Self, SecretKey) {
-        let sender_pk = PublicKey::from_secret_key(secp, &ephemeral_sk);
+        let sender_pk = ConfInner::from_secret_key(secp, &ephemeral_sk);
         let shared_secret = Self::make_shared_secret(receiver_blinding_pk, &ephemeral_sk);
         (Self::Confidential(sender_pk), shared_secret)
     }
@@ -60,14 +68,14 @@ impl Nonce {
     }
 
     /// Create the shared secret.
-    fn make_shared_secret(pk: &PublicKey, sk: &SecretKey) -> SecretKey {
+    fn make_shared_secret(pk: &ConfInner, sk: &SecretKey) -> SecretKey {
         let xy = secp256k1_zkp::ecdh::shared_secret_point(pk, sk);
         let shared_secret = {
             // Yes, what follows is the compressed representation of a Bitcoin public key.
             // However, this is more by accident then by design, see here: https://github.com/rust-bitcoin/rust-secp256k1/pull/255#issuecomment-744146282
 
-            let mut dh_secret = [0u8; 33];
-            dh_secret[0] = if xy.last().unwrap() % 2 == 0 { 0x02 } else { 0x03 };
+            let mut dh_secret = [0u8; CONFIDENTIAL_LEN];
+            dh_secret[0] = if xy.last().unwrap() % 2 == 0 { CONF_PREFIX_1 } else { CONF_PREFIX_2 };
             dh_secret[1..].copy_from_slice(&xy[0..32]);
 
             sha256d::Hash::hash(&dh_secret).to_byte_array()
@@ -80,15 +88,15 @@ impl Nonce {
     pub fn encoded_length(&self) -> usize {
         match *self {
             Self::Null => 1,
-            Self::Explicit(..) => 33,
-            Self::Confidential(..) => 33,
+            Self::Explicit(..) => 1 + EXPLICIT_LEN,
+            Self::Confidential(..) => CONFIDENTIAL_LEN,
         }
     }
 
     /// Create from commitment.
     pub fn from_commitment(bytes: &[u8]) -> Result<Self, encode::Error> {
         Ok(Self::Confidential(
-            PublicKey::from_slice(bytes).map_err(secp256k1_zkp::Error::Upstream)?,
+            ConfInner::from_slice(bytes).map_err(secp256k1_zkp::Error::Upstream)?,
         ))
     }
 
@@ -103,7 +111,7 @@ impl Nonce {
 
     /// Returns the explicit inner value.
     /// Returns [None] if [`Self::is_explicit`] returns false.
-    pub fn explicit(&self) -> Option<[u8; 32]> {
+    pub fn explicit(&self) -> Option<ExplicitInner> {
         match *self {
             Self::Explicit(i) => Some(i),
             _ => None,
@@ -112,7 +120,7 @@ impl Nonce {
 
     /// Returns the confidential commitment in case of a confidential value.
     /// Returns [None] if [`Self::is_confidential`] returns false.
-    pub fn commitment(&self) -> Option<PublicKey> {
+    pub fn commitment(&self) -> Option<ConfInner> {
         match *self {
             Self::Confidential(i) => Some(i),
             _ => None,
@@ -120,8 +128,8 @@ impl Nonce {
     }
 }
 
-impl From<PublicKey> for Nonce {
-    fn from(from: PublicKey) -> Self { Self::Confidential(from) }
+impl From<ConfInner> for Nonce {
+    fn from(from: ConfInner) -> Self { Self::Confidential(from) }
 }
 
 impl fmt::Display for Nonce {
@@ -149,7 +157,7 @@ impl Encodable for Nonce {
             }
             Self::Confidential(commitment) => {
                 s.write_all(&commitment.serialize())?;
-                Ok(33)
+                Ok(CONFIDENTIAL_LEN)
             }
         }
     }
@@ -165,11 +173,11 @@ impl Decodable for Nonce {
                 let explicit = Decodable::consensus_decode(&mut d)?;
                 Ok(Self::Explicit(explicit))
             }
-            p if p == 0x02 || p == 0x03 => {
-                let mut comm = [0u8; 33];
+            p if p == CONF_PREFIX_1 || p == CONF_PREFIX_2 => {
+                let mut comm = [0u8; CONFIDENTIAL_LEN];
                 comm[0] = p;
                 d.read_exact(&mut comm[1..])?;
-                Ok(Self::Confidential(PublicKey::from_slice(&comm)?))
+                Ok(Self::Confidential(ConfInner::from_slice(&comm)?))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }

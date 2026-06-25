@@ -18,6 +18,14 @@ use crate::confidential::AssetBlindingFactor;
 use crate::encode::{self, Decodable, Encodable};
 use crate::issuance::AssetId;
 
+type ExplicitInner = u64;
+type ConfInner = PedersenCommitment;
+
+const EXPLICIT_LEN: usize = 8;
+const CONFIDENTIAL_LEN: usize = 33;
+const CONF_PREFIX_1: u8 = 0x08;
+const CONF_PREFIX_2: u8 = 0x09;
+
 /// A CT commitment to an amount
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]
 pub enum Value {
@@ -25,9 +33,9 @@ pub enum Value {
     #[default]
     Null,
     /// Value is explicitly encoded
-    Explicit(u64),
+    Explicit(ExplicitInner),
     /// Value is committed
-    Confidential(PedersenCommitment),
+    Confidential(ConfInner),
 }
 
 impl Value {
@@ -36,9 +44,9 @@ impl Value {
         secp: &Secp256k1<C>,
         value: u64,
         asset: Generator,
-        bf: ValueBlindingFactor,
+        bf: BlindingFactor,
     ) -> Self {
-        Self::Confidential(PedersenCommitment::new(secp, value, bf.0, asset))
+        Self::Confidential(ConfInner::new(secp, value, bf.0, asset))
     }
 
     /// Create value commitment from assetID, asset blinding factor,
@@ -47,11 +55,11 @@ impl Value {
         secp: &Secp256k1<C>,
         value: u64,
         asset: AssetId,
-        v_bf: ValueBlindingFactor,
+        v_bf: BlindingFactor,
         a_bf: AssetBlindingFactor,
     ) -> Self {
         let generator = Generator::new_blinded(secp, asset.into_tag(), a_bf.0);
-        let comm = PedersenCommitment::new(secp, value, v_bf.0, generator);
+        let comm = ConfInner::new(secp, value, v_bf.0, generator);
 
         Self::Confidential(comm)
     }
@@ -60,14 +68,14 @@ impl Value {
     pub fn encoded_length(&self) -> usize {
         match *self {
             Self::Null => 1,
-            Self::Explicit(..) => 9,
-            Self::Confidential(..) => 33,
+            Self::Explicit(..) => 1 + EXPLICIT_LEN,
+            Self::Confidential(..) => CONFIDENTIAL_LEN,
         }
     }
 
     /// Create from commitment.
     pub fn from_commitment(bytes: &[u8]) -> Result<Self, encode::Error> {
-        Ok(Self::Confidential(PedersenCommitment::from_slice(bytes)?))
+        Ok(Self::Confidential(ConfInner::from_slice(bytes)?))
     }
 
     /// Check if the object is null.
@@ -81,7 +89,7 @@ impl Value {
 
     /// Returns the explicit inner value.
     /// Returns [None] if [`Self::is_explicit`] returns false.
-    pub fn explicit(&self) -> Option<u64> {
+    pub fn explicit(&self) -> Option<ExplicitInner> {
         match *self {
             Self::Explicit(i) => Some(i),
             _ => None,
@@ -90,7 +98,7 @@ impl Value {
 
     /// Returns the confidential commitment in case of a confidential value.
     /// Returns [None] if [`Self::is_confidential`] returns false.
-    pub fn commitment(&self) -> Option<PedersenCommitment> {
+    pub fn commitment(&self) -> Option<ConfInner> {
         match *self {
             Self::Confidential(i) => Some(i),
             _ => None,
@@ -98,8 +106,8 @@ impl Value {
     }
 }
 
-impl From<PedersenCommitment> for Value {
-    fn from(from: PedersenCommitment) -> Self { Self::Confidential(from) }
+impl From<ConfInner> for Value {
+    fn from(from: ConfInner) -> Self { Self::Confidential(from) }
 }
 
 impl fmt::Display for Value {
@@ -122,7 +130,7 @@ impl Encodable for Value {
             }
             Self::Confidential(commitment) => {
                 s.write_all(&commitment.serialize())?;
-                Ok(33)
+                Ok(CONFIDENTIAL_LEN)
             }
         }
     }
@@ -138,11 +146,11 @@ impl Decodable for Value {
                 let explicit = u64::swap_bytes(Decodable::consensus_decode(&mut d)?);
                 Ok(Self::Explicit(explicit))
             }
-            p if p == 0x08 || p == 0x09 => {
-                let mut comm = [0u8; 33];
+            p if p == CONF_PREFIX_1 || p == CONF_PREFIX_2 => {
+                let mut comm = [0u8; CONFIDENTIAL_LEN];
                 comm[0] = p;
                 d.read_exact(&mut comm[1..])?;
-                Ok(Self::Confidential(PedersenCommitment::from_slice(&comm)?))
+                Ok(Self::Confidential(ConfInner::from_slice(&comm)?))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
@@ -211,9 +219,9 @@ impl<'de> Deserialize<'de> for Value {
 
 /// Blinding factor used for value commitments.
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub struct ValueBlindingFactor(pub(crate) Tweak);
+pub struct BlindingFactor(pub(crate) Tweak);
 
-impl ValueBlindingFactor {
+impl BlindingFactor {
     /// Generate random value blinding factor.
     pub fn new<R: Rng>(rng: &mut R) -> Self { Self(Tweak::new(rng)) }
 
@@ -261,7 +269,7 @@ impl ValueBlindingFactor {
     pub fn zero() -> Self { Self(ZERO_TWEAK) }
 }
 
-impl AddAssign for ValueBlindingFactor {
+impl AddAssign for BlindingFactor {
     fn add_assign(&mut self, other: Self) {
         if self.0.as_ref() == &[0u8; 32] {
             *self = other;
@@ -285,7 +293,7 @@ impl AddAssign for ValueBlindingFactor {
     }
 }
 
-impl Neg for ValueBlindingFactor {
+impl Neg for BlindingFactor {
     type Output = Self;
 
     fn neg(self) -> Self::Output {
@@ -298,18 +306,18 @@ impl Neg for ValueBlindingFactor {
     }
 }
 
-impl core::borrow::Borrow<[u8]> for ValueBlindingFactor {
+impl core::borrow::Borrow<[u8]> for BlindingFactor {
     fn borrow(&self) -> &[u8] { &self.0[..] }
 }
 
 hex::impl_fmt_traits! {
     #[display_backward(true)]
-    impl fmt_traits for ValueBlindingFactor {
+    impl fmt_traits for BlindingFactor {
         const LENGTH: usize = 32;
     }
 }
 
-impl str::FromStr for ValueBlindingFactor {
+impl str::FromStr for BlindingFactor {
     type Err = encode::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -322,7 +330,7 @@ impl str::FromStr for ValueBlindingFactor {
 }
 
 #[cfg(feature = "serde")]
-impl Serialize for ValueBlindingFactor {
+impl Serialize for BlindingFactor {
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
         if s.is_human_readable() {
             s.collect_str(&self)
@@ -333,13 +341,13 @@ impl Serialize for ValueBlindingFactor {
 }
 
 #[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for ValueBlindingFactor {
+impl<'de> Deserialize<'de> for BlindingFactor {
     fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
         if d.is_human_readable() {
             struct HexVisitor;
 
             impl ::serde::de::Visitor<'_> for HexVisitor {
-                type Value = ValueBlindingFactor;
+                type Value = BlindingFactor;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                     formatter.write_str("an ASCII hex string")
@@ -369,7 +377,7 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
             struct BytesVisitor;
 
             impl ::serde::de::Visitor<'_> for BytesVisitor {
-                type Value = ValueBlindingFactor;
+                type Value = BlindingFactor;
 
                 fn expecting(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
                     formatter.write_str("a bytestring")
@@ -384,7 +392,7 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
                     match <[u8; 32]>::try_from(v) {
                         Ok(ret) => {
                             let inner = Tweak::from_inner(ret).map_err(E::custom)?;
-                            Ok(ValueBlindingFactor(inner))
+                            Ok(BlindingFactor(inner))
                         }
                         Err(_) => Err(E::invalid_length(v.len(), &stringify!($len))),
                     }

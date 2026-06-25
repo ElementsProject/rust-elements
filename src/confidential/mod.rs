@@ -29,11 +29,11 @@ use core::fmt;
 
 use secp256k1_zkp;
 
-pub use self::asset::{Asset, AssetBlindingFactor};
+pub use self::asset::{Asset, BlindingFactor as AssetBlindingFactor};
 pub use self::nonce::Nonce;
 pub use self::range_proof::RangeProof;
 pub use self::surjection_proof::SurjectionProof;
-pub use self::value::{Value, ValueBlindingFactor};
+pub use self::value::{BlindingFactor as ValueBlindingFactor, Value};
 use crate::encode;
 use crate::issuance::AssetId;
 
