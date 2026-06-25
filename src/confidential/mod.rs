@@ -1086,83 +1086,125 @@ mod tests {
     #[cfg(feature = "serde")]
     use bincode;
 
+    const VALUE_EXPLICIT: [u8; 9] = [ 1, 0, 0, 0, 0, 0, 0, 3, 232 ];
+
+    const VALUE_COMMITMENT1: [u8; 33] = [
+        0x08, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1,
+    ];
+
+    const VALUE_COMMITMENT2: [u8; 33] = [
+        0x09, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1,
+    ];
+
+    const NONCE_EXPLICIT: [u8; 33] = [
+        0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0,
+    ];
+
+    const NONCE_COMMITMENT1: [u8; 33] = [
+        0x02, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1,
+    ];
+
+    const NONCE_COMMITMENT2: [u8; 33] = [
+        0x03, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1,
+    ];
+
+    const ASSET_EXPLICIT: [u8; 33] = [
+        0x01, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0,
+    ];
+
+    const ASSET_COMMITMENT1: [u8; 33] = [
+        0x0a, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1,
+    ];
+
+    const ASSET_COMMITMENT2: [u8; 33] = [
+        0x0b, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1,
+    ];
+
     #[test]
     fn encode_length() {
+        let val_encodings = [
+            vec![0],
+            VALUE_EXPLICIT.to_vec(),
+            VALUE_COMMITMENT1.to_vec(),
+            VALUE_COMMITMENT2.to_vec(),
+        ];
         let vals = [
             Value::Null,
             Value::Explicit(1000),
-            Value::from_commitment(&[
-                0x08, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 1, 1, 1,
-            ])
-            .unwrap(),
+            Value::from_commitment(&VALUE_COMMITMENT1).unwrap(),
+            Value::from_commitment(&VALUE_COMMITMENT2).unwrap(),
         ];
-        for v in &vals[..] {
+        for (v, enc) in vals.iter().zip(val_encodings.iter()) {
             let mut x = vec![];
             assert_eq!(v.consensus_encode(&mut x).unwrap(), v.encoded_length());
             assert_eq!(x.len(), v.encoded_length());
+            assert_eq!(x, *enc);
         }
 
+        let nonce_encodings = [
+            vec![0],
+            NONCE_EXPLICIT.to_vec(),
+            NONCE_COMMITMENT1.to_vec(),
+            NONCE_COMMITMENT2.to_vec(),
+        ];
         let nonces = [
             Nonce::Null,
             Nonce::Explicit([0; 32]),
-            Nonce::from_commitment(&[
-                0x02, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 1, 1, 1,
-            ])
-            .unwrap(),
+            Nonce::from_commitment(&NONCE_COMMITMENT1).unwrap(),
+            Nonce::from_commitment(&NONCE_COMMITMENT2).unwrap(),
         ];
-        for v in &nonces[..] {
+        for (v, enc) in nonces.iter().zip(nonce_encodings.iter()) {
             let mut x = vec![];
             assert_eq!(v.consensus_encode(&mut x).unwrap(), v.encoded_length());
             assert_eq!(x.len(), v.encoded_length());
+            assert_eq!(x, *enc);
         }
 
+        let asset_encodings = [
+            vec![0],
+            ASSET_EXPLICIT.to_vec(),
+            ASSET_COMMITMENT1.to_vec(),
+            ASSET_COMMITMENT2.to_vec(),
+        ];
         let assets = [
             Asset::Null,
             Asset::Explicit(AssetId::from_byte_array([0; 32])),
-            Asset::from_commitment(&[
-                0x0a, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                1, 1, 1, 1, 1, 1,
-            ])
-            .unwrap(),
+            Asset::from_commitment(&ASSET_COMMITMENT1).unwrap(),
+            Asset::from_commitment(&ASSET_COMMITMENT2).unwrap(),
         ];
-        for v in &assets[..] {
+        for (v, enc) in assets.iter().zip(asset_encodings.iter()) {
             let mut x = vec![];
             assert_eq!(v.consensus_encode(&mut x).unwrap(), v.encoded_length());
             assert_eq!(x.len(), v.encoded_length());
+            assert_eq!(x, *enc);
         }
     }
 
     #[test]
     fn commitments() {
-        let x = Value::from_commitment(&[
-            0x08, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1,
-        ])
-        .unwrap();
+        let x = Value::from_commitment(&VALUE_COMMITMENT1).unwrap();
         let commitment = x.commitment().unwrap();
         let mut commitment = commitment.serialize();
         assert_eq!(x, Value::from_commitment(&commitment[..]).unwrap());
         commitment[0] = 42;
         assert!(Value::from_commitment(&commitment[..]).is_err());
 
-        let x = Asset::from_commitment(&[
-            0x0a, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1,
-        ])
-        .unwrap();
+        let x = Asset::from_commitment(&ASSET_COMMITMENT1).unwrap();
         let commitment = x.commitment().unwrap();
         let mut commitment = commitment.serialize();
         assert_eq!(x, Asset::from_commitment(&commitment[..]).unwrap());
         commitment[0] = 42;
         assert!(Asset::from_commitment(&commitment[..]).is_err());
 
-        let x = Nonce::from_commitment(&[
-            0x02, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1,
-        ])
-        .unwrap();
+        let x = Nonce::from_commitment(&NONCE_COMMITMENT1).unwrap();
         let commitment = x.commitment().unwrap();
         let mut commitment = commitment.serialize();
         assert_eq!(x, Nonce::from_commitment(&commitment[..]).unwrap());
@@ -1186,11 +1228,7 @@ mod tests {
             ]
         );
 
-        let value = Value::from_commitment(&[
-            0x08,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        ]).unwrap();
+        let value = Value::from_commitment(&VALUE_COMMITMENT1).unwrap();
         assert_tokens(
             &value.readable(),
             &[
@@ -1207,13 +1245,7 @@ mod tests {
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Bytes(
-                    &[
-                        8,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-                    ]
-                ),
+                Token::Bytes(&VALUE_COMMITMENT1),
                 Token::SeqEnd
             ]
         );
@@ -1264,11 +1296,7 @@ mod tests {
             ]
         );
 
-        let asset = Asset::from_commitment(&[
-            0x0a,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        ]).unwrap();
+        let asset = Asset::from_commitment(&ASSET_COMMITMENT1).unwrap();
         assert_tokens(
             &asset.readable(),
             &[
@@ -1285,13 +1313,7 @@ mod tests {
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Bytes(
-                    &[
-                        10,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-                        1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1
-                    ]
-                ),
+                Token::Bytes(&ASSET_COMMITMENT1),
                 Token::SeqEnd
             ]
         );
@@ -1335,11 +1357,7 @@ mod tests {
             ]
         );
 
-        let nonce = Nonce::from_commitment(&[
-            0x02,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        ]).unwrap();
+        let nonce = Nonce::from_commitment(&NONCE_COMMITMENT1).unwrap();
         assert_tokens(
             &nonce.readable(),
             &[
