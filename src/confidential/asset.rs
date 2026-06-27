@@ -120,10 +120,14 @@ impl fmt::Display for Asset {
 impl Encodable for Asset {
     fn consensus_encode<S: io::Write>(&self, mut s: S) -> Result<usize, encode::Error> {
         match *self {
-            Self::Null => 0u8.consensus_encode(s),
+            Self::Null => {
+                s.write_all(&[0u8])?;
+                Ok(1)
+            }
             Self::Explicit(n) => {
-                1u8.consensus_encode(&mut s)?;
-                Ok(1 + n.consensus_encode(&mut s)?)
+                s.write_all(&[1u8])?;
+                s.write_all(n.as_byte_array())?;
+                Ok(1 + EXPLICIT_LEN)
             }
             Self::Confidential(generator) => {
                 s.write_all(&generator.serialize())?;
@@ -135,19 +139,19 @@ impl Encodable for Asset {
 
 impl Decodable for Asset {
     fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
-        let prefix = u8::consensus_decode(&mut d)?;
+        let mut buf = [0u8; CONFIDENTIAL_LEN];
+        d.read_exact(&mut buf[0..1])?;
 
-        match prefix {
+        match buf[0] {
             0 => Ok(Self::Null),
             1 => {
-                let explicit = Decodable::consensus_decode(&mut d)?;
-                Ok(Self::Explicit(explicit))
+                let mut buf = [0; EXPLICIT_LEN];
+                d.read_exact(&mut buf)?;
+                Ok(Self::Explicit(AssetId::from_byte_array(buf)))
             }
             p if p == CONF_PREFIX_1 || p == CONF_PREFIX_2 => {
-                let mut comm = [0u8; CONFIDENTIAL_LEN];
-                comm[0] = p;
-                d.read_exact(&mut comm[1..])?;
-                Ok(Self::Confidential(ConfInner::from_slice(&comm[..])?))
+                d.read_exact(&mut buf[1..])?;
+                Ok(Self::Confidential(ConfInner::from_slice(&buf[..])?))
             }
             p => Err(encode::Error::InvalidConfidentialPrefix(p)),
         }
