@@ -654,10 +654,7 @@ impl PartiallySignedTransaction {
             .ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
         let ephemeral_sk = SecretKey::new(rng);
         let spk = &self.outputs[last_out_index].script_pubkey;
-        let msg = RangeProofMessage {
-            asset: asset_id,
-            bf: out_abf,
-        };
+        let msg = RangeProofMessage::new(asset_id, out_abf);
         let blind_res = exp_value.blind(
             secp,
             final_vbf,

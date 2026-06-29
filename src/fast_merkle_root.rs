@@ -12,7 +12,7 @@
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
-use crate::hashes::{sha256, Hash, HashEngine};
+use crate::hashes::{sha256, HashEngine};
 
 /// Calculate a single sha256 midstate hash of the given left and right leaves.
 #[inline]
@@ -20,7 +20,7 @@ fn sha256midstate(left: &[u8], right: &[u8]) -> sha256::Midstate {
     let mut engine = sha256::Hash::engine();
     engine.input(left);
     engine.input(right);
-    engine.midstate()
+    engine.midstate().expect("hashing exactly 64 bytes")
 }
 
 /// Compute the Merkle root of the give hashes using mid-state only.
@@ -45,14 +45,14 @@ pub fn fast_merkle_root(leaves: &[[u8; 32]]) -> sha256::Midstate {
     let mut inner: [sha256::Midstate; 32] = Default::default();
     let mut count: u32 = 0;
     while (count as usize) < leaves.len() {
-        let mut temp_hash = sha256::Midstate::from_byte_array(leaves[count as usize]);
+        let mut temp_hash = sha256::Midstate::new(leaves[count as usize], 64);
         count += 1;
         // For each of the lower bits in count that are 0, do 1 step. Each
         // corresponds to an inner value that existed before processing the
         // current leaf, and each needs a hash to combine it.
         let mut level = 0;
         while count & (1u32 << level) == 0 {
-            temp_hash = sha256midstate(&inner[level][..], &temp_hash[..]);
+            temp_hash = sha256midstate(inner[level].as_parts().0, temp_hash.as_parts().0);
             level += 1;
         }
         // Store the resulting hash at inner position level.
@@ -81,7 +81,7 @@ pub fn fast_merkle_root(leaves: &[[u8; 32]]) -> sha256::Midstate {
         count += 1 << level;
         level += 1;
         while count & (1u32 << level) == 0 {
-            result_hash = sha256midstate(&inner[level][..], &result_hash[..]);
+            result_hash = sha256midstate(inner[level].as_parts().0, result_hash.as_parts().0);
             level += 1;
         }
     }
@@ -92,11 +92,15 @@ pub fn fast_merkle_root(leaves: &[[u8; 32]]) -> sha256::Midstate {
 #[cfg(test)]
 mod tests {
     use super::fast_merkle_root;
-    use crate::hashes::sha256;
-    use std::str::FromStr;
 
     #[test]
     fn test_fast_merkle_root() {
+        fn decode_hex(hex: &str) -> [u8; 32] {
+            let mut ret = hex::decode_to_array(hex).unwrap();
+            ret.reverse();
+            ret
+        }
+
         // unit test vectors from Elements Core
         let test_leaves = [
             "b66b041650db0f297b53f8d93c0e8706925bf3323f8c59c14a6fac37bfdcd06f",
@@ -116,9 +120,9 @@ mod tests {
         let mut leaves = vec![];
         for i in 0..4 {
             let root = fast_merkle_root(&leaves);
-            assert_eq!(root, FromStr::from_str(test_roots[i]).unwrap(), "root #{}", i);
-            leaves.push(sha256::Midstate::from_str(test_leaves[i]).unwrap().to_byte_array());
+            assert_eq!(root.to_parts().0, decode_hex(test_roots[i]), "root #{i}");
+            leaves.push(decode_hex(test_leaves[i]));
         }
-        assert_eq!(fast_merkle_root(&leaves), FromStr::from_str(test_roots[4]).unwrap());
+        assert_eq!(fast_merkle_root(&leaves).to_parts().0, decode_hex(test_roots[4]));
     }
 }

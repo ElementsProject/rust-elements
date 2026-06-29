@@ -221,7 +221,6 @@ mod test {
 
     use crate::encode::serialize;
     use crate::{OutPoint, Txid};
-    use bitcoin::hashes::Hash;
     use hex::DisplayHex as _;
 
     use crate::{

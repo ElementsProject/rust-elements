@@ -20,8 +20,9 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use bitcoin::{self, VarInt};
+use bitcoin::hashes::Hash as _;
 use internals::slice::SliceExt;
-use crate::hashes::Hash;
+use crate::hashes::{sha256d, HashEngine as _};
 
 use crate::{confidential, ContractHash};
 use crate::encode::{self, Encodable, Decodable};
@@ -99,7 +100,7 @@ impl OutPoint {
     #[inline]
     pub fn null() -> OutPoint {
         OutPoint {
-            txid: Txid::all_zeros(),
+            txid: Txid::COINBASE_PREVOUT,
             vout: u32::MAX,
         }
     }
@@ -151,7 +152,7 @@ impl ::std::str::FromStr for OutPoint {
         }
         let bitcoin_outpoint = bitcoin::OutPoint::from_str(s)?;
         Ok(OutPoint {
-            txid: Txid::from(bitcoin_outpoint.txid.to_raw_hash()),
+            txid: Txid::from_byte_array(bitcoin_outpoint.txid.to_byte_array()),
             vout: bitcoin_outpoint.vout,
         })
     }
@@ -792,7 +793,7 @@ impl TxOut {
 
         // Parse destination chain's genesis block
         let genesis_hash = bitcoin::BlockHash::from_raw_hash(
-            crate::hashes::Hash::from_slice(iter.next()?.ok()?.push_bytes()?).ok()?
+            bitcoin::hashes::Hash::from_slice(iter.next()?.ok()?.push_bytes()?).ok()?
         );
 
         // Parse destination scriptpubkey
@@ -1027,20 +1028,20 @@ impl Transaction {
 
     /// The txid of the transaction.
     pub fn txid(&self) -> Txid {
-        let mut enc = Txid::engine();
+        let mut enc = sha256d::Hash::engine();
         self.version.consensus_encode(&mut enc).unwrap();
         0u8.consensus_encode(&mut enc).unwrap();
         self.input.consensus_encode(&mut enc).unwrap();
         self.output.consensus_encode(&mut enc).unwrap();
         self.lock_time.consensus_encode(&mut enc).unwrap();
-        Txid::from_engine(enc)
+        Txid(enc.finalize())
     }
 
     /// Get the witness txid of the transaction.
     pub fn wtxid(&self) -> Wtxid {
-        let mut enc = Txid::engine();
+        let mut enc = sha256d::Hash::engine();
         self.consensus_encode(&mut enc).unwrap();
-        Wtxid::from_engine(enc)
+        Wtxid(enc.finalize())
     }
 
     /// Get the total transaction fee in the given asset.

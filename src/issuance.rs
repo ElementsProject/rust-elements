@@ -17,7 +17,7 @@
 use std::io;
 
 use crate::encode::{self, Encodable, Decodable};
-use crate::hashes::{hash_newtype, sha256, sha256d, Hash};
+use crate::hashes::{hash_newtype, sha256, sha256d};
 use crate::fast_merkle_root::fast_merkle_root;
 use secp256k1_zkp::Tag;
 use crate::genesis::{commit_to_custom_network_parameters, NetworkParams};
@@ -42,7 +42,9 @@ hash_newtype!(
     #[hash_newtype(backward)]
     pub struct ContractHash(sha256::Hash);
 );
-
+hashes::impl_hex_for_newtype!(ContractHash);
+#[cfg(feature = "serde")]
+hashes::impl_serde_for_newtype!(ContractHash);
 
 impl_sha256_midstate_wrapper! {
     /// A hash of some data used as "asset entropy" to seed the ID of a new asset.
@@ -62,15 +64,17 @@ impl ContractHash {
     /// the hash.
     #[cfg(feature = "json-contract")]
     pub fn from_json_contract(json: &str) -> Result<ContractHash, ::serde_json::Error> {
+        use crate::hashes::HashEngine as _;
+        
         // Parsing the JSON into a BTreeMap will recursively order object keys
         // lexicographically. This order is respected when we later serialize
         // it again.
         let ordered: ::std::collections::BTreeMap<String, ::serde_json::Value> =
             ::serde_json::from_str(json)?;
 
-        let mut engine = ContractHash::engine();
+        let mut engine = sha256::Hash::engine();
         ::serde_json::to_writer(&mut engine, &ordered).expect("engines don't error");
-        Ok(ContractHash::from_engine(engine))
+        Ok(ContractHash(engine.finalize()))
     }
 }
 
@@ -167,8 +171,8 @@ impl AssetId {
     /// a Regtest parent network
     fn pegged_asset_id_for_params_and_parent_chain_hash(params: &NetworkParams, parent_chainhash: bitcoin::blockdata::constants::ChainHash) -> AssetId {
         let commit = commit_to_custom_network_parameters(params);
-        let asset_outpoint = OutPoint::new(Txid::from_slice(commit.as_slice()).expect("txid"), 0);
-        let asset_entropy = AssetId::generate_asset_entropy(asset_outpoint, ContractHash::from_slice(parent_chainhash.to_bytes().as_slice()).unwrap());
+        let asset_outpoint = OutPoint::new(Txid::from_byte_array(commit.to_byte_array()), 0);
+        let asset_entropy = AssetId::generate_asset_entropy(asset_outpoint, ContractHash::from_byte_array(*parent_chainhash.as_ref()));
         AssetId::from_entropy(asset_entropy)
     }
 }
@@ -263,28 +267,28 @@ mod test {
         let tether = ContractHash::from_str("3c7f0a53c2ff5b99590620d7f6604a7a3a7bfbaaa6aa61f7bfc7833ca03cde82").unwrap();
 
         let correct = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
-        let expected = ContractHash::hash(correct.as_bytes());
-        assert_eq!(tether, expected);
-        assert_eq!(expected, ContractHash::from_json_contract(correct).unwrap());
+        let expected = sha256::Hash::hash(correct.as_bytes()).to_byte_array();
+        assert_eq!(tether.to_byte_array(), expected);
+        assert_eq!(expected, ContractHash::from_json_contract(correct).unwrap().to_byte_array());
 
         let invalid_json = r#"{"entity":{"domain":"tether.to"},"issuer_pubkey:"#;
         assert!(ContractHash::from_json_contract(invalid_json).is_err());
 
         let unordered = r#"{"precision":8,"ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap().to_byte_array());
 
         let unordered = r#"{"precision":8,"name":"Tether USD","ticker":"USDt","entity":{"domain":"tether.to"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0}"#;
-        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(unordered).unwrap().to_byte_array());
 
         let spaces = r#"{"precision":8, "name" : "Tether USD", "ticker":"USDt",  "entity":{"domain":"tether.to" }, "issuer_pubkey" :"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","version":0} "#;
-        assert_eq!(expected, ContractHash::from_json_contract(spaces).unwrap());
+        assert_eq!(expected, ContractHash::from_json_contract(spaces).unwrap().to_byte_array());
 
         let nested_correct = r#"{"entity":{"author":"Tether Inc","copyright":2020,"domain":"tether.to","hq":"Mars"},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"ticker":"USDt","version":0}"#;
-        let nested_expected = ContractHash::hash(nested_correct.as_bytes());
-        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_correct).unwrap());
+        let nested_expected = sha256::Hash::hash(nested_correct.as_bytes()).to_byte_array();
+        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_correct).unwrap().to_byte_array());
 
         let nested_unordered = r#"{"ticker":"USDt","entity":{"domain":"tether.to","hq":"Mars","author":"Tether Inc","copyright":2020},"issuer_pubkey":"0337cceec0beea0232ebe14cba0197a9fbd45fcf2ec946749de920e71434c2b904","name":"Tether USD","precision":8,"version":0}"#;
-        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_unordered).unwrap());
+        assert_eq!(nested_expected, ContractHash::from_json_contract(nested_unordered).unwrap().to_byte_array());
     }
 
     #[test]

@@ -17,7 +17,7 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
-use crate::hashes::{sha256d, Hash};
+use crate::hashes::sha256d;
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
     PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
     compute_adaptive_blinding_factor,
