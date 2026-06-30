@@ -38,20 +38,19 @@ mod str;
 #[cfg(feature = "base64")]
 pub use self::str::ParseError;
 
-use crate::blind::{BlindAssetProofs, BlindValueProofs};
 use crate::confidential;
 use crate::encode::{self, Decodable, Encodable};
 use crate::{
     blind::RangeProofMessage,
     confidential::{AssetBlindingFactor, ValueBlindingFactor},
-    TxOutSecrets,
+    RangeProof, SurjectionProof, TxOutSecrets,
 };
 use crate::{
     LockTime, OutPoint, Sequence, SurjectionInput, Transaction, TxIn,
     TxInWitness, TxOut, TxOutWitness, Txid, CtLocation, CtLocationType,
 };
 use secp256k1_zkp::rand::{CryptoRng, RngCore};
-use secp256k1_zkp::{self, RangeProof, SecretKey, SurjectionProof};
+use secp256k1_zkp::{self, SecretKey};
 
 pub use self::error::{Error, PsetBlindError, PsetHash};
 use self::map::Map;
@@ -300,8 +299,12 @@ impl PartiallySignedTransaction {
                 sequence: psetin.sequence.unwrap_or(Sequence::MAX),
                 asset_issuance: psetin.asset_issuance(),
                 witness: TxInWitness {
-                    amount_rangeproof: psetin.issuance_value_rangeproof.clone(),
-                    inflation_keys_rangeproof: psetin.issuance_keys_rangeproof.clone(),
+                    amount_rangeproof: psetin.issuance_value_rangeproof
+                        .clone()
+                        .unwrap_or(RangeProof::EMPTY),
+                    inflation_keys_rangeproof: psetin.issuance_keys_rangeproof
+                        .clone()
+                        .unwrap_or(RangeProof::EMPTY),
                     script_witness: psetin
                         .final_script_witness
                         .as_ref()
@@ -335,8 +338,12 @@ impl PartiallySignedTransaction {
                     .unwrap_or_default(),
                 script_pubkey: out.script_pubkey.clone(),
                 witness: TxOutWitness {
-                    surjection_proof: out.asset_surjection_proof.clone(),
-                    rangeproof: out.value_rangeproof.clone(),
+                    surjection_proof: out.asset_surjection_proof
+                        .clone()
+                        .unwrap_or(SurjectionProof::EMPTY),
+                    rangeproof: out.value_rangeproof
+                        .clone()
+                        .unwrap_or(RangeProof::EMPTY),
                 },
             };
             outputs.push(txout);
@@ -518,8 +525,8 @@ impl PartiallySignedTransaction {
 
             // mutate the pset
             {
-                self.outputs[i].value_rangeproof = txout.witness.rangeproof;
-                self.outputs[i].asset_surjection_proof = txout.witness.surjection_proof;
+                self.outputs[i].value_rangeproof = Some(txout.witness.rangeproof);
+                self.outputs[i].asset_surjection_proof = Some(txout.witness.surjection_proof);
                 self.outputs[i].amount_comm = txout.value.commitment();
                 self.outputs[i].asset_comm = txout.asset.commitment();
                 self.outputs[i].ecdh_pubkey =
@@ -530,10 +537,10 @@ impl PartiallySignedTransaction {
                 let asset_id = self.outputs[i]
                     .asset
                     .ok_or(PsetBlindError::MustHaveExplicitTxOut(i))?;
-                self.outputs[i].blind_asset_proof = Some(Box::new(
+                self.outputs[i].blind_asset_proof = Some(
                     SurjectionProof::blind_asset_proof(rng, secp, asset_id, abf)
                         .map_err(|e| PsetBlindError::BlindingProofsCreationError(i, e))?,
-                ));
+                );
 
                 let asset_gen = self.outputs[i]
                     .asset_comm
@@ -541,10 +548,10 @@ impl PartiallySignedTransaction {
                 let value_comm = self.outputs[i]
                     .amount_comm
                     .expect("Blinding proof successful");
-                self.outputs[i].blind_value_proof = Some(Box::new(
+                self.outputs[i].blind_value_proof = Some(
                     RangeProof::blind_value_proof(rng, secp, value, value_comm, asset_gen, vbf)
                         .map_err(|e| PsetBlindError::BlindingProofsCreationError(i, e))?,
-                ));
+                );
             }
             // return blinding factors used
             let location = CtLocation{ input_index: i, ty: CtLocationType::Input};
@@ -670,8 +677,8 @@ impl PartiallySignedTransaction {
 
         // mutate the pset
         {
-            self.outputs[last_out_index].value_rangeproof = Some(Box::new(rangeproof));
-            self.outputs[last_out_index].asset_surjection_proof = Some(Box::new(surjection_proof));
+            self.outputs[last_out_index].value_rangeproof = Some(rangeproof);
+            self.outputs[last_out_index].asset_surjection_proof = Some(surjection_proof);
             self.outputs[last_out_index].amount_comm = value_commitment.commitment();
             self.outputs[last_out_index].asset_comm = out_asset_commitment.commitment();
             self.outputs[last_out_index].ecdh_pubkey =
@@ -682,10 +689,10 @@ impl PartiallySignedTransaction {
             let asset_id = self.outputs[last_out_index]
                 .asset
                 .ok_or(PsetBlindError::MustHaveExplicitTxOut(last_out_index))?;
-            self.outputs[last_out_index].blind_asset_proof = Some(Box::new(
+            self.outputs[last_out_index].blind_asset_proof = Some(
                 SurjectionProof::blind_asset_proof(rng, secp, asset_id, out_abf)
                     .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?,
-            ));
+            );
 
             let asset_gen = self.outputs[last_out_index]
                 .asset_comm
@@ -693,10 +700,10 @@ impl PartiallySignedTransaction {
             let value_comm = self.outputs[last_out_index]
                 .amount_comm
                 .expect("Blinding proof successful");
-            self.outputs[last_out_index].blind_value_proof = Some(Box::new(
+            self.outputs[last_out_index].blind_value_proof = Some(
                 RangeProof::blind_value_proof(rng, secp, value, value_comm, asset_gen, final_vbf)
                     .map_err(|e| PsetBlindError::BlindingProofsCreationError(last_out_index, e))?,
-            ));
+            );
 
             self.global.scalars.clear();
         }

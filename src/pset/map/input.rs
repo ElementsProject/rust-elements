@@ -32,10 +32,10 @@ use crate::pset::raw;
 use crate::pset::serialize;
 use crate::pset::{self, error, Error};
 use crate::{transaction::SighashTypeParseError, SchnorrSighashType};
-use crate::{AssetIssuance, BlockHash, EcdsaSighashType, Script, Transaction, TxIn, TxOut, Txid};
+use crate::{AssetIssuance, BlockHash, EcdsaSighashType, RangeProof, Script, Transaction, TxIn, TxOut, Txid, SurjectionProof};
 use bitcoin::bip32::KeySource;
 use bitcoin::{PublicKey, key::XOnlyPublicKey};
-use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak, ZERO_TWEAK};
+use secp256k1_zkp::{self, Tweak, ZERO_TWEAK};
 
 use crate::{OutPoint, Sequence};
 
@@ -262,9 +262,9 @@ pub struct Input {
     /// The issuance value commitment
     pub issuance_value_comm: Option<secp256k1_zkp::PedersenCommitment>,
     /// Issuance value rangeproof
-    pub issuance_value_rangeproof: Option<Box<RangeProof>>,
+    pub issuance_value_rangeproof: Option<RangeProof>,
     /// Issuance keys rangeproof
-    pub issuance_keys_rangeproof: Option<Box<RangeProof>>,
+    pub issuance_keys_rangeproof: Option<RangeProof>,
     /// Pegin Transaction. Should be a `bitcoin::Transaction`
     pub pegin_tx: Option<bitcoin::Transaction>,
     /// Pegin Transaction proof
@@ -287,19 +287,19 @@ pub struct Input {
     /// Issuance asset entropy
     pub issuance_asset_entropy: Option<[u8; 32]>,
     /// input utxo rangeproof
-    pub in_utxo_rangeproof: Option<Box<RangeProof>>,
+    pub in_utxo_rangeproof: Option<RangeProof>,
     /// Proof that blinded issuance matches the commitment
-    pub in_issuance_blind_value_proof: Option<Box<RangeProof>>,
+    pub in_issuance_blind_value_proof: Option<RangeProof>,
     /// Proof that blinded inflation keys matches the corresponding commitment
-    pub in_issuance_blind_inflation_keys_proof: Option<Box<RangeProof>>,
+    pub in_issuance_blind_inflation_keys_proof: Option<RangeProof>,
     /// The explicit amount of the input
     pub amount: Option<u64>,
     /// The blind value rangeproof
-    pub blind_value_proof: Option<Box<RangeProof>>,
+    pub blind_value_proof: Option<RangeProof>,
     /// The input explicit asset
     pub asset: Option<AssetId>,
     /// The blind asset surjection proof
-    pub blind_asset_proof: Option<Box<SurjectionProof>>,
+    pub blind_asset_proof: Option<SurjectionProof>,
     /// Whether the issuance is blinded
     pub blinded_issuance: Option<u8>,
     /// Other fields
@@ -540,8 +540,8 @@ impl Input {
             }
 
             // Witness
-            ret.issuance_keys_rangeproof = txin.witness.inflation_keys_rangeproof;
-            ret.issuance_value_rangeproof = txin.witness.amount_rangeproof;
+            ret.issuance_keys_rangeproof = Some(txin.witness.inflation_keys_rangeproof);
+            ret.issuance_value_rangeproof = Some(txin.witness.amount_rangeproof);
         }
         ret
     }
@@ -746,10 +746,10 @@ impl Map for Input {
                             impl_pset_prop_insert_pair!(self.issuance_value_comm <= <raw_key: _> | <raw_value : secp256k1_zkp::PedersenCommitment>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_VALUE_RANGEPROOF => {
-                            impl_pset_prop_insert_pair!(self.issuance_value_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
+                            impl_pset_prop_insert_pair!(self.issuance_value_rangeproof <= <raw_key: _> | <raw_value : RangeProof>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_KEYS_RANGEPROOF => {
-                            impl_pset_prop_insert_pair!(self.issuance_keys_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
+                            impl_pset_prop_insert_pair!(self.issuance_keys_rangeproof <= <raw_key: _> | <raw_value : RangeProof>);
                         }
                         PSBT_ELEMENTS_IN_PEG_IN_TX => {
                             impl_pset_prop_insert_pair!(self.pegin_tx <= <raw_key: _> | <raw_value : bitcoin::Transaction>);
@@ -783,25 +783,25 @@ impl Map for Input {
                             impl_pset_prop_insert_pair!(self.issuance_asset_entropy <= <raw_key: _> | <raw_value : [u8;32]>);
                         }
                         PSBT_ELEMENTS_IN_UTXO_RANGEPROOF => {
-                            impl_pset_prop_insert_pair!(self.in_utxo_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
+                            impl_pset_prop_insert_pair!(self.in_utxo_rangeproof <= <raw_key: _> | <raw_value : RangeProof>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_BLIND_VALUE_PROOF => {
-                            impl_pset_prop_insert_pair!(self.in_issuance_blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
+                            impl_pset_prop_insert_pair!(self.in_issuance_blind_value_proof <= <raw_key: _> | <raw_value : RangeProof>);
                         }
                         PSBT_ELEMENTS_IN_ISSUANCE_BLIND_INFLATION_KEYS_PROOF => {
-                            impl_pset_prop_insert_pair!(self.in_issuance_blind_inflation_keys_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
+                            impl_pset_prop_insert_pair!(self.in_issuance_blind_inflation_keys_proof <= <raw_key: _> | <raw_value : RangeProof>);
                         }
                         PSBT_ELEMENTS_IN_EXPLICIT_VALUE => {
                             impl_pset_prop_insert_pair!(self.amount <= <raw_key: _> | <raw_value : u64>);
                         }
                         PSBT_ELEMENTS_IN_VALUE_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
+                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : RangeProof>);
                         }
                         PSBT_ELEMENTS_IN_EXPLICIT_ASSET => {
                             impl_pset_prop_insert_pair!(self.asset <= <raw_key: _> | <raw_value : AssetId>);
                         }
                         PSBT_ELEMENTS_IN_ASSET_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>);
+                            impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : SurjectionProof>);
                         }
                         PSBT_ELEMENTS_IN_BLINDED_ISSUANCE => {
                             impl_pset_prop_insert_pair!(self.blinded_issuance <= <raw_key: _> | <raw_value : u8>);
