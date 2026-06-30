@@ -11,7 +11,7 @@ edition = "2018"
 rust-version = "1.74.0"
 
 [workspace.metadata.rbmt.toolchains]
-nightly = "nightly-2026-05-14"
+nightly = "nightly-2026-06-11"
 stable = "1.96.0"
 
 [features]
@@ -99,7 +99,6 @@ explicit_iter_loop = "warn"
 filter_map_next = "warn"
 flat_map_option = "warn"
 fn_params_excessive_bools = "warn"
-from_iter_instead_of_collect = "warn"
 if_not_else = "warn"
 ignored_unit_patterns = "warn"
 implicit_clone = "warn"
