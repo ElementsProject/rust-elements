@@ -5,8 +5,8 @@
 use core::{fmt, str};
 use std::io;
 
-use secp256k1_zkp::{self, Generator, Secp256k1, Signing, Tweak, ZERO_TWEAK};
 use secp256k1_zkp::rand::Rng;
+use secp256k1_zkp::{self, Generator, Secp256k1, Signing, Tweak, ZERO_TWEAK};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -32,11 +32,7 @@ impl Asset {
         asset: AssetId,
         bf: AssetBlindingFactor,
     ) -> Self {
-        Asset::Confidential(Generator::new_blinded(
-            secp,
-            asset.into_tag(),
-            bf.into_inner(),
-        ))
+        Asset::Confidential(Generator::new_blinded(secp, asset.into_tag(), bf.into_inner()))
     }
 
     /// Serialized length, in bytes
@@ -54,19 +50,13 @@ impl Asset {
     }
 
     /// Check if the object is null.
-    pub fn is_null(&self) -> bool {
-        matches!(*self, Asset::Null)
-    }
+    pub fn is_null(&self) -> bool { matches!(*self, Asset::Null) }
 
     /// Check if the object is explicit.
-    pub fn is_explicit(&self) -> bool {
-        matches!(*self, Asset::Explicit(_))
-    }
+    pub fn is_explicit(&self) -> bool { matches!(*self, Asset::Explicit(_)) }
 
     /// Check if the object is confidential.
-    pub fn is_confidential(&self) -> bool {
-        matches!(*self, Asset::Confidential(_))
-    }
+    pub fn is_confidential(&self) -> bool { matches!(*self, Asset::Confidential(_)) }
 
     /// Returns the explicit inner value.
     /// Returns [None] if [`Asset::is_explicit`] returns false.
@@ -91,7 +81,7 @@ impl Asset {
     /// Returns [`None`] is the asset is [`Asset::Null`]
     /// Converts a explicit asset into a generator and returns the confidential
     /// generator as is.
-    pub fn into_asset_gen<C: secp256k1_zkp::Signing> (
+    pub fn into_asset_gen<C: secp256k1_zkp::Signing>(
         self,
         secp: &Secp256k1<C>,
     ) -> Option<Generator> {
@@ -99,18 +89,14 @@ impl Asset {
             // Only error is Null error which is dealt with later
             // when we have more context information about it.
             Asset::Null => None,
-            Asset::Explicit(x) => {
-                Some(Generator::new_unblinded(secp, x.into_tag()))
-            }
+            Asset::Explicit(x) => Some(Generator::new_unblinded(secp, x.into_tag())),
             Asset::Confidential(gen) => Some(gen),
         }
     }
 }
 
 impl From<Generator> for Asset {
-    fn from(from: Generator) -> Self {
-        Asset::Confidential(from)
-    }
+    fn from(from: Generator) -> Self { Asset::Confidential(from) }
 }
 
 impl fmt::Display for Asset {
@@ -167,7 +153,7 @@ impl Serialize for Asset {
 
         let seq_len = match *self {
             Asset::Null => 1,
-            Asset::Explicit(_) | Asset::Confidential(_) => 2
+            Asset::Explicit(_) | Asset::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
@@ -203,18 +189,14 @@ impl<'de> Deserialize<'de> for Asset {
                 let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Asset::Null),
-                    Some(1) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Asset::Explicit(x)),
-                            None => Err(A::Error::custom("missing explicit asset")),
-                        }
-                    }
-                    Some(2) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Asset::Confidential(x)),
-                            None => Err(A::Error::custom("missing generator")),
-                        }
-                    }
+                    Some(1) => match access.next_element()? {
+                        Some(x) => Ok(Asset::Explicit(x)),
+                        None => Err(A::Error::custom("missing explicit asset")),
+                    },
+                    Some(2) => match access.next_element()? {
+                        Some(x) => Ok(Asset::Confidential(x)),
+                        None => Err(A::Error::custom("missing generator")),
+                    },
                     _ => Err(A::Error::custom("wrong or missing prefix")),
                 }
             }
@@ -224,22 +206,17 @@ impl<'de> Deserialize<'de> for Asset {
     }
 }
 
-
 /// Blinding factor used for asset commitments.
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct AssetBlindingFactor(pub(crate) Tweak);
 
 impl AssetBlindingFactor {
     /// Generate random asset blinding factor.
-    pub fn new<R: Rng>(rng: &mut R) -> Self {
-        AssetBlindingFactor(Tweak::new(rng))
-    }
+    pub fn new<R: Rng>(rng: &mut R) -> Self { AssetBlindingFactor(Tweak::new(rng)) }
 
     /// Parse a blinding factor from a 64-character hex string.
     #[deprecated(since = "0.27.0", note = "use s.parse() instead")]
-    pub fn from_hex(s: &str) -> Result<Self, encode::Error> {
-        s.parse()
-    }
+    pub fn from_hex(s: &str) -> Result<Self, encode::Error> { s.parse() }
 
     /// Create from bytes.
     pub fn from_byte_array(bytes: [u8; 32]) -> Result<Self, secp256k1_zkp::Error> {
@@ -252,14 +229,10 @@ impl AssetBlindingFactor {
     }
 
     /// Returns the inner value.
-    pub fn into_inner(self) -> Tweak {
-        self.0
-    }
+    pub fn into_inner(self) -> Tweak { self.0 }
 
     /// Get a unblinded/zero `AssetBlinding` factor
-    pub fn zero() -> Self {
-        AssetBlindingFactor(ZERO_TWEAK)
-    }
+    pub fn zero() -> Self { AssetBlindingFactor(ZERO_TWEAK) }
 }
 
 impl core::borrow::Borrow<[u8]> for AssetBlindingFactor {
@@ -359,4 +332,3 @@ impl<'de> Deserialize<'de> for AssetBlindingFactor {
         }
     }
 }
-

@@ -1,8 +1,7 @@
 ignore = [
     "/",
     "!/src/lib.rs",
-    "!/src/confidential/range_proof.rs",
-    "!/src/confidential/surjection_proof.rs",
+    "!/src/confidential/*.rs",
 ]
 hard_tabs = false
 tab_spaces = 4

@@ -2,16 +2,19 @@
 
 //! Confiential Values
 
-use core::{fmt, ops::{AddAssign, Neg}, str};
+use core::ops::{AddAssign, Neg};
+use core::{fmt, str};
 use std::io;
 
-use secp256k1_zkp::{self, CommitmentSecrets, PedersenCommitment, Generator, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK};
-use secp256k1_zkp::compute_adaptive_blinding_factor;
 use secp256k1_zkp::rand::Rng;
+use secp256k1_zkp::{
+    self, compute_adaptive_blinding_factor, CommitmentSecrets, Generator, PedersenCommitment,
+    Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
+};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use crate::confidential::{AssetBlindingFactor};
+use crate::confidential::AssetBlindingFactor;
 use crate::encode::{self, Decodable, Encodable};
 use crate::issuance::AssetId;
 
@@ -68,19 +71,13 @@ impl Value {
     }
 
     /// Check if the object is null.
-    pub fn is_null(&self) -> bool {
-        matches!(*self, Value::Null)
-    }
+    pub fn is_null(&self) -> bool { matches!(*self, Value::Null) }
 
     /// Check if the object is explicit.
-    pub fn is_explicit(&self) -> bool {
-        matches!(*self, Value::Explicit(_))
-    }
+    pub fn is_explicit(&self) -> bool { matches!(*self, Value::Explicit(_)) }
 
     /// Check if the object is confidential.
-    pub fn is_confidential(&self) -> bool {
-        matches!(*self, Value::Confidential(_))
-    }
+    pub fn is_confidential(&self) -> bool { matches!(*self, Value::Confidential(_)) }
 
     /// Returns the explicit inner value.
     /// Returns [None] if [`Value::is_explicit`] returns false.
@@ -102,9 +99,7 @@ impl Value {
 }
 
 impl From<PedersenCommitment> for Value {
-    fn from(from: PedersenCommitment) -> Self {
-        Value::Confidential(from)
-    }
+    fn from(from: PedersenCommitment) -> Self { Value::Confidential(from) }
 }
 
 impl fmt::Display for Value {
@@ -161,7 +156,7 @@ impl Serialize for Value {
 
         let seq_len = match *self {
             Value::Null => 1,
-            Value::Explicit(_) | Value::Confidential(_) => 2
+            Value::Explicit(_) | Value::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
@@ -197,18 +192,14 @@ impl<'de> Deserialize<'de> for Value {
                 let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Value::Null),
-                    Some(1) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Value::Explicit(u64::swap_bytes(x))),
-                            None => Err(A::Error::custom("missing explicit value")),
-                        }
-                    }
-                    Some(2) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Value::Confidential(x)),
-                            None => Err(A::Error::custom("missing pedersen commitment")),
-                        }
-                    }
+                    Some(1) => match access.next_element()? {
+                        Some(x) => Ok(Value::Explicit(u64::swap_bytes(x))),
+                        None => Err(A::Error::custom("missing explicit value")),
+                    },
+                    Some(2) => match access.next_element()? {
+                        Some(x) => Ok(Value::Confidential(x)),
+                        None => Err(A::Error::custom("missing pedersen commitment")),
+                    },
                     _ => Err(A::Error::custom("wrong or missing prefix")),
                 }
             }
@@ -224,15 +215,11 @@ pub struct ValueBlindingFactor(pub(crate) Tweak);
 
 impl ValueBlindingFactor {
     /// Generate random value blinding factor.
-    pub fn new<R: Rng>(rng: &mut R) -> Self {
-        ValueBlindingFactor(Tweak::new(rng))
-    }
+    pub fn new<R: Rng>(rng: &mut R) -> Self { ValueBlindingFactor(Tweak::new(rng)) }
 
     /// Parse a blinding factor from a 64-character hex string.
     #[deprecated(since = "0.27.0", note = "use s.parse() instead")]
-    pub fn from_hex(s: &str) -> Result<Self, encode::Error> {
-        s.parse()
-    }
+    pub fn from_hex(s: &str) -> Result<Self, encode::Error> { s.parse() }
 
     /// Create the value blinding factor of the last output of a transaction.
     pub fn last<C: Signing>(
@@ -259,9 +246,7 @@ impl ValueBlindingFactor {
             })
             .collect::<Vec<_>>();
 
-        ValueBlindingFactor(compute_adaptive_blinding_factor(
-            secp, value, abf.0, &set_a, &set_b,
-        ))
+        ValueBlindingFactor(compute_adaptive_blinding_factor(secp, value, abf.0, &set_a, &set_b))
     }
 
     /// Create from bytes.
@@ -270,14 +255,10 @@ impl ValueBlindingFactor {
     }
 
     /// Returns the inner value.
-    pub fn into_inner(self) -> Tweak {
-        self.0
-    }
+    pub fn into_inner(self) -> Tweak { self.0 }
 
     /// Get a unblinded/zero `AssetBlinding` factor
-    pub fn zero() -> Self {
-        ValueBlindingFactor(ZERO_TWEAK)
-    }
+    pub fn zero() -> Self { ValueBlindingFactor(ZERO_TWEAK) }
 }
 
 impl AddAssign for ValueBlindingFactor {
@@ -296,8 +277,10 @@ impl AddAssign for ValueBlindingFactor {
             // is when the keys add up to zero since we have already checked
             // keys are in valid secret keys
             match sk.add_tweak(&sk2.into()) {
-                Ok(sk_tweaked) => *self = ValueBlindingFactor::from_slice(sk_tweaked.as_ref()).expect("Valid Tweak"),
-                Err(_) =>  *self = Self::zero(),
+                Ok(sk_tweaked) =>
+                    *self =
+                        ValueBlindingFactor::from_slice(sk_tweaked.as_ref()).expect("Valid Tweak"),
+                Err(_) => *self = Self::zero(),
             }
         }
     }
@@ -413,4 +396,3 @@ impl<'de> Deserialize<'de> for ValueBlindingFactor {
         }
     }
 }
-

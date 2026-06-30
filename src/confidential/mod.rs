@@ -23,18 +23,17 @@ mod range_proof;
 mod surjection_proof;
 mod value;
 
-use secp256k1_zkp;
-
 use core::fmt;
 
-use crate::encode;
-use crate::issuance::AssetId;
+use secp256k1_zkp;
 
 pub use self::asset::{Asset, AssetBlindingFactor};
 pub use self::nonce::Nonce;
 pub use self::range_proof::RangeProof;
 pub use self::surjection_proof::SurjectionProof;
 pub use self::value::{Value, ValueBlindingFactor};
+use crate::encode;
+use crate::issuance::AssetId;
 
 /// Error decoding hexadecimal string into tweak-like value.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -60,16 +59,12 @@ impl fmt::Display for TweakHexDecodeError {
 
 #[doc(hidden)]
 impl From<hex::DecodeFixedLengthBytesError> for TweakHexDecodeError {
-    fn from(err: hex::DecodeFixedLengthBytesError) -> Self {
-        TweakHexDecodeError::InvalidHex(err)
-    }
+    fn from(err: hex::DecodeFixedLengthBytesError) -> Self { TweakHexDecodeError::InvalidHex(err) }
 }
 
 #[doc(hidden)]
 impl From<secp256k1_zkp::Error> for TweakHexDecodeError {
-    fn from(err: secp256k1_zkp::Error) -> Self {
-        TweakHexDecodeError::InvalidTweak(err)
-    }
+    fn from(err: secp256k1_zkp::Error) -> Self { TweakHexDecodeError::InvalidTweak(err) }
 }
 
 impl From<TweakHexDecodeError> for encode::Error {
@@ -91,17 +86,16 @@ impl std::error::Error for TweakHexDecodeError {
 }
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    use crate::encode::Encodable as _;
-
     #[cfg(feature = "serde")]
     use std::str::FromStr;
 
     #[cfg(feature = "serde")]
     use bincode;
 
-    const VALUE_EXPLICIT: [u8; 9] = [ 1, 0, 0, 0, 0, 0, 0, 3, 232 ];
+    use super::*;
+    use crate::encode::Encodable as _;
+
+    const VALUE_EXPLICIT: [u8; 9] = [1, 0, 0, 0, 0, 0, 0, 3, 232];
 
     const VALUE_COMMITMENT1: [u8; 33] = [
         0x08, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -239,8 +233,8 @@ mod tests {
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
                 Token::U64(63_601_271_583_539_200),
-                Token::SeqEnd
-            ]
+                Token::SeqEnd,
+            ],
         );
 
         let value = Value::from_commitment(&VALUE_COMMITMENT1).unwrap();
@@ -249,11 +243,9 @@ mod tests {
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Str(
-                    "080101010101010101010101010101010101010101010101010101010101010101"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("080101010101010101010101010101010101010101010101010101010101010101"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &value.compact(),
@@ -261,19 +253,12 @@ mod tests {
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
                 Token::Bytes(&VALUE_COMMITMENT1),
-                Token::SeqEnd
-            ]
+                Token::SeqEnd,
+            ],
         );
 
         let value = Value::Null;
-        assert_tokens(
-            &value,
-            &[
-                Token::Seq { len: Some(1) },
-                Token::U8(0),
-                Token::SeqEnd
-            ]
-        );
+        assert_tokens(&value, &[Token::Seq { len: Some(1) }, Token::U8(0), Token::SeqEnd]);
     }
 
     #[cfg(feature = "serde")]
@@ -281,34 +266,30 @@ mod tests {
     fn asset_serde() {
         use serde_test::{assert_tokens, Configure, Token};
 
-        let asset_id = AssetId::from_str(
-            "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
-        ).unwrap();
+        let asset_id =
+            AssetId::from_str("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8")
+                .unwrap();
         let asset = Asset::Explicit(asset_id);
         assert_tokens(
             &asset.readable(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
-                Token::Str(
-                    "630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("630ed6f9b176af03c0cd3f8aa430f9e7b4d988cf2d0b2f204322488f03b00bf8"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &asset.compact(),
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(1),
-                Token::Bytes(
-                    &[
-                        248, 11, 176, 3, 143, 72, 34, 67, 32, 47, 11, 45, 207, 136, 217, 180,
-                        231, 249, 48, 164, 138, 63, 205, 192, 3, 175, 118, 177, 249, 214, 14, 99
-                    ]
-                ),
-                Token::SeqEnd
-            ]
+                Token::Bytes(&[
+                    248, 11, 176, 3, 143, 72, 34, 67, 32, 47, 11, 45, 207, 136, 217, 180, 231, 249,
+                    48, 164, 138, 63, 205, 192, 3, 175, 118, 177, 249, 214, 14, 99,
+                ]),
+                Token::SeqEnd,
+            ],
         );
 
         let asset = Asset::from_commitment(&ASSET_COMMITMENT1).unwrap();
@@ -317,11 +298,9 @@ mod tests {
             &[
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
-                Token::Str(
-                    "0a0101010101010101010101010101010101010101010101010101010101010101"
-                ),
-                Token::SeqEnd
-            ]
+                Token::Str("0a0101010101010101010101010101010101010101010101010101010101010101"),
+                Token::SeqEnd,
+            ],
         );
         assert_tokens(
             &asset.compact(),
@@ -329,23 +308,17 @@ mod tests {
                 Token::Seq { len: Some(2) },
                 Token::U8(2),
                 Token::Bytes(&ASSET_COMMITMENT1),
-                Token::SeqEnd
-            ]
+                Token::SeqEnd,
+            ],
         );
 
         let asset = Asset::Null;
-        assert_tokens(
-            &asset,
-            &[
-                Token::Seq { len: Some(1) },
-                Token::U8(0),
-                Token::SeqEnd
-            ]
-        );
+        assert_tokens(&asset, &[Token::Seq { len: Some(1) }, Token::U8(0), Token::SeqEnd]);
     }
 
     #[cfg(feature = "serde")]
     #[test]
+    #[rustfmt::skip]
     fn nonce_serde() {
         use serde_test::{assert_tokens, Configure, Token};
 
@@ -418,8 +391,9 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn bf_serde() {
-        use serde_json;
         use std::str::FromStr;
+
+        use serde_json;
 
         let abf_str = "a5b3d111cdaa5fc111e2723df4caf315864f25fb4610cc737f10d5a55cd4096f";
         let abf_str_quoted = format!("\"{}\"", abf_str);
@@ -450,14 +424,10 @@ mod tests {
     fn test_value_bincode_le() {
         use bincode::Options;
         let value = Value::Explicit(500);
-        let bytes = bincode::DefaultOptions::default()
-            .with_little_endian()
-            .serialize(&value)
-            .unwrap();
-        let decoded: Value = bincode::DefaultOptions::default()
-            .with_little_endian()
-            .deserialize(&bytes)
-            .unwrap();
+        let bytes =
+            bincode::DefaultOptions::default().with_little_endian().serialize(&value).unwrap();
+        let decoded: Value =
+            bincode::DefaultOptions::default().with_little_endian().deserialize(&bytes).unwrap();
         assert_eq!(value, decoded);
     }
 }

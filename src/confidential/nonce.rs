@@ -5,8 +5,8 @@
 use core::fmt;
 use std::io;
 
+use secp256k1_zkp::rand::{CryptoRng, RngCore};
 use secp256k1_zkp::{self, PublicKey, Secp256k1, SecretKey, Signing};
-use secp256k1_zkp::rand::{RngCore, CryptoRng};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
@@ -43,7 +43,7 @@ impl Nonce {
     pub fn with_ephemeral_sk<C: Signing>(
         secp: &Secp256k1<C>,
         ephemeral_sk: SecretKey,
-        receiver_blinding_pk: &PublicKey
+        receiver_blinding_pk: &PublicKey,
     ) -> (Self, SecretKey) {
         let sender_pk = PublicKey::from_secret_key(secp, &ephemeral_sk);
         let shared_secret = Self::make_shared_secret(receiver_blinding_pk, &ephemeral_sk);
@@ -53,9 +53,8 @@ impl Nonce {
     /// Calculate the shared secret.
     pub fn shared_secret(&self, receiver_blinding_sk: &SecretKey) -> Option<SecretKey> {
         match self {
-            Nonce::Confidential(sender_pk) => {
-                Some(Self::make_shared_secret(sender_pk, receiver_blinding_sk))
-            }
+            Nonce::Confidential(sender_pk) =>
+                Some(Self::make_shared_secret(sender_pk, receiver_blinding_sk)),
             _ => None,
         }
     }
@@ -68,11 +67,7 @@ impl Nonce {
             // However, this is more by accident then by design, see here: https://github.com/rust-bitcoin/rust-secp256k1/pull/255#issuecomment-744146282
 
             let mut dh_secret = [0u8; 33];
-            dh_secret[0] = if xy.last().unwrap() % 2 == 0 {
-                0x02
-            } else {
-                0x03
-            };
+            dh_secret[0] = if xy.last().unwrap() % 2 == 0 { 0x02 } else { 0x03 };
             dh_secret[1..].copy_from_slice(&xy[0..32]);
 
             sha256d::Hash::hash(&dh_secret).to_byte_array()
@@ -98,19 +93,13 @@ impl Nonce {
     }
 
     /// Check if the object is null.
-    pub fn is_null(&self) -> bool {
-        matches!(*self, Nonce::Null)
-    }
+    pub fn is_null(&self) -> bool { matches!(*self, Nonce::Null) }
 
     /// Check if the object is explicit.
-    pub fn is_explicit(&self) -> bool {
-        matches!(*self, Nonce::Explicit(_))
-    }
+    pub fn is_explicit(&self) -> bool { matches!(*self, Nonce::Explicit(_)) }
 
     /// Check if the object is confidential.
-    pub fn is_confidential(&self) -> bool {
-        matches!(*self, Nonce::Confidential(_))
-    }
+    pub fn is_confidential(&self) -> bool { matches!(*self, Nonce::Confidential(_)) }
 
     /// Returns the explicit inner value.
     /// Returns [None] if [`Nonce::is_explicit`] returns false.
@@ -132,9 +121,7 @@ impl Nonce {
 }
 
 impl From<PublicKey> for Nonce {
-    fn from(from: PublicKey) -> Self {
-        Nonce::Confidential(from)
-    }
+    fn from(from: PublicKey) -> Self { Nonce::Confidential(from) }
 }
 
 impl fmt::Display for Nonce {
@@ -196,7 +183,7 @@ impl Serialize for Nonce {
 
         let seq_len = match *self {
             Nonce::Null => 1,
-            Nonce::Explicit(_) | Nonce::Confidential(_) => 2
+            Nonce::Explicit(_) | Nonce::Confidential(_) => 2,
         };
         let mut seq = s.serialize_seq(Some(seq_len))?;
 
@@ -232,19 +219,15 @@ impl<'de> Deserialize<'de> for Nonce {
                 let prefix = access.next_element::<u8>()?;
                 match prefix {
                     Some(0) => Ok(Nonce::Null),
-                    Some(1) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Nonce::Explicit(x)),
-                            None => Err(A::Error::custom("missing explicit nonce")),
-                        }
-                    }
-                    Some(2) => {
-                        match access.next_element()? {
-                            Some(x) => Ok(Nonce::Confidential(x)),
-                            None => Err(A::Error::custom("missing nonce")),
-                        }
-                    }
-                    _ => Err(A::Error::custom("wrong or missing prefix"))
+                    Some(1) => match access.next_element()? {
+                        Some(x) => Ok(Nonce::Explicit(x)),
+                        None => Err(A::Error::custom("missing explicit nonce")),
+                    },
+                    Some(2) => match access.next_element()? {
+                        Some(x) => Ok(Nonce::Confidential(x)),
+                        None => Err(A::Error::custom("missing nonce")),
+                    },
+                    _ => Err(A::Error::custom("wrong or missing prefix")),
                 }
             }
         }
@@ -252,4 +235,3 @@ impl<'de> Deserialize<'de> for Nonce {
         d.deserialize_seq(CommitVisitor)
     }
 }
-
