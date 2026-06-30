@@ -30,10 +30,8 @@ use crate::issuance::{AssetEntropy, AssetId};
 use crate::opcodes;
 use crate::parse::impl_parse_str_through_int;
 use crate::script::Instruction;
-use crate::{LockTime, Script, Txid, Wtxid};
-use secp256k1_zkp::{
-    RangeProof, SurjectionProof, Tweak, ZERO_TWEAK,
-};
+use crate::{LockTime, RangeProof, Script, Txid, Wtxid};
+use secp256k1_zkp::{SurjectionProof, Tweak, ZERO_TWEAK};
 
 /// Description of an asset issuance in a transaction input
 #[derive(Copy, Clone, Debug, Eq, Hash, PartialEq, PartialOrd, Ord)]
@@ -362,9 +360,9 @@ impl std::error::Error for RelativeLockTimeError {
 #[derive(Clone, PartialEq, Eq, Debug, Hash, PartialOrd, Ord)]
 pub struct TxInWitness {
     /// Amount rangeproof
-    pub amount_rangeproof: Option<Box<RangeProof>>,
+    pub amount_rangeproof: RangeProof,
     /// Rangeproof for inflation keys
-    pub inflation_keys_rangeproof: Option<Box<RangeProof>>,
+    pub inflation_keys_rangeproof: RangeProof,
     /// Traditional script witness
     pub script_witness: Vec<Vec<u8>>,
     /// Pegin witness, basically the same thing
@@ -377,8 +375,8 @@ impl TxInWitness {
     /// Create an empty input witness.
     pub fn empty() -> Self {
         TxInWitness {
-            amount_rangeproof: None,
-            inflation_keys_rangeproof: None,
+            amount_rangeproof: RangeProof::EMPTY,
+            inflation_keys_rangeproof: RangeProof::EMPTY,
             script_witness: Vec::new(),
             pegin_witness: Vec::new(),
         }
@@ -386,8 +384,8 @@ impl TxInWitness {
 
     /// Whether this witness is null
     pub fn is_empty(&self) -> bool {
-        self.amount_rangeproof.is_none() &&
-            self.inflation_keys_rangeproof.is_none() &&
+        self.amount_rangeproof.is_empty() &&
+            self.inflation_keys_rangeproof.is_empty() &&
             self.script_witness.is_empty() &&
             self.pegin_witness.is_empty()
     }
@@ -645,10 +643,8 @@ pub struct TxOutWitness {
     // We Box it because surjection proof internally is an array [u8; N] that
     // allocates on stack even when the surjection proof is empty
     pub surjection_proof: Option<Box<SurjectionProof>>,
-    /// Rangeproof showing that the value commitment is legitimate
-    // We Box it because range proof internally is an array [u8; N] that
-    // allocates on stack even when the range proof is empty
-    pub rangeproof: Option<Box<RangeProof>>,
+    /// Rangeproof showing that the value commitment is legitimate.
+    pub rangeproof: RangeProof,
 }
 serde_struct_impl!(TxOutWitness, surjection_proof, rangeproof);
 impl_consensus_encoding!(TxOutWitness, surjection_proof, rangeproof);
@@ -658,18 +654,18 @@ impl TxOutWitness {
     pub fn empty() -> Self {
         TxOutWitness {
             surjection_proof: None,
-            rangeproof: None,
+            rangeproof: RangeProof::EMPTY,
         }
     }
 
     /// Whether this witness is null
     pub fn is_empty(&self) -> bool {
-        self.surjection_proof.is_none() && self.rangeproof.is_none()
+        self.surjection_proof.is_none() && self.rangeproof.is_empty()
     }
 
     /// The rangeproof len if is present, otherwise 0
     pub fn rangeproof_len(&self) -> usize {
-        self.rangeproof.as_ref().map_or(0, |prf| prf.len())
+        self.rangeproof.len()
     }
 
     /// The surjection proof len if is present, otherwise 0
@@ -839,29 +835,7 @@ impl TxOut {
             confidential::Value::Null => min_value,
             confidential::Value::Explicit(n) => n,
             confidential::Value::Confidential(..) => {
-                match &self.witness.rangeproof {
-                    None => min_value,
-                    Some(prf) => {
-                        // inefficient, consider implementing index on rangeproof
-                        let prf = prf.serialize();
-                        debug_assert!(prf.len() > 10);
-
-                        let has_nonzero_range = prf[0] & 64 == 64;
-                        let has_min = prf[0] & 32 == 32;
-
-                        if !has_min {
-                            min_value
-                        } else if has_nonzero_range {
-                            bitcoin::consensus::deserialize::<u64>(&prf[2..10])
-                                .expect("any 8 bytes is a u64")
-                                .swap_bytes()  // min-value is BE
-                        } else {
-                            bitcoin::consensus::deserialize::<u64>(&prf[1..9])
-                                .expect("any 8 bytes is a u64")
-                                .swap_bytes()  // min-value is BE
-                        }
-                    }
-                }
+                self.witness.rangeproof.minimim_value().unwrap_or(min_value)
             }
         }
     }
@@ -974,10 +948,8 @@ impl Transaction {
                     0
                 }
             ) + if witness_flag {
-                let amt_prf_len = input.witness.amount_rangeproof.as_ref()
-                    .map_or(0, |x| x.len());
-                let keys_prf_len = input.witness.inflation_keys_rangeproof.as_ref()
-                    .map_or(0, |x| x.len());
+                let amt_prf_len = input.witness.amount_rangeproof.len();
+                let keys_prf_len = input.witness.inflation_keys_rangeproof.len();
 
                 VarInt(amt_prf_len as u64).size() +
                 amt_prf_len +

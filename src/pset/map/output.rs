@@ -23,10 +23,10 @@ use crate::pset::map::Map;
 use crate::pset::raw;
 use crate::pset::Error;
 use crate::{confidential, pset};
-use crate::{encode, Script, TxOutWitness};
+use crate::{encode, RangeProof, Script, TxOutWitness};
 use bitcoin::bip32::KeySource;
 use bitcoin::{PublicKey, key::XOnlyPublicKey};
-use secp256k1_zkp::{self, Generator, RangeProof, SurjectionProof};
+use secp256k1_zkp::{self, Generator, SurjectionProof};
 
 use crate::issuance;
 
@@ -116,7 +116,7 @@ pub struct Output {
     pub asset_comm: Option<secp256k1_zkp::Generator>,
     // Proprietary key-value pairs for this output.
     /// Output value rangeproof
-    pub value_rangeproof: Option<Box<RangeProof>>,
+    pub value_rangeproof: Option<RangeProof>,
     /// Output Asset surjection proof
     pub asset_surjection_proof: Option<Box<SurjectionProof>>,
     /// Blinding pubkey which is used in receiving address
@@ -126,7 +126,7 @@ pub struct Output {
     /// The index of the input whose owner should blind this output
     pub blinder_index: Option<u32>,
     /// The blind value rangeproof
-    pub blind_value_proof: Option<Box<RangeProof>>,
+    pub blind_value_proof: Option<RangeProof>,
     /// The blind asset surjection proof
     pub blind_asset_proof: Option<Box<SurjectionProof>>,
     /// Pset
@@ -233,7 +233,7 @@ impl Output {
             });
         }
         rv.script_pubkey = txout.script_pubkey;
-        rv.value_rangeproof = txout.witness.rangeproof;
+        rv.value_rangeproof = Some(txout.witness.rangeproof);
         rv.asset_surjection_proof = txout.witness.surjection_proof;
         rv
     }
@@ -262,7 +262,9 @@ impl Output {
             script_pubkey: self.script_pubkey.clone(),
             witness: TxOutWitness {
                 surjection_proof: self.asset_surjection_proof.clone(),
-                rangeproof: self.value_rangeproof.clone(),
+                rangeproof: self.value_rangeproof
+                    .clone()
+                    .unwrap_or(RangeProof::EMPTY),
             },
         }
     }
@@ -354,7 +356,7 @@ impl Map for Output {
                             impl_pset_prop_insert_pair!(self.asset_comm <= <raw_key: _> | <raw_value : Generator>);
                         }
                         PSBT_ELEMENTS_OUT_VALUE_RANGEPROOF => {
-                            impl_pset_prop_insert_pair!(self.value_rangeproof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
+                            impl_pset_prop_insert_pair!(self.value_rangeproof <= <raw_key: _> | <raw_value : RangeProof>);
                         }
                         PSBT_ELEMENTS_OUT_ASSET_SURJECTION_PROOF => {
                             impl_pset_prop_insert_pair!(self.asset_surjection_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>);
@@ -369,7 +371,7 @@ impl Map for Output {
                             impl_pset_prop_insert_pair!(self.blinder_index <= <raw_key: _> | <raw_value : u32>);
                         }
                         PSBT_ELEMENTS_OUT_BLIND_VALUE_PROOF => {
-                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : Box<RangeProof>>);
+                            impl_pset_prop_insert_pair!(self.blind_value_proof <= <raw_key: _> | <raw_value : RangeProof>);
                         }
                         PSBT_ELEMENTS_OUT_BLIND_ASSET_PROOF => {
                             impl_pset_prop_insert_pair!(self.blind_asset_proof <= <raw_key: _> | <raw_value : Box<SurjectionProof>>);

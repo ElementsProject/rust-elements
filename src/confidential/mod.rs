@@ -17,6 +17,8 @@
 //! Structures representing Pedersen commitments of various types
 //!
 
+mod range_proof;
+
 use crate::hashes::sha256d;
 use secp256k1_zkp::{self, CommitmentSecrets, Generator, PedersenCommitment,
     PublicKey, Secp256k1, SecretKey, Signing, Tweak, ZERO_TWEAK,
@@ -30,6 +32,8 @@ use std::{fmt, io, ops::{AddAssign, Neg}, str};
 
 use crate::encode::{self, Decodable, Encodable};
 use crate::issuance::AssetId;
+
+pub use self::range_proof::RangeProof;
 
 /// A CT commitment to an amount
 #[derive(Copy, Clone, Debug, Default, Eq, Hash, PartialEq, PartialOrd, Ord)]

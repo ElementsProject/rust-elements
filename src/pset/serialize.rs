@@ -24,12 +24,12 @@ use crate::encode::{
     self, deserialize, deserialize_partial, serialize, Decodable, Encodable, VarInt,
 };
 use crate::hashes::{hash160, ripemd160, sha256, sha256d, Hash};
-use crate::{AssetId, BlockHash, Script, Transaction, TxOut, Txid};
+use crate::{AssetId, BlockHash, RangeProof, Script, Transaction, TxOut, Txid};
 use bitcoin;
 use bitcoin::bip32::{ChildNumber, Fingerprint, KeySource};
 use bitcoin::{key::XOnlyPublicKey, PublicKey};
 use internals::slice::SliceExt;
-use secp256k1_zkp::{self, RangeProof, SurjectionProof, Tweak};
+use secp256k1_zkp::{self, SurjectionProof, Tweak};
 
 use super::map::{PsbtSighashType, TapTree};
 use crate::schnorr;
@@ -282,17 +282,15 @@ impl Deserialize for confidential::Asset {
     }
 }
 
-impl Serialize for Box<RangeProof> {
+impl Serialize for RangeProof {
     fn serialize(&self) -> Vec<u8> {
-        RangeProof::serialize(self)
+        self.to_vec()
     }
 }
 
-impl Deserialize for Box<RangeProof> {
+impl Deserialize for RangeProof {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let prf = RangeProof::from_slice(bytes)
-            .map_err(|_| encode::Error::ParseFailed("Invalid Rangeproof"))?;
-        Ok(Box::new(prf))
+        Self::from_slice(bytes).map_err(encode::Error::Secp256k1zkp)
     }
 }
 

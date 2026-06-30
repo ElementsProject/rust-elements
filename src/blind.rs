@@ -23,9 +23,9 @@ use secp256k1_zkp::{
     rand::{CryptoRng, RngCore},
     PedersenCommitment, SecretKey, Tag, Tweak, Verification, ZERO_TWEAK,
 };
-use secp256k1_zkp::{Generator, RangeProof, Secp256k1, Signing, SurjectionProof};
+use secp256k1_zkp::{Generator, Secp256k1, Signing, SurjectionProof};
 
-use crate::{AddressParams, Script, TxIn};
+use crate::{AddressParams, RangeProof, Script, TxIn};
 
 use crate::{
     confidential::{Asset, AssetBlindingFactor, Nonce, Value, ValueBlindingFactor},
@@ -657,7 +657,7 @@ impl TxOut {
             out_secrets.asset_bf,
         );
         let exp_value = Value::Explicit(out_secrets.value);
-        let (out_value, nonce, range_proof) = exp_value.blind(
+        let (out_value, nonce, rangeproof) = exp_value.blind(
             secp,
             out_secrets.value_bf,
             receiver_blinding_pk,
@@ -673,7 +673,7 @@ impl TxOut {
             script_pubkey: spk,
             witness: TxOutWitness {
                 surjection_proof: Some(Box::new(surjection_proof)),
-                rangeproof: Some(Box::new(range_proof)),
+                rangeproof,
             },
         };
         Ok(txout)
@@ -977,10 +977,10 @@ impl TxIn {
             let (comm, prf) = v.blind_with_shared_secret(secp, bf, blind_sk, &spk, &msg)?;
             if i == 0 {
                 self.asset_issuance.amount = comm;
-                self.witness.amount_rangeproof = Some(Box::new(prf));
+                self.witness.amount_rangeproof = prf;
             } else {
                 self.asset_issuance.inflation_keys = comm;
-                self.witness.inflation_keys_rangeproof = Some(Box::new(prf));
+                self.witness.inflation_keys_rangeproof = prf;
             }
         }
         Ok(())
@@ -1362,73 +1362,6 @@ impl std::error::Error for BlindError {}
 impl From<ConfidentialTxOutError> for BlindError {
     fn from(from: ConfidentialTxOutError) -> Self {
         BlindError::ConfidentialTxOutError(from)
-    }
-}
-
-/// A trait to create and verify explicit rangeproofs
-pub trait BlindValueProofs: Sized {
-    /// Outputs a `[RangeProof]` that blinded value
-    /// corresponfs to unblinded explicit value
-    fn blind_value_proof<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
-        rng: &mut R,
-        secp: &Secp256k1<C>,
-        explicit_val: u64,
-        value_commit: PedersenCommitment,
-        asset_gen: Generator,
-        vbf: ValueBlindingFactor,
-    ) -> Result<Self, secp256k1_zkp::Error>;
-
-    /// Verify that the Rangeproof proves that commitment
-    /// is actually bound to the explicit value
-    fn blind_value_proof_verify<C: secp256k1_zkp::Verification>(
-        &self,
-        secp: &Secp256k1<C>,
-        explicit_val: u64,
-        asset_gen: Generator,
-        value_commit: PedersenCommitment,
-    ) -> bool;
-}
-
-impl BlindValueProofs for RangeProof {
-    /// Outputs a [`RangeProof`] that blinded `value_commit`
-    /// corresponds to explicit value
-    fn blind_value_proof<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
-        rng: &mut R,
-        secp: &Secp256k1<C>,
-        explicit_val: u64,
-        value_commit: PedersenCommitment,
-        asset_gen: Generator,
-        vbf: ValueBlindingFactor,
-    ) -> Result<Self, secp256k1_zkp::Error> {
-        RangeProof::new(
-            secp,
-            explicit_val,        // min_value
-            value_commit,        // value_commit
-            explicit_val,        // value
-            vbf.into_inner(),    // blinding factor
-            &[],                 // message
-            &[],                 // add commitment
-            SecretKey::new(rng), // nonce
-            -1,                  // exp
-            0,                   // min bits
-            asset_gen,           // additional gen
-        )
-    }
-
-    /// Verify that the Rangeproof proves that commitment
-    /// is actually bound to the explicit value
-    fn blind_value_proof_verify<C: secp256k1_zkp::Verification>(
-        &self,
-        secp: &Secp256k1<C>,
-        explicit_val: u64,
-        asset_gen: Generator,
-        value_commit: PedersenCommitment,
-    ) -> bool {
-        let r = self.verify(secp, value_commit, &[], asset_gen);
-        match r {
-            Ok(e) => e.start == explicit_val && e.end - 1 == explicit_val,
-            Err(..) => false,
-        }
     }
 }
 
