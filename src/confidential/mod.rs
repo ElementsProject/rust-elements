@@ -51,6 +51,16 @@ pub use self::value::{
 use crate::issuance::AssetId;
 use crate::{encode, encoding};
 
+const CONFIDENTIAL_LEN: usize = 33;
+
+pub(crate) fn checked_commitment_slice(bytes: &[u8]) -> Result<&[u8], encode::Error> {
+    // The upstream FFI parsers take no length and unconditionally read 33 bytes.
+    if bytes.len() != CONFIDENTIAL_LEN {
+        return Err(encode::Error::ParseFailed("invalid confidential commitment length"));
+    }
+    Ok(bytes)
+}
+
 #[derive(Clone, Debug)]
 enum CommitmentEncoder<'e> {
     Null(u8),
@@ -323,6 +333,13 @@ mod tests {
 
     #[test]
     fn commitments() {
+        for len in [0usize, 1, 32, 34] {
+            let bytes = vec![0u8; len];
+            assert!(Value::from_commitment(&bytes).is_err());
+            assert!(Asset::from_commitment(&bytes).is_err());
+            assert!(Nonce::from_commitment(&bytes).is_err());
+        }
+
         let x = Value::from_commitment(&VALUE_COMMITMENT1).unwrap();
         let commitment = x.commitment().unwrap();
         let mut commitment = commitment.serialize();

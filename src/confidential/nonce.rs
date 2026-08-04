@@ -10,7 +10,7 @@ use secp256k1_zkp::{self, PublicKey, Secp256k1, SecretKey, Signing};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::CommitmentEncoder;
+use super::{checked_commitment_slice, CommitmentEncoder, CONFIDENTIAL_LEN};
 use crate::encode::{self, Decodable, Encodable};
 use crate::encoding;
 use crate::hashes::sha256d;
@@ -19,7 +19,6 @@ type ExplicitInner = [u8; 32];
 type ConfInner = PublicKey;
 
 const EXPLICIT_LEN: usize = 32;
-const CONFIDENTIAL_LEN: usize = 33;
 const CONFIDENTIAL_LEN_LESS_PREFIX: usize = CONFIDENTIAL_LEN - 1;
 const CONF_PREFIX_1: u8 = 0x02;
 const CONF_PREFIX_2: u8 = 0x03;
@@ -99,7 +98,8 @@ impl Nonce {
     /// Create from commitment.
     pub fn from_commitment(bytes: &[u8]) -> Result<Self, encode::Error> {
         Ok(Self::Confidential(
-            ConfInner::from_slice(bytes).map_err(secp256k1_zkp::Error::Upstream)?,
+            ConfInner::from_slice(checked_commitment_slice(bytes)?)
+                .map_err(secp256k1_zkp::Error::Upstream)?,
         ))
     }
 

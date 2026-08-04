@@ -14,7 +14,7 @@ use secp256k1_zkp::{
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use super::CommitmentEncoder;
+use super::{checked_commitment_slice, CommitmentEncoder, CONFIDENTIAL_LEN};
 use crate::confidential::AssetBlindingFactor;
 use crate::encode::{self, Decodable, Encodable};
 use crate::encoding;
@@ -24,7 +24,6 @@ type ExplicitInner = u64;
 type ConfInner = PedersenCommitment;
 
 const EXPLICIT_LEN: usize = 8;
-const CONFIDENTIAL_LEN: usize = 33;
 const CONFIDENTIAL_LEN_LESS_PREFIX: usize = CONFIDENTIAL_LEN - 1;
 const CONF_PREFIX_1: u8 = 0x08;
 const CONF_PREFIX_2: u8 = 0x09;
@@ -78,7 +77,7 @@ impl Value {
 
     /// Create from commitment.
     pub fn from_commitment(bytes: &[u8]) -> Result<Self, encode::Error> {
-        Ok(Self::Confidential(ConfInner::from_slice(bytes)?))
+        Ok(Self::Confidential(ConfInner::from_slice(checked_commitment_slice(bytes)?)?))
     }
 
     /// Check if the object is null.

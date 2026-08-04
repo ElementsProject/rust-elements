@@ -235,7 +235,9 @@ impl Serialize for secp256k1_zkp::PedersenCommitment {
 
 impl Deserialize for secp256k1_zkp::PedersenCommitment {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let comm = secp256k1_zkp::PedersenCommitment::from_slice(bytes)?;
+        let comm = secp256k1_zkp::PedersenCommitment::from_slice(
+            confidential::checked_commitment_slice(bytes)?,
+        )?;
         Ok(comm)
     }
 }
@@ -248,7 +250,9 @@ impl Serialize for secp256k1_zkp::Generator {
 
 impl Deserialize for secp256k1_zkp::Generator {
     fn deserialize(bytes: &[u8]) -> Result<Self, encode::Error> {
-        let comm = secp256k1_zkp::Generator::from_slice(bytes)?;
+        let comm = secp256k1_zkp::Generator::from_slice(
+            confidential::checked_commitment_slice(bytes)?,
+        )?;
         Ok(comm)
     }
 }

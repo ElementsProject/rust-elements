@@ -808,6 +808,32 @@ mod tests {
     }
 
     #[test]
+    fn deserialize_commitments_rejects_bad_lengths() {
+        use crate::pset::serialize::Deserialize as _;
+
+        // The upstream FFI parsers read 33 bytes without a length argument;
+        // empty and short inputs must be rejected before reaching FFI.
+        for len in [0usize, 1, 32, 34] {
+            let bytes = vec![0u8; len];
+            assert!(secp256k1_zkp::PedersenCommitment::deserialize(&bytes).is_err());
+            assert!(secp256k1_zkp::Generator::deserialize(&bytes).is_err());
+        }
+        // A 33-byte input reaches FFI and is rejected on content, not by crash.
+        let bytes = vec![0u8; 33];
+        assert!(secp256k1_zkp::PedersenCommitment::deserialize(&bytes).is_err());
+        assert!(secp256k1_zkp::Generator::deserialize(&bytes).is_err());
+    }
+
+    #[test]
+    fn deserialize_malformed_pset_returns_error() {
+        // Minimized libFuzzer artifact (397 bytes): deserializing this input
+        // segfaulted (read at address 0x1) instead of returning an error.
+        let bytes = hex::decode_to_vec("70736574ff01050a02ffffc50070736574ff010204ccbeff0001fb040200000027ff030000feff010000000500005808080032000081040808080808080808080808080808080f080808736574ff01fb0104ff0001fb040200000027ff030000feff0100000005000058080808080808080808080808080808080072700008736574ff01fb0104010000d670736574ff000005000070736574ff030000020001000005002929220a0a0202027073654545454545454547474747474747471111111100ff1111111111116574d0ffffff011107fc04707365740100001111111111111111111111111111010074ff0a0a02b102020229292929292929220a0a0202027073654545454545454574ff02b80202020a0a454545454545454545ffe2e2e20002006511111111111111111111040200000027ff030000feff0100ffffffffffffffffffff080808080808080808080f0808087347474747474747471111111100ff1111111111116574d0ffffff011107fc047073657401000011110100000000000000111111110100").unwrap();
+        let result: Result<PartiallySignedTransaction, _> = encode::deserialize(&bytes);
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn test_pset() {
         tx_pset_rtt("010000000001715df5ccebaf02ff18d6fae7263fa69fed5de59c900f4749556eba41bc7bf2af0000000000000000000201230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000124101100001f5175517551755175517551755175517551755175517551755175517551755101230f4f5d4b7c6fa845806ee4f67713459e1b69e8e60fcee2e4940c7a0d5de1b2010000000005f5e100000000000000");
 
