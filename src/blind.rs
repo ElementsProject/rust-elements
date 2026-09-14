@@ -1102,20 +1102,43 @@ impl Transaction {
             if inp.has_issuance() {
                 let (asset_id, token_id) = inp.issuance_ids();
                 let arr = [
-                    (inp.asset_issuance.amount, asset_id),
-                    (inp.asset_issuance.inflation_keys, token_id),
+                    (
+                        inp.asset_issuance.amount,
+                        asset_id,
+                        &inp.witness.amount_rangeproof,
+                    ),
+                    (
+                        inp.asset_issuance.inflation_keys,
+                        token_id,
+                        &inp.witness.inflation_keys_rangeproof,
+                    ),
                 ];
-                for (amt, asset) in &arr {
+                for (amt, asset, rangeproof) in &arr {
+                    // Issuance pseudo-inputs are never asset-blinded: the
+                    // generator is the unblinded generator of the issued
+                    // (or reissuance token) asset.
+                    let gen = Generator::new_unblinded(secp, asset.into_tag());
                     match amt {
                         Value::Null => {},
                         Value::Explicit(v) => {
-                            let gen = Generator::new_unblinded(secp, asset.into_tag());
                             domain.push(gen);
                             let comm = PedersenCommitment::new_unblinded(secp, *v, gen);
                             in_commits.push(comm);
                         }
                         Value::Confidential(comm) => {
-                            let gen = Generator::new_unblinded(secp, asset.into_tag());
+                            // A confidential issuance amount must be accompanied
+                            // by a rangeproof, verified against the unblinded
+                            // issuance generator, mirroring Elements Core's
+                            // `VerifyIssuanceAmount`. Without this check the
+                            // commitment is an unconstrained term in the balance
+                            // equation below. The rangeproof message is empty
+                            // for issuances (Core passes an empty script).
+                            let rangeproof = rangeproof
+                                .as_ref()
+                                .ok_or(VerificationError::RangeProofMissing(i))?;
+                            rangeproof
+                                .verify(secp, *comm, &[], gen)
+                                .map_err(|e| VerificationError::RangeProofError(i, e))?;
                             domain.push(gen);
                             in_commits.push(*comm);
                         }
