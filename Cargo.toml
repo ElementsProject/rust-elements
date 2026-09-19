@@ -11,7 +11,7 @@ edition = "2018"
 rust-version = "1.74.0"
 
 [workspace.metadata.rbmt.toolchains]
-nightly = "nightly-2026-07-23"
+nightly = "nightly-2026-09-17"
 stable = "1.98.0"
 
 [features]
