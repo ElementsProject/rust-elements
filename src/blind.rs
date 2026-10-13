@@ -1044,6 +1044,10 @@ impl Transaction {
     /// For checking of surjection proofs and amounts, `spent_utxos` parameter
     /// should contain information about the prevouts. Note that the order of
     /// `spent_utxos` should be consistent with transaction inputs.
+    /// Explicit values must not carry rangeproofs and explicit assets must not carry surjection proofs.
+    /// Outputs with an explicit zero value are accepted only with a provably unspendable
+    /// script pubkey, which includes the empty script of a fee output, and are left out of
+    /// the balance equation.
     /// ## Examples
     ///
     /// ```
@@ -1148,11 +1152,17 @@ impl Transaction {
         }
 
         for (i, out) in self.output.iter().enumerate() {
-            // Compute the value commitments and asset generator
-            let out_commit = out
-                .get_value_commit(secp)
-                .map_err(|e| VerificationError::SpentTxOutError(i, e))?;
-            out_commits.push(out_commit);
+            if out.value == Value::Explicit(0) && out.script_pubkey.is_provably_unspendable() {
+                if out.asset.is_null() {
+                    return Err(VerificationError::TxOutError(i, TxOutError::UnExpectedNullAsset));
+                }
+            } else {
+                // Compute the value commitments and asset generator
+                let out_commit = out
+                    .get_value_commit(secp)
+                    .map_err(|e| VerificationError::TxOutError(i, e))?;
+                out_commits.push(out_commit);
+            }
 
             // rangeproof checks
             if let Some(comm) = out.value.commitment() {
@@ -1167,8 +1177,11 @@ impl Transaction {
                 rangeproof
                     .verify(secp, comm, out.script_pubkey.as_bytes(), gen)
                     .map_err(|e| VerificationError::RangeProofError(i, e))?;
-            } else {
-                // No rangeproof checks for explicit values
+            } else if !out.witness.rangeproof.is_empty() {
+                return Err(VerificationError::RangeProofError(
+                    i,
+                    secp256k1_zkp::Error::InvalidRangeProof,
+                ));
             }
 
             // Surjection proof checks
@@ -1181,8 +1194,11 @@ impl Transaction {
                 if !surjectionproof.verify(secp, gen, &domain) {
                     return Err(VerificationError::SurjectionProofVerificationError(i));
                 }
-            } else {
-                // No surjection proof checks for explicit assets
+            } else if !out.witness.surjection_proof.is_empty() {
+                return Err(VerificationError::SurjectionProofError(
+                    i,
+                    secp256k1_zkp::Error::InvalidSurjectionProof,
+                ));
             }
         }
         // Final Balance check
