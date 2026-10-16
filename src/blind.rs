@@ -1044,6 +1044,10 @@ impl Transaction {
     /// For checking of surjection proofs and amounts, `spent_utxos` parameter
     /// should contain information about the prevouts. Note that the order of
     /// `spent_utxos` should be consistent with transaction inputs.
+    /// Explicit values must not carry rangeproofs and explicit assets must not carry surjection proofs.
+    /// Outputs with an explicit zero value are accepted only with a provably unspendable
+    /// script pubkey, which includes the empty script of a fee output, and are left out of
+    /// the balance equation.
     /// ## Examples
     ///
     /// ```
@@ -1148,11 +1152,17 @@ impl Transaction {
         }
 
         for (i, out) in self.output.iter().enumerate() {
-            // Compute the value commitments and asset generator
-            let out_commit = out
-                .get_value_commit(secp)
-                .map_err(|e| VerificationError::SpentTxOutError(i, e))?;
-            out_commits.push(out_commit);
+            if out.value == Value::Explicit(0) && out.script_pubkey.is_provably_unspendable() {
+                if out.asset.is_null() {
+                    return Err(VerificationError::TxOutError(i, TxOutError::UnExpectedNullAsset));
+                }
+            } else {
+                // Compute the value commitments and asset generator
+                let out_commit = out
+                    .get_value_commit(secp)
+                    .map_err(|e| VerificationError::TxOutError(i, e))?;
+                out_commits.push(out_commit);
+            }
 
             // rangeproof checks
             if let Some(comm) = out.value.commitment() {
@@ -1167,8 +1177,11 @@ impl Transaction {
                 rangeproof
                     .verify(secp, comm, out.script_pubkey.as_bytes(), gen)
                     .map_err(|e| VerificationError::RangeProofError(i, e))?;
-            } else {
-                // No rangeproof checks for explicit values
+            } else if !out.witness.rangeproof.is_empty() {
+                return Err(VerificationError::RangeProofError(
+                    i,
+                    secp256k1_zkp::Error::InvalidRangeProof,
+                ));
             }
 
             // Surjection proof checks
@@ -1181,8 +1194,11 @@ impl Transaction {
                 if !surjectionproof.verify(secp, gen, &domain) {
                     return Err(VerificationError::SurjectionProofVerificationError(i));
                 }
-            } else {
-                // No surjection proof checks for explicit assets
+            } else if !out.witness.surjection_proof.is_empty() {
+                return Err(VerificationError::SurjectionProofError(
+                    i,
+                    secp256k1_zkp::Error::InvalidSurjectionProof,
+                ));
             }
         }
         // Final Balance check
@@ -1612,5 +1628,113 @@ mod tests {
             .unwrap();
         }
         tx.verify_tx_amt_proofs(&secp, &utxos).unwrap();
+    }
+
+    #[test]
+    fn verify_explicit_output_fields() {
+        let asset = AssetId::LIQUID_BTC;
+        let explicit = |value, script_pubkey| TxOut { script_pubkey, ..TxOut::new_fee(value, asset) };
+        let op_return = Script::new_op_return(b"data");
+        let spk = Script::from(vec![0x51]);
+        let tx = Transaction {
+            version: 2,
+            lock_time: crate::LockTime::ZERO,
+            input: vec![TxIn::default()],
+            output: vec![
+                explicit(0, op_return.clone()),
+                explicit(90, spk.clone()),
+                TxOut::new_fee(10, asset),
+            ],
+        };
+        let spent_utxo = [TxOut::new_fee(100, asset)];
+        let verify = |tx: &Transaction| tx.verify_tx_amt_proofs(SECP256K1, &spent_utxo);
+        let verify_with = |index: usize, out: TxOut| {
+            let mut tx = tx.clone();
+            tx.output[index] = out;
+            verify(&tx)
+        };
+
+        assert_eq!(verify(&tx), Ok(()));
+        let oversized = Script::from(vec![0x51; 10_001]);
+        assert_eq!(verify_with(0, explicit(0, oversized)), Ok(()));
+        assert_eq!(verify_with(0, TxOut::new_fee(0, asset)), Ok(()));
+        assert_eq!(
+            verify_with(2, TxOut::new_fee(11, asset)),
+            Err(VerificationError::BalanceCheckFailed)
+        );
+
+        assert_eq!(
+            verify_with(1, explicit(0, spk.clone())),
+            Err(VerificationError::TxOutError(1, TxOutError::NonUnspendableZeroValue))
+        );
+        assert_eq!(
+            verify_with(0, TxOut { asset: Asset::Null, ..explicit(0, op_return.clone()) }),
+            Err(VerificationError::TxOutError(0, TxOutError::UnExpectedNullAsset))
+        );
+        let asset_bf = AssetBlindingFactor::new(&mut thread_rng());
+        let blinded_asset = Asset::new_confidential(SECP256K1, asset, asset_bf);
+        assert_eq!(
+            verify_with(0, TxOut { asset: blinded_asset, ..explicit(0, op_return.clone()) }),
+            Err(VerificationError::SurjectionProofMissing(0))
+        );
+
+        let vbf = ValueBlindingFactor::new(&mut thread_rng());
+        let blinded_value =
+            Value::new_confidential_from_assetid(SECP256K1, 90, asset, vbf, AssetBlindingFactor::zero());
+        let blinded_value_out = TxOut { value: blinded_value, ..explicit(90, spk.clone()) };
+        assert_eq!(
+            verify_with(1, blinded_value_out.clone()),
+            Err(VerificationError::RangeProofMissing(1))
+        );
+
+        let gen = Generator::new_unblinded(SECP256K1, asset.into_tag());
+        let comm = blinded_value.commitment().unwrap();
+        // Unlike `blind_value_proof`, this commits to `spk`, so it is valid for `blinded_value_out`.
+        let rangeproof = RangeProof::new(
+            SECP256K1,
+            90,
+            comm,
+            90,
+            vbf.into_inner(),
+            &[],
+            spk.as_bytes(),
+            SecretKey::new(&mut thread_rng()),
+            -1,
+            0,
+            gen,
+        )
+        .unwrap();
+        let surjection_proof =
+            SurjectionProof::blind_asset_proof(&mut thread_rng(), SECP256K1, asset, asset_bf).unwrap();
+        let witness = |surjection_proof, rangeproof| TxOutWitness { surjection_proof, rangeproof };
+        // The only input's asset is the domain, so `surjection_proof` is valid for `blinded_asset`.
+        let zero_blinded_asset = |rangeproof| TxOut {
+            asset: blinded_asset,
+            witness: witness(surjection_proof.clone(), rangeproof),
+            ..explicit(0, op_return.clone())
+        };
+        assert_eq!(verify_with(0, zero_blinded_asset(RangeProof::EMPTY)), Ok(()));
+        // Valid proofs, but for nothing an explicit value or asset commits to.
+        assert_eq!(
+            verify_with(0, zero_blinded_asset(rangeproof.clone())),
+            Err(VerificationError::RangeProofError(0, secp256k1_zkp::Error::InvalidRangeProof))
+        );
+        let explicit_rangeproof = TxOut {
+            witness: witness(SurjectionProof::EMPTY, rangeproof.clone()),
+            ..explicit(90, spk)
+        };
+        assert_eq!(
+            verify_with(1, explicit_rangeproof),
+            Err(VerificationError::RangeProofError(1, secp256k1_zkp::Error::InvalidRangeProof))
+        );
+        let explicit_asset_surjection_proof =
+            TxOut { witness: witness(surjection_proof, rangeproof), ..blinded_value_out };
+        assert_eq!(
+            verify_with(1, explicit_asset_surjection_proof),
+            Err(VerificationError::SurjectionProofError(
+                1,
+                secp256k1_zkp::Error::InvalidSurjectionProof
+            ))
+        );
     }
 }
