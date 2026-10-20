@@ -264,3 +264,57 @@ impl fmt::Display for PsetBlindError {
     }
 }
 impl error::Error for PsetBlindError {}
+
+#[allow(missing_docs)]
+#[derive(Clone, PartialEq, Eq, Debug)]
+#[non_exhaustive]
+pub enum BlindingModeError {
+    Blind(PsetBlindError),
+    UnusedMode(usize),
+    ZeroAmount(usize),
+    ZeroValueBlindingFactor(usize),
+    InputSecretsOutOfRange(usize),
+    InputSecretsMismatch(usize),
+    UnknownInputBlinding(usize),
+}
+
+impl fmt::Display for BlindingModeError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            BlindingModeError::Blind(_) => f.write_str("PSET blinding failed"),
+            BlindingModeError::UnusedMode(i) => {
+                write!(f, "blinding mode given for output index {}, which is not blinded", i)
+            }
+            BlindingModeError::ZeroAmount(i) => {
+                write!(f, "amount at output index {} is zero", i)
+            }
+            BlindingModeError::ZeroValueBlindingFactor(i) => {
+                write!(f, "value blinding factor at output index {} would be zero", i)
+            }
+            BlindingModeError::InputSecretsOutOfRange(i) => {
+                write!(f, "secrets given for input index {}, which is out of range", i)
+            }
+            BlindingModeError::InputSecretsMismatch(i) => {
+                write!(f, "secrets for input index {} do not open its witness utxo", i)
+            }
+            BlindingModeError::UnknownInputBlinding(i) => write!(
+                f,
+                "input index {} is confidential with unknown blinding factors and no scalars",
+                i
+            ),
+        }
+    }
+}
+
+impl error::Error for BlindingModeError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        match *self {
+            BlindingModeError::Blind(ref e) => Some(e),
+            _ => None,
+        }
+    }
+}
+
+impl From<PsetBlindError> for BlindingModeError {
+    fn from(e: PsetBlindError) -> Self { BlindingModeError::Blind(e) }
+}
