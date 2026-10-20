@@ -292,6 +292,18 @@ impl Output {
             && self.asset_surjection_proof.is_some()
             && self.ecdh_pubkey.is_some()
     }
+
+    #[allow(missing_docs)]
+    pub fn is_value_only_blinded(&self) -> bool {
+        self.is_marked_for_blinding()
+            && self.asset.is_some()
+            && self.asset_comm.is_none()
+            && self.asset_surjection_proof.is_none()
+            && self.blind_asset_proof.is_none()
+            && self.amount_comm.is_some()
+            && self.value_rangeproof.is_some()
+            && self.ecdh_pubkey.is_some()
+    }
 }
 
 impl Map for Output {
@@ -578,7 +590,11 @@ impl Decodable for Output {
         if let (Some(_), None) = (rv.blinding_key, rv.blinder_index) {
             return Err(encode::Error::PsetError(Error::MissingBlinderIndex));
         }
-        if rv.is_marked_for_blinding() && rv.is_partially_blinded() && !rv.is_fully_blinded() {
+        if rv.is_marked_for_blinding()
+            && rv.is_partially_blinded()
+            && !rv.is_fully_blinded()
+            && !rv.is_value_only_blinded()
+        {
             return Err(encode::Error::PsetError(Error::MissingBlindingInfo));
         }
         Ok(rv)
