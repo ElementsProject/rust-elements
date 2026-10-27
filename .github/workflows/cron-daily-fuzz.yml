@@ -22,6 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         fuzz_target: [
+          decode_equiv_transaction,
           deserialize_block,
           deserialize_output,
           deserialize_pset,
