@@ -247,14 +247,11 @@ impl Output {
                 (None, Some(x)) => confidential::Value::Explicit(x),
                 (None, None) => confidential::Value::Null,
             },
-            nonce: if self.is_partially_blinded() {
-                self.ecdh_pubkey
-                    .map(|pk| confidential::Nonce::from(pk.inner))
-            } else {
-                self.blinding_key
-                    .map(|pk| confidential::Nonce::from(pk.inner))
-            }
-            .unwrap_or_default(),
+            nonce: self
+                .ecdh_pubkey
+                .or(self.blinding_key)
+                .map(|pk| confidential::Nonce::from(pk.inner))
+                .unwrap_or_default(),
             script_pubkey: self.script_pubkey.clone(),
             witness: TxOutWitness {
                 surjection_proof: self.asset_surjection_proof
