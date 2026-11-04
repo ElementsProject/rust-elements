@@ -23,9 +23,9 @@ use crate::pset::map::Map;
 use crate::pset::raw;
 use crate::pset::Error;
 use crate::{confidential, pset};
-use crate::{encode, RangeProof, Script, TxOutWitness, SurjectionProof};
+use crate::{encode, RangeProof, Script, SurjectionProof, TxOutWitness};
 use bitcoin::bip32::KeySource;
-use bitcoin::{PublicKey, key::XOnlyPublicKey};
+use bitcoin::{key::XOnlyPublicKey, PublicKey};
 use secp256k1_zkp::{self, Generator};
 
 use crate::issuance;
@@ -247,14 +247,11 @@ impl Output {
                 (None, Some(x)) => confidential::Value::Explicit(x),
                 (None, None) => confidential::Value::Null,
             },
-            nonce: if self.is_partially_blinded() {
-                self.ecdh_pubkey
-                    .map(|pk| confidential::Nonce::from(pk.inner))
-            } else {
-                self.blinding_key
-                    .map(|pk| confidential::Nonce::from(pk.inner))
-            }
-            .unwrap_or_default(),
+            nonce: self
+                .ecdh_pubkey
+                .or(self.blinding_key)
+                .map(|pk| confidential::Nonce::from(pk.inner))
+                .unwrap_or_default(),
             script_pubkey: self.script_pubkey.clone(),
             witness: TxOutWitness {
                 surjection_proof: self.asset_surjection_proof
@@ -587,8 +584,11 @@ impl Decodable for Output {
 
 #[cfg(test)]
 mod tests {
-    use crate::pset::{raw, Map, PartiallySignedTransaction};
-    use crate::{encode, Transaction};
+    use std::str::FromStr;
+
+    use crate::confidential::Nonce;
+    use crate::pset::{raw, Map, Output, PartiallySignedTransaction};
+    use crate::{encode, AssetId, Script, Transaction};
 
     // Regression test from Claude that the next two commits do not cause
     // `Pset::from_tx` to insert 0-length proofs when given unblinded outputs.
@@ -638,5 +638,36 @@ mod tests {
                 pairs,
             );
         }
+    }
+
+    #[test]
+    fn to_txout_nonce() {
+        let blinding_key = bitcoin::PublicKey::from_str(
+            "0205d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+        )
+        .unwrap();
+        let ecdh_pubkey = bitcoin::PublicKey::from_str(
+            "0212bf0ea45b733dfde8ecb5e896306c4165c666c99fc5d1ab887f71393a975cea",
+        )
+        .unwrap();
+        let asset = AssetId::from_byte_array([1; 32]);
+
+        let explicit = Output::new_explicit(Script::new(), 1000, asset, None);
+        assert_eq!(explicit.to_txout().nonce, Nonce::Null);
+
+        let marked = Output::new_explicit(Script::new(), 1000, asset, Some(blinding_key));
+        assert_eq!(marked.to_txout().nonce, Nonce::from(blinding_key.inner));
+
+        let blinded = Output {
+            ecdh_pubkey: Some(ecdh_pubkey),
+            ..marked.clone()
+        };
+        assert_eq!(blinded.to_txout().nonce, Nonce::from(ecdh_pubkey.inner));
+
+        let unmarked = Output {
+            blinding_key: None,
+            ..blinded
+        };
+        assert_eq!(unmarked.to_txout().nonce, Nonce::from(ecdh_pubkey.inner));
     }
 }
