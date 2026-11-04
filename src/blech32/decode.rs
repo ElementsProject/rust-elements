@@ -730,7 +730,7 @@ mod tests {
     fn bip_173_invalid_parsing_fails() {
         use UncheckedHrpstringError as E;
 
-        let invalid: Vec<(&str, UncheckedHrpstringError)> = vec!(
+        let invalid: Vec<(&str, UncheckedHrpstringError)> = vec![
             ("\u{20}1nwldj5",
              // TODO: Rust >= 1.59.0 use Hrp(hrp::Error::InvalidAsciiByte('\u{20}'.try_into().unwrap()))),
              E::Hrp(hrp::Error::InvalidAsciiByte(32))),
@@ -754,7 +754,7 @@ mod tests {
              E::Hrp(hrp::Error::Empty)),
             ("1qzzfhee",
              E::Hrp(hrp::Error::Empty)),
-        );
+        ];
 
         for (s, want) in invalid {
             let got = UncheckedHrpstring::new(s).unwrap_err();
@@ -785,7 +785,7 @@ mod tests {
     fn bip_350_invalid_parsing_fails() {
         use UncheckedHrpstringError as E;
 
-        let invalid: Vec<(&str, UncheckedHrpstringError)> = vec!(
+        let invalid: Vec<(&str, UncheckedHrpstringError)> = vec![
             ("\u{20}1xj0phk",
              // TODO: Rust >= 1.59.0 use Hrp(hrp::Error::InvalidAsciiByte('\u{20}'.try_into().unwrap()))),
              E::Hrp(hrp::Error::InvalidAsciiByte(32))),
@@ -814,7 +814,7 @@ mod tests {
             ("1p2gdwpf",
              E::Hrp(hrp::Error::Empty)),
 
-        );
+        ];
 
         for (s, want) in invalid {
             let got = UncheckedHrpstring::new(s).unwrap_err();
