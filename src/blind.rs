@@ -214,12 +214,33 @@ mod range_proof_message {
         asset_id: AssetId,
         /// The asset blinding factor
         asset_bf: AssetBlindingFactor,
+        /// Optional data embedded after the asset id and blinding factor
+        extra_data: Vec<u8>,
     }
 
     impl RangeProofMessage {
         /// Constructs a [`RangeProofMessage`] from an asset ID and blinding factor.
         pub fn new(asset_id: AssetId, asset_bf: AssetBlindingFactor) -> Self {
-            Self { asset_id, asset_bf }
+            Self { asset_id, asset_bf, extra_data: Vec::new() }
+        }
+
+        /// Sets the data embedded in the message after the asset ID and blinding factor.
+        ///
+        /// The receiver recovers it when unblinding, see [`super::TxOut::unblind_with_message`].
+        /// A rangeproof made with the [`super::TxOut`] parameters holds a message of at least
+        /// 3200 bytes, so up to 3136 bytes of extra data; blinding fails beyond its capacity.
+        #[must_use]
+        pub fn with_extra_data(mut self, extra_data: Vec<u8>) -> Self {
+            self.extra_data = extra_data;
+            self
+        }
+
+        /// The data embedded after the asset ID and blinding factor.
+        ///
+        /// In a message recovered from a rangeproof, it is followed by zeros up to the
+        /// rangeproof's capacity: data whose length matters must encode it.
+        pub fn extra_data(&self) -> &[u8] {
+            &self.extra_data
         }
 
         /// The asset ID embedded in the rangeproof message.
@@ -248,6 +269,7 @@ mod range_proof_message {
                 asset_id: AssetId::from_byte_array(*asset_id),
                 asset_bf: AssetBlindingFactor::from_byte_array(*asset_bf)
                     .map_err(RangeProofMessageError::BlindingFactorOutOfRange)?,
+                extra_data: Vec::new(),
             };
 
             match expected_asset {
@@ -279,11 +301,18 @@ mod range_proof_message {
             Ok(ret)
         }
         
-        /// Converts the message to bytes
+        /// Converts the asset ID and blinding factor to bytes, without the extra data
         pub fn to_byte_array(&self) -> [u8; 64] {
             let mut message = [0u8; 64];
             message[..32].copy_from_slice(self.asset_id.into_tag().as_ref());
             message[32..].copy_from_slice(self.asset_bf.into_inner().as_ref());
+            message
+        }
+
+        /// Converts the message to bytes, extra data included
+        pub fn to_vec(&self) -> Vec<u8> {
+            let mut message = self.to_byte_array().to_vec();
+            message.extend_from_slice(&self.extra_data);
             message
         }
     }
@@ -552,7 +581,7 @@ impl Value {
             value_commitment.commitment().expect("confidential value"),
             value,
             vbf.into_inner(),
-            &msg.to_byte_array(),
+            &msg.to_vec(),
             spk.as_bytes(),
             shared_secret,
             TxOut::RANGEPROOF_EXP_SHIFT,
@@ -850,6 +879,19 @@ impl TxOut {
         secp: &Secp256k1<C>,
         blinding_key: SecretKey,
     ) -> Result<TxOutSecrets, UnblindError> {
+        self.unblind_with_message(secp, blinding_key).map(|(secrets, _)| secrets)
+    }
+
+    /// Unblinds a transaction output, if it is confidential, and returns the message embedded
+    /// in its rangeproof along with its secrets.
+    ///
+    /// The message's extra data is followed by zeros up to the rangeproof's capacity, see
+    /// [`RangeProofMessage::extra_data`].
+    pub fn unblind_with_message<C: Signing + Verification>(
+        &self,
+        secp: &Secp256k1<C>,
+        blinding_key: SecretKey,
+    ) -> Result<(TxOutSecrets, RangeProofMessage), UnblindError> {
         let (Value::Confidential(commitment), Asset::Confidential(additional_generator)) = (self.value, self.asset) else {
             return Err(UnblindError::NotConfidential);
         };
@@ -874,21 +916,23 @@ impl TxOut {
 
         let value = opening.value;
         let value_bf = ValueBlindingFactor(opening.blinding_factor);
-        let asset_and_bf = SliceExt::split_first_chunk::<64>(opening.message.as_ref())
-            .ok_or(UnblindError::MissingRangeproof)?
-            .0;
+        let (asset_and_bf, extra_data) = SliceExt::split_first_chunk::<64>(opening.message.as_ref())
+            .ok_or(UnblindError::MissingRangeproof)?;
         let message = RangeProofMessage::from_byte_array(
             secp,
             *asset_and_bf,
             &self.asset,
-        ).map_err(UnblindError::RangeProofMessage)?;
+        ).map_err(UnblindError::RangeProofMessage)?
+        .with_extra_data(extra_data.to_vec());
 
-        Ok(TxOutSecrets {
+        let secrets = TxOutSecrets {
             asset: *message.asset_id(),
             asset_bf: *message.blinding_factor(),
             value,
             value_bf,
-        })
+        };
+
+        Ok((secrets, message))
     }
 }
 
@@ -1538,6 +1582,68 @@ mod tests {
 
         assert_eq!(txout_secrets.asset, asset);
         assert_eq!(txout_secrets.value, value);
+    }
+
+    #[test]
+    fn unblind_txout_with_extra_data() {
+        let asset = AssetId::from_byte_array([1u8; 32]);
+        let value = 10;
+        let spk = Script::from_hex_no_prefix("0014d2bcde17e7744f6377466ca1bd35d212954674c8").unwrap();
+        let blinding_sk = SecretKey::new(&mut thread_rng());
+        let blinding_pk = secp256k1_zkp::PublicKey::from_secret_key(SECP256K1, &blinding_sk);
+        let spent_utxo_secrets = [TxOutSecrets::new(
+            asset,
+            AssetBlindingFactor::new(&mut thread_rng()),
+            value,
+            ValueBlindingFactor::new(&mut thread_rng()),
+        )];
+        let asset_bf = AssetBlindingFactor::new(&mut thread_rng());
+        let value_bf = ValueBlindingFactor::new(&mut thread_rng());
+
+        let blind = |extra_data: Vec<u8>| {
+            let msg = RangeProofMessage::new(asset, asset_bf).with_extra_data(extra_data);
+            let (out_asset, surjection_proof) = Asset::Explicit(asset)
+                .blind(&mut thread_rng(), SECP256K1, asset_bf, &spent_utxo_secrets)?;
+            let (out_value, nonce, rangeproof) = Value::Explicit(value).blind(
+                SECP256K1,
+                value_bf,
+                blinding_pk,
+                SecretKey::new(&mut thread_rng()),
+                &spk,
+                &msg,
+            )?;
+            Ok::<_, ConfidentialTxOutError>(TxOut {
+                asset: out_asset,
+                value: out_value,
+                nonce,
+                script_pubkey: spk.clone(),
+                witness: TxOutWitness { surjection_proof, rangeproof },
+            })
+        };
+
+        let extra_data = b"terms for the lender".to_vec();
+        let txout = blind(extra_data.clone()).unwrap();
+
+        let (secrets, message) = txout.unblind_with_message(SECP256K1, blinding_sk).unwrap();
+        assert_eq!(secrets, TxOutSecrets::new(asset, asset_bf, value, value_bf));
+        assert_eq!(message.asset_id(), &asset);
+        assert_eq!(message.blinding_factor(), &asset_bf);
+        // the data comes back padded with zeros to the rangeproof's capacity
+        let (data, padding) = message.extra_data().split_at(extra_data.len());
+        assert_eq!(data, &extra_data[..]);
+        assert!(!padding.is_empty() && padding.iter().all(|&b| b == 0));
+
+        // receivers that ignore the extra data still unblind the output
+        assert_eq!(txout.unblind(SECP256K1, blinding_sk).unwrap(), secrets);
+
+        // a message without extra data recovers to an all-zero extra data
+        let txout = blind(Vec::new()).unwrap();
+        let (_, message) = txout.unblind_with_message(SECP256K1, blinding_sk).unwrap();
+        assert!(message.extra_data().iter().all(|&b| b == 0));
+
+        // the capacity, for the TxOut rangeproof parameters
+        assert!(blind(vec![0xab; 3136]).is_ok());
+        assert!(blind(vec![0xab; 3137]).is_err());
     }
 
     #[test]
