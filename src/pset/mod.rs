@@ -38,11 +38,11 @@ mod str;
 #[cfg(feature = "base64")]
 pub use self::str::ParseError;
 
-use crate::confidential;
+use crate::{confidential, AssetId};
 use crate::encode::{self, Decodable, Encodable};
 use crate::{
     blind::RangeProofMessage,
-    confidential::{AssetBlindingFactor, ValueBlindingFactor},
+    confidential::{AssetBlindingFactor, Nonce, ValueBlindingFactor},
     RangeProof, SurjectionProof, TxOutSecrets,
 };
 use crate::{
@@ -704,6 +704,298 @@ impl PartiallySignedTransaction {
         }
         Ok(ret)
     }
+
+    // Option<SecretKey> can be None when user requested to blind only assets
+    #[allow(missing_docs)]
+    #[allow(clippy::type_complexity)]
+    pub fn blind_last_with_modes<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
+        &mut self,
+        rng: &mut R,
+        secp: &secp256k1_zkp::Secp256k1<C>,
+        inp_txout_sec: &HashMap<usize, TxOutSecrets>,
+        modes: &BTreeMap<usize, BlindingMode>,
+    ) -> Result<
+        BTreeMap<CtLocation, (AssetBlindingFactor, ValueBlindingFactor, Option<SecretKey>)>,
+        PsetBlindError,
+    > {
+        // FIXME(KyrylR): It is better to move this check into the `blind_checks`
+        if let Some(i) = inp_txout_sec.keys().copied().filter(|&i| i >= self.inputs.len()).min() {
+            return Err(PsetBlindError::InputSecretsOutOfRange(i));
+        }
+
+        let (inp_secrets, outs_to_blind) = self.blind_checks(inp_txout_sec)?;
+
+        // if the mode is provided we expect that output is intended to be blind, so if it is missing we throw an error
+        if let Some(&i) = modes.keys().find(|i| !outs_to_blind.contains(i)) {
+            return Err(PsetBlindError::UnusedMode(i));
+        }
+
+        if outs_to_blind.is_empty() {
+            return Err(PsetBlindError::AtleastOneOutputBlind);
+        }
+
+        for (i, input) in self.inputs.iter().enumerate() {
+            // FIXME(KyrylR): can be moved to the `blind_checks` once it accepts `secp`, preserving `blind_non_last` empty-output no-op.
+            let utxo = input.witness_utxo.as_ref().ok_or(PsetBlindError::MissingWitnessUtxo(i))?;
+
+            if let Some(secrets) = inp_txout_sec.get(&i) {
+                if !secrets_open(secp, utxo, secrets) {
+                    return Err(PsetBlindError::InputSecretsMismatch(i));
+                }
+            }
+
+            // Only the final blinder requires missing input secrets to be accounted for.
+            if !inp_txout_sec.contains_key(&i)
+                && self.global.scalars.is_empty()
+                && !(utxo.asset.is_explicit() && utxo.value.is_explicit())
+            {
+                return Err(PsetBlindError::UnknownInputBlinding(i));
+            }
+        }
+
+        let surject_inputs = self.surjection_inputs(inp_txout_sec)?;
+        let mut staged = BTreeMap::<usize, BlindedOutput>::new();
+        let mut last_output: Option<(usize, AssetId, u64, BlindingMode)> = None;
+
+        // We are iterating in revers order, so we can process last_output where value was intended to be blinded
+        for i in outs_to_blind.into_iter().rev() {
+            let out = &self.outputs[i];
+            let (Some(asset), Some(value), Some(_)) = (out.asset, out.amount, out.blinding_key)
+            else {
+                return Err(PsetBlindError::MustHaveExplicitTxOut(i));
+            };
+
+            if out.is_partially_blinded()
+                || out.blind_value_proof.is_some()
+                || out.blind_asset_proof.is_some()
+            {
+                return Err(PsetBlindError::MustHaveExplicitTxOut(i));
+            }
+
+            let mode = modes.get(&i).copied().unwrap_or_default();
+            if !mode.blind_asset && !mode.blind_value {
+                // User requested not to blind this output
+                continue;
+            }
+
+            if mode.blind_value && last_output.is_none() {
+                last_output = Some((i, asset, value, mode));
+                continue;
+            }
+
+            let secrets = TxOutSecrets::new(asset, mode.get_abf(rng), value, mode.get_vbf(rng));
+            staged.insert(
+                i,
+                BlindedOutput::new(
+                    // instead of cloning here we can have BlindedOutputRequest structure to do blinding in mutate the PSET block
+                    rng,
+                    secp,
+                    i,
+                    out.clone(),
+                    mode,
+                    secrets,
+                    &surject_inputs,
+                )?,
+            );
+        }
+
+        let remaining_factor = |value, asset_bf| {
+            let out_secrets =
+                staged.values().map(|out| out.secrets.value_blind_inputs()).collect::<Vec<_>>();
+
+            let mut value_bf =
+                ValueBlindingFactor::last(secp, value, asset_bf, &inp_secrets, &out_secrets);
+
+            for scalar in &self.global.scalars {
+                value_bf += ValueBlindingFactor(*scalar);
+            }
+
+            value_bf
+        };
+
+        if let Some((i, asset, value, mode)) = last_output {
+            let asset_bf = mode.get_abf(rng);
+            let value_bf = remaining_factor(value, asset_bf);
+            if value_bf == ValueBlindingFactor::zero() {
+                return Err(PsetBlindError::ZeroValueBlindingFactor(i));
+            }
+
+            let secrets = TxOutSecrets::new(asset, asset_bf, value, value_bf);
+            staged.insert(
+                i,
+                BlindedOutput::new(
+                    rng,
+                    secp,
+                    i,
+                    self.outputs[i].clone(),
+                    mode,
+                    secrets,
+                    &surject_inputs,
+                )?,
+            );
+        } else if remaining_factor(0, AssetBlindingFactor::zero()) != ValueBlindingFactor::zero() {
+            return Err(PsetBlindError::NoValueBlindedOutput);
+        }
+
+        let mut ret = BTreeMap::new();
+
+        // mutate the PSET
+        {
+            for (i, blinded) in staged {
+                self.outputs[i] = blinded.output;
+
+                let location = CtLocation { input_index: i, ty: CtLocationType::Input };
+                ret.insert(
+                    location,
+                    (blinded.secrets.asset_bf, blinded.secrets.value_bf, blinded.ephemeral_sk),
+                );
+            }
+
+            self.global.scalars.clear();
+        }
+
+        Ok(ret)
+    }
+}
+
+struct BlindedOutput {
+    output: Output,
+    secrets: TxOutSecrets,
+    ephemeral_sk: Option<SecretKey>,
+}
+
+impl BlindedOutput {
+    fn new<C: secp256k1_zkp::Signing, R: RngCore + CryptoRng>(
+        rng: &mut R,
+        secp: &secp256k1_zkp::Secp256k1<C>,
+        index: usize,
+        mut output: Output,
+        mode: BlindingMode,
+        secrets: TxOutSecrets,
+        surject_inputs: &[SurjectionInput],
+    ) -> Result<Self, PsetBlindError> {
+        if mode.blind_asset {
+            let (asset_comm, surjection_proof) = confidential::Asset::Explicit(secrets.asset)
+                .blind(rng, secp, secrets.asset_bf, surject_inputs)
+                .map_err(|e| PsetBlindError::ConfidentialTxOutError(index, e))?;
+            output.asset_comm = asset_comm.commitment();
+            output.asset_surjection_proof = Some(surjection_proof);
+            output.blind_asset_proof = Some(
+                SurjectionProof::blind_asset_proof(rng, secp, secrets.asset, secrets.asset_bf)
+                    .map_err(|e| PsetBlindError::BlindingProofsCreationError(index, e))?,
+            );
+        }
+
+        let ephemeral_sk = if mode.blind_value {
+            if secrets.value == 0 {
+                return Err(PsetBlindError::ConfidentialTxOutError(
+                    index,
+                    secp256k1_zkp::Error::CannotMakeRangeProof.into(),
+                ));
+            }
+
+            let receiver =
+                output.blinding_key.ok_or(PsetBlindError::MustHaveExplicitTxOut(index))?;
+            let ephemeral_sk = SecretKey::new(rng);
+            let (nonce, shared_secret) =
+                Nonce::with_ephemeral_sk(secp, ephemeral_sk, &receiver.inner);
+            let msg = RangeProofMessage::new(secrets.asset, secrets.asset_bf);
+
+            let (value_comm, rangeproof) = confidential::Value::Explicit(secrets.value)
+                .blind_with_shared_secret(
+                    secp,
+                    secrets.value_bf,
+                    shared_secret,
+                    &output.script_pubkey,
+                    &msg,
+                )
+                .map_err(|e| PsetBlindError::ConfidentialTxOutError(index, e))?;
+            let value_comm = value_comm.commitment().expect("confidential value");
+
+            output.amount_comm = Some(value_comm);
+            output.value_rangeproof = Some(rangeproof);
+            output.blind_value_proof = Some(
+                RangeProof::blind_value_proof(
+                    rng,
+                    secp,
+                    secrets.value,
+                    value_comm,
+                    msg.commitment(secp),
+                    secrets.value_bf,
+                )
+                .map_err(|e| PsetBlindError::BlindingProofsCreationError(index, e))?,
+            );
+            output.ecdh_pubkey = nonce.commitment().map(bitcoin::PublicKey::new);
+
+            Some(ephemeral_sk)
+        } else {
+            None
+        };
+
+        Ok(BlindedOutput { output, secrets, ephemeral_sk })
+    }
+}
+
+fn secrets_open<C: secp256k1_zkp::Signing>(
+    secp: &secp256k1_zkp::Secp256k1<C>,
+    utxo: &TxOut,
+    secrets: &TxOutSecrets,
+) -> bool {
+    let asset_opens = match utxo.asset {
+        confidential::Asset::Null => false,
+        confidential::Asset::Explicit(asset) =>
+            asset == secrets.asset && secrets.asset_bf == AssetBlindingFactor::zero(),
+        confidential::Asset::Confidential(_) =>
+            utxo.asset
+                == confidential::Asset::new_confidential(secp, secrets.asset, secrets.asset_bf),
+    };
+
+    let value_open = match utxo.value {
+        confidential::Value::Null => false,
+        confidential::Value::Explicit(value) =>
+            value == secrets.value && secrets.value_bf == ValueBlindingFactor::zero(),
+        confidential::Value::Confidential(_) =>
+            (secrets.value != 0 || secrets.value_bf != ValueBlindingFactor::zero())
+                && utxo.value
+                    == confidential::Value::new_confidential_from_assetid(
+                        secp,
+                        secrets.value,
+                        secrets.asset,
+                        secrets.value_bf,
+                        secrets.asset_bf,
+                    ),
+    };
+
+    asset_opens && value_open
+}
+
+#[allow(missing_docs)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BlindingMode {
+    pub blind_asset: bool,
+    pub blind_value: bool,
+}
+
+impl Default for BlindingMode {
+    fn default() -> Self { BlindingMode { blind_asset: true, blind_value: true } }
+}
+
+impl BlindingMode {
+    pub(crate) fn get_abf<R: RngCore + CryptoRng>(self, rng: &mut R) -> AssetBlindingFactor {
+        if self.blind_asset {
+            return AssetBlindingFactor::new(rng);
+        };
+
+        AssetBlindingFactor::zero()
+    }
+
+    pub(crate) fn get_vbf<R: RngCore + CryptoRng>(self, rng: &mut R) -> ValueBlindingFactor {
+        if self.blind_value {
+            return ValueBlindingFactor::new(rng);
+        };
+
+        ValueBlindingFactor::zero()
+    }
 }
 
 impl Encodable for PartiallySignedTransaction {
@@ -1099,5 +1391,386 @@ mod tests {
         let pset_bytes = encode::serialize(&pset);
         let pset_des = encode::deserialize(&pset_bytes).unwrap();
         assert_eq!(pset, pset_des);
+    }
+
+    #[test]
+    fn blind_last_with_modes() {
+        use rand::{self, SeedableRng};
+        use secp256k1_zkp::{Generator, PedersenCommitment, SECP256K1};
+
+        type CopyField = fn(&mut Output, &Output);
+
+        #[allow(deprecated)]
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0);
+        let asset = crate::AssetId::from_byte_array([1; 32]);
+        let blinding_sk = SecretKey::from_slice(&[7; 32]).unwrap();
+        let pk = secp256k1_zkp::PublicKey::from_secret_key(SECP256K1, &blinding_sk);
+        let pk = bitcoin::PublicKey::new(pk);
+        let spk = crate::Script::from_hex_no_prefix("0014d2bcde17e7744f6377466ca1bd35d212954674c8")
+            .unwrap();
+
+        let (abf, vbf) = (AssetBlindingFactor::new(&mut rng), ValueBlindingFactor::new(&mut rng));
+        let secrets_a = TxOutSecrets::new(asset, abf, 10_000, vbf);
+        let utxo_a = TxOut {
+            asset: confidential::Asset::new_confidential(SECP256K1, asset, abf),
+            value: confidential::Value::new_confidential_from_assetid(
+                SECP256K1, 10_000, asset, vbf, abf,
+            ),
+            ..TxOut::default()
+        };
+        let abf_b = AssetBlindingFactor::new(&mut rng);
+        let utxo_b = TxOut {
+            asset: confidential::Asset::new_confidential(SECP256K1, asset, abf_b),
+            ..TxOut::new_fee(5_000, asset)
+        };
+        let secrets_b = TxOutSecrets::new(asset, abf_b, 5_000, ValueBlindingFactor::zero());
+        let mut pset = PartiallySignedTransaction::new_v2();
+        for utxo in [&utxo_a, &utxo_b] {
+            let mut input = Input::from_prevout(OutPoint::default());
+            input.witness_utxo = Some(utxo.clone());
+            pset.add_input(input);
+        }
+        let output = |amount, blinder_index: Option<u32>| Output {
+            blinder_index,
+            ..Output::new_explicit(spk.clone(), amount, asset, blinder_index.map(|_| pk))
+        };
+        pset.add_output(output(5_000, Some(1)));
+        pset.add_output(output(1_000, Some(0)));
+        pset.add_output(output(2_000, None));
+        pset.add_output(output(3_000, Some(0)));
+        pset.add_output(output(3_000, Some(0)));
+        pset.add_output(Output::new_explicit(crate::Script::new(), 500, asset, None));
+        pset.add_output(output(500, Some(0)));
+        pset.blind_non_last(&mut rng, SECP256K1, &HashMap::from([(1, secrets_b)])).unwrap();
+
+        let value_only = BlindingMode { blind_asset: false, blind_value: true };
+        let asset_only = BlindingMode { blind_asset: true, blind_value: false };
+        let explicit = BlindingMode { blind_asset: false, blind_value: false };
+        assert_eq!(BlindingMode::default(), BlindingMode { blind_asset: true, blind_value: true });
+        let inp_txout_sec = HashMap::from([(0, secrets_a)]);
+        let unchanged = pset.clone();
+        for i in [0, 2, 5] {
+            let modes = BTreeMap::from([(i, value_only)]);
+            let result = pset.blind_last_with_modes(&mut rng, SECP256K1, &inp_txout_sec, &modes);
+            assert_eq!(result, Err(PsetBlindError::UnusedMode(i)));
+            assert_eq!(pset, unchanged);
+        }
+
+        let no_value =
+            BTreeMap::from([(1, asset_only), (3, explicit), (4, asset_only), (6, explicit)]);
+        assert_eq!(
+            pset.blind_last_with_modes(&mut rng, SECP256K1, &inp_txout_sec, &no_value),
+            Err(PsetBlindError::NoValueBlindedOutput)
+        );
+        assert_eq!(pset, unchanged);
+
+        let modes = BTreeMap::from([(1, value_only), (4, asset_only), (6, explicit)]);
+        let wrong_secrets = HashMap::from([(0, TxOutSecrets { value: 9_999, ..secrets_a })]);
+        assert_eq!(
+            pset.blind_last_with_modes(&mut rng, SECP256K1, &wrong_secrets, &modes),
+            Err(PsetBlindError::InputSecretsMismatch(0))
+        );
+        assert_eq!(pset, unchanged);
+
+        let out_of_range = HashMap::from([(0, secrets_a), (7, secrets_a)]);
+        assert_eq!(
+            pset.blind_last_with_modes(&mut rng, SECP256K1, &out_of_range, &modes),
+            Err(PsetBlindError::InputSecretsOutOfRange(7))
+        );
+        assert_eq!(pset, unchanged);
+
+        let mut unaccounted = pset.clone();
+        unaccounted.global.scalars.clear();
+        unaccounted.inputs_mut()[1].witness_utxo = Some(utxo_a.clone());
+        assert_eq!(
+            unaccounted.blind_last_with_modes(&mut rng, SECP256K1, &inp_txout_sec, &modes),
+            Err(PsetBlindError::UnknownInputBlinding(1))
+        );
+
+        let mut issuing = pset.clone();
+        issuing.inputs_mut()[0].issuance_value_amount = Some(1);
+        assert_eq!(
+            issuing.blind_last_with_modes(&mut rng, SECP256K1, &inp_txout_sec, &modes),
+            Err(PsetBlindError::BlindingIssuanceUnsupported(0))
+        );
+
+        for i in [1, 3] {
+            let mut zero = pset.clone();
+            zero.outputs_mut()[i].amount = Some(0);
+            let unchanged = zero.clone();
+            assert_eq!(
+                zero.blind_last_with_modes(&mut rng, SECP256K1, &inp_txout_sec, &modes),
+                Err(PsetBlindError::ConfidentialTxOutError(
+                    i,
+                    secp256k1_zkp::Error::CannotMakeRangeProof.into(),
+                ))
+            );
+            assert_eq!(zero, unchanged);
+        }
+
+        let asset_fields: [(&str, CopyField); 3] = [
+            ("asset commitment", |o, f| o.asset_comm = f.asset_comm),
+            ("surjection proof", |o, f| {
+                o.asset_surjection_proof = f.asset_surjection_proof.clone();
+            }),
+            ("asset opening proof", |o, f| o.blind_asset_proof = f.blind_asset_proof.clone()),
+        ];
+        let value_fields: [(&str, CopyField); 4] = [
+            ("value commitment", |o, f| o.amount_comm = f.amount_comm),
+            ("rangeproof", |o, f| o.value_rangeproof = f.value_rangeproof.clone()),
+            ("ECDH public key", |o, f| o.ecdh_pubkey = f.ecdh_pubkey),
+            ("value opening proof", |o, f| o.blind_value_proof = f.blind_value_proof.clone()),
+        ];
+        for i in [1, 6] {
+            for (name, copy) in asset_fields.iter().chain(&value_fields) {
+                let mut stale = pset.clone();
+                copy(&mut stale.outputs_mut()[i], &unchanged.outputs()[0]);
+                assert_eq!(
+                    stale.blind_last_with_modes(&mut rng, SECP256K1, &inp_txout_sec, &modes),
+                    Err(PsetBlindError::MustHaveExplicitTxOut(i)),
+                    "output {}: stale {}",
+                    i,
+                    name
+                );
+            }
+        }
+
+        let blinds =
+            pset.blind_last_with_modes(&mut rng, SECP256K1, &inp_txout_sec, &modes).unwrap();
+        let tx = pset.extract_tx().unwrap();
+        tx.verify_tx_amt_proofs(SECP256K1, &[utxo_a, utxo_b]).unwrap();
+        let roundtrip = |pset: &PartiallySignedTransaction| {
+            encode::deserialize::<PartiallySignedTransaction>(&encode::serialize(pset))
+        };
+        assert_eq!(roundtrip(&pset).unwrap(), pset);
+        for i in [2, 5, 6] {
+            assert_eq!(pset.outputs()[i], unchanged.outputs()[i]);
+        }
+
+        let incomplete = |i: usize, copy: CopyField, from: &Output| {
+            let mut pset = pset.clone();
+            copy(&mut pset.outputs_mut()[i], from);
+            matches!(roundtrip(&pset), Err(encode::Error::PsetError(Error::MissingBlindingInfo)))
+        };
+        let (full, empty) = (&pset.outputs()[3], &Output::default());
+        for (fields, from) in [(&asset_fields[..], full), (&value_fields[..3], empty)] {
+            for (name, copy) in fields {
+                assert!(incomplete(1, *copy, from), "value-only output: {}", name);
+            }
+        }
+        assert!(incomplete(
+            3,
+            |o, f| {
+                o.amount_comm = f.amount_comm;
+                o.value_rangeproof = f.value_rangeproof.clone();
+            },
+            empty
+        ));
+        for (fields, from) in [(&asset_fields[..2], empty), (&value_fields[..], full)] {
+            for (name, copy) in fields {
+                assert!(incomplete(4, *copy, from), "asset-only output: {}", name);
+            }
+        }
+
+        let mut no_asset = pset.outputs()[1].clone();
+        no_asset.asset = None;
+        assert!(!no_asset.is_value_only_blinded());
+
+        let mut no_amount = pset.outputs()[4].clone();
+        no_amount.amount = None;
+        assert!(!no_amount.is_asset_only_blinded());
+
+        assert!(!blinds.contains_key(&CtLocation { input_index: 6, ty: CtLocationType::Input }));
+        for (i, mode) in [(1, value_only), (3, BlindingMode::default()), (4, asset_only)] {
+            let out = &pset.outputs()[i];
+            let (abf, vbf, ephemeral_sk) =
+                blinds[&CtLocation { input_index: i, ty: CtLocationType::Input }];
+            assert_eq!(abf == AssetBlindingFactor::zero(), !mode.blind_asset);
+            assert_eq!(vbf == ValueBlindingFactor::zero(), !mode.blind_value);
+            assert_eq!(
+                (out.is_fully_blinded(), out.is_value_only_blinded(), out.is_asset_only_blinded()),
+                (mode == BlindingMode::default(), mode == value_only, mode == asset_only)
+            );
+
+            let amount = out.amount.unwrap();
+            let gen = Generator::new_blinded(SECP256K1, asset.into_tag(), abf.into_inner());
+            assert_eq!(out.asset_comm, mode.blind_asset.then_some(gen));
+            assert_eq!(
+                out.blind_asset_proof
+                    .as_ref()
+                    .map(|p| p.blind_asset_proof_verify(SECP256K1, asset, gen)),
+                mode.blind_asset.then_some(true)
+            );
+
+            let Some(ephemeral_sk) = ephemeral_sk else {
+                assert!(!mode.blind_value);
+                assert_eq!((out.amount_comm, out.ecdh_pubkey), (None, None));
+                assert_eq!((&out.value_rangeproof, &out.blind_value_proof), (&None, &None));
+                continue;
+            };
+
+            let ecdh_pk = secp256k1_zkp::PublicKey::from_secret_key(SECP256K1, &ephemeral_sk);
+            assert_eq!(out.ecdh_pubkey, Some(bitcoin::PublicKey::new(ecdh_pk)));
+            let comm = PedersenCommitment::new(SECP256K1, amount, vbf.into_inner(), gen);
+            assert_eq!(out.amount_comm, Some(comm));
+            let blind_value_proof = out.blind_value_proof.as_ref().unwrap();
+            assert!(blind_value_proof.blind_value_proof_verify(SECP256K1, amount, gen, comm));
+
+            let rangeproof = out.value_rangeproof.as_ref().unwrap();
+            let nonce = confidential::Nonce::from(out.ecdh_pubkey.unwrap().inner);
+            let shared_secret = nonce.shared_secret(&blinding_sk).unwrap();
+            let (opening, proven) = rangeproof
+                .as_ref()
+                .unwrap()
+                .rewind(SECP256K1, comm, shared_secret, spk.as_bytes(), gen)
+                .unwrap();
+            assert_eq!(proven, 1..(1 << 52) + 1);
+            assert_eq!(
+                (opening.value, ValueBlindingFactor(opening.blinding_factor)),
+                (amount, vbf)
+            );
+            assert_eq!(opening.message[..64], RangeProofMessage::new(asset, abf).to_byte_array());
+        }
+    }
+
+    #[test]
+    fn blind_last_with_modes_explicit_inputs() {
+        use rand::{self, SeedableRng};
+        use secp256k1_zkp::SECP256K1;
+
+        #[allow(deprecated)]
+        let mut rng = rand::rngs::StdRng::seed_from_u64(0);
+        let asset = crate::AssetId::from_byte_array([1; 32]);
+        let blinding_sk = SecretKey::from_slice(&[7; 32]).unwrap();
+        let pk = secp256k1_zkp::PublicKey::from_secret_key(SECP256K1, &blinding_sk);
+        let pk = bitcoin::PublicKey::new(pk);
+        let spk = crate::Script::from_hex_no_prefix("0014d2bcde17e7744f6377466ca1bd35d212954674c8")
+            .unwrap();
+
+        let utxo = TxOut { script_pubkey: spk.clone(), ..TxOut::new_fee(1_000, asset) };
+        let abf = AssetBlindingFactor::new(&mut rng);
+        let asset_only_utxo = TxOut {
+            asset: confidential::Asset::new_confidential(SECP256K1, asset, abf),
+            ..utxo.clone()
+        };
+        let explicit_secrets = TxOutSecrets::new(
+            asset,
+            AssetBlindingFactor::zero(),
+            1_000,
+            ValueBlindingFactor::zero(),
+        );
+        let asset_only_secrets = TxOutSecrets { asset_bf: abf, ..explicit_secrets };
+        let value_only = BlindingMode { blind_asset: false, blind_value: true };
+        let asset_only = BlindingMode { blind_asset: true, blind_value: false };
+        let explicit = BlindingMode { blind_asset: false, blind_value: false };
+        let build = |utxo: &TxOut, amounts: &[u64]| {
+            let mut input = Input::from_prevout(OutPoint::default());
+            input.witness_utxo = Some(utxo.clone());
+            let mut pset = PartiallySignedTransaction::new_v2();
+            pset.add_input(input);
+            for &amount in amounts {
+                pset.add_output(Output {
+                    blinder_index: Some(0),
+                    ..Output::new_explicit(spk.clone(), amount, asset, Some(pk))
+                });
+            }
+            pset
+        };
+
+        let mut pset = build(&utxo, &[600, 400]);
+        let unchanged = pset.clone();
+        let secrets = HashMap::from([(0, explicit_secrets)]);
+        let modes = BTreeMap::from([(0, explicit), (1, explicit)]);
+        assert_eq!(
+            pset.blind_last_with_modes(&mut rng, SECP256K1, &secrets, &modes),
+            Ok(BTreeMap::new())
+        );
+        assert_eq!(pset, unchanged);
+        pset.extract_tx()
+            .unwrap()
+            .verify_tx_amt_proofs(SECP256K1, std::slice::from_ref(&utxo))
+            .unwrap();
+
+        let mut zero = build(&utxo, &[1_000, 0]);
+        zero.outputs_mut()[1].script_pubkey = crate::Script::from_hex_no_prefix("6a").unwrap();
+        let zero_modes = BTreeMap::from([(0, explicit), (1, asset_only)]);
+        zero.blind_last_with_modes(&mut rng, SECP256K1, &secrets, &zero_modes).unwrap();
+        assert!(zero.outputs()[1].is_asset_only_blinded());
+        assert_eq!(zero.outputs()[1].amount, Some(0));
+        assert_eq!(
+            encode::deserialize::<PartiallySignedTransaction>(&encode::serialize(&zero)).unwrap(),
+            zero,
+        );
+
+        let unbalanced = [
+            (&utxo, explicit_secrets, BTreeMap::from([(0, asset_only), (1, explicit)])),
+            (&asset_only_utxo, asset_only_secrets, modes),
+        ];
+        for (utxo, secrets, modes) in unbalanced {
+            let mut pset = build(utxo, &[600, 400]);
+            let unchanged = pset.clone();
+            assert_eq!(
+                pset.blind_last_with_modes(
+                    &mut rng,
+                    SECP256K1,
+                    &HashMap::from([(0, secrets)]),
+                    &modes
+                ),
+                Err(PsetBlindError::NoValueBlindedOutput)
+            );
+            assert_eq!(pset, unchanged);
+        }
+
+        let mut pset = build(&asset_only_utxo, &[300, 300, 400]);
+        let modes = BTreeMap::from([(0, value_only), (1, asset_only), (2, explicit)]);
+        let value_bf = ValueBlindingFactor::new(&mut rng);
+        for secrets in [explicit_secrets, TxOutSecrets { value_bf, ..asset_only_secrets }] {
+            assert_eq!(
+                pset.blind_last_with_modes(
+                    &mut rng,
+                    SECP256K1,
+                    &HashMap::from([(0, secrets)]),
+                    &modes
+                ),
+                Err(PsetBlindError::InputSecretsMismatch(0))
+            );
+        }
+        let secrets = HashMap::from([(0, asset_only_secrets)]);
+        let blinds = pset.blind_last_with_modes(&mut rng, SECP256K1, &secrets, &modes).unwrap();
+        assert_eq!(blinds.len(), 2);
+        let tx = pset.extract_tx().unwrap();
+        tx.verify_tx_amt_proofs(SECP256K1, &[asset_only_utxo]).unwrap();
+
+        let mut input = Input::from_prevout(OutPoint::default());
+        input.witness_utxo = Some(utxo.clone());
+        input.issuance_value_amount = Some(10);
+        input.blinded_issuance = Some(0);
+        let (issued, _) = input.issuance_ids();
+        let mut pset = PartiallySignedTransaction::new_v2();
+        pset.add_input(input);
+        pset.add_output(Output::new_explicit(spk.clone(), 10, issued, None));
+        pset.add_output(Output {
+            blinder_index: Some(0),
+            ..Output::new_explicit(spk.clone(), 1_000, asset, Some(pk))
+        });
+        let secrets = HashMap::from([(0, explicit_secrets)]);
+        let value_only = BTreeMap::from([(1, value_only)]);
+
+        let unchanged = pset.clone();
+        assert_eq!(
+            pset.blind_last_with_modes(&mut rng, SECP256K1, &secrets, &value_only),
+            Err(PsetBlindError::ZeroValueBlindingFactor(1))
+        );
+        assert_eq!(pset, unchanged);
+
+        let asset_and_value = BTreeMap::from([(1, BlindingMode::default())]);
+        let mut both = pset.clone();
+        both.outputs_mut()[0].blinding_key = Some(pk);
+        both.outputs_mut()[0].blinder_index = Some(0);
+        for (mut pset, modes) in [(pset, asset_and_value), (both, value_only)] {
+            pset.blind_last_with_modes(&mut rng, SECP256K1, &secrets, &modes).unwrap();
+            let tx = pset.extract_tx().unwrap();
+            tx.verify_tx_amt_proofs(SECP256K1, std::slice::from_ref(&utxo)).unwrap();
+        }
     }
 }

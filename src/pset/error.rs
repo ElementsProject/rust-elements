@@ -194,6 +194,7 @@ impl From<encode::Error> for Error {
 }
 
 /// Ways that blinding a Partially Signed Transaction might fail.
+#[allow(missing_docs)] // allowing missing docs because it is just a sketch
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum PsetBlindError {
     /// Input `TxOut` len mismatch
@@ -216,6 +217,12 @@ pub enum PsetBlindError {
     BlindingProofsCreationError(usize, secp256k1_zkp::Error),
     /// Blinding issuance unsupported
     BlindingIssuanceUnsupported(usize),
+    UnusedMode(usize),
+    ZeroValueBlindingFactor(usize),
+    InputSecretsOutOfRange(usize),
+    InputSecretsMismatch(usize),
+    UnknownInputBlinding(usize),
+    NoValueBlindedOutput,
 }
 
 impl fmt::Display for PsetBlindError {
@@ -260,6 +267,26 @@ impl fmt::Display for PsetBlindError {
             PsetBlindError::BlindingIssuanceUnsupported(i) => {
                 write!(f, "Blinding issuance is not supported, set blinded_issuance to 0 at input index {}", i)
             }
+            PsetBlindError::UnusedMode(i) => {
+                write!(f, "blinding mode given for output index {}, which is not blinded", i)
+            }
+            PsetBlindError::ZeroValueBlindingFactor(i) => {
+                write!(f, "value blinding factor at output index {} would be zero", i)
+            }
+            PsetBlindError::InputSecretsOutOfRange(i) => {
+                write!(f, "secrets given for input index {}, which is out of range", i)
+            }
+            PsetBlindError::InputSecretsMismatch(i) => {
+                write!(f, "secrets for input index {} do not open its witness utxo", i)
+            }
+            PsetBlindError::UnknownInputBlinding(i) => write!(
+                f,
+                "input index {} is confidential with unknown blinding factors and no scalars",
+                i
+            ),
+            PsetBlindError::NoValueBlindedOutput => f.write_str(
+                "blinding factors do not balance and no value-blinded output can absorb the difference",
+            ),
         }
     }
 }
