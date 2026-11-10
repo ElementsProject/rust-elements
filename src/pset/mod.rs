@@ -1127,4 +1127,25 @@ mod tests {
         let pset_des = encode::deserialize(&pset_bytes).unwrap();
         assert_eq!(pset, pset_des);
     }
+
+    #[test]
+    fn pset_blind_input_secrets_checks() {
+        let secp = secp256k1_zkp::Secp256k1::new();
+        let mut pset = PartiallySignedTransaction::new_v2();
+        let mut input = Input::from_prevout(OutPoint::default());
+        input.witness_utxo = Some(TxOut::default());
+        pset.add_input(input);
+        let secrets = TxOutSecrets::new(
+            crate::AssetId::default(),
+            AssetBlindingFactor::zero(),
+            0,
+            ValueBlindingFactor::zero(),
+        );
+
+        let err = pset.blind_checks(&secp, &HashMap::from([(0, secrets)])).unwrap_err();
+        assert_eq!(err, PsetBlindError::InputSecretsMismatch(0));
+
+        let err = pset.blind_checks(&secp, &HashMap::from([(1, secrets)])).unwrap_err();
+        assert_eq!(err, PsetBlindError::InputSecretsOutOfBounds(1));
+    }
 }
