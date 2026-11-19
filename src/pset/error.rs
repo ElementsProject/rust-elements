@@ -216,6 +216,10 @@ pub enum PsetBlindError {
     BlindingProofsCreationError(usize, secp256k1_zkp::Error),
     /// Blinding issuance unsupported
     BlindingIssuanceUnsupported(usize),
+    /// Input secrets given for an input index which is out of bounds
+    InputSecretsOutOfBounds(usize),
+    /// Input secrets do not open the commitments of the input's witness utxo
+    InputSecretsMismatch(usize),
 }
 
 impl fmt::Display for PsetBlindError {
@@ -259,6 +263,12 @@ impl fmt::Display for PsetBlindError {
             }
             PsetBlindError::BlindingIssuanceUnsupported(i) => {
                 write!(f, "Blinding issuance is not supported, set blinded_issuance to 0 at input index {}", i)
+            }
+            PsetBlindError::InputSecretsOutOfBounds(i) => {
+                write!(f, "Secrets given for input index {}, which is out of bounds", i)
+            }
+            PsetBlindError::InputSecretsMismatch(i) => {
+                write!(f, "Secrets for input index {} do not open its witness utxo", i)
             }
         }
     }

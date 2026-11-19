@@ -375,8 +375,9 @@ impl PartiallySignedTransaction {
 
     // Common pset blinding checks
     #[allow(clippy::type_complexity)] // FIXME we probably should actually factor out this return type
-    fn blind_checks(
+    fn blind_checks<C: secp256k1_zkp::Signing>(
         &self,
+        secp: &secp256k1_zkp::Secp256k1<C>,
         inp_txout_sec: &HashMap<usize, TxOutSecrets>,
     ) -> Result<
         (
@@ -385,11 +386,23 @@ impl PartiallySignedTransaction {
         ),
         PsetBlindError,
     > {
+        if let Some(i) = inp_txout_sec.keys().copied().filter(|&i| i >= self.inputs.len()).min() {
+            return Err(PsetBlindError::InputSecretsOutOfBounds(i));
+        }
+
         for (i, inp) in self.inputs.iter().enumerate() {
             if inp.has_issuance() && inp.blinded_issuance.unwrap_or(1) == 1 {
                 return Err(PsetBlindError::BlindingIssuanceUnsupported(i));
             }
+
+            if let Some(secrets) = inp_txout_sec.get(&i) {
+                let utxo = inp.witness_utxo.as_ref().ok_or(PsetBlindError::MissingWitnessUtxo(i))?;
+                if !secrets.opens(secp, utxo) {
+                    return Err(PsetBlindError::InputSecretsMismatch(i));
+                }
+            }
         }
+
         let mut blind_out_indices = Vec::new();
         for (i, out) in self.outputs.iter().enumerate() {
             if out.blinding_key.is_none() {
@@ -477,6 +490,8 @@ impl PartiallySignedTransaction {
     /// 1. The `blinder_index` must be set in pset output field
     /// 2. the corresponding `inp_secrets`\[`out.blinder_index`\] must be present
     ///
+    /// Each of `inp_secrets` must open the commitments of its input's `witness_utxo`.
+    ///
     /// Issuances and re-issuance inputs are not blinded.
     /// # Parameters
     ///
@@ -490,7 +505,7 @@ impl PartiallySignedTransaction {
         secp: &secp256k1_zkp::Secp256k1<C>,
         inp_txout_sec: &HashMap<usize, TxOutSecrets>,
     ) -> Result<BTreeMap<CtLocation, (AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, PsetBlindError> {
-        let (inp_secrets, outs_to_blind) = self.blind_checks(inp_txout_sec)?;
+        let (inp_secrets, outs_to_blind) = self.blind_checks(secp, inp_txout_sec)?;
 
         let mut ret = BTreeMap::new(); // return all the random values used
         if outs_to_blind.is_empty() {
@@ -582,6 +597,7 @@ impl PartiallySignedTransaction {
     /// blinding inputs and scalars from [`Global`] scalars field.
     /// `inp_secrets` and `out_secrets` must be consistent by [`Output`] `blinder_index` field
     /// For each output, the corresponding `inp_secrets`\[`out.blinder_index`\] must be present
+    /// Each of `inp_secrets` must open the commitments of its input's `witness_utxo`.
     /// # Parameters
     ///
     /// * `inp_secrets`: [`TxOutSecrets`] corresponding to owned inputs. Use [`None`] for non-owned outputs
@@ -592,7 +608,7 @@ impl PartiallySignedTransaction {
         secp: &secp256k1_zkp::Secp256k1<C>,
         inp_txout_sec: &HashMap<usize, TxOutSecrets>,
     ) -> Result<BTreeMap<CtLocation, (AssetBlindingFactor, ValueBlindingFactor, SecretKey)>, PsetBlindError> {
-        let (mut inp_secrets, mut outs_to_blind) = self.blind_checks(inp_txout_sec)?;
+        let (mut inp_secrets, mut outs_to_blind) = self.blind_checks(secp, inp_txout_sec)?;
 
         let mut ret = BTreeMap::new();
         if outs_to_blind.is_empty() {
@@ -1053,7 +1069,18 @@ mod tests {
             value: sats_in,
             asset: policy,
         };
-        let previous_output = TxOut::default();  // Does not match btc_txout_secrets
+        let previous_output = TxOut {
+            asset: confidential::Asset::new_confidential(&secp, policy, btc_txout_secrets.asset_bf),
+            value: confidential::Value::new_confidential_from_assetid(
+                &secp,
+                sats_in,
+                policy,
+                btc_txout_secrets.value_bf,
+                btc_txout_secrets.asset_bf,
+            ),
+            script_pubkey: script.clone(),
+            ..TxOut::default()
+        };
         let prevout = OutPoint::default();
         let sats_asset = 10;
         let sats_token = 1;
@@ -1099,5 +1126,26 @@ mod tests {
         let pset_bytes = encode::serialize(&pset);
         let pset_des = encode::deserialize(&pset_bytes).unwrap();
         assert_eq!(pset, pset_des);
+    }
+
+    #[test]
+    fn pset_blind_input_secrets_checks() {
+        let secp = secp256k1_zkp::Secp256k1::new();
+        let mut pset = PartiallySignedTransaction::new_v2();
+        let mut input = Input::from_prevout(OutPoint::default());
+        input.witness_utxo = Some(TxOut::default());
+        pset.add_input(input);
+        let secrets = TxOutSecrets::new(
+            crate::AssetId::default(),
+            AssetBlindingFactor::zero(),
+            0,
+            ValueBlindingFactor::zero(),
+        );
+
+        let err = pset.blind_checks(&secp, &HashMap::from([(0, secrets)])).unwrap_err();
+        assert_eq!(err, PsetBlindError::InputSecretsMismatch(0));
+
+        let err = pset.blind_checks(&secp, &HashMap::from([(1, secrets)])).unwrap_err();
+        assert_eq!(err, PsetBlindError::InputSecretsOutOfBounds(1));
     }
 }

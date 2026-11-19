@@ -388,6 +388,42 @@ impl TxOutSecrets {
     pub fn value_blind_inputs(&self) -> (u64, AssetBlindingFactor, ValueBlindingFactor) {
         (self.value, self.asset_bf, self.value_bf)
     }
+
+    /// Checks if secrets "open" the asset and value commitments of `txout`.
+    ///
+    /// An explicit asset or value is only opened by a zero blinding factor.
+    pub(crate) fn opens<C: Signing>(&self, secp: &Secp256k1<C>, txout: &TxOut) -> bool {
+        let asset_opens = match txout.asset {
+            Asset::Null => false,
+            Asset::Explicit(asset) => {
+                asset == self.asset && self.asset_bf == AssetBlindingFactor::zero()
+            }
+            Asset::Confidential(_) => {
+                txout.asset == Asset::new_confidential(secp, self.asset, self.asset_bf)
+            }
+        };
+
+        let value_opens = match txout.value {
+            Value::Null => false,
+            Value::Explicit(value) => {
+                value == self.value && self.value_bf == ValueBlindingFactor::zero()
+            }
+            Value::Confidential(_) => {
+                // Committing to a zero value with a zero blinding factor would panic
+                (self.value != 0 || self.value_bf != ValueBlindingFactor::zero())
+                    && txout.value
+                        == Value::new_confidential_from_assetid(
+                            secp,
+                            self.value,
+                            self.asset,
+                            self.value_bf,
+                            self.asset_bf,
+                        )
+            }
+        };
+
+        asset_opens && value_opens
+    }
 }
 
 /// Data structure used to provide inputs to [`SurjectionProof`] methods.
